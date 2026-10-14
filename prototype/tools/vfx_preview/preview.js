@@ -118,9 +118,20 @@ var VbFxPreview = (function () {
   }
   // 状態異常の表示などSEの無い演出（2026-10-05 利用者指定：状態を示すだけなのでSE不要）。
   var NO_SOUND = { id: '', filename: '（SEなし）', source: '', url: '', duration: 0, originalDuration: 0, reason: '状態の表示のみ', trimmed: false, start: 0, peak: 0 };
+  // LABの候補一覧に無い効果（webp をコード描画へ置き換えた効果など）は、ゲームで鳴らしている効果音を使う
+  // （2026-10-14 利用者指摘：カード名から再生するとメデューサ・サイレン等でSEが鳴らなかった）。
+  function gameSound(name) {
+    var def = VbFx.effects.find(function (d) { return d.name === name; }), code = def && def.sourceCode;
+    var key = code === 'appearance_sheet' ? 'appearance' : code;
+    var file = key && typeof Assets !== 'undefined' && Assets.sfx && Assets.sfx[key];
+    // 登場・盤面変化の音はキー名が番号ではない（js/engine/audio.js が直接ファイルで鳴らす）。
+    if (!file && ['appearance', 'board_change1', 'board_change2'].indexOf(key) >= 0) file = 'assets/sfx/' + key + '.wav';
+    if (!file) return null;
+    return { id: 'game:' + key, filename: key + '.wav（ゲームの効果音）', source: file, url: '../' + file, duration: 0, originalDuration: 0, reason: 'ゲームで鳴らしている効果音', trimmed: false, start: 0, peak: 0 };
+  }
   function selectedSound(name) {
     var ids = VbFxSeCatalog.effects[name || effect] || [], selected = choices[name || effect];
-    if (!ids.length) return NO_SOUND;
+    if (!ids.length) return gameSound(name || effect) || NO_SOUND;
     return VbFxSeCatalog.sounds[ids.indexOf(selected) >= 0 ? selected : ids[0]];
   }
   function stopAudio() {

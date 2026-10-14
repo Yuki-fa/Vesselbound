@@ -158,12 +158,17 @@ function _battleFxFollowStates() {
   // 終戦後も、残っている状態の表示は消さない（2026-10-07 利用者指定）。戦闘画面を離れる・次の戦闘の頭で片付ける。
   const ended=!['player','enemy','battle'].includes(G.phase)||G._battleVictoryPending;
   VbFx.settings.layer = _battleFxLayer;
+  // 2026-10-14 処理落ち対策：先に全部の位置・見た目を読み、その後でまとめて再生・停止する（読む→書く→読むの繰り返しでレイアウトを何度も計算させない）。
+  const reads = [];
   _battleFxStates.forEach((entry,key) => {
     const r = battleFxRect(entry.unit,entry.side), visible = r && r.element && r.element.style.visibility!=='hidden' &&
       _battleFxCardShown(r.element) &&
       !entry.unit._deathFxReady && !entry.unit._deathFxStarted && !entry.unit._deathFxDone && !entry.unit._reviveHidden &&
       ((typeof presentShownHp==='function'?presentShownHp(entry.unit):entry.unit.hp)>0 ||
         (typeof presentKeepsOnBoard==='function'&&presentKeepsOnBoard(entry.unit)));
+    reads.push({entry,key,r,visible});
+  });
+  reads.forEach(({entry,key,r,visible}) => {
     for (const state of ['shield','poison','weaken','guts','revive']) {
       const name = `${state}-state`, old = entry.loops.get(name), value = visible ? Number(entry.values[state])||0 : 0;
       // カードの要素が作り直されただけなら、止めずに付け替える（出し直すと明滅する）。

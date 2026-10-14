@@ -116,6 +116,8 @@ var VbFxDefs = (function () {
       densityExponent:n(.01,8),behind:n(-32,32),noiseMoteAngle:n(-100,100),noiseMoteVelocity:n(-100,100),noiseTime:v(-100,100),noiseSpace:v(-100,100),noiseRows:v(-100,100),noiseOffset:v(-100,100),noiseType:e(['value','fractal']),noiseSeedRow:n(-100,100,true),noiseSway:n(-32,32),radiusBehind:n(-32,32),sizeNoise:n(-32,32),
       gridRows:n(1,16,true),rowOffset:n(-32,32),rowNoiseOffset:n(-32,32),rowOffsetMode:e(['before-noise','after-noise']),radialNoise:n(-32,32),radialFloorPx:n(0,32),angularExponent:n(0,8),spacing:n(.001,32),stepsMin:n(1,512,true),stepsMax:n(1,512,true),staggerRows:{form:'boolean'},minActiveRadius:n(0,32),lagRate:n(-100,100),lagRange:v(-32,32),
       pointSpace:e(['unit','bounds']),spreadDistance:n(-32,32),
+      // 2026-10-14: fan-flow の向き・扇の半角・届く長さを層で決める（回転する入れ物の中で帯として流すため）。未指定なら従来どおり。
+      fanDirection:n(-100,100),fanHalfArc:n(0,3.2),reachLength:n(0,32),reachSpace:e(['unit','width','height','diagonal','max','min','reach']),
       lifetime:v(.0001,32),spreadScale:n(0,4),flowPower:n(.01,8),flowReachScale:n(0,4),frontProgress:n(0,1),frontPad:n(0,32),noisePhase:v(-100,100),noiseIndex:v(-100,100),swayPhase:n(-32,32),sizeMoteScale:n(-32,32),flickerBias:n(-8,8),flickerNoise:n(-8,8),flickerIndex:n(-100,100),flickerRate:n(-100,100),
       birth:n(0,32),birthSpread:n(0,32),birthMote:e(['delay','size']),hop:n(-32,32),hopScale:n(-32,32),ageAlpha:{form:'curve',min:0,max:8},
       axialDistance:v(-32,32),axialSize:v(-32,32),axialDivisor:n(.001,2000),angleScale:n(-32,32),angleOffset:n(-100,100),angleSpace:e(['world','trajectory']),sizeScale:n(0,32),phaseAlpha:{form:'curve',min:0,max:8},orientationPhase:n(-100,100),

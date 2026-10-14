@@ -17,6 +17,8 @@
 // 2026-10-13: r5/r4。炎の明部と形を保持し、t=0.5の外側2層のalphaだけ0.90倍。光量ピーク130.73%を抑える。時計は保持。
 // 2026-10-13: flame-sweepだけを修正。固定の縦帯を移動する橙〜赤の炎塊へ替え、通過跡に灰褐色の煙を残す。原点・尺・命中は保持。
 // 2026-10-13: flame/r1拡大レビュー。炎の横移動・芯を保持し、薄い横刃の橙赤の面を厚くして上へ巻く房を追加。尺・命中・原点は保持。
+// 2026-10-14 品質向上（Claude直接）：flame-sweep を作り直し
+// 2026-10-14 処理落ち対策：ぼかしフィルター（softness）を外す（戦闘で頻繁に出るため。見た目はほぼ同じ）
 VbFxDefs.register({
   "schemaVersion": 2,
   "effects": [
@@ -24,7 +26,7 @@ VbFxDefs.register({
       "name": "hit-burst",
       "label": "被弾 · hit",
       "sourceCode": "hit",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#c28a53",
       "light": "#ffe5b0",
       "playback": {
@@ -38,8 +40,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -77,11 +79,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.78,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -120,8 +122,7 @@ VbFxDefs.register({
           "radius": 0.5,
           "light": "#a77a54",
           "shadow": "#694634",
-          "blend": "normal",
-          "softness": 0.018
+          "blend": "normal"
         },
         {
           "type": "shape",
@@ -158,11 +159,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.75,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -218,8 +219,7 @@ VbFxDefs.register({
           "radius": 0.53,
           "light": "#ffdf92",
           "shadow": "#987946",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "glow",
@@ -382,7 +382,7 @@ VbFxDefs.register({
       "name": "attack-recoil",
       "label": "反攻の輪 · C002",
       "sourceCode": "C002",
-      "ms": 1050.0,
+      "ms": 1050,
       "color": "#d75928",
       "light": "#f3b16a",
       "playback": {
@@ -396,8 +396,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -411,7 +411,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
@@ -431,11 +431,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.93,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -590,7 +590,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.4,
@@ -602,11 +602,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.9,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -624,7 +624,7 @@ VbFxDefs.register({
       "name": "arachne-ring",
       "label": "橙の輪 · C008",
       "sourceCode": "C008",
-      "ms": 1050.0,
+      "ms": 1050,
       "color": "#df7851",
       "light": "#ffd8a0",
       "playback": {
@@ -638,8 +638,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -659,7 +659,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
@@ -727,8 +727,7 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "blend": "normal",
-          "softness": 0.022
+          "blend": "normal"
         },
         {
           "type": "ring",
@@ -747,7 +746,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
@@ -815,8 +814,7 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "blend": "normal",
-          "softness": 0.016
+          "blend": "normal"
         },
         {
           "type": "ring",
@@ -903,8 +901,7 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "particles",
@@ -969,7 +966,7 @@ VbFxDefs.register({
       "name": "siren-wave",
       "label": "サイレンの波 · C011",
       "sourceCode": "C011",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#b6b57f",
       "light": "#f3ead0",
       "playback": {
@@ -983,8 +980,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -1017,7 +1014,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -1188,7 +1185,7 @@ VbFxDefs.register({
       "name": "medusa-gaze",
       "label": "魔眼の放電 · C017",
       "sourceCode": "C017",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#b67ca4",
       "light": "#f6edf4",
       "playback": {
@@ -1202,8 +1199,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -1486,7 +1483,7 @@ VbFxDefs.register({
       "name": "centaur-missile",
       "label": "ケンタウロスの弾 · C019_1",
       "sourceCode": "C019_1",
-      "ms": 672.0,
+      "ms": 672,
       "color": "#98c948",
       "light": "#d8e8ac",
       "playback": {
@@ -1500,8 +1497,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 672.0,
-        "cueMs": 672.0
+        "atMs": 672,
+        "cueMs": 672
       },
       "layers": [
         {
@@ -1517,7 +1514,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -1549,7 +1546,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -1593,7 +1590,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -1658,7 +1655,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -1700,7 +1697,7 @@ VbFxDefs.register({
       "name": "centaur-impact",
       "label": "ケンタウロス着弾 · C019_2",
       "sourceCode": "C019_2",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#7db529",
       "light": "#ddf2a5",
       "playback": {
@@ -1714,8 +1711,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -1834,7 +1831,7 @@ VbFxDefs.register({
             [
               1,
               "#35781e",
-              0.0
+              0
             ]
           ],
           "offset": [
@@ -1917,7 +1914,6 @@ VbFxDefs.register({
             1.1,
             0.52
           ],
-          "softness": 0.018,
           "offset": [
             0,
             -0.2
@@ -2247,9 +2243,9 @@ VbFxDefs.register({
       "name": "flame-sweep",
       "label": "炎の薙ぎ払い · C043",
       "sourceCode": "C043",
-      "ms": 1050.0,
-      "color": "#f05a16",
-      "light": "#fff1a8",
+      "ms": 1050,
+      "color": "#ff6a12",
+      "light": "#fff3b0",
       "playback": {
         "maxMs": 30000,
         "speedMin": 0.01,
@@ -2261,889 +2257,46 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 105.0,
-        "cueMs": 105.0
+        "atMs": 105,
+        "cueMs": 105
       },
       "layers": [
         {
-          "type": "shape",
+          "type": "particles",
           "anchor": "source",
           "basis": "unit",
+          "seedOffset": 3,
           "intrinsicAlpha": true,
-          "shape": "billow-cloud",
-          "color": "#4b403c",
-          "light": "#7d6150",
-          "shadow": "#261c1b",
-          "blend": "normal",
-          "copies": 3,
-          "copyDelay": 0.055,
-          "copyAlpha": 0.7,
-          "layout": "line",
-          "spread": [
-            0.022,
-            0.01
-          ],
-          "aspect": [
-            1.1,
-            0.86
-          ],
-          "softness": 0.006,
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  0
-                ],
-                [
-                  0.25,
-                  0.1
-                ],
-                [
-                  0.375,
-                  0.19
-                ],
-                [
-                  0.5,
-                  0.25
-                ],
-                [
-                  0.625,
-                  0.19
-                ],
-                [
-                  0.75,
-                  0.14
-                ],
-                [
-                  0.875,
-                  0.045
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.012
-                ],
-                [
-                  0.125,
-                  0.025
-                ],
-                [
-                  0.25,
-                  0.046
-                ],
-                [
-                  0.375,
-                  0.055
-                ],
-                [
-                  0.625,
-                  0.073
-                ],
-                [
-                  1,
-                  0.09
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  1.0
-                ],
-                [
-                  1,
-                  1.65
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftX": {
-              "keys": [
-                [
-                  0,
-                  0.04
-                ],
-                [
-                  0.125,
-                  0.13
-                ],
-                [
-                  0.25,
-                  0.2
-                ],
-                [
-                  0.375,
-                  0.235
-                ],
-                [
-                  0.5,
-                  0.255
-                ],
-                [
-                  0.625,
-                  0.28
-                ],
-                [
-                  0.75,
-                  0.3
-                ],
-                [
-                  0.875,
-                  0.32
-                ],
-                [
-                  1,
-                  0.32
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftY": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  -0.025
-                ],
-                [
-                  0.25,
-                  -0.04
-                ],
-                [
-                  0.375,
-                  -0.04
-                ],
-                [
-                  0.5,
-                  -0.045
-                ],
-                [
-                  0.625,
-                  -0.038
-                ],
-                [
-                  0.75,
-                  -0.035
-                ],
-                [
-                  0.875,
-                  -0.03
-                ],
-                [
-                  1,
-                  -0.025
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          }
-        },
-        {
-          "type": "shape",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#59423a",
-          "light": "#927055",
-          "shadow": "#30231f",
-          "shape": "billow-cloud",
-          "blend": "normal",
-          "copies": 1,
-          "layout": "line",
-          "spread": [
-            0.02,
-            0.018
-          ],
-          "offset": [
-            -0.024,
-            -0.012
-          ],
-          "aspect": [
-            1.14,
-            1.04
-          ],
-          "softness": 0.006,
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  0.02
-                ],
-                [
-                  0.25,
-                  0.12
-                ],
-                [
-                  0.375,
-                  0.21
-                ],
-                [
-                  0.5,
-                  0.27
-                ],
-                [
-                  0.625,
-                  0.22
-                ],
-                [
-                  0.75,
-                  0.16
-                ],
-                [
-                  0.875,
-                  0.08
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.01056
-                ],
-                [
-                  0.125,
-                  0.0462
-                ],
-                [
-                  0.25,
-                  0.08976
-                ],
-                [
-                  0.375,
-                  0.1056
-                ],
-                [
-                  0.5,
-                  0.1188
-                ],
-                [
-                  0.625,
-                  0.1056
-                ],
-                [
-                  0.75,
-                  0.0792
-                ],
-                [
-                  0.875,
-                  0.04488
-                ],
-                [
-                  1,
-                  0.00924
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  1.08
-                ],
-                [
-                  0.25,
-                  1.2
-                ],
-                [
-                  0.5,
-                  1.4
-                ],
-                [
-                  0.75,
-                  1.68
-                ],
-                [
-                  1,
-                  1.9
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftX": {
-              "keys": [
-                [
-                  0,
-                  0.045
-                ],
-                [
-                  0.1,
-                  0.1
-                ],
-                [
-                  0.125,
-                  0.15
-                ],
-                [
-                  0.25,
-                  0.24
-                ],
-                [
-                  0.375,
-                  0.285
-                ],
-                [
-                  0.5,
-                  0.315
-                ],
-                [
-                  0.625,
-                  0.325
-                ],
-                [
-                  0.75,
-                  0.34
-                ],
-                [
-                  0.875,
-                  0.38
-                ],
-                [
-                  1,
-                  0.4
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftY": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  -0.006
-                ],
-                [
-                  0.25,
-                  -0.01
-                ],
-                [
-                  0.375,
-                  -0.01
-                ],
-                [
-                  0.5,
-                  0.015
-                ],
-                [
-                  0.625,
-                  0.028
-                ],
-                [
-                  0.75,
-                  0.03
-                ],
-                [
-                  0.875,
-                  0.024
-                ],
-                [
-                  1,
-                  0.02
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          }
-        },
-        {
-          "type": "shape",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#e53c0c",
-          "light": "#ff961c",
-          "shadow": "#a5230a",
-          "shape": "flame-tongue",
-          "blend": "normal",
-          "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.024,
-            0.015
-          ],
-          "offset": [
-            -0.025,
-            -0.018
-          ],
-          "aspect": [
-            1.04,
-            1.28
-          ],
-          "softness": 0.0025,
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  0.055
-                ],
-                [
-                  0.25,
-                  0.36
-                ],
-                [
-                  0.375,
-                  0.55
-                ],
-                [
-                  0.5,
-                  0.65
-                ],
-                [
-                  0.625,
-                  0.6
-                ],
-                [
-                  0.75,
-                  0.3
-                ],
-                [
-                  0.875,
-                  0.08
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.00624
-                ],
-                [
-                  0.125,
-                  0.0273
-                ],
-                [
-                  0.25,
-                  0.05304
-                ],
-                [
-                  0.375,
-                  0.0624
-                ],
-                [
-                  0.5,
-                  0.0702
-                ],
-                [
-                  0.625,
-                  0.0624
-                ],
-                [
-                  0.75,
-                  0.0468
-                ],
-                [
-                  0.875,
-                  0.02652
-                ],
-                [
-                  1,
-                  0.00546
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  0.72
-                ],
-                [
-                  0.25,
-                  0.88
-                ],
-                [
-                  0.5,
-                  1.12
-                ],
-                [
-                  0.75,
-                  1.5
-                ],
-                [
-                  1,
-                  1.82
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftX": {
-              "keys": [
-                [
-                  0,
-                  0.045
-                ],
-                [
-                  0.1,
-                  0.1
-                ],
-                [
-                  0.125,
-                  0.15
-                ],
-                [
-                  0.25,
-                  0.24
-                ],
-                [
-                  0.375,
-                  0.285
-                ],
-                [
-                  0.5,
-                  0.315
-                ],
-                [
-                  0.625,
-                  0.325
-                ],
-                [
-                  0.75,
-                  0.34
-                ],
-                [
-                  0.875,
-                  0.38
-                ],
-                [
-                  1,
-                  0.4
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftY": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  -0.006
-                ],
-                [
-                  0.25,
-                  -0.01
-                ],
-                [
-                  0.375,
-                  -0.01
-                ],
-                [
-                  0.5,
-                  0.015
-                ],
-                [
-                  0.625,
-                  0.028
-                ],
-                [
-                  0.75,
-                  0.03
-                ],
-                [
-                  0.875,
-                  0.024
-                ],
-                [
-                  1,
-                  0.02
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          }
-        },
-        {
-          "type": "shape",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#f05a16",
-          "light": "#ffb741",
-          "shadow": "#9d250a",
-          "shape": "flame-tongue",
-          "blend": "normal",
-          "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.02,
-            0.018
-          ],
-          "offset": [
-            0,
+          "motion": "fan-flow",
+          "countScale": "round",
+          "fanDirection": 0,
+          "reachLength": 0.5,
+          "reachSpace": "width",
+          "angularExponent": 0.6,
+          "flowPower": 0.85,
+          "frontPad": 0.01,
+          "noiseType": "fractal",
+          "noisePhase": [
+            4,
             0
           ],
-          "aspect": [
-            1.1,
-            1.4
+          "noiseIndex": [
+            0.37,
+            0
           ],
-          "softness": 0.0025,
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  0.08
-                ],
-                [
-                  0.25,
-                  0.56
-                ],
-                [
-                  0.375,
-                  0.74
-                ],
-                [
-                  0.5,
-                  0.86
-                ],
-                [
-                  0.625,
-                  0.76
-                ],
-                [
-                  0.75,
-                  0.4
-                ],
-                [
-                  0.875,
-                  0.12
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.008
-                ],
-                [
-                  0.125,
-                  0.035
-                ],
-                [
-                  0.25,
-                  0.068
-                ],
-                [
-                  0.375,
-                  0.08
-                ],
-                [
-                  0.5,
-                  0.09
-                ],
-                [
-                  0.625,
-                  0.08
-                ],
-                [
-                  0.75,
-                  0.06
-                ],
-                [
-                  0.875,
-                  0.034
-                ],
-                [
-                  1,
-                  0.007
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  1.08
-                ],
-                [
-                  0.25,
-                  1.2
-                ],
-                [
-                  0.5,
-                  1.4
-                ],
-                [
-                  0.75,
-                  1.68
-                ],
-                [
-                  1,
-                  1.9
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftX": {
-              "keys": [
-                [
-                  0,
-                  0.045
-                ],
-                [
-                  0.1,
-                  0.1
-                ],
-                [
-                  0.125,
-                  0.15
-                ],
-                [
-                  0.25,
-                  0.24
-                ],
-                [
-                  0.375,
-                  0.285
-                ],
-                [
-                  0.5,
-                  0.315
-                ],
-                [
-                  0.625,
-                  0.325
-                ],
-                [
-                  0.75,
-                  0.34
-                ],
-                [
-                  0.875,
-                  0.38
-                ],
-                [
-                  1,
-                  0.4
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftY": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  -0.006
-                ],
-                [
-                  0.25,
-                  -0.01
-                ],
-                [
-                  0.375,
-                  -0.01
-                ],
-                [
-                  0.5,
-                  0.015
-                ],
-                [
-                  0.625,
-                  0.028
-                ],
-                [
-                  0.75,
-                  0.03
-                ],
-                [
-                  0.875,
-                  0.024
-                ],
-                [
-                  1,
-                  0.02
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          }
-        },
-        {
-          "type": "shape",
-          "anchor": "source",
-          "basis": "unit",
-          "intrinsicAlpha": true,
-          "color": "#e85812",
-          "light": "#ffb842",
-          "shadow": "#8b2911",
-          "shape": "flame-tongue",
-          "blend": "normal",
-          "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.04,
-            0.024
-          ],
-          "offset": [
+          "noiseTime": [
             0,
-            -0.008
+            3
           ],
-          "aspect": [
-            1.12,
-            1.1
+          "flickerBias": 0.75,
+          "flickerNoise": 0.25,
+          "flickerIndex": 1.7,
+          "flickerRate": 11,
+          "time": [
+            0,
+            1
           ],
-          "softness": 0.004,
+          "batch": 0,
           "curves": {
             "alpha": {
               "keys": [
@@ -3152,219 +2305,123 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.125,
-                  0.01
+                  0.06,
+                  1
                 ],
                 [
-                  0.25,
-                  0.2
-                ],
-                [
-                  0.375,
-                  0.38
-                ],
-                [
-                  0.5,
-                  0.5
-                ],
-                [
-                  0.625,
-                  0.46
-                ],
-                [
-                  0.75,
-                  0.28
-                ],
-                [
-                  0.875,
-                  0.075
+                  0.72,
+                  1
                 ],
                 [
                   1,
                   0
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "smooth",
+              "domain": "effect"
             },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.004
-                ],
-                [
-                  0.125,
-                  0.018
-                ],
-                [
-                  0.25,
-                  0.044
-                ],
-                [
-                  0.375,
-                  0.068
-                ],
-                [
-                  0.5,
-                  0.083
-                ],
-                [
-                  0.625,
-                  0.084
-                ],
-                [
-                  0.75,
-                  0.074
-                ],
-                [
-                  0.875,
-                  0.05
-                ],
-                [
-                  1,
-                  0.012
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  0.1
-                ],
-                [
-                  0.25,
-                  0.24
-                ],
-                [
-                  0.5,
-                  0.16
-                ],
-                [
-                  0.75,
-                  0.44
-                ],
-                [
-                  1,
-                  0.62
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftX": {
-              "keys": [
-                [
-                  0,
-                  0.045
-                ],
-                [
-                  0.1,
-                  0.1
-                ],
-                [
-                  0.125,
-                  0.15
-                ],
-                [
-                  0.25,
-                  0.285
-                ],
-                [
-                  0.375,
-                  0.375
-                ],
-                [
-                  0.5,
-                  0.455
-                ],
-                [
-                  0.625,
-                  0.495
-                ],
-                [
-                  0.75,
-                  0.52
-                ],
-                [
-                  0.875,
-                  0.55
-                ],
-                [
-                  1,
-                  0.57
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftY": {
+            "frontProgress": {
               "keys": [
                 [
                   0,
                   0
                 ],
                 [
-                  0.125,
-                  -0.006
-                ],
-                [
-                  0.25,
-                  -0.01
-                ],
-                [
-                  0.375,
-                  -0.016
-                ],
-                [
-                  0.5,
-                  -0.005
-                ],
-                [
-                  0.625,
-                  0.008
-                ],
-                [
-                  0.75,
-                  0.016
-                ],
-                [
-                  0.875,
-                  0.016
+                  0.22,
+                  1
                 ],
                 [
                   1,
-                  0.012
+                  1
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "linear",
+              "segments": [
+                "smooth",
+                "linear"
+              ],
+              "domain": "effect"
             }
-          }
+          },
+          "count": 26,
+          "moteOffset": 400,
+          "lifetime": [
+            0.34,
+            0.22
+          ],
+          "fanHalfArc": 0.11,
+          "sway": 0.012,
+          "swayPhase": 0.02,
+          "size": 0.012,
+          "sizePhase": 0.05,
+          "radiusMultiplier": 1,
+          "sizeMoteScale": 0.5,
+          "materials": [
+            {
+              "texture": "smoke",
+              "color": "#2b1a12",
+              "radiusScale": 1.3,
+              "alphaCurve": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.35,
+                    0.42
+                  ],
+                  [
+                    1,
+                    0
+                  ]
+                ],
+                "interpolation": "linear"
+              },
+              "alphaDomain": "phase",
+              "aspect": [
+                1,
+                1.1
+              ]
+            }
+          ]
         },
         {
-          "type": "shape",
+          "type": "particles",
           "anchor": "source",
           "basis": "unit",
+          "seedOffset": 0,
           "intrinsicAlpha": true,
-          "color": "#ffb027",
-          "light": "#fff1a8",
-          "shadow": "#f56b0f",
-          "shape": "flame-tongue",
-          "blend": "normal",
-          "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.015,
-            0.013
+          "motion": "fan-flow",
+          "countScale": "round",
+          "fanDirection": 0,
+          "reachLength": 0.5,
+          "reachSpace": "width",
+          "angularExponent": 0.6,
+          "flowPower": 0.85,
+          "frontPad": 0.01,
+          "noiseType": "fractal",
+          "noisePhase": [
+            4,
+            0
           ],
-          "offset": [
-            0.004,
-            0.003
+          "noiseIndex": [
+            0.37,
+            0
           ],
-          "aspect": [
-            1.35,
-            0.36
+          "noiseTime": [
+            0,
+            3
           ],
-          "softness": 0.0008,
+          "flickerBias": 0.75,
+          "flickerNoise": 0.25,
+          "flickerIndex": 1.7,
+          "flickerRate": 11,
+          "time": [
+            0,
+            1
+          ],
+          "batch": 1,
           "curves": {
             "alpha": {
               "keys": [
@@ -3373,32 +2430,432 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.125,
-                  0.055
+                  0.06,
+                  1
                 ],
                 [
-                  0.25,
-                  0.44
+                  0.72,
+                  1
                 ],
                 [
-                  0.375,
-                  0.59
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth",
+              "domain": "effect"
+            },
+            "frontProgress": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.22,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "linear",
+              "segments": [
+                "smooth",
+                "linear"
+              ],
+              "domain": "effect"
+            }
+          },
+          "count": 110,
+          "lifetime": [
+            0.22,
+            0.14
+          ],
+          "fanHalfArc": 0.07,
+          "sway": 0.006,
+          "swayPhase": 0.02,
+          "size": 0.016,
+          "sizePhase": 0.048,
+          "radiusMultiplier": 1,
+          "sizeMoteScale": 0.6,
+          "materials": [
+            {
+              "texture": "plasma",
+              "palette": [
+                [
+                  0,
+                  "#fff6c8"
+                ],
+                [
+                  0.14,
+                  "#ffd15a"
+                ],
+                [
+                  0.38,
+                  "#ff8a1e"
+                ],
+                [
+                  0.7,
+                  "#e0400c"
+                ]
+              ],
+              "colorInterpolation": "step",
+              "radiusCurve": {
+                "keys": [
+                  [
+                    0,
+                    0.8
+                  ],
+                  [
+                    1,
+                    1.15
+                  ]
+                ],
+                "interpolation": "linear"
+              },
+              "alphaCurve": {
+                "keys": [
+                  [
+                    0,
+                    0.95
+                  ],
+                  [
+                    0.6,
+                    0.6
+                  ],
+                  [
+                    1,
+                    0
+                  ]
+                ],
+                "interpolation": "power-out",
+                "exponent": 1.2
+              },
+              "alphaDomain": "phase",
+              "rotationScale": 1.4
+            },
+            {
+              "texture": "plasma-soft",
+              "color": "#fff8d0",
+              "radiusScale": 0.5,
+              "phaseRange": [
+                0,
+                0.4
+              ],
+              "alphaCurve": {
+                "keys": [
+                  [
+                    0,
+                    0.7
+                  ],
+                  [
+                    0.4,
+                    0
+                  ],
+                  [
+                    1,
+                    0
+                  ]
+                ],
+                "interpolation": "linear"
+              },
+              "alphaDomain": "phase",
+              "rotationScale": -1,
+              "variantOffset": 1
+            }
+          ]
+        },
+        {
+          "type": "particles",
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 11,
+          "intrinsicAlpha": true,
+          "motion": "fan-flow",
+          "countScale": "round",
+          "fanDirection": 0,
+          "reachLength": 0.5,
+          "reachSpace": "width",
+          "angularExponent": 0.3,
+          "flowPower": 1,
+          "frontPad": 0.01,
+          "noiseType": "fractal",
+          "noisePhase": [
+            4,
+            0
+          ],
+          "noiseIndex": [
+            0.37,
+            0
+          ],
+          "noiseTime": [
+            0,
+            3
+          ],
+          "flickerBias": 0.75,
+          "flickerNoise": 0.25,
+          "flickerIndex": 1.7,
+          "flickerRate": 11,
+          "time": [
+            0,
+            1
+          ],
+          "batch": 2,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.06,
+                  1
+                ],
+                [
+                  0.72,
+                  1
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth",
+              "domain": "effect"
+            },
+            "frontProgress": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.22,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "linear",
+              "segments": [
+                "smooth",
+                "linear"
+              ],
+              "domain": "effect"
+            }
+          },
+          "count": 36,
+          "moteOffset": 1500,
+          "lifetime": [
+            0.16,
+            0.08
+          ],
+          "fanHalfArc": 0.025,
+          "sway": 0.003,
+          "swayPhase": 0.006,
+          "size": 0.01,
+          "sizePhase": 0.016,
+          "radiusMultiplier": 1,
+          "sizeMoteScale": 0.4,
+          "materials": [
+            {
+              "texture": "plasma-soft",
+              "palette": [
+                [
+                  0,
+                  "#ffffff"
+                ],
+                [
+                  0.3,
+                  "#fff2a8"
+                ],
+                [
+                  0.7,
+                  "#ffc04a"
+                ]
+              ],
+              "colorInterpolation": "step",
+              "alphaCurve": {
+                "keys": [
+                  [
+                    0,
+                    0.9
+                  ],
+                  [
+                    0.7,
+                    0.55
+                  ],
+                  [
+                    1,
+                    0
+                  ]
+                ],
+                "interpolation": "linear"
+              },
+              "alphaDomain": "phase",
+              "rotationScale": 0.8
+            }
+          ]
+        },
+        {
+          "type": "particles",
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 7,
+          "intrinsicAlpha": true,
+          "motion": "fan-flow",
+          "countScale": "round",
+          "fanDirection": 0,
+          "reachLength": 0.5,
+          "reachSpace": "width",
+          "angularExponent": 0,
+          "flowPower": 0.75,
+          "frontPad": 0.01,
+          "noiseType": "fractal",
+          "noisePhase": [
+            4,
+            0
+          ],
+          "noiseIndex": [
+            0.37,
+            0
+          ],
+          "noiseTime": [
+            0,
+            3
+          ],
+          "flickerBias": 0.75,
+          "flickerNoise": 0.25,
+          "flickerIndex": 1.7,
+          "flickerRate": 11,
+          "time": [
+            0,
+            1
+          ],
+          "batch": 2,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.06,
+                  1
+                ],
+                [
+                  0.72,
+                  1
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth",
+              "domain": "effect"
+            },
+            "frontProgress": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.22,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "linear",
+              "segments": [
+                "smooth",
+                "linear"
+              ],
+              "domain": "effect"
+            }
+          },
+          "count": 24,
+          "moteOffset": 900,
+          "lifetime": [
+            0.26,
+            0.16
+          ],
+          "fanHalfArc": 0.16,
+          "sway": 0.01,
+          "swayPhase": 0.03,
+          "size": 0.0022,
+          "sizePhase": 0,
+          "sizeSize": 0.002,
+          "radiusMultiplier": 1,
+          "sizeMoteScale": 0,
+          "materials": [
+            {
+              "texture": "glow",
+              "palette": [
+                [
+                  0,
+                  "#fff1b0"
                 ],
                 [
                   0.5,
-                  0.76
+                  "#ff9a2a"
+                ]
+              ],
+              "colorInterpolation": "step",
+              "alphaCurve": {
+                "keys": [
+                  [
+                    0,
+                    0.95
+                  ],
+                  [
+                    1,
+                    0
+                  ]
+                ],
+                "interpolation": "linear"
+              },
+              "alphaDomain": "phase",
+              "rotationScale": 0,
+              "variant": 0
+            }
+          ]
+        },
+        {
+          "type": "glow",
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "color": "#ffb23a",
+          "texture": "plasma",
+          "variant": 1,
+          "blend": "add",
+          "batch": 3,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
                 ],
                 [
-                  0.625,
-                  0.69
+                  0.06,
+                  0.85
                 ],
                 [
-                  0.75,
-                  0.34
-                ],
-                [
-                  0.875,
-                  0.05
+                  0.7,
+                  0.7
                 ],
                 [
                   1,
@@ -3411,153 +2868,31 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0048
-                ],
-                [
-                  0.125,
-                  0.021
-                ],
-                [
-                  0.25,
-                  0.0408
-                ],
-                [
-                  0.375,
-                  0.048
-                ],
-                [
-                  0.5,
-                  0.054
-                ],
-                [
-                  0.625,
-                  0.048
-                ],
-                [
-                  0.75,
-                  0.036
-                ],
-                [
-                  0.875,
-                  0.0204
-                ],
-                [
-                  1,
-                  0.0042
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  1.08
-                ],
-                [
-                  0.25,
-                  1.2
-                ],
-                [
-                  0.5,
-                  1.4
-                ],
-                [
-                  0.75,
-                  1.68
-                ],
-                [
-                  1,
-                  1.9
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftX": {
-              "keys": [
-                [
-                  0,
-                  0.045
+                  0.016
                 ],
                 [
                   0.1,
-                  0.1
-                ],
-                [
-                  0.125,
-                  0.15
-                ],
-                [
-                  0.25,
-                  0.24
-                ],
-                [
-                  0.375,
-                  0.285
-                ],
-                [
-                  0.5,
-                  0.315
-                ],
-                [
-                  0.625,
-                  0.325
-                ],
-                [
-                  0.75,
-                  0.34
-                ],
-                [
-                  0.875,
-                  0.38
+                  0.045
                 ],
                 [
                   1,
-                  0.4
+                  0.036
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "ease-out"
             },
-            "shiftY": {
+            "rotation": {
               "keys": [
                 [
                   0,
                   0
                 ],
                 [
-                  0.125,
-                  -0.006
-                ],
-                [
-                  0.25,
-                  -0.01
-                ],
-                [
-                  0.375,
-                  -0.01
-                ],
-                [
-                  0.5,
-                  0.015
-                ],
-                [
-                  0.625,
-                  0.028
-                ],
-                [
-                  0.75,
-                  0.03
-                ],
-                [
-                  0.875,
-                  0.024
-                ],
-                [
                   1,
-                  0.02
+                  3
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "linear"
             }
           }
         },
@@ -3565,42 +2900,12 @@ VbFxDefs.register({
           "type": "glow",
           "anchor": "source",
           "basis": "unit",
+          "seedOffset": 0,
           "intrinsicAlpha": true,
-          "color": "#ffd564",
-          "radius": 0.02,
+          "color": "#fff4c0",
+          "texture": "glow",
           "blend": "add",
-          "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.018,
-            0.012
-          ],
-          "aspect": [
-            1.1,
-            0.8
-          ],
-          "stops": [
-            [
-              0,
-              "#fff5b5",
-              0.9
-            ],
-            [
-              0.2,
-              "#ffd564",
-              0.8
-            ],
-            [
-              0.6,
-              "#ff8c22",
-              0.32
-            ],
-            [
-              1,
-              "#ff5b0c",
-              0
-            ]
-          ],
+          "batch": 3,
           "curves": {
             "alpha": {
               "keys": [
@@ -3609,150 +2914,36 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.125,
-                  0.08
+                  0.06,
+                  0.9
                 ],
                 [
-                  0.25,
-                  0.2
+                  0.7,
+                  0.6
                 ],
                 [
-                  0.375,
-                  0.3
-                ],
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
                 [
-                  0.5,
-                  0.32
-                ],
-                [
-                  0.625,
-                  0.28
-                ],
-                [
-                  0.75,
-                  0.1
-                ],
-                [
-                  0.875,
+                  0,
                   0.01
                 ],
                 [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  1.08
-                ],
-                [
-                  0.25,
-                  1.2
-                ],
-                [
-                  0.5,
-                  1.4
-                ],
-                [
-                  0.75,
-                  1.68
-                ],
-                [
-                  1,
-                  1.9
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftX": {
-              "keys": [
-                [
-                  0,
-                  0.045
-                ],
-                [
                   0.1,
-                  0.1
-                ],
-                [
-                  0.125,
-                  0.15
-                ],
-                [
-                  0.25,
-                  0.24
-                ],
-                [
-                  0.375,
-                  0.285
-                ],
-                [
-                  0.5,
-                  0.315
-                ],
-                [
-                  0.625,
-                  0.325
-                ],
-                [
-                  0.75,
-                  0.34
-                ],
-                [
-                  0.875,
-                  0.38
-                ],
-                [
-                  1,
-                  0.4
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "shiftY": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.125,
-                  -0.006
-                ],
-                [
-                  0.25,
-                  -0.01
-                ],
-                [
-                  0.375,
-                  -0.01
-                ],
-                [
-                  0.5,
-                  0.015
-                ],
-                [
-                  0.625,
-                  0.028
-                ],
-                [
-                  0.75,
-                  0.03
-                ],
-                [
-                  0.875,
-                  0.024
+                  0.026
                 ],
                 [
                   1,
                   0.02
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "ease-out"
             }
           }
         }
@@ -3762,7 +2953,7 @@ VbFxDefs.register({
       "name": "steal-mark",
       "label": "奪うの印 · C090",
       "sourceCode": "C090",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#b14370",
       "light": "#edabc1",
       "playback": {
@@ -3791,11 +2982,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -3823,7 +3014,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -3883,8 +3074,7 @@ VbFxDefs.register({
           "aspect": [
             1.03,
             1.32
-          ],
-          "softness": 0.03
+          ]
         },
         {
           "type": "glow",
@@ -3897,11 +3087,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -3929,7 +3119,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -4024,11 +3214,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -4056,7 +3246,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -4178,7 +3368,7 @@ VbFxDefs.register({
       "name": "fire-arrow",
       "label": "炎の矢 · E058_1",
       "sourceCode": "E058_1",
-      "ms": 672.0,
+      "ms": 672,
       "color": "#cf6945",
       "light": "#f2d596",
       "playback": {
@@ -4192,8 +3382,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 672.0,
-        "cueMs": 672.0
+        "atMs": 672,
+        "cueMs": 672
       },
       "layers": [
         {
@@ -4235,7 +3425,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -4263,7 +3453,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -4295,7 +3485,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -4339,7 +3529,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -4404,7 +3594,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.06,
@@ -4497,7 +3687,7 @@ VbFxDefs.register({
       "name": "fire-arrow-impact",
       "label": "炎の矢着弾 · E058_2",
       "sourceCode": "E058_2",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#c96745",
       "light": "#ffe1a0",
       "playback": {
@@ -4511,8 +3701,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -4562,11 +3752,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.5,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -4598,11 +3788,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.5,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -4634,11 +3824,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.5,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -4771,11 +3961,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.5,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -4801,7 +3991,7 @@ VbFxDefs.register({
       "name": "death-mark",
       "label": "即死の印 · K001",
       "sourceCode": "K001",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#9456b2",
       "light": "#dfb2e2",
       "playback": {
@@ -4815,8 +4005,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -4931,11 +4121,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.75,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -5080,7 +4270,7 @@ VbFxDefs.register({
       "name": "fang-poison",
       "label": "毒牙の付与 · K003",
       "sourceCode": "K003",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#6c942f",
       "light": "#c9dd8b",
       "playback": {
@@ -5094,8 +4284,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -5109,11 +4299,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -5137,7 +4327,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -5197,8 +4387,7 @@ VbFxDefs.register({
           "aspect": [
             1.08,
             1
-          ],
-          "softness": 0.023
+          ]
         },
         {
           "type": "glow",
@@ -5211,11 +4400,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -5239,7 +4428,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -5334,11 +4523,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -5362,7 +4551,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -5469,7 +4658,7 @@ VbFxDefs.register({
       "name": "piercing-streak",
       "label": "貫通の軌跡 · K007",
       "sourceCode": "K007",
-      "ms": 630.0,
+      "ms": 630,
       "color": "#74b1c9",
       "light": "#d4edf2",
       "playback": {
@@ -5483,8 +4672,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 315.0,
-        "cueMs": 315.0
+        "atMs": 315,
+        "cueMs": 315
       },
       "layers": [
         {
@@ -5637,7 +4826,7 @@ VbFxDefs.register({
       "name": "tri-streak",
       "label": "三方向の一閃 · K008",
       "sourceCode": "K008",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#81b9cd",
       "light": "#d7eced",
       "playback": {
@@ -5651,8 +4840,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -5749,7 +4938,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.1,
@@ -5761,7 +4950,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -5795,7 +4984,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.1,
@@ -5807,7 +4996,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -5850,7 +5039,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.1,
@@ -5862,7 +5051,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -5875,7 +5064,7 @@ VbFxDefs.register({
       "name": "contact-burst",
       "label": "全体命中の衝撃 · K009",
       "sourceCode": "K009",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#a6b1b3",
       "light": "#e5e2d4",
       "playback": {
@@ -5889,8 +5078,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -5904,7 +5093,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
@@ -5932,11 +5121,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.875,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -5992,8 +5181,7 @@ VbFxDefs.register({
           "radius": 1.58,
           "light": "#a0a395",
           "shadow": "#424b43",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "shape",
@@ -6073,8 +5261,7 @@ VbFxDefs.register({
           "aspect": [
             1,
             0.8
-          ],
-          "softness": 0.018
+          ]
         },
         {
           "type": "glow",
@@ -6207,7 +5394,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
@@ -6227,11 +5414,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.8,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -6349,7 +5536,7 @@ VbFxDefs.register({
       "name": "poison-tick",
       "label": "毒の被弾 · K017",
       "sourceCode": "K017",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#6c942f",
       "light": "#c9dd8b",
       "playback": {
@@ -6363,8 +5550,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -6378,11 +5565,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -6406,11 +5593,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.875,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -6470,8 +5657,7 @@ VbFxDefs.register({
           "aspect": [
             0.98,
             1.45
-          ],
-          "softness": 0.023
+          ]
         },
         {
           "type": "glow",
@@ -6484,11 +5670,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -6512,11 +5698,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.875,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -6611,11 +5797,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.25,
@@ -6639,11 +5825,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.875,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -6754,7 +5940,7 @@ VbFxDefs.register({
       "name": "shield-contact",
       "label": "結界の接触 · K018",
       "sourceCode": "K018",
-      "ms": 1200.0,
+      "ms": 1200,
       "color": "#78a2c4",
       "light": "#d3e8f0",
       "playback": {
@@ -6768,8 +5954,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -6906,7 +6092,6 @@ VbFxDefs.register({
             1.2,
             0.9
           ],
-          "softness": 0.003,
           "offset": [
             0.095,
             -0.022
@@ -7512,7 +6697,7 @@ VbFxDefs.register({
       "name": "seal-release",
       "label": "封印の解放 · K019",
       "sourceCode": "K019",
-      "ms": 5250.0,
+      "ms": 5250,
       "color": "#a46ac0",
       "light": "#e3bae4",
       "playback": {
@@ -7526,8 +6711,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 2625.0,
-        "cueMs": 2625.0
+        "atMs": 2625,
+        "cueMs": 2625
       },
       "layers": [
         {
@@ -7541,7 +6726,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.075,
@@ -7565,7 +6750,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -7716,7 +6901,6 @@ VbFxDefs.register({
           "light": "#d228e4",
           "shadow": "#aa09c9",
           "blend": "normal",
-          "softness": 0.003,
           "scaleX": 1
         }
       ]
@@ -7725,7 +6909,7 @@ VbFxDefs.register({
       "name": "revive-burst",
       "label": "復活の光 · K020",
       "sourceCode": "K020",
-      "ms": 2250.0,
+      "ms": 2250,
       "color": "#79b9d2",
       "light": "#cde8ef",
       "playback": {
@@ -7739,8 +6923,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 1125.0,
-        "cueMs": 1125.0
+        "atMs": 1125,
+        "cueMs": 1125
       },
       "layers": [
         {
@@ -8276,7 +7460,7 @@ VbFxDefs.register({
       "name": "mana-cue",
       "label": "マナ効果の合図 · K024",
       "sourceCode": "K024",
-      "ms": 1350.0,
+      "ms": 1350,
       "color": "#60b7c0",
       "light": "#a8dddd",
       "playback": {
@@ -8435,7 +7619,7 @@ VbFxDefs.register({
       "name": "summon-sigil",
       "label": "緑の召喚陣 · S001",
       "sourceCode": "S001",
-      "ms": 1500.0,
+      "ms": 1500,
       "color": "#68a438",
       "light": "#c7de8c",
       "playback": {
@@ -8449,8 +7633,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 750.0,
-        "cueMs": 750.0
+        "atMs": 750,
+        "cueMs": 750
       },
       "layers": [
         {
@@ -8865,7 +8049,7 @@ VbFxDefs.register({
       "name": "gold-gain",
       "label": "金貨の獲得 · S003",
       "sourceCode": "S003",
-      "ms": 1050.0,
+      "ms": 1050,
       "color": "#d4b056",
       "light": "#f6e7af",
       "playback": {
@@ -8879,8 +8063,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -9114,7 +8298,7 @@ VbFxDefs.register({
       "name": "mana-gain",
       "label": "マナの結晶 · S004",
       "sourceCode": "S004",
-      "ms": 1005.0,
+      "ms": 1005,
       "color": "#80b5ce",
       "light": "#e3edf1",
       "playback": {
@@ -9292,7 +8476,7 @@ VbFxDefs.register({
       "name": "attack-buff",
       "label": "攻撃の強化 · S005",
       "sourceCode": "S005",
-      "ms": 1050.0,
+      "ms": 1050,
       "color": "#c59a45",
       "light": "#f0df9c",
       "playback": {
@@ -9306,8 +8490,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -9400,11 +8584,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -9428,11 +8612,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -9492,8 +8676,7 @@ VbFxDefs.register({
           "radius": 0.728,
           "light": "#f6e48c",
           "shadow": "#705129",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "shape",
@@ -9506,11 +8689,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
-                  0.0
+                  0
                 ],
                 [
                   0.43,
@@ -9526,11 +8709,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -9553,8 +8736,7 @@ VbFxDefs.register({
           "radius": 0.4816,
           "light": "#f6e48c",
           "shadow": "#705129",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "shape",
@@ -9610,8 +8792,7 @@ VbFxDefs.register({
           "radius": 0.32,
           "light": "#f6e48c",
           "shadow": "#705129",
-          "blend": "normal",
-          "softness": 0.008
+          "blend": "normal"
         },
         {
           "type": "particles",
@@ -9692,11 +8873,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -9720,11 +8901,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -9753,7 +8934,7 @@ VbFxDefs.register({
       "name": "injury-buff",
       "label": "負傷の強化 · S006",
       "sourceCode": "S006",
-      "ms": 1050.0,
+      "ms": 1050,
       "color": "#c16b34",
       "light": "#edd09c",
       "playback": {
@@ -9767,8 +8948,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -9861,11 +9042,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -9889,11 +9070,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -9953,8 +9134,7 @@ VbFxDefs.register({
           "radius": 0.754,
           "light": "#fff0b0",
           "shadow": "#842c19",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "shape",
@@ -9967,11 +9147,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
-                  0.0
+                  0
                 ],
                 [
                   0.43,
@@ -9987,11 +9167,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -10014,8 +9194,7 @@ VbFxDefs.register({
           "radius": 0.4988,
           "light": "#fff0b0",
           "shadow": "#842c19",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "particles",
@@ -10096,11 +9275,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -10124,11 +9303,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -10157,7 +9336,7 @@ VbFxDefs.register({
       "name": "death-buff",
       "label": "死亡の強化 · S007",
       "sourceCode": "S007",
-      "ms": 1050.0,
+      "ms": 1050,
       "color": "#6bafba",
       "light": "#c4e4e4",
       "playback": {
@@ -10171,8 +9350,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -10265,11 +9444,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -10293,11 +9472,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -10357,8 +9536,7 @@ VbFxDefs.register({
           "radius": 0.728,
           "light": "#d7fffa",
           "shadow": "#286563",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "shape",
@@ -10371,11 +9549,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
-                  0.0
+                  0
                 ],
                 [
                   0.43,
@@ -10391,11 +9569,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -10418,8 +9596,7 @@ VbFxDefs.register({
           "radius": 0.4816,
           "light": "#d7fffa",
           "shadow": "#286563",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "particles",
@@ -10500,11 +9677,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -10528,11 +9705,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -10561,7 +9738,7 @@ VbFxDefs.register({
       "name": "mana-buff",
       "label": "マナの強化 · S008",
       "sourceCode": "S008",
-      "ms": 1050.0,
+      "ms": 1050,
       "color": "#74a634",
       "light": "#d8e8a5",
       "playback": {
@@ -10575,8 +9752,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -10590,7 +9767,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
@@ -10622,7 +9799,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -10735,11 +9912,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -10763,11 +9940,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -10827,8 +10004,7 @@ VbFxDefs.register({
           "radius": 0.8125,
           "light": "#f0ffc4",
           "shadow": "#287527",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "shape",
@@ -10841,11 +10017,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
-                  0.0
+                  0
                 ],
                 [
                   0.43,
@@ -10861,11 +10037,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -10888,8 +10064,7 @@ VbFxDefs.register({
           "radius": 0.5375,
           "light": "#f0ffc4",
           "shadow": "#287527",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "particles",
@@ -10970,11 +10145,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -10998,11 +10173,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11031,7 +10206,7 @@ VbFxDefs.register({
       "name": "aura-buff",
       "label": "常時の強化 · S009",
       "sourceCode": "S009",
-      "ms": 1050.0,
+      "ms": 1050,
       "color": "#6fa992",
       "light": "#cce5ce",
       "playback": {
@@ -11045,8 +10220,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -11139,11 +10314,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -11167,11 +10342,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11231,8 +10406,7 @@ VbFxDefs.register({
           "radius": 0.728,
           "light": "#c6ffe9",
           "shadow": "#296c63",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "shape",
@@ -11245,11 +10419,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
-                  0.0
+                  0
                 ],
                 [
                   0.43,
@@ -11265,11 +10439,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11292,8 +10466,7 @@ VbFxDefs.register({
           "radius": 0.4816,
           "light": "#c6ffe9",
           "shadow": "#296c63",
-          "blend": "normal",
-          "softness": 0.012
+          "blend": "normal"
         },
         {
           "type": "particles",
@@ -11374,11 +10547,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.125,
-                  0.0
+                  0
                 ],
                 [
                   0.24,
@@ -11402,11 +10575,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.88,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11435,7 +10608,7 @@ VbFxDefs.register({
       "name": "opening-sigil",
       "label": "着地の金輪 · appearance",
       "sourceCode": "appearance_sheet",
-      "ms": 1470.0,
+      "ms": 1470,
       "color": "#c9b67a",
       "light": "#e3d4a2",
       "playback": {
@@ -11449,8 +10622,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0.0,
-        "cueMs": 0.0
+        "atMs": 0,
+        "cueMs": 0
       },
       "layers": [
         {
@@ -11464,7 +10637,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.11,
@@ -11480,11 +10653,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.8,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11506,8 +10679,7 @@ VbFxDefs.register({
           "aspect": [
             0.77,
             1.12
-          ],
-          "softness": 0.027
+          ]
         },
         {
           "type": "shape",
@@ -11520,7 +10692,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.13,
@@ -11536,11 +10708,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.8,
-                  0.0
+                  0
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11562,8 +10734,7 @@ VbFxDefs.register({
           "aspect": [
             0.75,
             1.16
-          ],
-          "softness": 0.036
+          ]
         },
         {
           "type": "particles",
@@ -11627,10 +10798,10 @@ VbFxDefs.register({
           ],
           "direction": [
             -2.1,
-            -1.0
+            -1
           ],
           "gravity": [
-            0.0,
+            0,
             0.04918
           ],
           "sizeRange": [
@@ -11652,7 +10823,7 @@ VbFxDefs.register({
       "name": "board-summon",
       "label": "召喚マスへの変化 · board_change1",
       "sourceCode": "board_change1",
-      "ms": 1800.0,
+      "ms": 1800,
       "color": "#63974e",
       "light": "#bbd793",
       "playback": {
@@ -11666,8 +10837,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 750.0,
-        "cueMs": 750.0
+        "atMs": 750,
+        "cueMs": 750
       },
       "layers": [
         {
@@ -11687,7 +10858,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -11703,7 +10874,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11722,8 +10893,7 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "blend": "normal",
-          "softness": 0.001
+          "blend": "normal"
         },
         {
           "type": "ring",
@@ -11742,7 +10912,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -11758,7 +10928,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11777,8 +10947,7 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "blend": "normal",
-          "softness": 0.001
+          "blend": "normal"
         },
         {
           "type": "particles",
@@ -11795,7 +10964,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -11811,7 +10980,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11858,7 +11027,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -11874,7 +11043,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11894,7 +11063,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -11910,7 +11079,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11923,7 +11092,7 @@ VbFxDefs.register({
       "name": "board-enchant",
       "label": "強化マスへの変化 · board_change2",
       "sourceCode": "board_change2",
-      "ms": 1800.0,
+      "ms": 1800,
       "color": "#5489aa",
       "light": "#b2d5de",
       "playback": {
@@ -11937,8 +11106,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 750.0,
-        "cueMs": 750.0
+        "atMs": 750,
+        "cueMs": 750
       },
       "layers": [
         {
@@ -11958,7 +11127,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -11974,7 +11143,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -11993,8 +11162,7 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "blend": "normal",
-          "softness": 0.001
+          "blend": "normal"
         },
         {
           "type": "ring",
@@ -12013,7 +11181,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -12029,7 +11197,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -12048,8 +11216,7 @@ VbFxDefs.register({
               "interpolation": "smooth"
             }
           },
-          "blend": "normal",
-          "softness": 0.001
+          "blend": "normal"
         },
         {
           "type": "particles",
@@ -12066,7 +11233,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -12082,7 +11249,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -12129,7 +11296,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -12145,7 +11312,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
@@ -12164,7 +11331,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.0
+                  0
                 ],
                 [
                   0.16,
@@ -12180,7 +11347,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  0.0
+                  0
                 ]
               ],
               "interpolation": "smooth"
