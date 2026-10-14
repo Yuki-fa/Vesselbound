@@ -2737,7 +2737,10 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
   // 同一コア状態・同一トリガ番号の再入だけを拒否する。恩寵などの正規の
   // 反復発動は triggerIndex が変わるため維持し、PvE/PvP接続側の同一処理
   // 再走査による召喚・マナ・結界・バフの重複だけを止める。
-  const openingIndex = Number.isInteger(triggerIndex) ? triggerIndex : 0;
+  // 文字列の番号（カオス・インプの再発火 `release:<観測>:<観測者>:<回>`）は、その文字列のまま別の発動として数える。
+  // 以前は0へ戻していたため通常の開戦（0）と重なり、開戦を済ませた体への再発火が止まっていた（2026-10-14）。
+  const openingIndex = Number.isInteger(triggerIndex) ? triggerIndex
+    : (typeof triggerIndex === 'string' && triggerIndex ? triggerIndex : 0);
   const openingToken = coreStateToken(state);
   if (unit._coreOpeningEffectsState === openingToken && unit._coreOpeningEffectsIndex === openingIndex) return;
   unit._coreOpeningEffectsState = openingToken;
