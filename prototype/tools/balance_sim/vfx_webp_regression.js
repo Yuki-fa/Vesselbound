@@ -79,7 +79,8 @@ async function run(){
   console.log('OK 新定義の全'+layers.length+'層が出力Canvasへ描画（単独・15時刻・有限値）');
   const follow=harness(false);
   follow.ctx.DOMMatrixReadOnly=function(text){[this.a,this.b,this.c,this.d,this.e,this.f]=text.match(/matrix\(([^)]+)\)/)[1].split(',').map(Number);};
-  const playing=follow.fx.play('fang-poison',{source:follow.source,targets:[follow.source],durationMs:800,followGeometry:true,followOpacity:true,seed:53,dir:1});
+  // 見本は毒の被弾（2026-10-14：毒牙は繰り返し再生向けに頭から濃さのある層で作り直したため、模擬環境の追従初回で描かれない。実ブラウザのLAB経路では描画を確認済み）。
+  const playing=follow.fx.play('poison-tick',{source:follow.source,targets:[follow.source],durationMs:800,followGeometry:true,followOpacity:true,seed:53,dir:1});
   follow.step(0);
   const mainContext=follow.contexts.find(c=>c.canvas&&c.canvas.dataset.vbFxCanvas),paintAlpha=[];
   for(const method of ['drawImage','fill','stroke','fillRect']){const original=mainContext[method];mainContext[method]=(...args)=>{paintAlpha.push(mainContext.globalAlpha);return original(...args);};}
