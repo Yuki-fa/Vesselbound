@@ -2047,10 +2047,20 @@ function playCurvedMissile(options){
 // 素材が無ければ何も飛ばさず、着弾側だけを即座に見せる（演出が消えないようにする）。
 async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
   const opt=options||{};
+  // 着弾の効果音はピーク（present.js の実測表）が着弾の瞬間に来るよう、飛行中に先に鳴らし始める（2026-10-15 利用者指摘：ケンタウロスのSEがずれる）。
+  let hitSfxStarted=false;
+  const startHitSfx=delayMs=>{
+    const key=typeof getEffectHitSfxKey==='function'?getEffectHitSfxKey(code):'';
+    if(!key) return false;
+    hitSfxStarted=true;
+    _playSfxAtVfxCue(key,Math.max(0,delayMs||0),{group:'combat',guardKey:`kwfx:${key}:${_vfxVariantIndex()}:${Date.now()}`,guardMs:0});
+    return true;
+  };
   const impact=async()=>{
     if(typeof opt.onImpact==='function') await opt.onImpact();
+    if(!hitSfxStarted) startHitSfx(0);
     if(typeof playHitVfx==='function'){
-      await playHitVfx(toSide,to,Math.max(0,Number(opt.amount)||0),{effectHitCode:code});
+      await playHitVfx(toSide,to,Math.max(0,Number(opt.amount)||0),{effectHitCode:code,keywordSfx:false});
     }
   };
   const url=typeof getEffectVfxPath==='function'?getEffectVfxPath(code):'';
@@ -2062,6 +2072,8 @@ async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
     :null;
   const toRect=to?rectOf(to,toSide):null;
   if(!url||!fromRect||!toRect){ impact(); return; }
+  const flightMs=Number(opt.flightMs)||((typeof PRESENT_PROJECTILE_FLIGHT_MS==='number'?PRESENT_PROJECTILE_FLIGHT_MS:420));
+  startHitSfx(flightMs);
   await playCurvedMissile({
     asset:url,
     code,
@@ -2069,9 +2081,30 @@ async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
     targetRect:toRect,
     scale:Number(opt.vfxScale)
       ||(typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(code):1),
-    flightMs:Number(opt.flightMs)||((typeof PRESENT_PROJECTILE_FLIGHT_MS==='number'?PRESENT_PROJECTILE_FLIGHT_MS:420)),
+    flightMs,
     onHit:impact,
   });
+}
+
+// 定義VFXを durationMs（呼び出し側の尺）で再生した時の山場（定義の impact）の実時刻（ms）。
+// 演出の速さ（_playDefinedVfx の presentationSpeed）も同じく掛ける。
+function _definedVfxCueMs(value,durationMs){
+  const name=typeof getVfxDefinitionName==='function'?getVfxDefinitionName(value):'';
+  const def=name&&typeof VbFx!=='undefined'?VbFx.effects.find(d=>d.name===name):null;
+  if(!def||!(def.ms>0)) return 0;
+  const speed=typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1;
+  const cue=def.impact&&Number(def.impact.cueMs)||0;
+  return cue/def.ms*Math.max(1,Number(durationMs)||def.ms)/Math.max(.01,speed);
+}
+// 効果音のピーク（present.js の実測表）を cueMs に合わせて鳴らす。前倒しが要る時は音の途中から鳴らす（LABと同じ考え方）。
+function _playSfxAtVfxCue(key,cueMs,options){
+  if(typeof playSfx!=='function') return;
+  const peak=(typeof presentSfxPeakSec==='function'?presentSfxPeakSec(key):0)*1000;
+  const lead=(Number(cueMs)||0)-peak, opt=options||{};
+  if(lead>=0){
+    const run=()=>playSfx(key,opt);
+    if(lead<1) run(); else if(typeof battlePresentationSetTimeout==='function') battlePresentationSetTimeout(run,lead); else setTimeout(run,lead);
+  } else playSfx(key,{...opt,offsetMs:-lead,fadeInMs:40});
 }
 
 function playHitVfxAtRect(rect,amount,options){
@@ -2083,7 +2116,7 @@ function playHitVfxAtRect(rect,amount,options){
   const speedMul=(typeof G!=='undefined'&&G&&Number(G._effectVfxSpeedMultiplier))||1;
   // 撃破後の盤面詰めがVFX完了を待つようになったため、既定尺のままだと1体倒すごとに
   // 待ち時間が上乗せされてテンポが悪化する。表示・消失とも少し早める。
-  const hitDuration=(opt.hitDuration||800)/speedMul;
+  let hitDuration=(opt.hitDuration||800)/speedMul;
   const fadeDuration=(opt.fadeDuration||140)/speedMul;
   const labelDuration=damageLabelDurationMs(opt.labelDuration,opt.labelDurationMin);
   // 見た目の再生時間（hitDuration）と、次の行動に進むまで呼び出し元が待つ時間は切り離す。
@@ -2145,6 +2178,12 @@ function playHitVfxAtRect(rect,amount,options){
     ?(typeof getVfxSourceCode==='function'?getVfxSourceCode(scaleSourceUrl):''):'';
   const vfxScale=Number(opt.vfxScale)
     ||(charVfxCode&&typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(charVfxCode):1);
+  // 被弾位置に出す固有VFX（肩代わり＝マータ等）の尺は present.js の表（2026-10-15 利用者指定：マータは2.5倍を標準）。
+  const ownHitVfx=!!(charVfx&&!customVfx&&!effectHitVfx&&!labelOnly);
+  if(ownHitVfx&&!opt.hitDuration&&typeof presentCharacterHitVfxMs==='function'){
+    const own=presentCharacterHitVfxMs(charVfxCode);
+    if(own) hitDuration=own/speedMul;
+  }
   const spin=!!opt.spin;
   const rotation=Number(opt.rotation)||0;
   const baseTransform=`rotate(${rotation}deg)`;
@@ -2157,6 +2196,13 @@ function playHitVfxAtRect(rect,amount,options){
   mediaEl.style.transform=baseTransform;
   const playing=labelOnly?{stop:()=>{}}:_playDefinedVfx(host,hitUrl,hitDuration,
     {size:_definedVfxSize(charVfxCode,vfxScale),presentationSpeed:true});
+  // 2026-10-15：被弾位置の固有VFXは、固有SEをVFXと同時に鳴らし、SEのピークをVFXの山場（定義のimpact）へ合わせる。
+  // 以前はPvEだけ1手番の演出の後でまとめて鳴らしていた（オンラインは鳴っていなかった）。PvE・オンライン共通の入口。
+  if(ownHitVfx&&opt.effectSfx&&charVfxCode&&typeof getEffectSfxKey==='function'
+    &&!(typeof presentLabFx==='function'&&presentLabFx(charVfxCode))){
+    const sfxKey=getEffectSfxKey(charVfxCode);
+    if(sfxKey) _playSfxAtVfxCue(sfxKey,_definedVfxCueMs(hitUrl,hitDuration),{group:'magic',guardKey:`effect:${sfxKey}:${uid()}`,guardMs:0});
+  }
   const stop=playing.stop;
   if(amount>0){
     const label=document.createElement('div');
@@ -2827,8 +2873,8 @@ function playCharacterSweepVfx(unit,isEnemySide,targets,definitionRef,options){
   const sourceRect=_captureSweepSourceRect(unit,isEnemySide?'enemy':'ally');
   if(!sourceRect) return Promise.resolve();
   // カード先端（味方なら上端＝敵陣営へ向く側）を発生源にする
-  // カード中央ではなく、やや左寄り（口元付近を想定）を発生源にする
-  const originX=sourceRect.left+sourceRect.width*0.25;
+  // 横はカード中央（2026-10-15 利用者指定「発生源のX軸がカード中央になるように」。以前は口元を想定した左寄り0.25）
+  const originX=sourceRect.left+sourceRect.width*0.5;
   const originY=sourceRect.top+(isEnemySide?sourceRect.height:0);
 
   // 発生源から見た各対象の実際の角度・距離を計算する。これにより対象が1体で近くても、

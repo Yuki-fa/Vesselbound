@@ -129,8 +129,11 @@ var VbFxPreview = (function () {
     var file = key && typeof Assets !== 'undefined' && Assets.sfx && Assets.sfx[key];
     // 登場・盤面変化の音はキー名が番号ではない（js/engine/audio.js が直接ファイルで鳴らす）。
     if (!file && ['appearance', 'board_change1', 'board_change2'].indexOf(key) >= 0) file = 'assets/sfx/' + key + '.wav';
-    if (!file) return null;
-    return { id: 'game:' + key, filename: key + '.wav（ゲームの効果音）', source: file, url: '../' + file, duration: 0, originalDuration: 0, reason: 'ゲームで鳴らしている効果音', trimmed: false, start: 0, peak: 0 };
+    // マナ獲得（S004）はゲームで鳴らさない（2026-10-15 利用者指定）。LABも合わせて無音にする。
+    if (!file || key === 'S004') return null;
+    return { id: 'game:' + key, filename: key + '.wav（ゲームの効果音）', source: file, url: '../' + file, duration: 0, originalDuration: 0, reason: 'ゲームで鳴らしている効果音', trimmed: false, start: 0,
+      // ピーク（実測）を演出の山場へ合わせる。ゲームと同じ表（present.js PRESENT_SFX_PEAK_SEC）。
+      peak: typeof presentSfxPeakSec === 'function' ? presentSfxPeakSec(key) : 0 };
   }
   function selectedSound(name) {
     var ids = VbFxSeCatalog.effects[name || effect] || [], selected = choices[name || effect];
@@ -240,7 +243,7 @@ var VbFxPreview = (function () {
         y: u*u*u*from.y+3*u*u*t*cp.c1.y+3*u*t*t*cp.c2.y+t*t*t*target.y };
     }
     if (conf.motion === 'sweep') {
-      from = { x: source.left + source.width * .25, y: source.top + (ownSide() === 'enemy' ? source.height : 0) };
+      from = { x: source.left + source.width * .5, y: source.top + (ownSide() === 'enemy' ? source.height : 0) };
       var angles = targets.map(function (r) { return Math.atan2(r.top+r.height/2-from.y,r.left+r.width/2-from.x); });
       length = Math.max(80, Math.max.apply(null, targets.map(function (r) { return Math.hypot(r.left+r.width/2-from.x,r.top+r.height/2-from.y); }))*1.2)*2;
       startAngle = Math.min.apply(null, angles); endAngle = Math.max.apply(null, angles); w = h = length;

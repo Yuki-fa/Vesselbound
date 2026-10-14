@@ -318,7 +318,7 @@ VbFxDefs.register({
       "name": "satyr",
       "label": "サテュロス",
       "sourceCode": "C004",
-      "ms": 1050,
+      "ms": 1500,
       "color": "#3aa6ff",
       "light": "#e6f6ff",
       "playback": {
@@ -331,8 +331,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 399,
-        "cueMs": 399
+        "atMs": 900,
+        "cueMs": 900
       },
       "layers": [
         {
@@ -392,11 +392,11 @@ VbFxDefs.register({
                   0.85
                 ],
                 [
-                  0.34,
+                  0.5599999999999999,
                   0.9
                 ],
                 [
-                  0.41000000000000003,
+                  0.63,
                   1
                 ],
                 [
@@ -421,11 +421,11 @@ VbFxDefs.register({
                   0.475
                 ],
                 [
-                  0.38,
+                  0.6,
                   0.5
                 ],
                 [
-                  0.44,
+                  0.6599999999999999,
                   0.55
                 ],
                 [
@@ -495,11 +495,11 @@ VbFxDefs.register({
                   0.266
                 ],
                 [
-                  0.38,
+                  0.6,
                   0.28
                 ],
                 [
-                  0.44,
+                  0.6599999999999999,
                   0.30800000000000005
                 ],
                 [
@@ -568,11 +568,11 @@ VbFxDefs.register({
                   0.494
                 ],
                 [
-                  0.38,
+                  0.6,
                   0.52
                 ],
                 [
-                  0.44,
+                  0.6599999999999999,
                   0.5720000000000001
                 ],
                 [
@@ -634,11 +634,11 @@ VbFxDefs.register({
                   0.475
                 ],
                 [
-                  0.38,
+                  0.6,
                   0.5
                 ],
                 [
-                  0.44,
+                  0.6599999999999999,
                   0.55
                 ],
                 [
@@ -673,11 +673,11 @@ VbFxDefs.register({
                   0.5
                 ],
                 [
-                  0.38,
+                  0.6,
                   0.95
                 ],
                 [
-                  0.7,
+                  0.76,
                   0.4
                 ],
                 [
@@ -694,7 +694,7 @@ VbFxDefs.register({
                   0.12
                 ],
                 [
-                  0.38,
+                  0.6,
                   0.32
                 ],
                 [
@@ -740,11 +740,11 @@ VbFxDefs.register({
                   0.3
                 ],
                 [
-                  0.38,
+                  0.6,
                   0.95
                 ],
                 [
-                  0.53,
+                  0.75,
                   0.35
                 ],
                 [
@@ -761,7 +761,7 @@ VbFxDefs.register({
                   0.1
                 ],
                 [
-                  0.38,
+                  0.6,
                   0.38
                 ],
                 [
@@ -839,7 +839,7 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "time": [
-            0.38,
+            0.6,
             1
           ],
           "clockSpace": "life",
@@ -947,7 +947,7 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "time": [
-            0.38,
+            0.6,
             1
           ],
           "clockSpace": "life",
@@ -984,7 +984,7 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "time": [
-            0.38,
+            0.6,
             0.8
           ],
           "clockSpace": "life",
@@ -1045,8 +1045,8 @@ VbFxDefs.register({
           "intrinsicAlpha": true,
           "type": "card",
           "time": [
-            0.38,
-            0.5800000000000001
+            0.6,
+            0.8
           ],
           "clockSpace": "life",
           "batch": 1,
@@ -1077,7 +1077,7 @@ VbFxDefs.register({
       "name": "hecatoncheir",
       "label": "ヘカトンケイル",
       "sourceCode": "C020",
-      "ms": 900,
+      "ms": 1350,
       "color": "#3aa6ff",
       "light": "#e6f6ff",
       "playback": {
@@ -1090,8 +1090,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 252.00000000000003,
-        "cueMs": 252.00000000000003
+        "atMs": 945,
+        "cueMs": 945
       },
       "layers": [
         {
@@ -1151,11 +1151,11 @@ VbFxDefs.register({
                   0.85
                 ],
                 [
-                  0.24000000000000002,
+                  0.6599999999999999,
                   0.9
                 ],
                 [
-                  0.31000000000000005,
+                  0.73,
                   1
                 ],
                 [
@@ -1180,11 +1180,11 @@ VbFxDefs.register({
                   0.34199999999999997
                 ],
                 [
-                  0.28,
+                  0.7,
                   0.36
                 ],
                 [
-                  0.34,
+                  0.76,
                   0.396
                 ],
                 [
@@ -1254,11 +1254,11 @@ VbFxDefs.register({
                   0.19152
                 ],
                 [
-                  0.28,
+                  0.7,
                   0.2016
                 ],
                 [
-                  0.34,
+                  0.76,
                   0.22176
                 ],
                 [
@@ -1327,11 +1327,11 @@ VbFxDefs.register({
                   0.35568
                 ],
                 [
-                  0.28,
+                  0.7,
                   0.3744
                 ],
                 [
-                  0.34,
+                  0.76,
                   0.41184000000000004
                 ],
                 [
@@ -1393,11 +1393,11 @@ VbFxDefs.register({
                   0.34199999999999997
                 ],
                 [
-                  0.28,
+                  0.7,
                   0.36
                 ],
                 [
-                  0.34,
+                  0.76,
                   0.396
                 ],
                 [
@@ -1432,11 +1432,11 @@ VbFxDefs.register({
                   0.5
                 ],
                 [
-                  0.28,
+                  0.7,
                   0.95
                 ],
                 [
-                  0.7,
+                  0.82,
                   0.4
                 ],
                 [
@@ -1453,7 +1453,7 @@ VbFxDefs.register({
                   0.08639999999999999
                 ],
                 [
-                  0.28,
+                  0.7,
                   0.2304
                 ],
                 [
@@ -1499,11 +1499,11 @@ VbFxDefs.register({
                   0.3
                 ],
                 [
-                  0.28,
+                  0.7,
                   0.95
                 ],
                 [
-                  0.43000000000000005,
+                  0.85,
                   0.35
                 ],
                 [
@@ -1520,7 +1520,7 @@ VbFxDefs.register({
                   0.072
                 ],
                 [
-                  0.28,
+                  0.7,
                   0.2736
                 ],
                 [
@@ -1598,7 +1598,7 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "time": [
-            0.28,
+            0.7,
             1
           ],
           "clockSpace": "life",
@@ -1706,7 +1706,7 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "time": [
-            0.28,
+            0.7,
             1
           ],
           "clockSpace": "life",
@@ -1743,7 +1743,7 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "time": [
-            0.28,
+            0.7,
             0.8
           ],
           "clockSpace": "life",
@@ -1804,8 +1804,8 @@ VbFxDefs.register({
           "intrinsicAlpha": true,
           "type": "card",
           "time": [
-            0.28,
-            0.48000000000000004
+            0.7,
+            0.8999999999999999
           ],
           "clockSpace": "life",
           "batch": 1,
@@ -4685,7 +4685,7 @@ VbFxDefs.register({
       "stackable": false,
       "impact": {
         "atMs": 648,
-        "cueMs": 648
+        "cueMs": 144
       },
       "layers": [
         {
@@ -7769,8 +7769,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 756.0000000000001,
-        "cueMs": 756.0000000000001
+        "atMs": 608,
+        "cueMs": 608
       },
       "layers": [
         {
@@ -9022,7 +9022,7 @@ VbFxDefs.register({
       "name": "overlord",
       "label": "オーバーロード",
       "sourceCode": "C097",
-      "ms": 2100,
+      "ms": 1500,
       "color": "#b060f0",
       "light": "#f4e0ff",
       "playback": {
@@ -9035,8 +9035,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 1344,
-        "cueMs": 1344
+        "atMs": 750,
+        "cueMs": 750
       },
       "layers": [
         {
@@ -9112,11 +9112,11 @@ VbFxDefs.register({
                   0.35
                 ],
                 [
-                  0.64,
+                  0.5,
                   0.7
                 ],
                 [
-                  0.8,
+                  0.75,
                   0.3
                 ],
                 [
@@ -9140,8 +9140,8 @@ VbFxDefs.register({
           "blend": "add",
           "color": "#c070ff",
           "time": [
-            0.04,
-            0.4
+            0.02,
+            0.3
           ],
           "curves": {
             "x": {
@@ -9192,8 +9192,8 @@ VbFxDefs.register({
           "blend": "add",
           "color": "#ff70d0",
           "time": [
-            0.04,
-            0.4
+            0.02,
+            0.3
           ],
           "curves": {
             "x": {
@@ -9244,8 +9244,8 @@ VbFxDefs.register({
           "blend": "add",
           "color": "#a050f0",
           "time": [
-            0.16,
-            0.66
+            0.08,
+            0.52
           ],
           "curves": {
             "scale": {
@@ -9311,8 +9311,8 @@ VbFxDefs.register({
           "blend": "add",
           "color": "#e0b0ff",
           "time": [
-            0.24,
-            0.66
+            0.14,
+            0.52
           ],
           "curves": {
             "scale": {
@@ -9373,7 +9373,7 @@ VbFxDefs.register({
           "color": "#ffffff",
           "texture": "glow",
           "time": [
-            0.64,
+            0.5,
             0.85
           ],
           "curves": {
@@ -9415,7 +9415,7 @@ VbFxDefs.register({
           "blend": "add",
           "variant": 1,
           "time": [
-            0.64,
+            0.5,
             1
           ],
           "curves": {
@@ -9469,7 +9469,7 @@ VbFxDefs.register({
           "color": "#f0d0ff",
           "blend": "add",
           "time": [
-            0.64,
+            0.5,
             0.85
           ],
           "curves": {
@@ -9525,7 +9525,7 @@ VbFxDefs.register({
           "noise": 0.1,
           "strokeProfile": "halo",
           "time": [
-            0.64,
+            0.5,
             0.92
           ],
           "curves": {
@@ -9585,7 +9585,7 @@ VbFxDefs.register({
           "strokeProfile": "halo",
           "core": 0.5,
           "time": [
-            0.64,
+            0.5,
             1
           ],
           "curves": {
@@ -9618,7 +9618,7 @@ VbFxDefs.register({
           "vortex": 0.5,
           "radius": 1.1,
           "time": [
-            0.64,
+            0.5,
             1
           ],
           "curves": {
@@ -9642,7 +9642,7 @@ VbFxDefs.register({
           "basis": "unit",
           "type": "card",
           "time": [
-            0.64,
+            0.5,
             0.85
           ],
           "holdEnd": true,
@@ -9671,7 +9671,7 @@ VbFxDefs.register({
           "basis": "unit",
           "type": "shake",
           "time": [
-            0.64,
+            0.5,
             0.78
           ],
           "holdEnd": true,
@@ -10377,11 +10377,8 @@ VbFxDefs.register({
           "anchor": "source",
           "basis": "unit",
           "copies": 3,
-          "layout": "line",
-          "spread": [
-            0.34,
-            0
-          ],
+          "layout": "orbit",
+          "orbit": 0.2,
           "bind": [
             {
               "input": "value",
@@ -10396,6 +10393,40 @@ VbFxDefs.register({
                   [
                     128,
                     128
+                  ]
+                ],
+                "interpolation": "linear"
+              }
+            },
+            {
+              "input": "value",
+              "target": "orbit",
+              "mode": "set",
+              "curve": {
+                "keys": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    2,
+                    0.17
+                  ],
+                  [
+                    3,
+                    0.21
+                  ],
+                  [
+                    6,
+                    0.3
+                  ],
+                  [
+                    9,
+                    0.38
+                  ],
+                  [
+                    20,
+                    0.48
                   ]
                 ],
                 "interpolation": "linear"
@@ -10483,11 +10514,8 @@ VbFxDefs.register({
           "anchor": "source",
           "basis": "unit",
           "copies": 3,
-          "layout": "line",
-          "spread": [
-            0.34,
-            0
-          ],
+          "layout": "orbit",
+          "orbit": 0.2,
           "bind": [
             {
               "input": "value",
@@ -10502,6 +10530,40 @@ VbFxDefs.register({
                   [
                     128,
                     128
+                  ]
+                ],
+                "interpolation": "linear"
+              }
+            },
+            {
+              "input": "value",
+              "target": "orbit",
+              "mode": "set",
+              "curve": {
+                "keys": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    2,
+                    0.17
+                  ],
+                  [
+                    3,
+                    0.21
+                  ],
+                  [
+                    6,
+                    0.3
+                  ],
+                  [
+                    9,
+                    0.38
+                  ],
+                  [
+                    20,
+                    0.48
                   ]
                 ],
                 "interpolation": "linear"
@@ -10587,11 +10649,8 @@ VbFxDefs.register({
           "anchor": "source",
           "basis": "unit",
           "copies": 3,
-          "layout": "line",
-          "spread": [
-            0.34,
-            0
-          ],
+          "layout": "orbit",
+          "orbit": 0.2,
           "bind": [
             {
               "input": "value",
@@ -10606,6 +10665,40 @@ VbFxDefs.register({
                   [
                     128,
                     128
+                  ]
+                ],
+                "interpolation": "linear"
+              }
+            },
+            {
+              "input": "value",
+              "target": "orbit",
+              "mode": "set",
+              "curve": {
+                "keys": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    2,
+                    0.17
+                  ],
+                  [
+                    3,
+                    0.21
+                  ],
+                  [
+                    6,
+                    0.3
+                  ],
+                  [
+                    9,
+                    0.38
+                  ],
+                  [
+                    20,
+                    0.48
                   ]
                 ],
                 "interpolation": "linear"
@@ -10705,11 +10798,8 @@ VbFxDefs.register({
           "anchor": "source",
           "basis": "unit",
           "copies": 3,
-          "layout": "line",
-          "spread": [
-            0.34,
-            0
-          ],
+          "layout": "orbit",
+          "orbit": 0.2,
           "bind": [
             {
               "input": "value",
@@ -10724,6 +10814,40 @@ VbFxDefs.register({
                   [
                     128,
                     128
+                  ]
+                ],
+                "interpolation": "linear"
+              }
+            },
+            {
+              "input": "value",
+              "target": "orbit",
+              "mode": "set",
+              "curve": {
+                "keys": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    2,
+                    0.17
+                  ],
+                  [
+                    3,
+                    0.21
+                  ],
+                  [
+                    6,
+                    0.3
+                  ],
+                  [
+                    9,
+                    0.38
+                  ],
+                  [
+                    20,
+                    0.48
                   ]
                 ],
                 "interpolation": "linear"
@@ -12988,11 +13112,8 @@ VbFxDefs.register({
           "anchor": "each-target",
           "basis": "unit",
           "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.36,
-            0
-          ],
+          "layout": "orbit",
+          "orbit": 0.2,
           "bind": [
             {
               "input": "value",
@@ -13007,6 +13128,40 @@ VbFxDefs.register({
                   [
                     128,
                     128
+                  ]
+                ],
+                "interpolation": "linear"
+              }
+            },
+            {
+              "input": "value",
+              "target": "orbit",
+              "mode": "set",
+              "curve": {
+                "keys": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    2,
+                    0.17
+                  ],
+                  [
+                    3,
+                    0.21
+                  ],
+                  [
+                    6,
+                    0.3
+                  ],
+                  [
+                    9,
+                    0.38
+                  ],
+                  [
+                    20,
+                    0.48
                   ]
                 ],
                 "interpolation": "linear"
@@ -13164,11 +13319,8 @@ VbFxDefs.register({
           "anchor": "each-target",
           "basis": "unit",
           "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.36,
-            0
-          ],
+          "layout": "orbit",
+          "orbit": 0.2,
           "bind": [
             {
               "input": "value",
@@ -13183,6 +13335,40 @@ VbFxDefs.register({
                   [
                     128,
                     128
+                  ]
+                ],
+                "interpolation": "linear"
+              }
+            },
+            {
+              "input": "value",
+              "target": "orbit",
+              "mode": "set",
+              "curve": {
+                "keys": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    2,
+                    0.17
+                  ],
+                  [
+                    3,
+                    0.21
+                  ],
+                  [
+                    6,
+                    0.3
+                  ],
+                  [
+                    9,
+                    0.38
+                  ],
+                  [
+                    20,
+                    0.48
                   ]
                 ],
                 "interpolation": "linear"
@@ -13268,11 +13454,8 @@ VbFxDefs.register({
           "anchor": "each-target",
           "basis": "unit",
           "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.36,
-            0
-          ],
+          "layout": "orbit",
+          "orbit": 0.2,
           "bind": [
             {
               "input": "value",
@@ -13287,6 +13470,40 @@ VbFxDefs.register({
                   [
                     128,
                     128
+                  ]
+                ],
+                "interpolation": "linear"
+              }
+            },
+            {
+              "input": "value",
+              "target": "orbit",
+              "mode": "set",
+              "curve": {
+                "keys": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    2,
+                    0.17
+                  ],
+                  [
+                    3,
+                    0.21
+                  ],
+                  [
+                    6,
+                    0.3
+                  ],
+                  [
+                    9,
+                    0.38
+                  ],
+                  [
+                    20,
+                    0.48
                   ]
                 ],
                 "interpolation": "linear"
@@ -13386,11 +13603,8 @@ VbFxDefs.register({
           "anchor": "each-target",
           "basis": "unit",
           "copies": 2,
-          "layout": "line",
-          "spread": [
-            0.36,
-            0
-          ],
+          "layout": "orbit",
+          "orbit": 0.2,
           "bind": [
             {
               "input": "value",
@@ -13405,6 +13619,40 @@ VbFxDefs.register({
                   [
                     128,
                     128
+                  ]
+                ],
+                "interpolation": "linear"
+              }
+            },
+            {
+              "input": "value",
+              "target": "orbit",
+              "mode": "set",
+              "curve": {
+                "keys": [
+                  [
+                    1,
+                    0
+                  ],
+                  [
+                    2,
+                    0.17
+                  ],
+                  [
+                    3,
+                    0.21
+                  ],
+                  [
+                    6,
+                    0.3
+                  ],
+                  [
+                    9,
+                    0.38
+                  ],
+                  [
+                    20,
+                    0.48
                   ]
                 ],
                 "interpolation": "linear"

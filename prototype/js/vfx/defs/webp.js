@@ -394,7 +394,7 @@ VbFxDefs.register({
       "name": "attack-recoil",
       "label": "反攻の輪 · C002",
       "sourceCode": "C002",
-      "ms": 1050,
+      "ms": 630,
       "color": "#ff5a2a",
       "light": "#ffd29a",
       "playback": {
@@ -408,8 +408,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0,
-        "cueMs": 0
+        "atMs": 265,
+        "cueMs": 265
       },
       "layers": [
         {
@@ -2789,7 +2789,7 @@ VbFxDefs.register({
       "stackable": false,
       "impact": {
         "atMs": 672,
-        "cueMs": 672
+        "cueMs": 408
       },
       "layers": [
         {
@@ -2801,12 +2801,10 @@ VbFxDefs.register({
           "color": "#2a7cff",
           "texture": "plasma-soft",
           "blend": "add",
-          "radius": 0.7,
           "aspect": [
-            0.22,
-            1.25
+            0.3,
+            1
           ],
-          "shiftY": 0.62,
           "curves": {
             "alpha": {
               "keys": [
@@ -2815,7 +2813,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.06,
+                  0.04,
                   0.75
                 ],
                 [
@@ -2825,15 +2823,52 @@ VbFxDefs.register({
               ],
               "interpolation": "smooth"
             },
-            "rotation": {
+            "shiftY": {
               "keys": [
                 [
                   0,
-                  0
+                  0.048
+                ],
+                [
+                  0.15,
+                  0.29400000000000004
+                ],
+                [
+                  0.35,
+                  0.6219999999999999
+                ],
+                [
+                  0.6,
+                  1.008
                 ],
                 [
                   1,
-                  0.0001
+                  1.28
+                ]
+              ],
+              "interpolation": "linear"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.048
+                ],
+                [
+                  0.15,
+                  0.192
+                ],
+                [
+                  0.35,
+                  0.38399999999999995
+                ],
+                [
+                  0.6,
+                  0.6
+                ],
+                [
+                  1,
+                  0.6
                 ]
               ],
               "interpolation": "linear"
@@ -2849,12 +2884,10 @@ VbFxDefs.register({
           "color": "#6fc8ff",
           "texture": "glow",
           "blend": "add",
-          "radius": 0.8,
           "aspect": [
-            0.09,
-            1.2
+            0.11,
+            1
           ],
-          "shiftY": 0.6,
           "curves": {
             "alpha": {
               "keys": [
@@ -2863,7 +2896,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.06,
+                  0.04,
                   0.9
                 ],
                 [
@@ -2872,6 +2905,56 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "shiftY": {
+              "keys": [
+                [
+                  0,
+                  0.052000000000000005
+                ],
+                [
+                  0.15,
+                  0.31000000000000005
+                ],
+                [
+                  0.35,
+                  0.6539999999999999
+                ],
+                [
+                  0.6,
+                  1.058
+                ],
+                [
+                  1,
+                  1.33
+                ]
+              ],
+              "interpolation": "linear"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.052000000000000005
+                ],
+                [
+                  0.15,
+                  0.20800000000000002
+                ],
+                [
+                  0.35,
+                  0.4159999999999999
+                ],
+                [
+                  0.6,
+                  0.65
+                ],
+                [
+                  1,
+                  0.65
+                ]
+              ],
+              "interpolation": "linear"
             }
           }
         },
@@ -2884,12 +2967,10 @@ VbFxDefs.register({
           "color": "#ffffff",
           "texture": "glow",
           "blend": "add",
-          "radius": 0.55,
           "aspect": [
-            0.045,
-            1.1
+            0.05,
+            1
           ],
-          "shiftY": 0.42,
           "curves": {
             "alpha": {
               "keys": [
@@ -2898,7 +2979,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.06,
+                  0.04,
                   0.8
                 ],
                 [
@@ -2907,56 +2988,58 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "shiftY": {
+              "keys": [
+                [
+                  0,
+                  0.036000000000000004
+                ],
+                [
+                  0.15,
+                  0.24600000000000002
+                ],
+                [
+                  0.35,
+                  0.526
+                ],
+                [
+                  0.6,
+                  0.8580000000000001
+                ],
+                [
+                  1,
+                  1.1300000000000001
+                ]
+              ],
+              "interpolation": "linear"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.036000000000000004
+                ],
+                [
+                  0.15,
+                  0.14400000000000002
+                ],
+                [
+                  0.35,
+                  0.288
+                ],
+                [
+                  0.6,
+                  0.45
+                ],
+                [
+                  1,
+                  0.45
+                ]
+              ],
+              "interpolation": "linear"
             }
           }
-        },
-        {
-          "anchor": "source",
-          "basis": "unit",
-          "seedOffset": 0,
-          "intrinsicAlpha": true,
-          "type": "particles",
-          "motion": "line-motes",
-          "points": [
-            [
-              0,
-              0.1
-            ],
-            [
-              0,
-              1.3
-            ]
-          ],
-          "count": 16,
-          "spreadDistance": 0.06,
-          "color": "#bfe8ff",
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.06,
-                  0.85
-                ],
-                [
-                  1,
-                  0.85
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          },
-          "materials": [
-            {
-              "texture": "glow",
-              "radius": 0.035,
-              "radiusVelocity": 0.03,
-              "blend": "add"
-            }
-          ]
         },
         {
           "anchor": "source",
@@ -2967,12 +3050,11 @@ VbFxDefs.register({
           "color": "#3f9cff",
           "texture": "glow",
           "blend": "add",
-          "radius": 0.42,
+          "radius": 0.38,
           "aspect": [
             0.55,
             1
           ],
-          "shiftY": 0.02,
           "curves": {
             "alpha": {
               "keys": [
@@ -2981,7 +3063,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.06,
+                  0.04,
                   0.85
                 ],
                 [
@@ -2990,6 +3072,19 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "shiftY": {
+              "keys": [
+                [
+                  0,
+                  -0.34
+                ],
+                [
+                  1,
+                  0.34
+                ]
+              ],
+              "interpolation": "linear"
             }
           }
         },
@@ -3004,10 +3099,10 @@ VbFxDefs.register({
           "light": "#ffffff",
           "shadow": "#2a6ad0",
           "blend": "add",
-          "radius": 0.36,
+          "radius": 0.34,
           "aspect": [
             1,
-            2.2
+            2.4
           ],
           "rotation": -1.5708,
           "curves": {
@@ -3018,7 +3113,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.06,
+                  0.04,
                   1
                 ],
                 [
@@ -3027,6 +3122,19 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "shiftY": {
+              "keys": [
+                [
+                  0,
+                  -0.34
+                ],
+                [
+                  1,
+                  0.34
+                ]
+              ],
+              "interpolation": "linear"
             }
           }
         },
@@ -3039,7 +3147,7 @@ VbFxDefs.register({
           "shape": "arrow",
           "color": "#ffffff",
           "blend": "add",
-          "radius": 0.3,
+          "radius": 0.28900000000000003,
           "aspect": [
             1,
             1
@@ -3053,7 +3161,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.06,
+                  0.04,
                   0.9
                 ],
                 [
@@ -3062,6 +3170,19 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "shiftY": {
+              "keys": [
+                [
+                  0,
+                  -0.37
+                ],
+                [
+                  1,
+                  0.31000000000000005
+                ]
+              ],
+              "interpolation": "linear"
             }
           }
         },
@@ -3074,8 +3195,7 @@ VbFxDefs.register({
           "color": "#e8f8ff",
           "texture": "glow",
           "blend": "add",
-          "radius": 0.3,
-          "shiftY": -0.3,
+          "radius": 0.28,
           "curves": {
             "alpha": {
               "keys": [
@@ -3084,7 +3204,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.06,
+                  0.04,
                   1
                 ],
                 [
@@ -3093,6 +3213,19 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "shiftY": {
+              "keys": [
+                [
+                  0,
+                  -0.68
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "linear"
             }
           }
         },
@@ -3105,12 +3238,11 @@ VbFxDefs.register({
           "color": "#ffffff",
           "texture": "glow",
           "blend": "add",
-          "radius": 0.4,
+          "radius": 0.36,
           "aspect": [
             1,
             0.06
           ],
-          "shiftY": -0.3,
           "curves": {
             "alpha": {
               "keys": [
@@ -3119,7 +3251,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.06,
+                  0.04,
                   0.9
                 ],
                 [
@@ -3140,6 +3272,19 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "shiftY": {
+              "keys": [
+                [
+                  0,
+                  -0.68
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "linear"
             }
           }
         }
@@ -12567,35 +12712,19 @@ VbFxDefs.register({
                   1
                 ],
                 [
-                  0.22,
-                  0.97
-                ],
-                [
-                  0.32,
-                  0.8
-                ],
-                [
-                  0.4,
-                  0.8640000000000001
-                ],
-                [
-                  0.52,
-                  0.8400000000000001
-                ],
-                [
                   0.62,
                   0.62
                 ],
                 [
-                  0.7,
-                  0.682
-                ],
-                [
                   1,
-                  0.651
+                  0.6448
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "sine-in",
+              "segments": [
+                "sine-in",
+                "smooth"
+              ]
             },
             "rotation": {
               "keys": [
@@ -12655,35 +12784,19 @@ VbFxDefs.register({
                   1.1
                 ],
                 [
-                  0.22,
-                  1.067
-                ],
-                [
-                  0.32,
-                  0.85
-                ],
-                [
-                  0.4,
-                  0.918
-                ],
-                [
-                  0.52,
-                  0.8925
-                ],
-                [
                   0.62,
                   0.6
                 ],
                 [
-                  0.7,
-                  0.66
-                ],
-                [
                   1,
-                  0.63
+                  0.624
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "sine-in",
+              "segments": [
+                "sine-in",
+                "smooth"
+              ]
             }
           }
         },
@@ -12731,35 +12844,19 @@ VbFxDefs.register({
                   0.72
                 ],
                 [
-                  0.22,
-                  0.6983999999999999
-                ],
-                [
-                  0.32,
-                  0.5
-                ],
-                [
-                  0.4,
-                  0.54
-                ],
-                [
-                  0.52,
-                  0.525
-                ],
-                [
                   0.62,
                   0.3
                 ],
                 [
-                  0.7,
-                  0.33
-                ],
-                [
                   1,
-                  0.315
+                  0.312
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "sine-in",
+              "segments": [
+                "sine-in",
+                "smooth"
+              ]
             },
             "rotation": {
               "keys": [
@@ -12821,35 +12918,19 @@ VbFxDefs.register({
                   0.62
                 ],
                 [
-                  0.22,
-                  0.6013999999999999
-                ],
-                [
-                  0.32,
-                  0.42
-                ],
-                [
-                  0.4,
-                  0.4536
-                ],
-                [
-                  0.52,
-                  0.441
-                ],
-                [
                   0.62,
                   0.25
                 ],
                 [
-                  0.7,
-                  0.275
-                ],
-                [
                   1,
-                  0.2625
+                  0.26
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "sine-in",
+              "segments": [
+                "sine-in",
+                "smooth"
+              ]
             },
             "rotation": {
               "keys": [
@@ -12913,35 +12994,19 @@ VbFxDefs.register({
                   0.66
                 ],
                 [
-                  0.22,
-                  0.6402
-                ],
-                [
-                  0.32,
-                  0.46
-                ],
-                [
-                  0.4,
-                  0.4968000000000001
-                ],
-                [
-                  0.52,
-                  0.48300000000000004
-                ],
-                [
                   0.62,
                   0.27
                 ],
                 [
-                  0.7,
-                  0.29700000000000004
-                ],
-                [
                   1,
-                  0.28350000000000003
+                  0.28080000000000005
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "sine-in",
+              "segments": [
+                "sine-in",
+                "smooth"
+              ]
             }
           },
           "materials": [
@@ -13006,35 +13071,19 @@ VbFxDefs.register({
                   0.66
                 ],
                 [
-                  0.22,
-                  0.6402
-                ],
-                [
-                  0.32,
-                  0.45
-                ],
-                [
-                  0.4,
-                  0.48600000000000004
-                ],
-                [
-                  0.52,
-                  0.47250000000000003
-                ],
-                [
                   0.62,
                   0.27
                 ],
                 [
-                  0.7,
-                  0.29700000000000004
-                ],
-                [
                   1,
-                  0.28350000000000003
+                  0.28080000000000005
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "sine-in",
+              "segments": [
+                "sine-in",
+                "smooth"
+              ]
             }
           }
         },
@@ -13139,10 +13188,6 @@ VbFxDefs.register({
                   0.4
                 ],
                 [
-                  0.32,
-                  0.7
-                ],
-                [
                   0.62,
                   1
                 ],
@@ -13161,34 +13206,22 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.12
-                ],
-                [
-                  0.32,
-                  0.2
-                ],
-                [
-                  0.4,
-                  0.17
+                  0.1
                 ],
                 [
                   0.62,
                   0.28
                 ],
                 [
-                  0.7,
-                  0.24
-                ],
-                [
-                  0.8,
-                  0.27
-                ],
-                [
                   1,
                   0.25
                 ]
               ],
-              "interpolation": "smooth"
+              "interpolation": "sine-in",
+              "segments": [
+                "sine-in",
+                "smooth"
+              ]
             },
             "rotation": {
               "keys": [
@@ -13223,27 +13256,15 @@ VbFxDefs.register({
                 ],
                 [
                   0.1,
-                  0.35
-                ],
-                [
-                  0.32,
-                  0.6
-                ],
-                [
-                  0.4,
-                  0.45
+                  0.3
                 ],
                 [
                   0.62,
                   0.95
                 ],
                 [
-                  0.72,
-                  0.7
-                ],
-                [
                   0.8,
-                  0.85
+                  0.75
                 ],
                 [
                   1,
@@ -13256,23 +13277,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.18
-                ],
-                [
-                  0.32,
-                  0.28
+                  0.16
                 ],
                 [
                   0.62,
                   0.36
-                ],
-                [
-                  0.72,
-                  0.3
-                ],
-                [
-                  0.8,
-                  0.34
                 ],
                 [
                   1,
@@ -13354,44 +13363,6 @@ VbFxDefs.register({
                 [
                   1,
                   1
-                ]
-              ],
-              "interpolation": "power-out",
-              "exponent": 2
-            }
-          }
-        },
-        {
-          "anchor": "source",
-          "basis": "unit",
-          "seedOffset": 0,
-          "intrinsicAlpha": true,
-          "type": "shake",
-          "time": [
-            0.3,
-            0.4
-          ],
-          "clockSpace": "life",
-          "batch": 1,
-          "holdEnd": true,
-          "strength": [
-            0.012,
-            0.004
-          ],
-          "frequencyHz": [
-            22,
-            17
-          ],
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  1
-                ],
-                [
-                  1,
-                  0
                 ]
               ],
               "interpolation": "power-out",

@@ -95,11 +95,11 @@ function vbLabVfxExpectedCalls(code,names) {
     &&(!follow||names.indexOf(follow)>at);
 }
 
-// C002/C017のSE差はfd294eeでも同じ。今回の「SE維持」に従い、両側の従来回数を検査する。
+// C002/C017の固有SEは、以前はPvEだけ1手番の後で鳴らしオンラインは鳴らなかった。2026-10-15から被弾位置の固有VFXと同時に両側で1回鳴らす。
 // 第2段の固有演出。旧50種のシナリオはそのまま、新しい描画入口も同じコア→presenterで比較する。
 var vbWebpVfxCases=[
-  ['C002','redirect','attack-recoil',{pve:['C002'],online:[]}],['C008','mana','arachne-ring'],
-  ['C011','attack','siren-wave'],['C017','injury','medusa-gaze',{pve:['C017'],online:[]}],
+  ['C002','redirect','attack-recoil',{pve:['C002'],online:['C002']}],['C008','mana','arachne-ring'],
+  ['C011','attack','siren-wave'],['C017','injury','medusa-gaze',{pve:['C017'],online:['C017']}],
   ['C019','attack','centaur-missile'],['C043','attack','flame-sweep'],
   ['C090','death','steal-mark'],['E058','mana','fire-arrow'],
   ['E045','mana','mana-buff'],['C003','injury','injury-buff'],

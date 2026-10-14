@@ -465,7 +465,9 @@ async function presentDamageEvent(ev, api) {
   if (!labHandled && ev.effect && source && typeof api.onEffectDamage === 'function') api.onEffectDamage(ev, source);
   // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
   // 鳴らさない（強化カードで得た効果で本人のSEが鳴るのを防ぐ）。
-  if (vfxSource && typeof api.noteEffectSource === 'function') api.noteEffectSource(vfxSource);
+  // 固有SEは被弾位置の固有VFXと同時に鳴らす（playHitVfx の effectSfx。2026-10-15）。
+  // 数値を別経路（薙ぎ払い）で出し済みの時だけ、従来どおり後でまとめて鳴らす。
+  if (vfxSource && shownElsewhere && typeof api.noteEffectSource === 'function') api.noteEffectSource(vfxSource);
   // 別経路（薙ぎ払い）で数値を出し済みなら、ここでは出し直さない。
   if (shownElsewhere) return true;
   if (amount <= 0) return true;
@@ -509,7 +511,7 @@ async function presentDamageEvent(ev, api) {
     const labelMs = typeof presentDamageRunLabelMs === 'function' ? presentDamageRunLabelMs(runMs) : 0;
     playHitVfx(fxSide, target, amount, {
       ...(labHandled ? {labelOnly:true,keywordSfx:false} : {}),
-      ...(vfxSource ? { effectSource: vfxSource } : {}),
+      ...(vfxSource ? { effectSource: vfxSource, effectSfx: !labHandled } : {}),
       ...(labelMs > 0 ? { labelDuration: labelMs, labelDurationMin: 0 } : {}),
       keywordEffect: ev.keywordEffect || undefined,
       // 状態異常を付けたダメージは、そのキーワードの絵で見せる（音は変えない）。

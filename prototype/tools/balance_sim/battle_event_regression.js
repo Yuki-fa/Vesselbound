@@ -988,9 +988,11 @@ function main() {
     '反撃が誘発を先に起こしている');
   // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
   // 鳴らさない（ノームに闇の炎を付けた死亡ダメージでノームのSEが鳴っていた）。
+  // 2026-10-15：固有SEは被弾位置の固有VFXと同時に鳴らす（effectSfx）。後でまとめて鳴らすのは数値を別経路で出した時だけ。
   assert.match(read('js/battle/present_events.js'),
-    /if \(vfxSource && typeof api\.noteEffectSource === 'function'\) api\.noteEffectSource\(vfxSource\);/,
+    /if \(vfxSource && shownElsewhere && typeof api\.noteEffectSource === 'function'\) api\.noteEffectSource\(vfxSource\);/,
     '固有SEの発生元がVFXと別の規則になっている');
+  assert.match(read('js/battle/present_events.js'),/effectSource: vfxSource, effectSfx: !labHandled/,'固有SEを被弾位置の固有VFXと同時に鳴らしていない');
   // 1体の行動と次の行動の間には必ず「間」を置く（途切れなく続くと追えない）。
   assert.match(read('js/battle/present.js'), /const PRESENT_TURN_GAP_MS = /,
     '手番の間の長さが present.js に無い');
@@ -1242,9 +1244,9 @@ function main() {
   // renderManaHud() だけを呼ぶと戦闘中は何も更新されず、カウントが止まって見える。
   assert.match(currentBattle, /function _refreshManaDisplays\(\)\{[\s\S]{0,700}renderBattleCounters\(\);/,
     'マナ表示の更新が戦闘中のカウンターを含んでいない');
-  // マナ増加SE（特殊演出 S004）は「増えた時だけ」。減った時・据え置きでは鳴らさない。
-  assert.match(currentBattle, /function _refreshManaDisplays\(\)\{[\s\S]{0,400}cur>_shownManaForSfx[\s\S]{0,120}playSfx\('S004'/,
-    'マナ増加SE（S004）を「増えた時だけ」鳴らしていない');
+  // マナ増加SE（S004）は鳴らさない（2026-10-15 利用者指定）。
+  assert.doesNotMatch(currentBattle, /function _refreshManaDisplays\(\)\{[\s\S]{0,600}playSfx\('S004'/,
+    'マナ増加SE（S004）を鳴らしている');
   assert.match(read('js/online/board.js'), /_refreshManaDisplays === 'function'\) _refreshManaDisplays\(\)/,
     'オンラインがマナ表示の共通出口を通っていない（マナ増加SEが鳴らない）');
   assert.doesNotMatch(currentBattle.replace(/function _refreshManaDisplays[\s\S]*?\n\}/, ''),

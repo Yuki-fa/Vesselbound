@@ -1573,11 +1573,8 @@ if(!window._battleOpeningContextMenuGuardBound){
 let _shownManaForSfx=null;
 function _refreshManaDisplays(){
   const cur=Math.max(0,Number(typeof G!=='undefined'&&G?G.mana:0)||0);
-  // マナ増加のSE（特殊演出シート S004）。**ここが唯一の実装**（PvE・オンライン共通）。
-  // 減った時・据え置きの時は鳴らさない。戦闘開始時の0リセットでも鳴らない。
-  if(_shownManaForSfx!=null&&cur>_shownManaForSfx&&typeof playSfx==='function'){
-    playSfx('S004',{group:'magic',guardKey:`mana-gain:${uid()}`,guardMs:0});
-  }
+  // マナ増加のSE（特殊演出シート S004）は鳴らさない（2026-10-15 利用者指定「マナ獲得時にSEを鳴らすのをやめます」）。
+  // VFX（マナの結晶）は従来どおり出す。PvE・オンライン共通の唯一の入口なのでここで止める。
   _shownManaForSfx=cur;
   if(typeof renderManaHud==='function') renderManaHud();
   if(typeof renderBattleCounters==='function') renderBattleCounters();

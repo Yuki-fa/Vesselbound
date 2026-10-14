@@ -151,7 +151,7 @@ async function run(evaluate) {
         assert.equal(r.origins.length, 1, '最後の位置から炎を生成していない');
         const p = r.origins[0], x = p.x, y = p.y, rect = r.expected;
         assert.ok(Number.isFinite(x) && Number.isFinite(y), '原点が有限座標でない');
-        assert.ok(Math.abs(x - (rect.left + rect.width * .25)) < 1 && Math.abs(y - (rect.top + (side === 'p2' ? rect.height : 0))) < 1,
+        assert.ok(Math.abs(x - (rect.left + rect.width * .5)) < 1 && Math.abs(y - (rect.top + (side === 'p2' ? rect.height : 0))) < 1,
           `原点(${x},${y})がカード(${rect.left},${rect.top},${rect.width},${rect.height})から外れた`);
         assert.ok(x > 0 && y > 0, '画面左端・左上から炎が出た');
       });
@@ -159,7 +159,7 @@ async function run(evaluate) {
     for (const kind of ['transform', 'revive', 'copy']) await check(`姿 ${side}/${speed}倍/${receiver}/${kind}`, async () => {
       const r = await evaluate(`return await (${measure})('live',${JSON.stringify(side)},${speed},${JSON.stringify(receiver)},${JSON.stringify(kind)});`);
       const p = r.origins[0]; assert.ok(p, '炎がない');
-      assert.ok(Math.abs(p.x - (r.expected.left + r.expected.width * .25)) < 1);
+      assert.ok(Math.abs(p.x - (r.expected.left + r.expected.width * .5)) < 1);
       assert.ok(Math.abs(p.y - (r.expected.top + (side === 'p2' ? r.expected.height : 0))) < 1);
     });
   }

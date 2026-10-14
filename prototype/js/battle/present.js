@@ -1859,6 +1859,26 @@ function presentLabEffectEvents(events, index, code, ownerId) {
   return out;
 }
 
+// ── 固有VFXの尺と、効果音のピーク（2026-10-15 利用者指定） ─────────────────
+// 被弾位置に出す固有VFX（肩代わり＝マータ等）の再生時間（ms）。無い番号は従来の既定（800ms）。
+// マータは「速度2.5倍を標準に」（LABの基準1.5倍で定義の尺630ms → 420ms）。
+const PRESENT_CHARACTER_HIT_VFX_MS = { C002: 420 };
+function presentCharacterHitVfxMs(code) {
+  const n = Number(PRESENT_CHARACTER_HIT_VFX_MS[String(code || '').toUpperCase()]);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+// ゲームの効果音（assets/sfx）の一番大きい所の時刻（秒、ファイル先頭から。実測）。
+// 固有VFXと一緒に鳴らす時、このピークをVFXの山場（定義の impact）へ合わせる。LABも同じ表を使う。
+const PRESENT_SFX_PEAK_SEC = {
+  C002: .533, C008: .380, C009: .122, C011: .195, C017: .403, C019: .272, C019_HIT: .351, C043: 1.456,
+  C090: .130, S005: .511, S006: .563,
+  [getKeywordAssetKey('毒牙')]: .552, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: .384,
+};
+function presentSfxPeakSec(key) {
+  const n = Number(PRESENT_SFX_PEAK_SEC[String(key || '')]);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 function presentCharacterVfxScale(code) {
   const n = Number(PRESENT_VFX_SCALE[String(code || '').toUpperCase()]);
   return Number.isFinite(n) && n > 0 ? n : 1;
@@ -2062,6 +2082,8 @@ if (typeof window !== 'undefined') {
   window.presentCharacterVfxScale = presentCharacterVfxScale;
   window.presentResetPlayback = presentResetPlayback;
   window.presentDamageVfxSource = presentDamageVfxSource;
+  window.presentSfxPeakSec = presentSfxPeakSec;
+  window.presentCharacterHitVfxMs = presentCharacterHitVfxMs;
   window.presentPreAttackEffectOwnerId = presentPreAttackEffectOwnerId;
   window.presentPreAttackActorId = presentPreAttackActorId;
   window.presentPreAttackPlan = presentPreAttackPlan;
