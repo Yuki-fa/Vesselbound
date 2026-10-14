@@ -2768,7 +2768,10 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
   for (let textRun = 0; textRun < coreEffectRepeatCount(unit, 'ニンフ'); textRun++) {
     const colors = new Set(allies.filter(x => x.hp > 0 && !coreIsSealed(x) && x.color).map(x => x.color));
     const mul = Math.max(1, coreEffectNumbers(unit, '開戦', /Xは味方の色の数の(\d+)倍に等しい/, [1])[0]);
-    if (colors.size) coreGainResource(state, unit.side, 'mana', colors.size * mul, unit, emit, 'nymph_colors');
+    // 2026-10-12: 演出へ実際の各色の発生元を渡す。獲得量・対象・乱数は従来どおり。
+    const colorSources = [...colors].map(color => ({color,unitId:allies.find(x=>x.hp>0&&!coreIsSealed(x)&&x.color===color).id}));
+    if (colors.size) coreGainResource(state, unit.side, 'mana', colors.size * mul, unit,
+      ev=>emit(ev.type==='mana_gain'&&ev.unitId===unit.id?{...ev,colorSources}:ev), 'nymph_colors');
   }
   if (!unit._corePassiveOpeningApplied) {
     const passiveMana = coreUnitEffectText(unit).match(/このキャラクターは\+X\/\+Xを得る。Xは敵が持つマナの4倍に等しい/);
@@ -3669,13 +3672,13 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     if (unit.hp <= 0) break;
     if (minoShield > 0) {
       unit.shield = (Number(unit.shield) || 0) + minoShield;
-      emit({ type: 'keyword_effect', effect: 'shield', side: unit.side, unitId: unit.id, amount: minoShield });
+      emit({ type: 'keyword_effect', effect: 'shield', side: unit.side, unitId: unit.id, amount: minoShield, sourceId:unit.id });
     }
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) {
       unit._currentAttackTarget = target;
       coreApplyAttackEffects(unit, state, rng, emit, applyHit);
-      emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: target.atk, immediate: true });
+      emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: target.atk, immediate: true, reactionSourceId:unit.id });
       coreWithDamageKind(state, 'combat', () => {
         unit._coreAttackContact = true;
         try { applyHit(unit, target, unit.atk); }
@@ -3842,7 +3845,12 @@ function coreApplyReleaseEffects(unit, sacrificed, state, rng, emit, applyHit) {
   (state.units[unit.side] || []).filter(x => x && x.hp > 0 && !coreIsSealed(x)).forEach(observer => {
     coreTriggerEffectEntries(observer, '常時', /味方が解放された時、ランダムな味方の開戦効果を発動する/).forEach((_m, repeat) => {
       const target = rng.pick((state.units[unit.side] || []).filter(x => x && x !== observer && x.hp > 0 && !coreIsSealed(x)));
-      if (target) coreApplyOpeningEffects(target, state, rng, emit, applyHit, `release:${observation}:${observer.id}:${repeat}`);
+      // 2026-10-12: 再発火の因果だけを既存イベントへ付ける。対象の再抽選や追加発動はしない。
+      if (target) {
+        const retriggerKey=`release:${observation}:${observer.id}:${repeat}`;
+        coreApplyOpeningEffects(target, state, rng,
+          ev=>emit({...ev,retriggerSourceId:observer.id,retriggerTargetId:target.id,retriggerKey}),applyHit,retriggerKey);
+      }
     });
     coreTriggerEffectEntries(observer, '常時', /味方が解放された時、このキャラクターは\+X\/\+Xと結界(\d+)を得る。Xは血に等しい/).forEach(m => {
       const blood = Math.max(0, Number(state.blood && state.blood[unit.side]) || 0);
@@ -3900,7 +3908,8 @@ function coreApplyReleaseEffects(unit, sacrificed, state, rng, emit, applyHit) {
     const behemoth = Math.max(1, coreEffectNumbers(unit, '解放', /マナを(\d+)倍にする/, [2])[0]);
     const before = Number(state.resources[unit.side].mana) || 0;
     state.resources[unit.side].mana = before * behemoth;
-    emit({ type: 'mana_set', side: unit.side, amount: state.resources[unit.side].mana, reason: 'behemoth' });
+    emit({ type: 'mana_set', side: unit.side, amount: state.resources[unit.side].mana, reason: 'behemoth', sourceId:unit.id,
+      gained:state.resources[unit.side].mana-before });
   }
   if (/マナを2倍にする/.test(releaseText) && !coreHasEffect(unit, 'ベヒーモス')) {
     const before = Number(state.resources[unit.side].mana) || 0;
@@ -4258,7 +4267,9 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       const gain = Number(killBlood[1]) || 0;
       state.blood[killer.side] = Math.max(0, Number(state.blood[killer.side]) || 0) + gain;
       coreEmitPassiveFlash(emit, killer);
-      emit({ type: 'blood_set', side: killer.side, amount: state.blood[killer.side], gained: gain, sourceId: killer.id });
+      // 2026-10-12: 血になる実際の撃破対象を演出へ渡す（血の計算は変更しない）。
+      emit({ type: 'blood_set', side: killer.side, amount: state.blood[killer.side], gained: gain, sourceId: killer.id,
+        victimId:unit.id,victimSide:unit.side });
     }
   }
   // サキュバス：この攻撃で倒した敵の状態を味方として召喚する。

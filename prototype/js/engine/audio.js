@@ -142,6 +142,28 @@ const SFX_SETTINGS={
     E058:       {group:'magic',  volume: 0.89}, // 炎の矢（発生元）（実測-10.0dBFS）
     E058_HIT:   {group:'magic',  volume: 0.42}, // 炎の矢（着弾）（実測-3.5dBFS）
     E067: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    // 2026-10-12: ボイスを除く仮SE（候補1）。短い固有音も通常の音量管理を通す。
+    C004: {group:'magic',volume:.70,maxPlayMs:0},
+    C020: {group:'magic',volume:.70,maxPlayMs:0},
+    C021: {group:'magic',volume:.70,maxPlayMs:0},
+    C060: {group:'magic',volume:.70,maxPlayMs:0},
+    C064: {group:'magic',volume:.70,maxPlayMs:0},
+    C071: {group:'magic',volume:.70,maxPlayMs:0},
+    C089: {group:'magic',volume:.70,maxPlayMs:0},
+    C099: {group:'magic',volume:.70,maxPlayMs:0},
+    C029: {group:'magic',volume:.70,maxPlayMs:0},
+    C034: {group:'magic',volume:.70,maxPlayMs:0},
+    C082: {group:'magic',volume:.70,maxPlayMs:0},
+    C083: {group:'magic',volume:.70,maxPlayMs:0},
+    C095: {group:'magic',volume:.70,maxPlayMs:0},
+    C097: {group:'magic',volume:.70,maxPlayMs:0},
+    C009: {group:'magic',volume:.70,maxPlayMs:0},
+    C042: {group:'magic',volume:.70,maxPlayMs:0},
+    C056: {group:'magic',volume:.70,maxPlayMs:0},
+    C066: {group:'magic',volume:.70,maxPlayMs:0},
+    C079: {group:'magic',volume:.70,maxPlayMs:0},
+    C084: {group:'magic',volume:.70,maxPlayMs:0},
+    C094: {group:'magic',volume:.70,maxPlayMs:0},
     // LABの採用音は同じ基準音量で鳴らす。
     E006: {group:'magic',volume:.70},
     C024: {group:'magic',volume:.70},

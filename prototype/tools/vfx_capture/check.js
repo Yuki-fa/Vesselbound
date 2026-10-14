@@ -27,7 +27,11 @@ class CaptureImage {
 
 async function main(){
   let observe;const animations=[],image=new CaptureImage('http://127.0.0.1:5817/assets/vfx/K009.webp?vblab=1');
-  const context=vm.createContext({URL,performance:{now:()=>999},document:{getAnimations:()=>animations,querySelectorAll:q=>q.includes('data-vb-fx')?[image]:[]},
+  // オーバーロードの残像JPEGとAnimated WebPが同じVFX層に並ぶ撮影を再現する。
+  const portrait=new CaptureImage('http://127.0.0.1:5817/assets/art/characters/C097.jpg?v=1');
+  const staticPng=new CaptureImage('http://127.0.0.1:5817/assets/art/static.png');
+  const fxImages=[portrait,image,staticPng];
+  const context=vm.createContext({URL,performance:{now:()=>999},document:{getAnimations:()=>animations,querySelectorAll:q=>q.includes('data-vb-fx')?fxImages:[]},
     MutationObserver:function(fn){observe=fn;this.observe=()=>{};},location:{href:'http://127.0.0.1:5817/tools/vfx_preview.html'}});
   context.window=context;
   vm.runInContext('('+installCaptureClock.toString()+')(53);',context);
@@ -60,6 +64,20 @@ async function main(){
   image.src='http://127.0.0.1:5817/assets/vfx/K009.webp?vblab=1';
   await freezeSprites({eval:evaluate});assert.match(image.src,/^data:image\/(?:webp|png);base64,/);
   assert.equal(image.dataset.captureFrame,'K009_001.webp');assert.equal(context.__vfxCaptureClock.now(),100);
+  assert.equal(portrait.src,'http://127.0.0.1:5817/assets/art/characters/C097.jpg?v=1');
+  assert.equal(staticPng.src,'http://127.0.0.1:5817/assets/art/static.png');
+  assert.equal(portrait.assignments,1);assert.equal(staticPng.assignments,1);
+  assert.equal(portrait.dataset.captureFrame,undefined);assert.equal(staticPng.dataset.captureFrame,undefined);
+  portrait.failDecode=true;
+  await assert.rejects(freezeSprites({eval:evaluate}),/C097\.jpg.*EncodingError/); // 静止画像もデコードを待つ
+  portrait.failDecode=false;
+  const unsupported=new CaptureImage('http://127.0.0.1:5817/assets/vfx/K999.webp');
+  fxImages.push(unsupported);
+  await assert.rejects(freezeSprites({eval:evaluate}),/静止コマの無いAnimated WebP: K999/); // 未対応WebPは隠さない
+  fxImages.pop();
+  fxImages.splice(1,1);
+  await freezeSprites({eval:evaluate}); // オーバーロード同様、静止画像だけのVFX層も撮れる
+  fxImages.splice(1,0,image);
   const assignments=image.assignments;
   await freezeSprites({eval:evaluate});assert.equal(image.assignments,assignments); // 同じコマのsrcを再設定しない
   await context.__vfxCaptureClock.step(170);
@@ -160,6 +178,6 @@ async function main(){
     assert.throws(()=>execFileSync('python3',[path.join(__dirname,'compare.py'),before,after,out],{stdio:'pipe'}),/比較対象が一致しません/);
   }finally{fs.rmSync(temp,{recursive:true,force:true});}
   await require('./ingame_check').main();
-  console.log('撮影道具: 外部時計・seed・RAF・CSS・静止コマ未配信・load待機・元WebP抽出・別ポート・file://・PNG比較・一覧txt・参考32効果比較・時刻誤りの拒否 OK（Chrome撮影は未実行）');
+  console.log('撮影道具: 外部時計・seed・RAF・CSS・残像JPEG/PNGとWebPの混在・未対応WebPの拒否・静止コマ未配信・load待機・元WebP抽出・別ポート・file://・PNG比較・一覧txt・参考32効果比較・時刻誤りの拒否 OK（Chrome撮影は未実行）');
 }
 main().catch(e=>{console.error(e.stack);process.exitCode=1;});

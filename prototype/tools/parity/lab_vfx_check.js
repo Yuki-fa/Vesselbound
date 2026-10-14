@@ -37,12 +37,12 @@ function check(name,ok,detail){results.push({name,ok:!!ok,detail});console.log((
       window.__labHits=[];const originalHit=window.playHitVfx;window.playHitVfx=function(side,target,amount){window.__labHits.push(performance.now());return originalHit.apply(this,arguments);};
       window.playSfx=function(code,opt){window.__labSound.push({code,offsetMs:opt&&opt.offsetMs});return originalSound(code,opt);};
       // fixtures は eval の関数内で評価されるため、後続の eval から見えるよう window へ出す。
-      Object.assign(window,{vbLabVfxFixture,vbLabVfxTriggers,vbLabVfxCases,vbLabVfxExtraCases,vbLabVfxPrepare,
+      Object.assign(window,{vbLabVfxFixture,vbLabVfxTriggers,vbLabVfxCases,vbLabVfx1012Cases,vbLabVfxExtraCases,vbLabVfxPrepare,
         vbLabVfxResetBattle,vbLabVfxStartPve,vbLabVfxExpectedCalls});
       unlockSfx();
       return true;
     `);
-    const cases=await b.eval('return [...Object.entries(vbLabVfxCases).map(([no,trigger])=>[no,no,trigger]),...vbLabVfxExtraCases()];');
+    const cases=await b.eval('return [...Object.entries(vbLabVfx1012Cases).map(([no,trigger])=>[no,no,trigger]),...Object.entries(vbLabVfxCases).map(([no,trigger])=>[no,no,trigger]),...vbLabVfxExtraCases()];');
     for(const [no,card,trigger]of cases.filter(([no])=>!process.env.VB_ONLY||process.env.VB_ONLY.split(',').includes(no))) {
       const result=await b.eval(setup+`
         const state=vbLabVfxFixture(${JSON.stringify(card)});vbLabVfxPrepare(${JSON.stringify(no)},state);

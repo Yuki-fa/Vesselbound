@@ -30,12 +30,13 @@ function presentEndActionBannerEvent(scope) {
 // LABの発動単位・直列化はこの共通入口だけで管理する（受け口はデータ供給だけ）。
 let _presentLabLists = new WeakMap();
 let _presentLabClaims = new WeakMap();
+let _presentLabContacts = new WeakMap();
 let _presentContactHits = new WeakSet();
 let _presentDamageImpacts = new WeakSet();
 let _presentLabOrigins = {death:new Map(),shield:new Map()};
 function presentLabEventHandled(ev) { return !!(ev && _presentLabClaims.has(ev)); }
 function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C078'); }
-function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
+function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
 // 2026-10-11: 予測や接触からの固定遅延を使わず、確定ダメージを表示する瞬間に共通の振動を始める。
 // 通常・反撃・効果・範囲・飛び道具ともこの入口。強さ／閾値／尺は既存の振動設定が決める。
 // 2026-10-12 利用者指定：画面が振動するのは「攻撃で実際に高いダメージを与えた時」だけ。
@@ -52,12 +53,88 @@ function presentDamageImpact(ev) {
 }
 function _presentLabContext(events) {
   let context = _presentLabLists.get(events);
-  if (!context) { context = {active:null}; _presentLabLists.set(events,context); }
+  if (!context) { context = {active:null,retriggers:new Set()}; _presentLabLists.set(events,context); }
   return context;
 }
 function _presentLabSource(ev) {
   return typeof actionBannerPresentationApi === 'function' && typeof presentActionBannerSourceUnfiltered === 'function'
     ? presentActionBannerSourceUnfiltered(ev,actionBannerPresentationApi()) : null;
+}
+// 2026-10-12: 追加21種も既存の発動単位・待ち・claimsへ接続する。
+// 回数と対象はイベント列そのもの。盤面の効果計算やランダムな対象の再抽選はしない。
+function _presentLab1012Plan(code, ev, events, index, api, source) {
+  if(!presentLab1012EventMatches(code,ev))return null;
+  const find=id=>api.findUnit('p1',id)||api.findUnit('p2',id);
+  const sourceId=ev.sourceId||ev.unitId,owner=find(sourceId)||source&&source.card;
+  if(!owner)return null;
+  const data=typeof actionBannerPresentationApi==='function'?actionBannerPresentationApi():null;
+  const own=data?data.ownCard(owner):owner;
+  const trigger={C004:'mana',C020:'injury',C021:'death',C060:'release',C064:'attack',C071:'opening',C089:'attack',C099:'release',C029:'death',C034:'injury',C082:'release',C083:'injury',C095:'opening',C097:'release',C009:'injury',C042:'death',C056:'mana',C066:'mana',C079:'mana',C084:'passive'}[code];
+  if(!presentActionBannerEffectText(own,trigger))return null;
+  const members=[ev];
+  for(let i=index+1;i<events.length;i++){
+    const next=events[i];if(!next||['effect_flash','mana_threshold','turn_begin','battle_end','attack'].includes(next.type))break;
+    if(code==='C099')break; // 1発＝コアのdamage1件。対象・弾数をまとめ直さない。
+    if(ev.type==='mana_threshold'){
+      if(next.sourceId!=null&&next.sourceId!==sourceId)break;
+      if(['mana_gain','keyword_effect'].includes(next.type))members.push(next);
+      else if(!['log'].includes(next.type))break;
+    }else if(code==='C029'||code==='C034'){
+      if(next.type==='stat_change'&&next.reason==='summon_buff'&&next.sourceId===sourceId)members.push(next);else break;
+    }else if(['C082','C083','C095'].includes(code)&&presentLab1012EventMatches(code,next)&&next.sourceId===sourceId)members.push(next);
+    else break;
+  }
+  let targets=members.filter(e=>e.type==='stat_change'||e.type==='keyword_effect'||e.type==='damage').map(e=>find(e.unitId)).filter(Boolean);
+  let value=1,contactEvent=null,sourceRect=null,colors=null;
+  if(['C004','C020','C021','C060','C064','C097','C042'].includes(code))targets=[owner];
+  if(code==='C004'&&!members.some(e=>e.type==='mana_gain'&&Number(e.amount)>0))return null;
+  if(['C056','C066','C079'].includes(code)&&!targets.length)return null;
+  if(code==='C071'){
+    colors=ev.colorSources||[];targets=colors.map(c=>find(c.unitId)).filter(Boolean);value=colors.length;
+    if(!value)return null;
+  }
+  if(code==='C082'){
+    if(!targets.length)return null;const first=targets[0].id;
+    value=members.filter(e=>e.unitId===first).length;targets=[...new Set(targets)];
+  }
+  if(code==='C095'){value=targets.length;if(!value)return null;}
+  else if(code!=='C082')targets=[...new Set(targets)];
+  if(code==='C034')value=2;
+  if(code==='C021'||code==='C042')sourceRect=battleFxRect(owner,owner.side==='p2'?'enemy':'ally');
+  if(code==='C042'||code==='C084')value=Number(ev.gained);
+  if(code==='C084'){
+    const victim=find(ev.victimId);if(!victim)return null;
+    targets=[victim];sourceRect=battleFxRect(victim,ev.victimSide==='p2'?'enemy':'ally');
+  }
+  if(['C064','C089'].includes(code)){
+    for(let i=index+1;i<events.length;i++){
+      const next=events[i];if(['turn_begin','battle_end'].includes(next.type))break;
+      if(next.type==='attack'&&next.attackerId===owner.id&&next.attackVisual!==false){contactEvent=next;break;}
+    }
+    if(contactEvent){if(code==='C089')targets=[find(contactEvent.targetId)].filter(Boolean);}
+    else if(code==='C089'){
+      const hint=events.slice(0,index).reverse().find(e=>e.type==='effect_flash'&&e.unitId===owner.id&&e.trigger==='attack');
+      targets=[find(hint&&hint.targetId)].filter(Boolean);
+    }
+  }
+  if(code==='C009'){
+    const next=events.slice(index+1).find(e=>e.type==='attack'&&e.reactionSourceId===owner.id);
+    if(!next)return null;targets=[find(next.targetId)].filter(Boolean);members.push(next);
+  }
+  const plan={code,spec:presentLabFx(code),owner,targets,members,value,colors,sourceRect,contactEvent,
+    side:owner.side==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
+  members.forEach(e=>_presentLabClaims.set(e,plan));return plan;
+}
+function presentLabManaGainVfx(ev,unit,side){
+  const plan=_presentLabClaims.get(ev);
+  if(plan&&plan.contactEvent){plan.manaGain={unit,side};return false;}
+  if(plan&&PRESENT_LAB_1012_CODES.has(plan.code))return _presentLabManaAfter(plan,unit,side);
+  return !!(unit&&Number(ev.amount)>0&&typeof playManaGainVfx==='function'&&playManaGainVfx(unit,side));
+}
+function _presentLabManaAfter(plan,unit,side){
+  if(!unit||typeof playManaGainVfx!=='function')return false;
+  let finish;plan.after=new Promise(resolve=>{finish=resolve;});
+  const shown=playManaGainVfx(unit,side,{rect:plan.sourceRect,onDone:finish});if(!shown)finish();return !!shown;
 }
 function _presentLabPlan(ev, events, index, api, context) {
   let source = _presentLabSource(ev);
@@ -80,6 +157,7 @@ function _presentLabPlan(ev, events, index, api, context) {
   if(!presentLabFx(code)) {
     if(ev.type==='keyword_effect'&&ev.effect==='weaken') code=getKeywordAssetKey('弱体');
   }
+  if(PRESENT_LAB_1012_CODES.has(code))return _presentLab1012Plan(code,ev,events,index,api,source);
   const spec = typeof presentLabFx === 'function' ? presentLabFx(code) : null;
   if (!spec || ['S001',getKeywordAssetKey('復活'),getKeywordAssetKey('全体攻撃')].includes(code)) return null;
   if (ev.type === 'effect_flash' && !['C025','C076'].includes(code)) return null;
@@ -124,15 +202,29 @@ function _presentLabPlan(ev, events, index, api, context) {
 function _presentLabStart(plan) {
   if (!plan || plan.started || typeof playBattleLabFx !== 'function') return;
   plan.started = true;
-  const resolvers = new Map();
-  plan.targets.forEach(u=>plan.impact.set(String(u.id),new Promise(resolve=>resolvers.set(String(u.id),resolve))));
+  const resolvers = [],statEvents=plan.members.filter(e=>e.type==='stat_change');
+  plan.eventImpact=new WeakMap();
+  plan.targets.forEach((u,i)=>{
+    const promise=new Promise(resolve=>resolvers[i]=resolve);plan.impact.set(String(u.id),promise);
+    if(plan.code==='C095'&&statEvents[i])plan.eventImpact.set(statEvents[i],promise);
+  });
+  const pulseResolvers=[];
+  const cueTimes=plan.code==='C082'?battleFxPulseTimes(plan.spec[0],plan.value):null;
+  if(cueTimes)statEvents.forEach((ev,i)=>plan.eventImpact.set(ev,new Promise(resolve=>{
+    const wave=Math.floor(i/plan.targets.length);(pulseResolvers[wave]||(pulseResolvers[wave]=[])).push(resolve);
+  })));
   plan.done = playBattleLabFx(plan.code,plan.owner,plan.targets,{side:plan.side,sourceRect:plan.sourceRect,
-    onImpact:i=>{ const target=plan.targets[i], resolve=target&&resolvers.get(String(target.id)); if(resolve) resolve(); }});
-  plan.done.finally(()=>resolvers.forEach(resolve=>resolve()));
+    durationMs:plan.code==='C009'?PRESENT_LAB_REACTION_FLASH_MS/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
+    value:plan.value,colors:plan.colors,
+    impactTimes:plan.code==='C095'?plan.targets.map((_,i)=>.43+.49*i/Math.max(1,plan.targets.length-1)):null,
+    cueTimes,onCue:i=>(pulseResolvers[i]||[]).forEach(resolve=>resolve()),
+    onImpact:i=>{ if(resolvers[i])resolvers[i](); }});
+  plan.done.finally(()=>{resolvers.forEach(resolve=>resolve());pulseResolvers.flat().forEach(resolve=>resolve());});
 }
 async function _presentLabFinish(plan) {
   if (!plan) return;
   if (plan.done) await plan.done;
+  if(plan.after)await plan.after;
   if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
   // 結界・復活の獲得は、元の効果が消えてから同じ波で続ける。
   for (const code of [getKeywordAssetKey('弱体'),getKeywordAssetKey('邪眼'),getKeywordAssetKey('結界','gain'),getKeywordAssetKey('復活','gain')]) {
@@ -140,10 +232,14 @@ async function _presentLabFinish(plan) {
     const units = [...new Set(plan.gains.filter(g=>g.code===code).map(g=>g.unit))];
     if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0])});
   }
+  plan.gains.length=0;
+  // 毒の付与も元の演出へ引き継ぐ。cloneイベントなので固有演出のclaimを受けない。
+  for(const gain of plan.keywordGains||[])presentKeywordEffectEvent({...gain.ev},gain.api);
+  plan.keywordGains=[];
 }
 // ダメージ等を「VFXが当たった瞬間」まで待たせる演出（ワーム・援護射撃の弾・隕石の巻物）。
 // 隕石の巻物は、隕石が墜落した直後にダメージを出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。
-const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006']);
+const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006','C099','C056','C066','C079','C095','C082']);
 async function presentLabBeginEvent(ev, events, index, api) {
   if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
   const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
@@ -155,18 +251,57 @@ async function presentLabBeginEvent(ev, events, index, api) {
       _presentLabOrigins[ev.type==='death'?'death':'shield'].set(ev.side,entry);
     }
   }
+  // 死亡位置の絵が残っている間に、実際の死亡効果／撃破の血を開始する。
+  // 空の合図だけでは始めず、先読みした実体イベントを同じclaimsへ結び付ける。
+  if(ev.type==='death'){
+    for(let i=index+1;i<events.length;i++){
+      const next=events[i];if(['attack','turn_begin','battle_end','death'].includes(next.type))break;
+      const ownerId=next.sourceId||next.unitId,owner=api.findUnit('p1',ownerId)||api.findUnit('p2',ownerId);
+      const code=owner&&(owner.no||owner.artCode);
+      if(!['C021','C029','C042','C084'].includes(code)||_presentLabClaims.has(next)||!presentLab1012EventMatches(code,next))continue;
+      if(code==='C084'?next.victimId!==ev.unitId:ownerId!==ev.unitId)continue;
+      const plan=_presentLab1012Plan(code,next,events,i,api,{card:owner});
+      if(plan){context.active=plan;_presentLabStart(plan);await plan.done;
+        if(['C042','C084'].includes(code)&&typeof battleFxHideConsumedCard==='function')battleFxHideConsumedCard(code==='C042'?owner:plan.targets[0]);
+      }
+      break;
+    }
+  }
+  // 実際に再発火した開戦効果の前だけ、因果メタデータのインプ→対象を点火する。
+  if(ev.retriggerKey&&!context.retriggers.has(ev.retriggerKey)){
+    const body=[];
+    for(let i=index;i<events.length;i++){const e=events[i];if(i>index&&(['attack','turn_begin','battle_end'].includes(e.type)||e.type==='effect_flash'&&e.trigger==='opening'&&e.retriggerKey!==ev.retriggerKey))break;body.push(e);}
+    // applyHitが外部のemitへ出したダメージも、実際の発動対象IDで拾う。
+    const result=body.some(e=>!['effect_flash','log'].includes(e.type)&&
+      (e.retriggerKey===ev.retriggerKey||e.sourceId===ev.retriggerTargetId&&e.type==='damage'));
+    const owner=api.findUnit('p1',ev.retriggerSourceId)||api.findUnit('p2',ev.retriggerSourceId);
+    const target=api.findUnit('p1',ev.retriggerTargetId)||api.findUnit('p2',ev.retriggerTargetId);
+    if(result&&owner&&target&&(owner.no||owner.artCode)==='C094'){
+      context.retriggers.add(ev.retriggerKey);await playBattleLabFx('C094',owner,[target],{side:owner.side==='p2'?'enemy':'ally'});
+    }
+  }
   if (claimed) {
+    if(PRESENT_LAB_1012_CODES.has(claimed.code)&&!claimed.contactEvent&&!context.active&&ev.type!=='attack')context.active=claimed;
+    if(ev.type==='mana_gain'&&PRESENT_LAB_1012_CODES.has(claimed.code)&&!claimed.contactEvent)await claimed.done;
+    if(claimed.code==='C009'&&ev.type==='attack'){
+      await _presentLabFinish(claimed);
+      await playBattleLabFx('C009',claimed.owner,claimed.targets,{side:claimed.side,value:2,silent:true,
+        durationMs:PRESENT_LAB_REACTION_AIM_MS/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1)});context.active=null;
+      return;
+    }
     if(claimed.code==='C041'&&ev.type==='summon'){ await _presentLabFinish(claimed); context.active=null; }
     if (PRESENT_LAB_WAIT_IMPACT.has(claimed.code) || claimed.spec[2]==='morph') {
-      const wait = claimed.impact.get(String(ev.unitId)); if (wait) await wait;
+      const wait = claimed.eventImpact&&claimed.eventImpact.get(ev)||claimed.impact.get(String(ev.unitId)); if (wait) await wait;
     }
     return;
   }
   const plan = _presentLabPlan(ev,events,index,api,context);
   if (!plan) return;
+  if(plan.contactEvent){const pending=_presentLabContacts.get(plan.contactEvent)||[];pending.push(plan);_presentLabContacts.set(plan.contactEvent,pending);return;}
   if(plan.code===getKeywordAssetKey('弱体')&&typeof api.finishEffect==='function') await api.finishEffect();
   context.active = plan;
   if (ev.type !== 'mana_threshold') _presentLabStart(plan);
+  if(PRESENT_LAB_1012_CODES.has(plan.code)&&['mana_gain','mana_set'].includes(ev.type))await plan.done;
   // ピクシーの捕縛・移動はLAB自身が描く。従来の攻撃クローンを重ねず、接触で既存処理へ渡す。
   if(plan.code==='C078'&&ev.type==='attack') {
     const wait=plan.impact.get(String(ev.targetId));if(wait)await wait;
@@ -174,7 +309,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
   if (plan.code==='C041'&&ev.type!=='mana_threshold' || ev.type==='effect_flash') {
     await _presentLabFinish(plan); context.active = null;
   } else if (PRESENT_LAB_WAIT_IMPACT.has(plan.code) || plan.spec[2]==='morph') {
-    const wait = plan.impact.get(String(ev.unitId)); if (wait) await wait;
+    const wait = plan.eventImpact&&plan.eventImpact.get(ev)||plan.impact.get(String(ev.unitId)); if (wait) await wait;
   }
 }
 async function presentLabEndEvent(ev, events, index, api) {
@@ -204,6 +339,9 @@ async function presentLabEndEvent(ev, events, index, api) {
       battleFxReleaseForm(unit); if (api.render) api.render();
     }
     const gains = [];
+    if(plan&&plan.code==='C056'&&ev.type==='keyword_effect'&&ev.effect==='poison'){
+      (plan.keywordGains||(plan.keywordGains=[])).push({ev,api});
+    }
     if (ev.type==='keyword_effect' && ev.effect==='weaken' && (!plan||plan.code!==getKeywordAssetKey('弱体'))) gains.push(getKeywordAssetKey('弱体'));
     // 付与元の固有演出は保持し、ATK減少の合図をその後へ続ける（HPも減る場合を含む）。
     if (ev.type==='stat_change' && Number(ev.atk)<0 && (!plan||plan.code!==getKeywordAssetKey('邪眼'))) gains.push(getKeywordAssetKey('邪眼'));
@@ -218,6 +356,9 @@ async function presentLabEndEvent(ev, events, index, api) {
         context.active={done:playBattleLabFx(code,unit,[unit],{side:ev.side==='p2'?'enemy':'ally'}),gains:[]};
       }
     }
+  }
+  if(ev.type==='mana_set'&&plan&&plan.code==='C060'&&plan.owner&&Number(ev.gained)>0&&typeof playManaGainVfx==='function'){
+    _presentLabManaAfter(plan,plan.owner,plan.side);
   }
   if (index === events.length-1 && context.active) { await _presentLabFinish(context.active); context.active = null; }
 }
@@ -439,11 +580,15 @@ function presentShieldLostEvent(ev, api) {
 // PvE・オンライン・保存再生とも、接触フックから同じイベント受け口を呼ぶ。
 // VFXの終了を待たず、表示済みのイベントは後続ループで二重に出さない。
 async function presentAttackContactHits(events, index, api) {
+  const pending=_presentLabContacts.get(events[index])||[];
+  pending.forEach(_presentLabStart);
   for (const ev of presentAttackContactHitEvents(events,index)) {
     if (_presentContactHits.has(ev)) continue;
     const shown = ev.type==='shield_lost' ? presentShieldLostEvent(ev,api.shield) : await api.damage(ev);
     if (shown) _presentContactHits.add(ev);
   }
+  for(const plan of pending){await _presentLabFinish(plan);if(plan.manaGain){_presentLabManaAfter(plan,plan.manaGain.unit,plan.manaGain.side);await plan.after;}}
+  _presentLabContacts.delete(events[index]);
 }
 
 // ── 能力変化（バフ・負傷効果など）────────────────────

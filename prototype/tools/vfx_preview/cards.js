@@ -86,7 +86,7 @@ var VbFxCards = (function () {
     var controls = element('div', 'card-detail-controls');
     if (selected.lab.length) {
       var labs = element('select'); labs.id = 'card-lab-choice'; labs.setAttribute('aria-label', 'LAB演出');
-      selected.lab.forEach(function (fx) { var op = element('option', '', fx.name + (fx.adopted ? '（SE採用済み）' : '（試作）')); op.value = fx.name; labs.appendChild(op); });
+      selected.lab.forEach(function (fx) { var op = element('option', '', fx.name + (fx.provisional ? '（仮・候補1）' : fx.adopted ? '（SE採用済み）' : '（試作）')); op.value = fx.name; labs.appendChild(op); });
       controls.appendChild(labs); controls.appendChild(button('LAB再生', function () { playLab(selected); }));
     }
     var choice = element('select'); choice.id = 'card-current-choice'; choice.setAttribute('aria-label', '現行演出の経路');
@@ -100,7 +100,7 @@ var VbFxCards = (function () {
     controls.appendChild(button('現行再生（近似）', function () { playCurrent(selected); }));
     var currentSe = button('現行SEだけ', function () { listen(selected, false); });
     currentSe.disabled = !selected.se.length; controls.appendChild(currentSe);
-    if (selected.adopted) controls.appendChild(button('採用SEだけ', function () { listen(selected, true); }));
+    if (selected.adopted) controls.appendChild(button((selected||card).adopted.provisional?'仮SEだけ':'採用SEだけ', function () { listen(selected, true); }));
     controls.appendChild(button('停止', function () { stop(); status('停止しました'); }));
     var volumeLabel = element('label', '', '音量 '), volume = element('input');
     volume.type = 'range'; volume.min = '0'; volume.max = '1'; volume.step = '.01'; volume.value = $('volume').value;
@@ -299,14 +299,14 @@ var VbFxCards = (function () {
       if (card.mergedEffect) { var merged = element('details'); merged.appendChild(element('summary', '', '合体時の効果')); merged.appendChild(element('p', '', card.mergedEffect)); effect.appendChild(merged); }
       tr.appendChild(effect); tr.appendChild(mediaCell(card, 'vfx')); tr.appendChild(mediaCell(card, 'se'));
       var lab = element('td', 'card-media');
-      card.lab.forEach(function (fx) { lab.appendChild(element('code', '', fx.name)); lab.appendChild(element('div', '', fx.adopted ? 'SE採用済み / ADOPTED.md' : '試作 / LAB演出名・試験設定')); });
+      card.lab.forEach(function (fx) { lab.appendChild(element('code', '', fx.name)); lab.appendChild(element('div', '', fx.provisional ? '仮（候補1・利用者未選択） / ADOPTED.md' : fx.adopted ? 'SE採用済み / ADOPTED.md' : '試作 / LAB演出名・試験設定')); });
       if (!card.lab.length) lab.appendChild(document.createTextNode('割当なし'));
       if (card.adopted) { lab.appendChild(element('code', '', card.adopted.path)); lab.appendChild(element('div', '', card.adopted.seconds + '秒 / peak ' + card.adopted.peak + '秒')); }
       tr.appendChild(lab);
       var actions = element('td', 'card-buttons'); var play = button('再生' + (card.lab.length ? ' · LAB' : ' · 現行'), function () { playCard(card); }); play.title = card.no + ' ' + card.name; actions.appendChild(play);
       if (card.lab.length) actions.appendChild(button('現行と比較', function () { playCurrent(card); }));
       var seOnly = button('現行SEだけ', function () { listen(card, false); }); seOnly.disabled = !card.se.length; actions.appendChild(seOnly);
-      if (card.adopted) actions.appendChild(button('採用SEだけ', function () { listen(card, true); }));
+      if (card.adopted) actions.appendChild(button(card.adopted.provisional?'仮SEだけ':'採用SEだけ', function () { listen(card, true); }));
       actions.appendChild(button('詳細', function () { choose(card.no); })); tr.appendChild(actions); tableBody.appendChild(tr);
     });
     $('card-empty').hidden = result.length > 0;
@@ -375,7 +375,7 @@ var VbFxCards = (function () {
       + '件。名前が空の予約行はカードとして扱わず、合体効果は同じ番号の詳細へ収録。',
       '現行経路はcards_scan.cjsで本体コア→PvEの受け口→共通presenter→render.jsを実行して採取。魔導板のアイテム使用・マス変更・結界の状態素材も本体の処理を呼ぶ。通常攻撃・キーワード・効果・合体時も含む。選ばれなかった登録素材を使用中とは表示しない。',
       '専用＝その番号またはシートの指定番号の個別素材。汎用＝共通S素材・他カードやキーワードと共通の演出・通常命中・フラッシュ等。各カードに複数経路があれば専用を優先。不明は未成立の条件や未実装・台帳の古さがある場合（採取できた経路は併記）。',
-      'LABの正式なVFX／SE割当はse/ADOPTED.mdの対応表。正式採用前は演出ラベル・カード名・試験設定が一致する試作だけを併記。SE採用はゲームへの接続済みを意味しない。',
+      'VFX／SEの割当はse/ADOPTED.mdの対応表。仮（候補1）は利用者未選択。LABで候補1〜3を切り替えて比較できる。',
       '現行VFXの既定は専用素材、無ければ先頭の実経路。素材をデコードしてから、ゲームの指定尺と素材1周の長い方を最後まで表示する。常時素材は停止操作まで表示。幅・縦横比・中心は本体の描画関数とCSSから採取。関数のみのフラッシュ・死亡等、対象選択・束・移動・逆再生は近似。LAB再生は既存の公開APIをそのまま使用。',
       '不明の理由は各行に表示。未検出を推測で埋めない。確認した盤面で演出がない経路は無し。永続状態のCSS／全ての条件の網羅は本体での実戦確認が別途必要。'
     ].forEach(function (t) { list.appendChild(element('li', '', t)); }); notes.appendChild(list); page.appendChild(notes); document.querySelector('main').appendChild(page);

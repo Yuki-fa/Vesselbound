@@ -20,7 +20,12 @@ function vbLabVfxFixture(no) {
   if(no==='C076') allies.forEach((a,i)=>Object.assign(a,_makePanelSummonUnit(_panelSummonSpec(PANEL_POOL.find(c=>c.no==='C018')),[]),{id:'ally'+i,atk:4,hp:70,maxHp:100}));
   const enemies=['赤','青','緑'].map((color,i)=>({id:'foe'+i,name:'敵'+i,color,atk:4,hp:80,maxHp:100,desc:'',keywords:[],poison:3,shield:0,lane:i===2?'rear':'front'}));
   if(no==='E067') allies[0]={...JSON.parse(JSON.stringify(u)),id:'ally0',hp:70,maxHp:100};
-  return createBattleState({sides:{p1:{units:[u,...allies]},p2:{units:enemies}},resources:{p1:{mana:6,gold:200},p2:{mana:0,gold:100}},blood:{p1:20,p2:20},items:{p1:no==='I006'?[def]:[],p2:[]},summonDefs:[...PANEL_POOL,...ENEMY_POOL],itemDefs:ITEM_POOL,stageNumber:2});
+  // 2026-10-12: 新21種も実カードの本文からコアの結果を作る。
+  if(['C029','C034'].includes(no)){allies[0].keywords=['眷属'];allies[2].keywords=['眷属'];}
+  if(['C099','C082'].includes(no))u.boardCards=Array.from({length:3},()=>({category:'エンチャント',name:'検査接続',desc:''}));
+  if(no==='C082'){allies[0].color='紫';allies[3].color='紫';}
+  if(no==='C094')allies.forEach((a,i)=>Object.assign(a,_makePanelSummonUnit(_panelSummonSpec(PANEL_POOL.find(c=>c.no==='C071')),[]),{id:'ally'+i,atk:4,hp:70,maxHp:100}));
+  return createBattleState({sides:{p1:{units:[u,...allies]},p2:{units:enemies}},resources:{p1:{mana:({C004:1,C056:2,C066:3,C079:4})[no]||6,gold:200},p2:{mana:0,gold:100}},blood:{p1:20,p2:20},items:{p1:no==='I006'?[def]:[],p2:[]},summonDefs:[...PANEL_POOL,...ENEMY_POOL],itemDefs:ITEM_POOL,stageNumber:2});
 }
 var vbLabVfxTriggers={
   opening:(s,u,rng,emit,hit)=>coreApplyOpeningEffects(u,s,rng,emit,hit),
@@ -67,7 +72,7 @@ function vbLabVfxResetBattle() {
 function vbLabVfxStartPve(code,state,trigger) {
   const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
   const held=[...before].map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0,u.weaken||0]);
-  const events=[],rng=createSeededRng(53),emit=e=>events.push(e);
+  const events=[],rng=createSeededRng(code==='C020'?7:53),emit=e=>events.push(e);
   const hit=(a,b,amount,counter,ss,st,opt)=>coreResolveHit(state,a,b,amount,counter,rng,emit,{skipSourceEffects:!!ss,skipTough:!!st,...(opt||{})});
   const source=state.units.p1[0];source._sealed=false;source._currentAttackTarget=state.units.p2[0];
   presentBeginPlayback();
@@ -101,3 +106,9 @@ var vbWebpVfxCases=[
   ['C001','battleEnd','gold-gain']
 ];
 vbLabVfxTriggers.redirect=(s,_u,_rng,_emit,hit)=>hit(s.units.p2[0],s.units.p1[1],6,false,false,false);
+
+// 2026-10-12: 個別のコア呼び出しだけでなく、攻撃は命中フックまで通す。
+var vbLabVfx1012Cases={C004:'mana',C020:'injury',C021:'death',C060:'release',C064:'attackContact',C071:'opening',C089:'attackContact',C099:'release',C029:'death',C034:'injury',C082:'release',C083:'injury',C095:'opening',C097:'release',C009:'injury',C042:'death',C056:'mana',C066:'mana',C079:'mana',C084:'kill',C094:'releaseObserver'};
+vbLabVfxTriggers.attackContact=(s,_u,rng,emit)=>{s._coreFirstSide='p1';createBattleRunner(s,rng,emit,{skipOpening:true}).step({deferCompact:true});};
+vbLabVfxTriggers.kill=(s,u,_rng,_emit,hit)=>{s.units.p2[0].hp=1;hit(u,s.units.p2[0],2);};
+vbLabVfxTriggers.releaseObserver=(s,_u,rng,emit,hit)=>coreApplyReleaseEffects(s.units.p1[1],[],s,rng,emit,hit);

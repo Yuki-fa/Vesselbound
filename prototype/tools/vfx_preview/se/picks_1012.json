@@ -1,0 +1,359 @@
+{
+  "satyr": {
+    "code": "C004",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
+        "reason": "魔法陣の軽い湧き出し。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-01.wav",
+        "reason": "魔法陣の軽い湧き出し。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-01.wav",
+        "reason": "魔法陣の軽い湧き出し。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "hecatoncheir": {
+    "code": "C020",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-02.wav",
+        "reason": "被弾後の短い小魔法。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Deflect Spell-02.wav",
+        "reason": "被弾後の短い小魔法。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-01.wav",
+        "reason": "被弾後の短い小魔法。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "zombie": {
+    "code": "C021",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav",
+        "reason": "声を使わない魂の浮上。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 02-01.wav",
+        "reason": "声を使わない魂の浮上。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-01.wav",
+        "reason": "声を使わない魂の浮上。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "behemoth": {
+    "code": "C060",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
+        "reason": "白熱した魔力の炸裂。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-01.wav",
+        "reason": "白熱した魔力の炸裂。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-01.wav",
+        "reason": "白熱した魔力の炸裂。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "sylph": {
+    "code": "C064",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/UI・電子音・マルチメディア系/Multimedia Internet CD-Rom Flash Whoosh Short 01.wav",
+        "reason": "軽い旋風と風切り。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fly By 02.wav",
+        "reason": "軽い旋風と風切り。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 02-02.wav",
+        "reason": "軽い旋風と風切り。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "nymph": {
+    "code": "C071",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
+        "reason": "多色の細光が集まるきらめき。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-02.wav",
+        "reason": "多色の細光が集まるきらめき。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 02-03.wav",
+        "reason": "多色の細光が集まるきらめき。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "familiar": {
+    "code": "C089",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-01.wav",
+        "reason": "血の吸い上げと魔力への転換。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Elemental Palette Designed Vol. 1/WATRMisc_Water, Liquid Impact, Bubble, Sci Fi, Hit 04_344 Audio_Elemental Palette Designed Vol 1.wav",
+        "reason": "血の吸い上げと魔力への転換。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-01.wav",
+        "reason": "血の吸い上げと魔力への転換。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "fiend": {
+    "code": "C099",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
+        "reason": "黒紫の弾の短い射出。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-02.wav",
+        "reason": "黒紫の弾の短い射出。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-02.wav",
+        "reason": "黒紫の弾の短い射出。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "phantom": {
+    "code": "C029",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-04.wav",
+        "reason": "戦場へ広がる無声の亡霊波。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-03.wav",
+        "reason": "戦場へ広がる無声の亡霊波。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 02-04.wav",
+        "reason": "戦場へ広がる無声の亡霊波。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "eidolon": {
+    "code": "C034",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
+        "reason": "眷属の霊火を再点火する波。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-03.wav",
+        "reason": "眷属の霊火を再点火する波。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 03-01.wav",
+        "reason": "眷属の霊火を再点火する波。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "arch-demon": {
+    "code": "C082",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
+        "reason": "紫の接続線を伝わる脈動。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Medium-02.wav",
+        "reason": "紫の接続線を伝わる脈動。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-02.wav",
+        "reason": "紫の接続線を伝わる脈動。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "gremlin": {
+    "code": "C083",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/工業・工場・機械系/Industry Metal Clink Gear Fast 06.wav",
+        "reason": "煤と歯車粉の機械的な散開。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/工業・工場・機械系/Industry Metal Clink Gear Slow 12.wav",
+        "reason": "煤と歯車粉の機械的な散開。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Gearbox/Sounds/分割/GEARBOX - DESIGNED - SMALL - Oscillating Gizmo 01-01.wav",
+        "reason": "煤と歯車粉の機械的な散開。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "lilith": {
+    "code": "C095",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-04.wav",
+        "reason": "花弁紋章の生成と小さな膨張。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 02-01.wav",
+        "reason": "花弁紋章の生成と小さな膨張。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-02.wav",
+        "reason": "花弁紋章の生成と小さな膨張。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "overlord": {
+    "code": "C097",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
+        "reason": "巨大な残像の重なりと重い倍化。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large Fury-01.wav",
+        "reason": "巨大な残像の重なりと重い倍化。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-02.wav",
+        "reason": "巨大な残像の重なりと重い倍化。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "minotaur": {
+    "code": "C009",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Flare Start Up Ignite 01.wav",
+        "reason": "赤い怒りの閃光と割り込み突進。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Fireball Large 02.wav",
+        "reason": "赤い怒りの閃光と割り込み突進。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/打撃・衝撃・ヒット音/Impact Metal Bar Hit Ring 01.wav",
+        "reason": "赤い怒りの閃光と割り込み突進。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "sleep-sheep": {
+    "code": "C042",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-02.wav",
+        "reason": "血の羊毛が滴へほどける湿った音。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/ホラー・恐怖系/Horror Scary Squish Eyeball Crush 08.wav",
+        "reason": "血の羊毛が滴へほどける湿った音。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-03.wav",
+        "reason": "血の羊毛が滴へほどける湿った音。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "scylla": {
+    "code": "C056",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Small-01.wav",
+        "reason": "毒の短い飛沫。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Small-02.wav",
+        "reason": "毒の短い飛沫。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Small-03.wav",
+        "reason": "毒の短い飛沫。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "undine": {
+    "code": "C066",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
+        "reason": "沈静する冷たい霧。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-03.wav",
+        "reason": "沈静する冷たい霧。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Deflect Spell-04.wav",
+        "reason": "沈静する冷たい霧。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "spriggan": {
+    "code": "C079",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Wood Tree Branches Breaking And Crunching 01.wav",
+        "reason": "蔓の成長と枝の環。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Wood Tree Branches Breaking And Crunching 02.wav",
+        "reason": "蔓の成長と枝の環。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Wood Creak 03.wav",
+        "reason": "蔓の成長と枝の環。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "incubus": {
+    "code": "C084",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 02-01.wav",
+        "reason": "倒した敵が二滴の血へ崩れる湿った音。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 02-02.wav",
+        "reason": "倒した敵が二滴の血へ崩れる湿った音。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/ホラー・恐怖系/Horror Scary Flesh Hits Wet Bloody Ground 01.wav",
+        "reason": "倒した敵が二滴の血へ崩れる湿った音。候補3は余韻の違いを比較"
+      }
+    ]
+  },
+  "chaos-imp": {
+    "code": "C094",
+    "candidates": [
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-02.wav",
+        "reason": "歪んだ稲妻と開戦効果の再点火。候補1は形の発生を強調"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-03.wav",
+        "reason": "歪んだ稲妻と開戦効果の再点火。候補2は質感の違いを比較"
+      },
+      {
+        "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-01.wav",
+        "reason": "歪んだ稲妻と開戦効果の再点火。候補3は余韻の違いを比較"
+      }
+    ]
+  }
+}

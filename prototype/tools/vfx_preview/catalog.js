@@ -83,6 +83,31 @@ var VbFxPreviewCatalog = {
   "opening-sigil": {"source": "C041", "mode": "self", "sourceCode": "appearance_sheet", "note": "着地の小さな金の輪と薄い煙。396msから現れ、560msから薄れ、980msで消す。", "notice": "第2段 · 元の番号 appearance_sheet · 基準尺 980ms。画像は方向性の参考。", "motion": "opening"},
   "board-summon": {"source": "C041", "mode": "self", "sourceCode": "board_change1", "note": "緑の薄い輪と少数の粒。500msでカードを差し替え、1200msで消す。", "notice": "第2段 · 元の番号 board_change1 · 基準尺 1200ms。画像は方向性の参考。", "motion": "board"},
   "board-enchant": {"source": "C041", "mode": "self", "sourceCode": "board_change2", "note": "青の薄い輪と少数の粒。召喚と同じ尺・密度にして強化の色だけを見分ける。", "notice": "第2段 · 元の番号 board_change2 · 基準尺 1200ms。画像は方向性の参考。", "motion": "board"},
+  // 2026-10-12: 新21キャラ。サンプル回数はプレビュー専用。
+  "satyr": {"source": "C004", "mode": "self", "sampleValue": 1, "value": 1, "note": "足元の青い魔法陣から3本の魔力が湧き上がり、既存のマナ獲得へ続く。", "new1012": true, "then": "mana-gain", "thenAt": "source"},
+  "hecatoncheir": {"source": "C020", "mode": "self", "sampleValue": 1, "value": 1, "note": "確率に当たった負傷だけ小径の陣から青い魔力を噴く。", "new1012": true, "then": "mana-gain", "thenAt": "source"},
+  "zombie": {"source": "C021", "mode": "self", "sampleValue": 1, "value": 1, "note": "死亡位置から青白い魂が浮上し、マナ獲得につながる。", "new1012": true, "then": "mana-gain", "thenAt": "source"},
+  "behemoth": {"source": "C060", "mode": "self", "sampleValue": 1, "value": 1, "note": "青い結晶の魔力を白熱させ、細い閃光と小片へ炸裂させる。", "new1012": true, "then": "mana-gain", "thenAt": "source"},
+  "sylph": {"source": "C064", "mode": "self", "sampleValue": 1, "value": 1, "note": "命中時に青白い旋風を巻き、青い魔力を湧かせる。", "new1012": true, "then": "mana-gain", "thenAt": "source"},
+  "nymph": {"source": "C071", "mode": "colors", "sampleValue": 5, "value": 5, "note": "実際に存在する各色の代表から細光を集め、色数だけ小光球を作る。", "new1012": true, "then": "mana-gain", "thenAt": "source"},
+  "familiar": {"source": "C089", "mode": "foe", "sampleValue": 1, "value": 1, "note": "命中した敵から赤い血滴を吸い上げ、中央で青い魔力へ転換する。", "new1012": true, "then": "mana-gain", "thenAt": "source"},
+  "fiend": {"source": "C099", "mode": "foe", "sampleValue": 1, "value": 1, "note": "黒紫の核と紫の尾を持つ弾。実戦はdamage1件につき1発。", "new1012": true},
+  "phantom": {"source": "C029", "mode": "kenzoku", "sampleValue": 1, "value": 1, "note": "半透明の波を戦場へ広げ、対象の眷属にだけ小さな霊火の紋章を約2秒残す。", "new1012": true},
+  "eidolon": {"source": "C034", "mode": "kenzoku", "sampleValue": 2, "value": 2, "note": "ファントムと同じ定義。入力value=2で霊火の径だけ少し強める。", "new1012": true},
+  "arch-demon": {"source": "C082", "mode": "purple", "sampleValue": 3, "value": 3, "note": "紫の味方だけを魔力線で結び、実際の反復回数ぶん魔力が流れて脈打つ。", "new1012": true},
+  "gremlin": {"source": "C083", "mode": "foes", "sampleValue": 1, "value": 1, "note": "煤色の波と歯車粉を敵へ送り、HPの萎縮を使わずATK減少へ引き継ぐ。", "new1012": true, "then": "atk-down"},
+  "lilith": {"source": "C095", "mode": "sequence", "sampleValue": 3, "value": 3, "note": "実際の回数だけ赤紫の花弁紋章を作り、順に飛ばす。重複する対象も同じ回数だけ脈動。", "new1012": true},
+  // 2026-10-12指定・撮影第2回: 背景を伴わない頭巾・袖・裾の輪郭で倍化を示す。
+  // 2026-10-12指定・撮影第3回: 元絵に沿う座ったローブ姿の輪郭へ修正。
+  "overlord": {"source": "C097", "mode": "self", "sampleValue": 1, "value": 1, "note": "座ったローブ姿の二重影の後、後方の巨大な残像が本体へ重なる。数値別の表現をせず全体の倍化を示す。", "new1012": true},
+  "minotaur": {"source": "C009", "mode": "foe", "sampleValue": 3, "value": 3, "note": "赤い怒りの閃光→既存結界獲得→敵への赤い照準→実際の割り込み攻撃。", "new1012": true},
+  "sleep-sheep": {"source": "C042", "mode": "self", "sampleValue": 3, "value": 3, "note": "赤い血の羊毛がほどけて3滴になる。合体時の滴数はblood_set.gainedを使う。", "new1012": true},
+  "scylla": {"source": "C056", "mode": "foes", "sampleValue": 1, "value": 1, "note": "黄緑の飛沫を対象全員へ降らせ、元の毒付与・毒の状態表示へつなぐ。", "new1012": true},
+  "undine": {"source": "C066", "mode": "foes", "sampleValue": 1, "value": 1, "note": "濁った灰紫・水色の霧が敵を鎮め、元の弱体獲得へつなぐ。", "new1012": true, "then": "weaken"},
+  "spriggan": {"source": "C079", "mode": "friend", "sampleValue": 1, "value": 1, "note": "地面から枝と蔓の輪が育ち、淡い光の環へ変わって既存結界へつなぐ。", "new1012": true, "then": "shield-gain"},
+  "incubus": {"source": "C084", "mode": "foe", "sampleValue": 2, "value": 2, "note": "実際に倒した敵の位置を赤い霧でほどき、2滴へまとめて消す。", "new1012": true},
+  "chaos-imp": {"source": "C094", "mode": "friend", "sampleValue": 1, "value": 1, "note": "インプから歪んだ紫の稲妻が跳び、小径の開戦陣へ再点火。開戦効果本体は元の演出へ渡す。", "new1012": true},
+
 };
 
 /* カード名・色は内蔵CSVのヘッダから抽出したプレビュー用スナップショット。 */
@@ -250,3 +275,26 @@ VbFxPreviewCards["C017"] = {"no":"C017","name":"メデューサ","color":"赤"};
 VbFxPreviewCards["C019"] = {"no":"C019","name":"ケンタウロス","color":"赤"};
 VbFxPreviewCards["C043"] = {"no":"C043","name":"アラッサス","color":"緑"};
 VbFxPreviewCards["C090"] = {"no":"C090","name":"サキュバス","color":"紫"};
+
+// 2026-10-12: 21キャラの名・色を内蔵CSVのヘッダから転記（シート本体は変更しない）。
+VbFxPreviewCards["C004"]={"name":"サテュロス","color":"赤"};
+VbFxPreviewCards["C009"]={"name":"ミノタウロス","color":"赤"};
+VbFxPreviewCards["C020"]={"name":"ヘカトンケイル","color":"赤"};
+VbFxPreviewCards["C021"]={"name":"ゾンビ","color":"青"};
+VbFxPreviewCards["C029"]={"name":"ファントム","color":"青"};
+VbFxPreviewCards["C034"]={"name":"エイドロン","color":"青"};
+VbFxPreviewCards["C042"]={"name":"スリープシープ","color":"緑"};
+VbFxPreviewCards["C056"]={"name":"スキュラ","color":"緑"};
+VbFxPreviewCards["C060"]={"name":"ベヒーモス","color":"緑"};
+VbFxPreviewCards["C064"]={"name":"シルフ","color":"黄"};
+VbFxPreviewCards["C066"]={"name":"ウンディーネ","color":"黄"};
+VbFxPreviewCards["C071"]={"name":"ニンフ","color":"黄"};
+VbFxPreviewCards["C079"]={"name":"スプリガン","color":"黄"};
+VbFxPreviewCards["C082"]={"name":"アークデーモン","color":"紫"};
+VbFxPreviewCards["C083"]={"name":"グレムリン","color":"紫"};
+VbFxPreviewCards["C084"]={"name":"インキュバス","color":"紫"};
+VbFxPreviewCards["C089"]={"name":"ファミリア","color":"紫"};
+VbFxPreviewCards["C094"]={"name":"カオス・インプ","color":"紫"};
+VbFxPreviewCards["C095"]={"name":"リリス","color":"紫"};
+VbFxPreviewCards["C097"]={"name":"オーバーロード","color":"紫"};
+VbFxPreviewCards["C099"]={"name":"フィーンド","color":"紫"};

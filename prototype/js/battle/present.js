@@ -1791,8 +1791,37 @@ const PRESENT_LAB_FX = {
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
   [getKeywordAssetKey('結界','gain')]:['shield-gain',.22,'target'], [getKeywordAssetKey('復活','gain')]:['revive-gain',.24,'target'],
   shield_break:['shield-break',null,'target'],
+  // 2026-10-12 利用者指定：候補1の仮SE。peakは切り出し後の測定値で後述の音声台帳と揃える。
+  C004:['satyr',0.625708,'self'],C020:['hecatoncheir',0.655729,'self'],C021:['zombie',0.263917,'self'],
+  C060:['behemoth',0.48,'self'],C064:['sylph',0.284083,'self'],C071:['nymph',0.736167,'colors'],C089:['familiar',0.1255,'foe'],
+  C099:['fiend',0.833771,'foe'],C029:['phantom',0.262229,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
+  C082:['arch-demon',0.48,'purple'],C083:['gremlin',0.017667,'foes'],C095:['lilith',0.384333,'sequence'],
+  C097:['overlord',0.48,'self'],C009:['minotaur',0.122354,'reaction'],C042:['sleep-sheep',0.433979,'self'],
+  C056:['scylla',1.516979,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.48,'friend'],
+  C084:['incubus',0.270292,'victim'],C094:['chaos-imp',0.672208,'retrigger'],
 };
+const PRESENT_LAB_1012_CODES=new Set(['C004','C020','C021','C060','C064','C071','C089','C099','C029','C034','C082','C083','C095','C097','C009','C042','C056','C066','C079','C084','C094']);
+const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
+// 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
+function presentLab1012EventMatches(code,ev){
+  if(!ev||ev.effectSource===false)return false;
+  if(['C004','C056','C066','C079'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
+  if(['C020','C021','C064','C071','C089'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({C020:'injury_chance_mana',C021:'manaOnDeath',C064:'manaOnAttack',C071:'nymph_colors',C089:'familiar_blood'})[code];
+  if(code==='C060')return ev.type==='mana_set'&&ev.reason==='behemoth'&&Number(ev.gained)>0;
+  if(code==='C029'||code==='C034')return ev.type==='summon_buff';
+  if(code==='C099')return ev.type==='damage'&&ev.damageKind!=='combat';
+  if(code==='C082')return ev.type==='stat_change'&&ev.reason==='arch_demon_purple_buff';
+  if(code==='C083')return ev.type==='stat_change'&&ev.reason==='injury_enemy_atk_down';
+  if(code==='C095')return ev.type==='stat_change'&&ev.reason==='lilith';
+  if(code==='C097')return ev.type==='stat_change'&&ev.reason==='overload';
+  if(code==='C009')return ev.type==='keyword_effect'&&ev.effect==='shield'&&ev.sourceId===ev.unitId;
+  if(code==='C042'||code==='C084')return ev.type==='blood_set'&&ev.sourceId!=null&&Number(ev.gained)>0;
+  return false;
+}
 const PRESENT_LAB_SPEED = 1.5;
+// 2026-10-12: 怒りの閃光と照準の尺。間の結界獲得は既存の尺を保つ。
+const PRESENT_LAB_REACTION_FLASH_MS=240;
+const PRESENT_LAB_REACTION_AIM_MS=300;
 // 効果ごとの速さの倍率（PRESENT_LAB_SPEED に掛ける）。戦闘中の召喚は2.5倍（2026-10-08 利用者指定）。
 const PRESENT_LAB_SPEED_BY_CODE = { S001:2.5 };
 function presentLabSpeed(code) { return PRESENT_LAB_SPEED * (PRESENT_LAB_SPEED_BY_CODE[String(code || '').trim()] || 1); }

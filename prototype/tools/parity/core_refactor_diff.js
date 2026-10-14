@@ -36,6 +36,9 @@ const run = (core, setup) => {
     // 戦闘結果の検査からこの1フィールドだけ除く。他の事象・最終値は引き続き完全一致。
     const event = { ...e };
     if (event.type === 'effect_flash') delete event.targetId;
+    // 2026-10-14：キャラ固有VFX21種の演出用に足した因果の項目（発生元・対象のヒント）。戦闘結果ではないので新旧両方から除く。
+    ['colorSources', 'reactionSourceId', 'retriggerSourceId', 'retriggerTargetId', 'retriggerKey', 'victimId', 'victimSide'].forEach(k => delete event[k]);
+    if (['mana_set', 'blood_set', 'keyword_effect'].includes(event.type)) { delete event.sourceId; delete event.gained; }
     events.push(event);
   }, turnLimit: setup.turnLimit });
   return { events, result, final: core.battleCoreFinalState ? core.battleCoreFinalState(state) : null };

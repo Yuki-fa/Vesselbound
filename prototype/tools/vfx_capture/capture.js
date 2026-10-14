@@ -61,13 +61,16 @@ async function freezeSprites(browser) {
   // 独自のデコード時計を持つ画像にperformance.nowの差し替えは効かない。
   const requested = await browser.eval(`
     return Array.from(document.querySelectorAll('[data-vb-fx-layer] img')).map((image, index) => {
+      // 2026-10-12指定: カード残像の静止JPEG/PNGはコマ固定せず、下で読み込みを待つ。
+      // data URLへ置換済みのWebPはcaptureKeyで追跡。indexは全画像の並びを保つ。
+      if (!image.dataset.captureKey && !/\\.webp(?:[?#]|$)/i.test(image.src)) return null;
       const key = image.dataset.captureKey || (image.src.match(/(K\\d{3})\\.webp/) || [])[1];
       const list = window.VbFxCaptureFrames && VbFxCaptureFrames[key];
       if (!list || !list.length) throw new Error('静止コマの無いAnimated WebP: ' + (key || image.src));
       const elapsed = Math.max(0, __vfxCaptureClock.now() - __vfxCaptureClock.imageStart(image));
       const frame = list.find(f => f.at + f.duration > elapsed) || list[list.length - 1];
       return {index, key, file: frame.file};
-    });
+    }).filter(Boolean);
   `);
   // 撮影対象のサーバーへ静止コマのURLを要求しない。道具側の画像をdata URLで渡す。
   const frozen = Object.fromEntries([...new Set(requested.map(r => r.file))].map(file => [file, frameSource(file)]));
@@ -80,7 +83,7 @@ async function freezeSprites(browser) {
       await decodeImage(image, request.file, frozen[request.file]);
       image.dataset.captureFrame = request.file;
     }
-    await Promise.all(Array.from(document.querySelectorAll('.lab-card img')).map(i => decodeImage(i, i.src)));
+    await Promise.all(Array.from(document.querySelectorAll('[data-vb-fx-layer] img, .lab-card img')).map(i => decodeImage(i, i.src)));
   `);
 }
 async function main(argv) {
@@ -109,13 +112,19 @@ async function main(argv) {
       const baseline = await captureBaseline(browser,opts.out,name);
       const info = await browser.eval(`
         const original = VbFx.play;
-        VbFx.play = function(name, options) { return original(name, Object.assign({}, options, {value:${opts.value}, dir:1, speed:${opts.speed}})); };
+        // 2026-10-12: 新規だけはLABの回数サンプル／共有定義の派生値を保持。旧82種の撮影値はそのまま。
+        VbFx.play = function(name, options) {
+          const conf=VbFxPreviewCatalog[name];
+          const value=conf&&conf.new1012&&${opts.value}===1?(options.value||conf.sampleValue||1):${opts.value};
+          return original(name, Object.assign({}, options, {value, dir:1, speed:${opts.speed}}));
+        };
         window.__captureError = null;
         VbFxPreview.play().catch(e => { window.__captureError = e.message; });
         await __vfxCaptureClock.step(0);
         const state=VbFxPreview.snapshot(), job=VbFx.snapshot()[0];
         if(!job) throw new Error(window.__captureError || '再生が開始しませんでした');
-        return {source:state.sourceId,targets:state.targetIds,durationMs:job.durationMs,impactMs:job.impactsMs};
+        // 2026-10-12指定・撮影第2回: 脈動ごとの合図を記録し、固定1回の命中と区別する。
+        return {source:state.sourceId,targets:state.targetIds,durationMs:job.durationMs,impactMs:job.impactsMs,cueTimesMs:job.cueTimesMs||[]};
       `);
       const times = Array.from({ length: opts.frames }, (_, i) => info.durationMs * i / opts.frames);
       // 0〜(N-1)/N。終端は後片付け後なので、最後の余韻は終端直前で撮る。

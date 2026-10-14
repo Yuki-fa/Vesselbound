@@ -64,6 +64,8 @@ var VbFxDefs = (function () {
     color: { form: 'color' }, light: { form: 'color' }, shadow: { form: 'color' }, tint: n(0, 1),
     palette: { form: 'gradient' }, clip: e(['none', 'card']), softness: n(0, 2),
     copies: n(1, 512, true), copyAlpha: n(0, 1), copyDelay: n(0, 1),
+    // 2026-10-12: 対象間の時差・有限回の脈動・外部から渡す色。未指定の描画は従来どおり。
+    targetSpread: n(0, 1), cycles: n(1, 128), colorFrom: e(['anchor']),
     layout: e(['center', 'orbit', 'line']), orbit: n(0, 32), spread: v(0, 32), cycle: n(.001, 100),
     align: e(['fixed', 'tangent','trajectory']), mirror: { form: 'boolean' }, followMove: { form: 'boolean' },
     pathBend: n(-32, 32), playbackDuration: { form: 'playbackTime' }, playbackDelay: { form: 'playbackTime' },
@@ -166,10 +168,10 @@ var VbFxDefs = (function () {
       startX:n(-32,32),startY:n(-32,32),endX:n(-32,32),endY:n(-32,32),endTintY:n(-32,32),
       radius:n(0,32),innerRadius:n(0,32),innerRadiusSpace:e(['unit','width','height','diagonal','max','min','reach']),geometry:e(['rect','card','ellipse','square']),cornerRadius:n(0,32),pad:n(-32,32),fillRadius:n(0,32),minRadiusPx:n(0,32),
       sweepRate:n(-100,100),sweepWindow:n(.001,1),sweepRange:v(-32,32),fillPad:n(-32,32),cornerSpace:e(['unit','min']) },
-    card: { opacity: n(0, 1), brightness: n(0, 4), saturation: n(0, 4), grayscale: n(0, 1),
+    card: { echo: {form:'boolean'}, artOnly: {form:'boolean'}, lumaMask:{form:'boolean'}, lumaGain:n(.01,4),lumaExponent:n(.01,4),opacity: n(0, 1), brightness: n(0, 4), saturation: n(0, 4), grayscale: n(0, 1),
       sepia: n(0, 1), hue: n(-720, 720), contrast: n(0, 4), blur: n(0, 32), scale: n(0, 4),
       x: n(-32, 32), y: n(-32, 32), move: n(0, 2), moveTo: e(['source', 'next-target', 'screen-left']),
-      dissolve: n(0, 1), grid: n(2, 64, true), art: e(sprites), filterOrder: { form: 'filters' }, blurSpace: e(['unit', 'pixel']), scaleProperty: { form: 'boolean' },scaleWhenVisible:{form:'boolean'},transition:e(['none']),zIndex:n(-1024,1024,true) },
+      dissolve: n(0, 1), dissolveFit: e(['stretch']), grid: n(2, 64, true), art: e(sprites), filterOrder: { form: 'filters' }, blurSpace: e(['unit', 'pixel']), scaleProperty: { form: 'boolean' },scaleWhenVisible:{form:'boolean'},transition:e(['none']),zIndex:n(-1024,1024,true) },
     shake: { strength: v(0, 2), frequencyHz: v(.1, 120), timeSpace: e(['seconds','normalized']),
       coupled: { form: 'boolean' }, property: e(['translate','transform']), scale: n(0, 4) },
     sprite: { texture: e(sprites), scale: n(.001, 32), frame: n(0, 1), glow: n(0, 32),glowSpace:e(['unit','pixel']),playbackDurationMode:e(['remaining']),remainingRatio:n(.001,4),pad:n(-32,32) }
@@ -265,9 +267,14 @@ var VbFxDefs = (function () {
     if (spec.time && spec.time[0] === spec.time[1]) fail(at, '層の寿命が0');
   }
   function effect(d, at) {
-    keys(d, ['name', 'label', 'sourceCode', 'ms', 'color', 'light', 'playback', 'defaultTargets', 'loop', 'underStatus', 'stackable', 'impact', 'tag', 'intro', 'layers', 'composites'], at,
+    keys(d, ['name', 'label', 'sourceCode', 'variants', 'ms', 'color', 'light', 'playback', 'defaultTargets', 'loop', 'underStatus', 'stackable', 'impact', 'tag', 'intro', 'layers', 'composites'], at,
       ['name', 'label', 'ms', 'color', 'light', 'playback', 'defaultTargets', 'loop', 'underStatus', 'stackable', 'impact', 'layers']);
     id(d.name, at); label(d.label, at); number(d.ms, at, 1, 30000); color(d.color, at); color(d.light, at);
+    if(d.variants){
+      if(!Array.isArray(d.variants)||!d.variants.length||d.variants.length>16)fail(at,'派生設定の配列が不正');
+      d.variants.forEach(function(v,i){var p=at+'.variants['+i+']';keys(v,['name','label','sourceCode','value'],p,['name','label','value']);id(v.name,p);label(v.label,p);number(v.value,p,1,128);
+        if(v.sourceCode!=null&&!/^[CESK]\d{3}$/.test(v.sourceCode))fail(p,'派生設定の番号が不正');});
+    }
     if (d.sourceCode != null && (typeof d.sourceCode !== 'string' || !/^(?:[CESK]\d{3}(?:_\d+)?|hit|appearance_sheet|board_change[12])$/.test(d.sourceCode))) fail(at + '.sourceCode', '元素材の番号が不正');
     enumeration(d.defaultTargets, ['explicit', 'opponents', 'allies', 'source'], at);
     ['loop', 'underStatus', 'stackable'].forEach(function (k) { if (typeof d[k] !== 'boolean') fail(at + '.' + k, '真偽値が必要'); });
@@ -354,6 +361,7 @@ var VbFxDefs = (function () {
       effect(d, 'effects[' + i + ']');
       if (names.has(d.name) || labels.has(d.label) || labels.has(d.name) || names.has(d.label)) fail(d.name, '名前が重複');
       names.add(d.name); labels.add(d.label);
+      (d.variants||[]).forEach(function(v){if(names.has(v.name)||labels.has(v.label)||labels.has(v.name)||names.has(v.label))fail(v.name,'名前が重複');names.add(v.name);labels.add(v.label);});
     });
     return { effects: effects.length, shapes: Object.keys(shapes).length, layers: effects.reduce(function (sum, d) { return sum + d.layers.length; }, 0), types: Object.keys(types).length };
   }

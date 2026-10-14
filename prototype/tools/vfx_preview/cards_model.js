@@ -28,7 +28,7 @@ var VbFxCardCatalog = (function () {
   }
   function labAssignments(row, kind, routes, definitions, catalog) {
     var adopted = routes.adopted[row['No.']], result = [];
-    if (adopted) result.push({ name: adopted.name, basis: 'ADOPTED.md', adopted: true });
+    if (adopted) result.push({ name: adopted.name, basis: 'ADOPTED.md', adopted: !adopted.provisional, provisional: !!adopted.provisional });
     // 正式採用前の追加試作は、演出のラベルとカード名が一致するものだけ。
     // catalog.sourceだけでは大盾等の試験用素体をカードの割当と誤認する。
     definitions.forEach(function (fx) {

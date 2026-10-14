@@ -9,6 +9,16 @@ function _battleFxKey(unit) { return String(unit && unit.id || ''); }
 function _battleFxSide(unit) { return unit && unit.side === 'p2' || (G.enemies || []).includes(unit) ? 'enemy' : 'ally'; }
 function battleFxSpeed(code) { return (typeof presentLabSpeed === 'function' ? presentLabSpeed(code) : PRESENT_LAB_SPEED) * (typeof getBattlePresentationSpeedScale === 'function' ? getBattlePresentationSpeedScale() : 1); }
 function battleFxGeneration() { return _battleFxGeneration; }
+// 脈動の合図は共有定義の開始・終了・濃さ曲線から求める。回数だけをコアから受け取る。
+function battleFxPulseTimes(name,count){
+  return VbFx.pulseTimes(name,count);
+}
+// 2026-10-12: 血滴へほどけたカードは通常の焼失を重ねず、その位置で消し切る。
+function battleFxHideConsumedCard(unit){
+  if(!unit)return;const r=battleFxRect(unit),el=r&&r.element;
+  if(el){el.style.setProperty('transition','none','important');el.style.setProperty('visibility','hidden','important');}
+  unit._deathFxDone=true;unit._deathFxReady=true;
+}
 function _battleFxLayer() {
   return _vfxClipLayer();
 }
@@ -35,10 +45,11 @@ function _battleFxTimer(fn, ms) {
   const id = setTimeout(() => { _battleFxTimers.delete(id); fn(); }, Math.max(0,ms));
   _battleFxTimers.add(id); return id;
 }
-function _battleFxSound(code, speed, duration, howl) {
+function _battleFxSound(code, speed, duration, howl, cueMs) {
   const spec = presentLabFx(code);
   if (!spec || spec[1] == null || typeof playSfx !== 'function') return;
-  const hit = VbFx.impactMs(spec[0],speed), lead = hit - spec[1] * 1000;
+  const baseMs=VbFx.duration(spec[0],speed);
+  const hit = cueMs==null?VbFx.impactMs(spec[0],speed)*(duration===baseMs?1:duration/baseMs):cueMs, lead = hit - spec[1] * 1000;
   const startAt = Math.max(0,lead), offsetMs = Math.max(0,-lead);
   const end = howl ? duration * .44 : duration;
   // 遠吠えは登場SEの前に閉じる。通常はLABと同じcos²の1.1秒フェード。
@@ -58,9 +69,12 @@ function playBattleLabFx(code, source, targets, options) {
   const from = opt.sourceRect || battleFxRect(source,opt.side);
   const located = (targets || []).map((unit,index)=>({rect:battleFxRect(unit),index})).filter(x=>x.rect);
   const rects = located.map(x=>x.rect);
+  // 2026-10-12: ニンフの各色はコアが選んだ代表IDにだけ付ける。描画側で色数を計算しない。
+  const colors=PRESENT_LAB_CARD_COLORS;
+  if(opt.colors)located.forEach((entry,i)=>{const color=opt.colors.find(c=>c.unitId===(targets[entry.index]||{}).id);if(color)rects[i]={...entry.rect,color:colors[color.color]||'#b5d8eb'};});
   if (!from && !rects.length) return Promise.resolve(false);
   VbFx.settings.layer = _battleFxLayer;
-  const speed = battleFxSpeed(code), ms = VbFx.duration(spec[0],speed);
+  const speed = battleFxSpeed(code), ms = opt.durationMs || VbFx.duration(spec[0],speed);
   const side = opt.side || _battleFxSide(source || targets[0]);
   // 戦闘用の乱数を消費しない。旋回だけの独立した乱数。
   const random = new Uint32Array(1);
@@ -76,9 +90,11 @@ function playBattleLabFx(code, source, targets, options) {
     allies:(G.allies||[]).filter(Boolean).map(u=>battleFxRect(u,'ally')).filter(Boolean),
     enemies:(G.enemies||[]).filter(Boolean).map(u=>battleFxRect(u,'enemy')).filter(Boolean),
     board:document.getElementById('battle-field')||document.querySelector('#scr-battle .battle-area'),
-    speed,dir:random[0]%2?1:-1,resolveElement:_battleFxResolveElement,
+    speed,durationMs:opt.durationMs,value:opt.value,impactTimesMs:opt.impactTimes?opt.impactTimes.map(t=>t*ms):undefined,
+    cueTimesMs:opt.cueTimes?opt.cueTimes.map(t=>t*ms):undefined,onCue:opt.onCue,
+    dir:random[0]%2?1:-1,resolveElement:_battleFxResolveElement,
     onImpact:i=>{ if(typeof opt.onImpact==='function') opt.onImpact(located[i]?located[i].index:i); }});
-  _battleFxSound(code,speed,ms,spec[2] === 'howl');
+  if(!opt.silent)_battleFxSound(code,speed,ms,spec[2] === 'howl',opt.cueTimes&&opt.cueTimes.length?opt.cueTimes[0]*ms:undefined);
   // 効果は直列。再描画で発生元DOMが替わっても遠吠えの区間で確実に閉じる。
   if (spec[2] === 'howl') _battleFxTimer(() => VbFx.stop({name:spec[0]}),ms*.46);
   const done = Promise.resolve(promise).catch(err=>{ console.error('[battle LAB VFX]',code,err); return false; }).finally(()=>marker.remove());

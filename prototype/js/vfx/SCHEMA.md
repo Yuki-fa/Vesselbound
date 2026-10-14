@@ -251,3 +251,39 @@ S001・K020・K009の主経路は既存のbattle-summon・revive-summon・all-cr
 第1段のdirewolf内部にはappearance-atlas、meteor-scroll内部にはimpact-allのspriteがあり、WebPを参照している。
 2026-10-12の利用者指定により、この2層は**既存の見た目を守るため残す**。コード化の残作業として扱わない。
 新32種はsprite/WebPを使わず、素材ファイル自体は削除していない。
+
+## 第3段：2026-10-12指定の21キャラクター
+
+`defs/characters_1012.js` を `defs/webp.js` の後、`renderer.js` の前へ追加。
+既存82種と33図形は保持し、20定義・共有派生1・汎用図形6個を追加した。
+JSONは102定義・39図形・12部品型、公開API/LABは103項目。
+図形は `soul-wisp/blood-drop/gear-ring/petal-seal/vine-loop/robed-silhouette` の固定SVG・頂点・Gradientだけ。
+新しい部品型、実行グラフ、効果名による描画分岐は追加しない。
+
+| 追加フィールド | 意味・範囲 | Unityでの対応 |
+|---|---|---|
+| effect.variants | 最大16件の `name/label/sourceCode/value`。同じ層への参照と入力値（1〜128）だけ。公開APIへ派生名を追加する。JSONでは層を複製しない | ScriptableObjectのテンプレート参照とパラメータ値 |
+| layer.targetSpread | 0〜1の全尺に対する対象間の時差。対象添字を対象数−1で割って開始時刻へ加える | 対象ごとのPlayable開始オフセット |
+| layer.cycles | 1〜128の有限脈動。層寿命内の時計を回数ぶん折り返す。未指定は従来の時計 | 定めた回数のAnimationCurve/Playable反復 |
+| layer.colorFrom:anchor | APIが矩形へ渡す `color:#RRGGBB` を使用。ゲームの色名の判定はレンダラーの外に置く | Actor入力のMaterialPropertyBlock色 |
+| card.echo / artOnly | 元カードの残像、または絵だけの残像。元DOM・数値を変更せず、終了時に複製を除去 | ActorのSpriteRenderer複製とTransform/CanvasGroup |
+| card.lumaMask / lumaGain / lumaExponent | 黒い背景を持つ絵の輝度を透明度へ写す。RGBの係数は0.2126/0.7152/0.0722、ゲイン・指数は0.01〜4。色は層のcolor。ブラウザではSVGのfeColorMatrix/feComponentTransferで処理し、素材の編集・Canvasの画素読出しはしない | 同じsRGB輝度とalphaのgamma処理を持つ共有Material |
+| card.dissolveFit:stretch | 2026-10-12指定・撮影第3回。溶解マスクのSVGを縦長カードの全面へ伸ばす。未指定は既存の縦横比を維持する。開始時の上下の切落しを防ぐ | Quad全体のUVへマスクを割り当てる |
+
+ファントム／エイドロンは一つの共有層を使い、valueだけを替える。
+既存82種では上のフィールドを指定しないため、従来の曲線・配置・描画を保つ。
+
+2026-10-12指定・撮影第2回：個数をそのまま渡すcopies / cyclesの入力曲線はlinearを使う。
+`[[1,1],[128,128]]`をsmoothにすると中間の整数が同じ数にならず、丸めで個数が失われる。
+時間方向の出入り・形の変化のsmooth曲線とは分ける。
+オーバーロードの背景無しの人型残像はrobed-silhouetteの共有shape描画と数値曲線で表し、
+背景付きJPEGの輝度マスクはこの効果の定義では使わない。Unityでは同じSVGから作るMeshとGradient Materialへ移せる。
+
+再生APIへ `cueTimesMs`（最大128件、0以上の有限数）と `onCue(index)` を追加。
+実際のフレームの時計が時刻へ到達した時、各添字を一回だけ通知する。
+`pulseTimes(name,count)` は、脈動する対象層の開始・終了とalpha曲線から合図の比率を返す。
+定義JSONへコールバックや命令を保存しない。UnityではPlayable通知に対応する。
+対象・反復数はコアの実体イベントから渡し、演出側で対象抽選や効果量を計算し直さない。
+
+配布JSONは空白を省いて1MB上限を保持する。定義JSは読みやすいJSONリテラルのまま。
+撮影と既存82種の画素比較・拡大目視は別途必要で、Nodeの描画命令一致だけではVISUAL_OKにしない。

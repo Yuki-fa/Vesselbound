@@ -7,7 +7,7 @@ const ROOT=path.resolve(__dirname,'../..');
 const read=file=>fs.readFileSync(path.join(ROOT,file),'utf8');
 const manifest=JSON.parse(read('tools/vfx_capture/webp_manifest.json'));
 async function run(){
-  const {bundle}=validatedBundle(),effects=bundle.effects.filter(d=>d.sourceCode),names=effects.map(d=>d.name);
+  const {bundle}=validatedBundle(),effects=bundle.effects.filter(d=>manifest.effects.some(ref=>ref.name===d.name)),names=effects.map(d=>d.name);
   assert.equal(bundle.effects.filter(d=>!d.sourceCode).length,50,'第1段の50種を保持');
   assert.deepEqual(names,manifest.effects.map(d=>d.name),'参考一覧と書き出し定義の対応');
   assert.deepEqual(read('tools/vfx_capture/webp_targets.txt').trim().split(/\r?\n/),names,'撮影対象の順序');

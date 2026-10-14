@@ -50,6 +50,12 @@ var VbFxPreview = (function () {
       own[1].classList.add('is-dead'); own[1].querySelector('.card-caption').textContent = '死亡した味方';
     }
     if (conf.mode === 'green' && side === 'enemy') { applyPortrait(own[0], 'C046'); applyPortrait(own[4], 'C041'); }
+    if(conf.mode==='colors'){
+      var palette=['赤','青','緑','黄','紫'];
+      palette.forEach(function(color,i){var no=Object.keys(VbFxPreviewCards).find(function(k){return /^C\d/.test(k)&&VbFxPreviewCards[k].color===color;});if(no)applyPortrait(own[i],no);});
+      var at=palette.indexOf(VbFxPreviewCards[conf.source].color);sourceId=own[at>=0?at:1].id;applyPortrait(card(sourceId),conf.source);
+    }
+    if (conf.mode === 'purple') { applyPortrait(own[0], 'C082'); applyPortrait(own[3], 'C082'); }
     if (conf.mode === 'summon') {
       var wolf = buildCard(side, 5, 'C102', true, frontCount); cards.appendChild(wolf);
     }
@@ -71,6 +77,10 @@ var VbFxPreview = (function () {
     else if (conf.mode === 'foes') selected = foes;
     else if (conf.mode === 'front') selected = foes.filter(function (el) { return el.dataset.lane === 'front'; });
     else if (conf.mode === 'friends') selected = own;
+    else if (conf.mode === 'colors') { var seenColors=new Set(); selected=own.filter(function(el){if(seenColors.has(el.dataset.color))return false;seenColors.add(el.dataset.color);return true;}); }
+    else if (conf.mode === 'kenzoku') selected = [own[0],own[3]];
+    else if (conf.mode === 'purple') selected = own.filter(function(el){return el.dataset.color==='紫';});
+    else if (conf.mode === 'sequence') selected = [own[0],own[4],own[0]];
     else if (conf.mode === 'friend') selected = [own.find(function (el) { return el.id !== sourceId; })];
     else if (conf.mode === 'green') selected = own.filter(function (el) { return el.id !== sourceId && el.dataset.color === '緑'; });
     else if (conf.mode === 'others') selected = own.concat(foes).filter(function (el) { return el.id !== sourceId; });
@@ -97,7 +107,7 @@ var VbFxPreview = (function () {
     if ($('pick-mode').value === 'source') {
       sourceId = id; $('side').value = card(id).dataset.side; chooseDefaultTargets();
     } else {
-      var multi = ['foes', 'front', 'friends', 'green', 'others'].indexOf(config().mode) >= 0;
+      var multi = ['foes', 'front', 'friends', 'green', 'others', 'colors', 'kenzoku', 'purple', 'sequence'].indexOf(config().mode) >= 0;
       if (multi) {
         if (targetIds.indexOf(id) >= 0) { if (targetIds.length > 1) targetIds = targetIds.filter(function (x) { return x !== id; }); }
         else targetIds.push(id);
@@ -152,7 +162,7 @@ var VbFxPreview = (function () {
     $('sound-select').replaceChildren(); $('candidate-details').replaceChildren();
     ids.forEach(function (id, i) {
       var sound = VbFxSeCatalog.sounds[id], option = document.createElement('option');
-      option.value = id; option.textContent = (sound.adopted ? '【採用】' : (i + 1) + '. ') + sound.filename + ' / ' + sound.duration.toFixed(3) + '秒'; $('sound-select').appendChild(option);
+      option.value = id; option.textContent = (sound.adopted ? '【採用】' : sound.provisional ? '【仮・候補1】' : (i + 1) + '. ') + sound.filename + ' / ' + sound.duration.toFixed(3) + '秒'; $('sound-select').appendChild(option);
       var row = document.createElement('div'); row.className = 'candidate';
       var strong = document.createElement('strong'); strong.textContent = (i + 1) + '. ' + sound.filename;
       var path = document.createElement('code'); path.textContent = sound.source;
@@ -298,13 +308,16 @@ var VbFxPreview = (function () {
       if (effect === 'direwolf') targetIds.forEach(function (id) { layoutSummonRow(card(id)); });
     }
     var name = effect, conf = config(name), sound = selectedSound(name), token = generation;
-    var targets = targetIds.map(function (id) { return VbFx.rect(card(id)); }), impacts = [];
+    var targetColors=PRESENT_LAB_CARD_COLORS;
+    var targets = targetIds.map(function (id) { var r=VbFx.rect(card(id));if(conf.mode==='colors')r.color=targetColors[card(id).dataset.color];return r; }), impacts = [];
     impacts.start = performance.now(); playCount++; running++; $('active-status').textContent = '再生中 ' + running;
     var ms = VbFx.duration(name, Number($('speed').value));
+    // 2026-10-12指定・撮影第2回: LABも共通定義の各脈動へ命中表示を合わせる。
+    var pulseCues = conf.mode === 'purple' ? VbFx.pulseTimes(name, conf.value).map(function (t) { return t * ms; }) : null;
     // SEの一番大きい所（sound.peak 秒）を演出の命中の瞬間に合わせる。前倒しが要る時は音の途中から鳴らす。
     // 演出の終わり（ms）から 260ms でフェードアウトし、演出の後に音だけ長く残らないようにする（2026-10-05 利用者指定）。
     if (sound && sound.url && !VbFx.effects.find(function (d) { return d.name === name && d.loop; })) {
-      var hit = VbFx.impactMs(name, Number($('speed').value)), lead = hit - (sound.peak || 0) * 1000;
+      var hit = pulseCues ? pulseCues[0] : VbFx.impactMs(name, Number($('speed').value)), lead = hit - (sound.peak || 0) * 1000;
       var startAt = Math.max(0, lead), offset = lead < 0 ? -lead / 1000 : 0;
       // ダイアウルフは遠吠えの区間（全体の42%）で音を閉じ、ウルフ登場の音（補助）と重ねない。
       var soundEnd = name === 'direwolf' ? ms * .44 : ms;
@@ -317,14 +330,18 @@ var VbFxPreview = (function () {
     return VbFx.play(name, {
       source: placement.source, targets: placement.targets, side: ownSide(),
       followGeometry: !!placement.followGeometry, followOpacity: !!placement.followOpacity, impactTimesMs: placement.impactTimesMs,
-      board: conf.sourceCode ? $('board-design') : undefined,
+      board: conf.sourceCode || conf.new1012 ? $('board-design') : undefined,
       allies: cardsFor('ally').map(VbFx.rect), enemies: cardsFor('enemy').map(VbFx.rect),
       speed: Number($('speed').value), size: Number($('size').value),
-      onImpact: function (i) { impact(i, targets, name, impacts, token); }
+      value: conf.mode==='colors'?targets.length:conf.value,
+      impactTimesMs: conf.mode==='sequence'?targets.map(function(_,i){return ms*(.43+.49*i/Math.max(1,targets.length-1));}):pulseCues?targets.map(function(){return pulseCues[0];}):placement.impactTimesMs,
+      cueTimesMs: pulseCues || undefined,
+      onCue: pulseCues ? function () { targets.forEach(function (_, i) { impact(i, targets, name, impacts, token); }); } : undefined,
+      onImpact: function (i) { if (!pulseCues) impact(i, targets, name, impacts, token); }
     }).then(function (result) {
       if (result.assetErrors.length) message('素材を読み込めません: ' + result.assetErrors.join(', '));
       // 続けて出す演出（例：ヴリコラカス → 復活獲得）。ゲームでも本来のVFXの後に自動で続ける予定（2026-10-06 利用者指定）。
-      if (conf.then && generation === token && !result.cancelled) targetIds.forEach(function (id) { playChained(conf.then, card(id), token); });
+      if (conf.then && generation === token && !result.cancelled) (conf.thenAt==='source'?[sourceId]:targetIds).forEach(function (id) { playChained(conf.then, card(id), token); });
       return { name: name, result: result, impacts: impacts.slice() };
     }).catch(function (err) { message('演出エラー: ' + err.message); throw err; }).finally(function () {
       placement.dispose();

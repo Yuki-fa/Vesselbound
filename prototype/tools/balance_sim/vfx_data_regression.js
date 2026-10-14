@@ -29,7 +29,8 @@ function harness(old,extra,options={}){
   function element(tag='DIV'){
     const values=new Map(),el={nodeType:1,tagName:tag.toUpperCase(),dataset:{},children:[],isConnected:true,offsetWidth:95,offsetHeight:140,
       style:{setProperty:(k,v)=>values.set(k,String(v)),getPropertyValue:k=>values.get(k)||'',getPropertyPriority:()=>'',removeProperty:k=>values.delete(k)},
-      addEventListener(){},hasAttribute:()=>false,querySelector:()=>null,closest:()=>null,
+      addEventListener(){},hasAttribute:()=>false,querySelector:()=>null,querySelectorAll:()=>[],closest:()=>null,removeAttribute(){},setAttribute(k,v){this[k]=String(v);},
+      cloneNode(){const clone=element(tag);clone.bounds=this.bounds;clone.dataset={...this.dataset};return clone;},
       getBoundingClientRect(){return this.bounds||{left:100,top:500,width:95,height:140,right:195,bottom:640};},
       getContext(){if(!this.context){this.context=context();this.context.canvas=this;}return this.context;},
       appendChild(child){if(child.parentNode)child.parentNode.children=child.parentNode.children.filter(c=>c!==child);child.parentNode=child.parentElement=this;this.children.push(child);return child;},
@@ -47,8 +48,9 @@ function harness(old,extra,options={}){
     document:{body,baseURI:'file:///prototype/index.html',currentScript:{src:'file:///prototype/js/engine/fx_lab.js'},createElement:element,elementFromPoint:()=>null},
     getComputedStyle:el=>({visibility:el.style.visibility||'visible',display:el.style.display||'block',opacity:el.style.getPropertyValue('opacity')||'1',transform:el.style.transform||'none',filter:'none'})};ctx.window=ctx;vm.createContext(ctx);
   for(const file of old?[]:RUNTIME_SCRIPTS){
+    if(options.excludeScripts&&options.excludeScripts.includes(file))continue;
     if(extra&&file==='js/vfx/renderer.js')vm.runInContext('VbFxDefs.register('+JSON.stringify(extra)+');',ctx);
-    vm.runInContext(fs.readFileSync(path.join(ROOT,file),'utf8'),ctx,{filename:file});
+    vm.runInContext(options.sourceLoader?options.sourceLoader(file):fs.readFileSync(path.join(ROOT,file),'utf8'),ctx,{filename:file});
   }
   if(old)vm.runInContext(before,ctx,{filename:'5d9e1d2/fx_lab.js'});
   function step(ms){now=ms;trace.length=0;const pending=Array.from(frames.values());frames.clear();pending.forEach(fn=>fn(now));return trace.slice();}

@@ -674,3 +674,9 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - 置き換えた32種（被弾・攻撃効果・マナ・召喚・封印解放・アラッサスの炎 flame-sweep など）の定義は `js/vfx/defs/webp.js`・`webp_geometry.js`、描画は共通レンダラー `js/vfx/renderer.js`。キーワードの VFX は `getKeywordEffectVfxPath()` が「vfx:<素材キー>:<定義名>」を返す（素材キーは旧番号のまま。`present.js: KEYWORD_ASSET_KEYS`）。旧素材（assets/vfx/*.webp）は削除していない。既存50種の内部で使う webp 参照2件（ダイアウルフの appearance_sheet・隕石の巻物の K009）は見た目を守るため残す。
 - 品質の決め方：旧 webp を**ゲーム内と同じ置き方で再生**して撮る `tools/vfx_capture/legacy_ingame.js` と新版の `capture.js` を同じ盤面・カード・時刻で撮り、`ingame_compare.py` で面積・明るさ・核の明るさ（旧比 70〜130%）と形の重なり（IoU 0.35 以上）を出し、カードの周りを拡大した旧／新を目で見比べて決めた（カード全体の色かぶりで数値を稼がない、形で存在感を出す）。
 - 比較用の参照画像（`tools/vfx_capture/refs/**/frame_*.png`、41MB）は `extract_refs.py` で作り直せる生成物なのでコミットしない（基準の reference.json だけ入れる）。
+
+## キャラクター固有VFX 21種（2026-10-14）
+- 利用者指定（2026-10-12）の21体（サテュロス C004・ヘカトンケイル C020・ゾンビ C021・ベヒーモス C060・シルフ C064・ニンフ C071・ファミリア C089・フィーンド C099・ファントム C029・エイドロン C034・アークデーモン C082・グレムリン C083・リリス C095・オーバーロード C097・ミノタウロス C009・スリープシープ C042・スキュラ C056・ウンディーネ C066・スプリガン C079・インキュバス C084・カオス・インプ C094）の演出を、VFX定義データ（js/vfx/defs/）→共通レンダラーで作った。ファントムとエイドロンは眷属強化の共通VFX（定義1つ＋派生）。
+- 固有の動きの後に、既存のマナ獲得・結界獲得・毒・弱体・ATK減少などの演出へつなぐ（置き換えない）。対象・回数はコアのイベント（実際に起きたこと）から読み、発動しなかった時は出さない。そのためにコアのイベントへ演出用の因果の項目（ニンフの colorSources、ミノタウロスの reactionSourceId、カオス・インプの retriggerSourceId／retriggerTargetId、インキュバスの victimId など）を足した。戦闘結果は変わらない（`tools/parity/core_refactor_diff.js` はこれらを比較から除く）。
+- SE は各3候補（ボイス系は使わない）を `tools/vfx_preview/se/` に置き、VFX LAB で聴き比べられる。ゲームでは仮に候補1を鳴らす（`tools/vfx_preview/se/ADOPTED.md` に「仮」として記載）。
+- 品質は、実際の盤面の大きさで撮った8コマをカードの周りで拡大して確認した（`tools/vfx_capture/REVIEW_1012.md`）。既存82種の見た目は作業前と比べて不変（各1画素の撮影ノイズを除く）。

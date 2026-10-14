@@ -13,9 +13,18 @@ var VbFxRenderer = (function () {
   var width = 0, height = 0, sequence = 0, pixelRatio = 1;
   var leases = new WeakMap();
   var settings = { speed: 1.5, size: 1, particles: 1, shake: 1, dprMax: 2, seed: null };
-  var definitions=VbFxDefs.effects, lookup={}, fieldSpecs={};
+  // 2026-10-12: 派生設定は共有層への参照と入力値だけ。JSONに同じ効果を複製しない。
+  var definitions=[];VbFxDefs.effects.forEach(function(d){definitions.push(d);(d.variants||[]).forEach(function(v){definitions.push(Object.assign({},d,v,{variants:undefined}));});});
+  var lookup={}, fieldSpecs={};
   VbFxDefs.types.forEach(function(type){fieldSpecs[type]=VbFxDefs.fields(type);});
   definitions.forEach(function(d){lookup[d.name]=d;lookup[d.label]=d;});
+  // 2026-10-12: 有限脈動の合図も定義の層と濃さ曲線から共有計算する。
+  function pulseTimes(name,count){
+    var d=lookup[name],layer=d&&d.layers.find(function(l){return l.anchor==='each-target'&&l.cycles;});
+    if(!layer||!Number.isInteger(count)||count<1||count>128)return [];
+    var time=layer.time||[0,1],peak=layer.curves&&layer.curves.alpha&&layer.curves.alpha.keys.find(function(k){return k[1]>0;});
+    return Array.from({length:count},function(_,i){return time[0]+(time[1]-time[0])*(i+(peak?peak[0]:.2))/count;});
+  }
   function duration(name,speed){
     var d=lookup[name];if(!d)throw new Error('VbFx: 未知の演出 '+name);
     // 状態異常のループは速さの設定に関わらず定義の周期で回す（2026-10-06 利用者が等速で見て速さを指定した）。
@@ -49,6 +58,7 @@ var VbFxRenderer = (function () {
     var w = Number(r.width == null ? r.right - left : r.width), h = Number(r.height == null ? r.bottom - top : r.height);
     if (![left, top, w, h].every(Number.isFinite) || w <= 0 || h <= 0) throw new TypeError('VbFx: 有効な画面矩形を渡してください');
     var out = { left: left, top: top, width: w, height: h, right: left + w, bottom: top + h, element: r.element || null };
+    if(typeof r.color==='string'&&/^#[0-9a-f]{6}$/i.test(r.color))out.color=r.color;
     // 明示したelement:nullは倒れた位置などの固定矩形。下にある別カードを拾わない。
     if (!out.element && !Object.prototype.hasOwnProperty.call(r, 'element')) {
       var p = point(out), el = document.elementFromPoint(p.x, p.y);
@@ -331,6 +341,10 @@ var VbFxRenderer = (function () {
           frameContext.drawImage(job.trail, 0, 0, width, height); frameContext.restore();
         }
         job.lastFrame = now; draw(job, t); updateHits(job, t);
+        // 2026-10-12: 汎用の追加合図。実フレームの時計から1回ずつ通知する。
+        if(job.options.cueTimesMs)(job.options.cueTimesMs||[]).forEach(function(ms,i){
+          if(t*job.ms>=ms&&!job.cues.has(i)){job.cues.add(i);if(typeof job.options.onCue==='function')job.options.onCue(i);}
+        });
       } catch (e) { finish(job, false, e); }
       ctx = frameContext;
       frameContext.restore();
@@ -399,6 +413,7 @@ var VbFxRenderer = (function () {
   }
   function tint(f, life) {
     var s = f.spec;
+    if(s.colorFrom==='anchor'&&f.r.color)return f.r.color;
     if (s.palette) {var factor=value(f,'tint',0,life),steps=s.tintSteps==null?14:s.tintSteps;
       if(s.colorInterpolation==='step'){for(var i=1;i<s.palette.length;i++)if(factor<=s.palette[i][0])return s.palette[i-1][1];return s.palette[s.palette.length-1][1];}
       return VbFxCurves.gradientColor(s.palette,steps?Math.round(factor*steps)/steps:factor);}
@@ -1099,6 +1114,34 @@ var VbFxRenderer = (function () {
   }
   function drawCard(f) {
     var s = f.spec, el = f.r.element, job = f.job; if (!el) return;
+    // 2026-10-12: 汎用のカード残像。元DOM・数値・既存card部品の復元経路に触れない。
+    if(s.echo){
+      if(!job.echoes)job.echoes={};var key=f.layer+':'+f.index+':'+f.copy,node=job.echoes[key];
+      if(!node){
+        var original=s.artOnly&&(el.querySelector('.unit-portrait, .art'))||el;
+        node=original.cloneNode(true);prepareClone(el,node);node.removeAttribute('id');
+        if(s.artOnly&&original!==el){var artStyle=getComputedStyle(original);node.className='';
+          ['backgroundImage','backgroundSize','backgroundPosition','backgroundRepeat','objectFit','borderRadius','clipPath'].forEach(function(k){if(artStyle[k])node.style[k]=artStyle[k];});}
+        // 黒地のJPEGもファイルを加工せず、輝度を透明度へ写して体の形だけを残す。
+        // Canvasの画素読み出しを使わないためfile://でも同じSVGフィルタを使える。
+        if(s.lumaMask){
+          var mask=document.createElementNS?document.createElementNS('http://www.w3.org/2000/svg','svg'):document.createElement('svg');
+          var maskId='vb-fx-luma-'+job.id+'-'+f.layer+'-'+f.index+'-'+f.copy,c=tint(f),rgb=[1,3,5].map(function(at){return parseInt(c.slice(at,at+2),16)/255;});
+          mask.setAttribute('width','0');mask.setAttribute('height','0');mask.setAttribute('aria-hidden','true');
+          mask.innerHTML='<defs><filter id="'+maskId+'" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 '+rgb[0]+' 0 0 0 0 '+rgb[1]+' 0 0 0 0 '+rgb[2]+' .2126 .7152 .0722 0 0"/><feComponentTransfer><feFuncA type="gamma" amplitude="'+value(f,'lumaGain',1)+'" exponent="'+value(f,'lumaExponent',1)+'" offset="0"/></feComponentTransfer></filter></defs>';
+          root.appendChild(mask);job.nodes.push(mask);node._vbFxMask='url(#'+maskId+') ';
+        }
+        node.querySelectorAll('[id]').forEach(function(n){n.removeAttribute('id');});
+        node.querySelectorAll('[data-vb-fx-local], .unit-stat-overlay-layer, .unit-shield-layer, .stats-overlay, .stats, .slot-stats, .slot-name, .slot-keywords, .name, .card-caption').forEach(function(n){n.remove();});
+        Object.assign(node.style,{position:'fixed',margin:'0',pointerEvents:'none',transition:'none',visibility:'visible',zIndex:'1',transformOrigin:'center'});
+        root.appendChild(node);job.nodes.push(node);job.echoes[key]=node;
+      }
+      var scale=value(f,'scale',1);
+      Object.assign(node.style,{left:f.p.x+curShift.x+'px',top:f.p.y+curShift.y+'px',width:f.r.width+'px',height:f.r.height+'px',
+        opacity:String(clamp(value(f,'opacity',1)*alpha(f)*f.opacity)),transform:'translate(-50%,-50%) translate('+value(f,'x',0)*f.unit+'px,'+value(f,'y',0)*f.unit+'px) scale('+scale+')',
+        filter:(node._vbFxMask||'')+'brightness('+value(f,'brightness',1)+') saturate('+value(f,'saturation',1)+') grayscale('+value(f,'grayscale',0)+')',mixBlendMode:s.blend==='add'?'screen':s.blend||'normal'});
+      return;
+    }
     var b = base(job, f.r, f.index), x = value(f, 'x', 0) * f.unit, y = value(f, 'y', 0) * f.unit;
     var move = value(f, 'move', 0), target = job.targets[Math.min(f.index + 1, job.targets.length - 1)] || f.r;
     if (s.moveTo === 'source') target = job.source;
@@ -1123,7 +1166,8 @@ var VbFxRenderer = (function () {
     if (hasParameter(s, 'dissolve')) {
       var progress = value(f, 'dissolve', 0), grid = value(f, 'grid', 24), cells = [];
       for (var row = 0; row < grid; row++) for (var col = 0; col < grid; col++) if (VbFxCurves.hash(col, row, job.seed) >= progress) cells.push('<rect x="' + col + '" y="' + row + '" width="1.05" height="1.05"/>');
-      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + grid + ' ' + grid + '">' + cells.join('') + '</svg>';
+      // 2026-10-12指定・撮影第3回: 指定した層だけ縦長カード全面へマスクを伸ばす。未指定の既存効果は保持。
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + grid + ' ' + grid + '"' + (s.dissolveFit === 'stretch' ? ' preserveAspectRatio="none"' : '') + '>' + cells.join('') + '</svg>';
       setStyle(job, el, 'mask-image', 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")'); setStyle(job, el, 'mask-size', '100% 100%');
     }
     if (s.art) setStyle(job, el, 'background-image', 'url("' + new URL(VbFxTextures.sprites[s.art].path, assetBase).href + '")');
@@ -1220,6 +1264,7 @@ var VbFxRenderer = (function () {
     function renderItem(item) {
       var s=item.spec,layerIndex=item.layer,entry=item.entry;
         var origin = s.at === 'impact' ? job.hitAt[Math.min(entry.index, job.hitAt.length - 1)] || 0 : 0;
+        if(s.targetSpread)origin+=s.targetSpread*entry.index/Math.max(1,job.targets.length-1);
         if (s.at === 'reveal') origin = (job.summonMs || 0) / job.ms;
         var time = s.time || [0, 1], delay = s.playbackDelay ? Math.min(s.playbackDelay.maxMs / job.ms, s.playbackDelay.maxRatio) : 0;
         var clock = t - origin - time[0] - delay, length = time[1] - time[0];
@@ -1236,6 +1281,7 @@ var VbFxRenderer = (function () {
           var copyClock = clock - i * value(f, 'copyDelay', 0); if (copyClock < 0 && !(s.type === 'card' && s.prewarmTransform)) continue;
           f.copy = i; f.copies = copies; f.clock = copyClock;
           f.life = job.def.loop ? (copyClock / (s.cycle || length)) % 1 : clamp(copyClock / length);
+          if(hasParameter(s,'cycles')){var cycles=value(f,'cycles',1);f.life=copyClock>=length?1:(Math.max(0,copyClock)*cycles/length)%1;}
           f.seed = s.seedOffset==null?job.seed + layerIndex * 113 + entry.index * 37 + i * 101:job.seed+s.seedOffset+entry.index*(s.targetSeedStride||0);
           if(s.continuous||s.curveTime==='continuous') f.life=copyClock/length;
           if(s.curveTime==='effect') f.life=effect;
@@ -1258,6 +1304,8 @@ var VbFxRenderer = (function () {
           f.p = { x: center.x + dx + value(f, 'shiftX', 0) * f.unit, y: center.y + dy + value(f, 'shiftY', 0) * f.unit }; f.pathEnd = center;
           if(hasParameter(s,'forwardOffset')){f.p.x+=Math.cos(job.angle)*value(f,'forwardOffset',0)*f.unit;f.p.y+=Math.sin(job.angle)*value(f,'forwardOffset',0)*f.unit;}
           f.r = { left: r.left + dx, top: r.top + dy, width: r.width, height: r.height, right: r.left + dx + r.width, bottom: r.top + dy + r.height, element: r.element };
+          // 2026-10-12指定: 色付きの対象光が、座標更新後も元カードの色を読む。
+          if (r.color) f.r.color = r.color;
           f.opacity = (s.intrinsicAlpha?1:intro) * (i ? value(f, 'copyAlpha', 1) : 1);
           ctx.save(); ctx.globalAlpha *= f.opacity;
           var defaultBlend = s.type === 'fog' || s.type === 'shape' || s.texture === 'smoke' || s.texture === 'stone' ? 'normal' : 'add';
@@ -1330,6 +1378,7 @@ var VbFxRenderer = (function () {
         }
         if (options.impactTimesMs != null && (!Array.isArray(options.impactTimesMs) || options.impactTimesMs.length !== targets.length
           || options.impactTimesMs.some(function (ms) { return !Number.isFinite(ms) || ms < 0; }))) throw new TypeError('VbFx: impactTimesMs は対象数ぶんの0以上の有限数');
+        if(options.cueTimesMs!=null&&(!Array.isArray(options.cueTimesMs)||options.cueTimesMs.length>128||options.cueTimesMs.some(function(ms){return !Number.isFinite(ms)||ms<0;})))throw new TypeError('VbFx: cueTimesMs は0以上の有限数配列（最大128）');
         var from = point(source), opposing = side === 'ally' ? enemies : allies, dest = point(box(opposing.length ? opposing : targets));
         var angle = Math.atan2(dest.y - from.y, dest.x - from.x);
         if (Math.hypot(dest.x - from.x, dest.y - from.y) < 1) angle = side === 'ally' ? -Math.PI / 2 : Math.PI / 2;
@@ -1347,12 +1396,12 @@ var VbFxRenderer = (function () {
           ms: options.durationMs == null ? duration(name, speed) : options.durationMs,
           seed: Number.isFinite(options.seed) ? options.seed : Number.isFinite(settings.seed) ? settings.seed : sequence,
           unit: source.width * (Number(options.size) || def.playback.baseSize || settings.size), size: Number(options.size) || def.playback.baseSize || settings.size,
-          particles: clamp(settings.particles, .2, 2), hit: new Set(), hitAt: [], styles: [], nodes: [], sprites: {}, assetErrors: [],
+          particles: clamp(settings.particles, .2, 2), hit: new Set(), cues:new Set(), hitAt: [], styles: [], nodes: [], sprites: {}, assetErrors: [],
           baseTransforms: targets.map(function (r) { var v = r.element && getComputedStyle(r.element).transform; return v && v !== 'none' ? v : ''; }),
           baseFilters: targets.map(function (r) { var v = r.element && getComputedStyle(r.element).filter; return v && v !== 'none' ? v : ''; }),
           domScales: targets.map(function (r) { return r.element && r.element.offsetWidth ? r.width / r.element.offsetWidth : 1; }),
           board: options.board || (source.element && source.element.closest('[data-vb-fx-board], #stage, #battle-field')),
-          value: Math.max(1, Number(options.value) || 1), summonMs: 0, dir: options.dir === -1 || options.dir === 1 ? options.dir : ((Number.isFinite(options.seed)||Number.isFinite(settings.seed) ? random(5101,Number.isFinite(options.seed)?options.seed:settings.seed) : Math.random()) < .5 ? -1 : 1),
+          value: Math.max(1, Number(options.value) || def.value || 1), summonMs: 0, dir: options.dir === -1 || options.dir === 1 ? options.dir : ((Number.isFinite(options.seed)||Number.isFinite(settings.seed) ? random(5101,Number.isFinite(options.seed)?options.seed:settings.seed) : Math.random()) < .5 ? -1 : 1),
           resolve: resolve, reject: reject, done: false, cancelled: false };
         var reveal=def.impact.addPlaybackMs;
         job.summonMs = reveal?Math.min(reveal.maxMs,job.ms*reveal.maxRatio):0;
@@ -1439,11 +1488,12 @@ var VbFxRenderer = (function () {
   }
   window.addEventListener('pagehide', stopAll);
   VbFxDefs.validate();
-  return { play: play, rect: rect, cardGeometry: cardGeometry, duration: duration, impactMs: impactMs, stop: stop, retarget: retarget, prepareClone: prepareClone, stopAll: stopAll, effects: definitions, settings: settings,
+  return { play: play, rect: rect, cardGeometry: cardGeometry, duration: duration, impactMs: impactMs, pulseTimes:pulseTimes,stop: stop, retarget: retarget, prepareClone: prepareClone, stopAll: stopAll, effects: definitions, settings: settings,
     activeCount: function () { return jobs.length; },
     snapshot: function () { return jobs.map(function (job) { return { name: job.def.name, durationMs: job.ms,
       elapsedMs: job.start == null ? null : Math.max(0, performance.now() - job.start),
       frameMs: job.start == null || job.lastFrame == null ? null : job.lastFrame - job.start,
-      impactsMs: job.hitAt.map(function (at) { return at * job.ms; }), dpr: pixelRatio }; }); },
+      // 2026-10-12指定・撮影第2回: 反復の命中時刻も撮影記録へ渡す（描画には介入しない）。
+      impactsMs: job.hitAt.map(function (at) { return at * job.ms; }), cueTimesMs: (job.options.cueTimesMs || []).slice(), dpr: pixelRatio }; }); },
     assetBase: assetBase };
 })();

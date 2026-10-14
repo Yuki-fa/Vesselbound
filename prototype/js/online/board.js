@@ -759,8 +759,7 @@
         // マナを得た合図（S004）は**発生させたキャラクターの上**に出す（PvEと同じ）。
         {
           const gainer = ev.unitId != null ? _find(ev.side, ev.unitId) : null;
-          const shown = !!(gainer && Number(ev.amount) > 0 && typeof playManaGainVfx === 'function'
-            && playManaGainVfx(gainer, ev.side === 'p2' ? 'enemy' : 'ally'));
+          const shown = presentLabManaGainVfx(ev,gainer,ev.side==='p2'?'enemy':'ally');
           // **数字はVFXが見え始めてから動かす**（PvEと同じ。尺は present.js）。
           if (shown) {
             await _sleep((typeof PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS === 'number'

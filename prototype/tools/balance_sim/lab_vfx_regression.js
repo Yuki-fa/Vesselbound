@@ -40,6 +40,7 @@ VbFx.play=(name,opts)=>{
   calls.push(entry);
   return new Promise(resolve=>queueMicrotask(()=>{
     (opts.targets||[]).forEach((_r,i)=>opts.onImpact?.(i));
+    (opts.cueTimesMs||[]).forEach((_t,i)=>opts.onCue?.(i));
     queueMicrotask(()=>{entry.finished=true;resolve({name});});
   }));
 };
@@ -174,7 +175,7 @@ function assetChecks() {
   const vm=require('node:vm'),context=vm.createContext({});
   for(const rel of ['js/vfx/curves.js','js/vfx/textures.js']) vm.runInContext(fs.readFileSync(path.join(ROOT,rel),'utf8'),context);
   Object.values(context.VbFxTextures.sprites).forEach(resource=>add('assets/'+resource.path));
-  const names=new Set(registry.effects.map(d=>d.name));
+  const names=new Set(registry.effects.flatMap(d=>[d.name,...(d.variants||[]).map(v=>v.name)]));
   const checkDefinitions=value=>{
     if(typeof value==='string'&&value.startsWith('vfx:'))assert.ok(names.has(getVfxDefinitionName(value)),value+' の定義が存在する');
     else if(value&&typeof value==='object')Object.values(value).forEach(checkDefinitions);
@@ -499,13 +500,149 @@ async function webpPresenterChecks(){
     }
   }finally{Object.assign(global,stubs);global.document.createElement=create;}
 }
+async function new1012Checks(){
+  const apiFor=s=>({findUnit:(side,id)=>s.units[side].find(u=>u&&u.id===id),units:side=>s.units[side]});
+  for(const [no,trigger]of Object.entries(vbLabVfx1012Cases)){
+    const state=fixture(no);setup(state);
+    const events=[{type:'effect_flash',side:'p1',unitId:'source',trigger:({attackContact:'attack',kill:'passive',releaseObserver:'release',mana:'mana'})[trigger]||trigger}];
+    await _flushCorePveHitEvents(state,events,new Set([...state.units.p1,...state.units.p2]));
+    assert.ok(!calls.some(c=>c.name===presentLabFx(no)[0]),no+' 発光だけでは固有演出を出さない');
+  }
+  const negatives={
+    C004:s=>s.resources.p1.mana=0,C020:s=>{},C060:s=>s.resources.p1.mana=0,
+    C089:s=>s.blood.p1=4,C099:s=>s.units.p1[0].boardCards=[],C082:s=>s.units.p1[0].boardCards=[],
+    C095:s=>s.units.p1[0].atk=4,C009:s=>{},C056:s=>s.resources.p1.mana=0,C066:s=>s.resources.p1.mana=0,C079:s=>s.resources.p1.mana=0,
+    C084:s=>{},C094:s=>s.units.p1.slice(1).forEach((u,i)=>{s.units.p1[i+1]={id:u.id,name:'素体',side:'p1',color:u.color,atk:4,hp:70,maxHp:100,desc:'',keywords:[]};}),
+  };
+  for(const [no,prepare]of Object.entries(negatives)){
+    const state=fixture(no);prepare(state);setup(state);const events=[],rng=createSeededRng(1),emit=e=>events.push(e),u=state.units.p1[0];u._sealed=false;
+    const hit=(a,b,n,c,ss,st,opt)=>coreResolveHit(state,a,b,n,c,rng,emit,{skipSourceEffects:!!ss,skipTough:!!st,...opt});
+    if(no==='C009')coreApplyInjuryEffects(u,4,state,rng,emit,hit,state.units.p2[0],null,'combat');
+    else if(no==='C084')hit(u,state.units.p2[0],2);
+    else vbLabVfxTriggers[vbLabVfx1012Cases[no]](state,u,rng,emit,hit);
+    await _flushCorePveHitEvents(state,events,new Set([...state.units.p1,...state.units.p2]));
+    assert.ok(!calls.some(c=>c.name===presentLabFx(no)[0]),no+' 条件未達・確率の外れ・接続0・非撃破・再発火不成立で出さない: '+JSON.stringify(events));
+  }
+  for(const no of ['C099','C095','C082','C029','C034','C071','C084','C009','C094']){
+    const state=fixture(no);setup(state);const run=vbLabVfxStartPve(no,state,vbLabVfx1012Cases[no]);await run.done;
+    const main=calls.filter(c=>c.name===presentLabFx(no)[0]);
+    if(no==='C099')assert.deepEqual(main.flatMap(c=>c.targets),run.events.filter(e=>e.type==='damage'&&e.sourceId==='source'&&!e.counter).map(e=>e.unitId),'弾の回数・対象・順序はdamageそのもの');
+    if(no==='C095'){
+      const targets=run.events.filter(e=>e.type==='stat_change'&&e.reason==='lilith').map(e=>e.unitId);
+      assert.deepEqual(main[0].targets,targets,'リリスは重複対象を保持');assert.equal(main[0].opts.value,targets.length);
+      assert.ok(main[0].opts.impactTimesMs.every((t,i,a)=>!i||t>a[i-1]),'各紋章の命中を順に通知');
+    }
+    if(no==='C082'){
+      const evs=run.events.filter(e=>e.reason==='arch_demon_purple_buff'),targets=[...new Set(evs.map(e=>e.unitId))];
+      assert.deepEqual(main[0].targets,targets);assert.equal(main[0].opts.value,evs.length/targets.length,'脈動数はコアの反復数');
+    }
+    if(no==='C029'||no==='C034')assert.deepEqual(main[0].targets,run.events.filter(e=>e.type==='stat_change'&&e.reason==='summon_buff').map(e=>e.unitId),'場の眷属だけに紋章');
+    if(no==='C071'){
+      const sources=run.events.find(e=>e.colorSources).colorSources;
+      assert.deepEqual(main[0].targets,sources.map(c=>c.unitId));assert.equal(main[0].opts.value,sources.length,'光球数は実際の色数');assert.ok(main[0].opts.targets.every(r=>/^#[0-9a-f]{6}$/i.test(r.color)));
+    }
+    if(no==='C084'){const blood=run.events.find(e=>e.victimId);assert.deepEqual(main[0].targets,[blood.victimId]);assert.equal(main[0].opts.value,blood.gained);assert.ok(state.units.p2[0]._deathFxDone,'血へ消えた敵に焼失を重ねない');}
+    if(no==='C009'){
+      const names=calls.map(c=>c.name),shield=names.indexOf('shield-gain');assert.ok(shield>names.indexOf('minotaur')&&shield<names.lastIndexOf('minotaur'));
+      assert.equal(main[0].opts.value,1);assert.equal(main[1].opts.value,2);assert.equal(sounds.filter(c=>c.code==='C009').length,1,'怒りのSEを照準で二重再生しない');
+    }
+    if(no==='C094'){
+      const actual=run.events.find(e=>e.retriggerTargetId);assert.deepEqual(main[0].targets,[actual.retriggerTargetId]);
+      assert.ok(calls.findIndex(c=>c.name==='chaos-imp')<calls.findIndex(c=>c.name==='nymph'),'再点火の後に対象の元の開戦演出');
+    }
+  }
+  const motion=global.playAttackMotion,lab=global.playBattleLabFx;let contact=false,seen=[];
+  try{
+    global.playAttackMotion=async(_a,_b,_side,pause,opt)=>{if(pause)await pause();contact=true;try{await opt?.onContact?.();}finally{contact=false;}};
+    global.playBattleLabFx=(code,...args)=>{if(['C064','C089'].includes(code))seen.push([code,contact]);return lab(code,...args);};
+    for(const no of ['C064','C089']){const state=fixture(no);setup(state);await vbLabVfxStartPve(no,state,'attackContact').done;}
+    assert.deepEqual(seen,[['C064',true],['C089',true]],'攻撃の魔力／吸血は実際の接触フックで始める');
+  }finally{global.playAttackMotion=motion;global.playBattleLabFx=lab;}
+  console.log('OK 新21種の発光だけ抑止・13不発条件・実対象/重複/反復/色数/血滴・ミノタウロス直列・接触同期');
+}
+
+async function browser1012ParityChecks(){
+  const {LAB_1012_SCENARIOS,lab1012ParityScript}=require('../parity/present_parity');
+  const frame=global.requestAnimationFrame,opening=global.playBattleOpeningSequence,render=global.renderOnlineVersusBoard;
+  let introCalls=0;
+  const run=async(no,trigger,online)=>{
+    slots.clear();
+    // Chromeスクリプトの盤面配置後の1フレームを進める。状態ループの後続RAFは回さない。
+    const frames=[];global.requestAnimationFrame=fn=>{frames.push(fn);return frames.length;};
+    const done=vm.runInThisContext('(async()=>{'+lab1012ParityScript(no,trigger,online)+'})()',
+      {filename:'present_parity:LAB1012:'+no});
+    frames.splice(0).forEach(fn=>fn(performance.now()));
+    return done;
+  };
+  try{
+    // 従来のNode検査では省略していた登場VFXもVbFx境界まで通す。
+    global.playBattleOpeningSequence=async()=>{
+      for(const u of [...G.allies,...G.enemies].filter(Boolean)){
+        introCalls++;await VbFx.play('opening-sigil',{durationMs:980,source:{element:slots.get(u.id)}});
+      }
+    };
+    for(const [no,trigger]of LAB_1012_SCENARIOS){
+      const pve=await run(no,trigger,false),online=await run(no,trigger,true);
+      assert.ok(pve.own>0&&online.own>0,no+' Chromeと同じスクリプトで実体イベントから発動');
+      assert.deepEqual(online,pve,no+' 登場演出後の発生元・対象・回数・入力・尺・SEが一致');
+    }
+    assert.ok(introCalls>=LAB_1012_SCENARIOS.length,'オンラインのbattle_startで登場VFXを実際に記録した');
+    const pve=await run('C004','mana',false);
+    let injected=false;
+    global.renderOnlineVersusBoard=async(ev,ctx)=>{
+      if(ev.type!==ONLINE_EVENT.BATTLE_START&&!injected){
+        injected=true;
+        await VbFx.play('opening-sigil',{durationMs:980});playSfx('C071');
+      }
+      return render(ev,ctx);
+    };
+    const extra=await run('C004','mana',true);
+    assert.ok(extra.calls.some(c=>c[0]==='opening-sigil'),'実体イベント中の同名VFXは除外しない');
+    assert.notDeepEqual(extra.calls,pve.calls,'登場後に余分なVFXが入ると一致検査が落ちる');
+    assert.notDeepEqual(extra.sounds,pve.sounds,'登場後に余分なSEが入ると一致検査が落ちる');
+    console.log('OK Chrome用LAB1012スクリプト: 登場VFXありで21種一致／実体イベント中の余分なVFX・SEを検出');
+  }finally{
+    global.requestAnimationFrame=frame;global.playBattleOpeningSequence=opening;global.renderOnlineVersusBoard=render;
+  }
+}
+
+function new1012CoreBaselineChecks(){
+  // コア変更は演出メタデータだけ。作業前コアと数値・実体イベントを厳密に比較する。
+  const baseline='097927f8332c7a55701eaa82aebc7b2177d17016';
+  const ctx={console,Math,PANEL_POOL,ENEMY_POOL,ITEM_POOL,KW_NO_MAP,KW_DESC_MAP};ctx.window=ctx;vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(ROOT,'js/online/protocol.js'),'utf8'),ctx);
+  vm.runInContext(require('node:child_process').execFileSync('git',['show',baseline+':prototype/js/battle/core.js'],{cwd:ROOT,encoding:'utf8',maxBuffer:2e6}),ctx);
+  const clean=(value)=>JSON.parse(JSON.stringify(value,(key,v)=>['_coreOpeningEffectsState','retriggerSourceId','retriggerTargetId','retriggerKey','colorSources','reactionSourceId','victimId','victimSide'].includes(key)?undefined:v));
+  for(const [no,trigger]of Object.entries(vbLabVfx1012Cases)){
+    const initial=fixture(no),results=[];
+    for(const api of [global,ctx]){
+      const state=api.createBattleState({sides:{p1:{units:clone(initial.units.p1)},p2:{units:clone(initial.units.p2)}},resources:clone(initial.resources),blood:clone(initial.blood),summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
+      const events=[],emit=e=>events.push(e),rng=api.createSeededRng(no==='C020'?7:53),u=state.units.p1[0];u._sealed=false;u._currentAttackTarget=state.units.p2[0];
+      const hit=(a,b,n,c,ss,st,opt)=>api.coreResolveHit(state,a,b,n,c,rng,emit,{skipSourceEffects:!!ss,skipTough:!!st,...opt});
+      if(trigger==='mana')api.coreApplyManaThresholdEffects(state,rng,emit,hit);
+      else if(trigger==='opening')api.coreApplyOpeningEffects(u,state,rng,emit,hit);
+      else if(trigger==='injury')api.coreApplyInjuryEffects(u,4,state,rng,emit,hit,state.units.p2[0]);
+      else if(trigger==='death'){u.hp=0;emit({type:'death',side:u.side,unitId:u.id});api.coreTriggerDeath(u,state,emit);api.coreApplyDeathEffects(u,state,rng,emit,hit);}
+      else if(trigger==='release')api.coreApplyReleaseEffects(u,[state.units.p1[1]],state,rng,emit,hit);
+      else if(trigger==='releaseObserver')api.coreApplyReleaseEffects(state.units.p1[1],[],state,rng,emit,hit);
+      else if(trigger==='kill'){state.units.p2[0].hp=1;hit(u,state.units.p2[0],2);}
+      else {state._coreFirstSide='p1';api.createBattleRunner(state,rng,emit,{skipOpening:true}).step({deferCompact:true});}
+      const filtered=clean(events).map(e=>{if(no==='C060'&&e.reason==='behemoth'){delete e.sourceId;delete e.gained;}if(no==='C009'&&e.type==='keyword_effect'&&e.effect==='shield')delete e.sourceId;return e;});
+      results.push({events:filtered,resources:clean(state.resources),blood:clean(state.blood),units:clean(['p1','p2'].map(side=>state.units[side].map(api.coreUnitSnapshot)))});
+    }
+    assert.deepEqual(results[0],results[1],no+' 作業前コアと結果・メタデータ以外の全イベントが一致');
+  }
+  console.log('OK 作業前コアとの21ケース完全一致（演出用の追加メタデータだけ除外）');
+}
 (async()=>{
   await loadGameData();
   if(!process.env.VB_ONLY||process.env.VB_ONLY==='bugs')await battleBugChecks();
   if(!process.env.VB_ONLY||process.env.VB_ONLY==='shield')await shieldBreakChecks();
   assetChecks();
+  if(!process.env.VB_ONLY||process.env.VB_ONLY==='1012'){new1012CoreBaselineChecks();await new1012Checks();}
+  if(!process.env.VB_ONLY||process.env.VB_ONLY==='browser1012')await browser1012ParityChecks();
   if(!process.env.VB_ONLY)await staleSessionChecks();
-  const selected=[...Object.entries(cases).map(([no,trigger])=>[no,no,trigger]),...vbLabVfxExtraCases()]
+  const selected=[...Object.entries(vbLabVfx1012Cases).map(([no,trigger])=>[no,no,trigger]),...Object.entries(cases).map(([no,trigger])=>[no,no,trigger]),...vbLabVfxExtraCases()]
     .filter(([no])=>!process.env.VB_ONLY||process.env.VB_ONLY.split(',').includes(no));
   for(const [no,card,trigger]of selected) await runCase(no,trigger,card);
   if(!process.env.VB_ONLY) {await committedEndChecks();await extraChecks();}

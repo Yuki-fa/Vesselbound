@@ -10,7 +10,7 @@ const root = path.resolve(__dirname, '../..');
 const context = { console: { log() {} }, URL, Set, document: { currentScript: null, getElementById: () => null, baseURI: 'file://' + root + '/tools/vfx_preview.html' } };
 context.window = context; context.addEventListener = () => {};
 vm.createContext(context);
-for (const f of ['js/data/local_xlsx_data.js', 'js/data/loader.js', ...RUNTIME_SCRIPTS,
+for (const f of ['assets.js','js/battle/present.js','js/data/local_xlsx_data.js', 'js/data/loader.js', ...RUNTIME_SCRIPTS,
   'tools/vfx_preview/catalog.js', 'tools/vfx_preview/cards_routes.js', 'tools/vfx_preview/cards_geometry.js', 'tools/vfx_preview/cards_model.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), context, { filename: f });
 }
@@ -18,6 +18,14 @@ const model = context.VbFxCardCatalog;
 const input = context.VESSELBOUND_LOCAL_XLSX_CSV;
 const before = JSON.stringify(input);
 const cards = model.build(input, context._parseCSVWithHeader, context.VbFxCardRoutes, context.VbFx.effects, context.VbFxPreviewCatalog);
+const newPicks=JSON.parse(fs.readFileSync(path.join(__dirname,'se/picks_1012.json'),'utf8'));
+for(const [name,pick]of Object.entries(newPicks)){
+  const card=cards.find(c=>c.no===pick.code);
+  assert.ok(card&&card.lab.some(d=>d.name===name),pick.code+' 新21種のLAB割当');
+  assert.equal(card.adopted.provisional,true,pick.code+' 仮（候補1・利用者未選択）');
+  assert.ok(context.VbFxPreviewCards[pick.code],pick.code+' プレビューの絵・色・名前');
+  assert.ok(context.VbFxPreviewCatalog[name],name+' 単独再生設定');
+}
 const expected = Object.keys(model.kinds).flatMap(key => context._parseCSVWithHeader(input[key], ['No.', '名前'])
   .filter(r => r['名前'] && /^[A-Z]+\d{3}(?:_\d+)?$/.test(r['No.'] || '')).map(r => r['No.']));
 assert.deepEqual(Array.from(cards, c => c.no).sort(), expected.sort(), '全シートのカードが番号ごとに1行ある');
@@ -86,10 +94,10 @@ const front = [0, 1, 2].map(i => { const p = lab.position('enemy', 'front', 3, i
 const tri = cards.find(c => c.no === 'K008').vfx.find(v => v.definition === 'tri-streak');
 assert.equal(lab.mediaBox(tri, ...nodes, front).width, (game.cardWidth * 3 + game.gap * 2) * tri.geometry.spanWidthRatio, '三方向の実対象幅');
 const present=fs.readFileSync(path.join(root,'js/battle/present.js'),'utf8');
-const labFx=vm.runInNewContext('('+present.match(/const PRESENT_LAB_FX = (\{[\s\S]*?\n\});/)[1]+')');
+const labFx=vm.runInContext('PRESENT_LAB_FX',context);
 assert.equal(labFx.K009[0],'all-cross','全体攻撃の採用演出はLAB案C');
 assert.ok(context.VbFx.effects.some(fx=>fx.name==='all-cross'),'LABと本体に同じ全体攻撃がある');
-assert.ok(render.includes("return playBattleLabFx('K009',attacker,list)"),'本体の全体攻撃は共通LABへ渡す');
+assert.ok(render.includes("return playBattleLabFx(getKeywordAssetKey('全体攻撃'),attacker,list)"),'本体の全体攻撃は名前→素材キーの共通LABへ渡す');
 for (const kind of Object.keys(model.kinds)) {
   assert.equal(model.filter(cards, { kind }).length, cards.filter(c => c.kind === kind).length, kind + ' 種別フィルタ');
 }

@@ -423,10 +423,12 @@ async function main() {
   // 正式なLAB割当はADOPTED.mdを正とする。catalog.jsのsourceは試験用素体なので使わない。
   const adopted = {};
   const adoptedText = fs.readFileSync(path.join(__dirname, 'se/ADOPTED.md'), 'utf8');
+  let provisional=false;
   for (const line of adoptedText.split('\n')) {
+    if(line.startsWith('## 2026-10-12追加：仮'))provisional=true;
     const cells = line.split('|').map(x => x.trim());
     if (/^[A-Z]+\d{3}$/.test(cells[1] || '')) adopted[cells[1]] = { name: cells[2], path: `assets/sfx/${cells[1]}.wav`,
-      source: cells[3], seconds: parseFloat(cells[4]), peak: Number(cells[5]) };
+      source: cells[3], seconds: parseFloat(cells[4]), peak: Number(cells[5]),...(provisional?{provisional:true}:{}) };
   }
   const fingerprints = Object.fromEntries([...scripts, 'index.html', 'tools/vfx_preview/se/ADOPTED.md'].map(rel => [rel, hash(fs.readFileSync(path.join(root, rel)))]));
   const result = { sources, counts, records, adopted, fingerprints, geometry };

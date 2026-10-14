@@ -644,8 +644,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       const source=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
       // マナを得た合図（S004）は**発生させたキャラクターの上**に出す。
       // 見せ方は render.js が唯一の実装（オンラインと同じ）。
-      const _manaVfxShown=!!(source&&Number(e.amount)>0&&typeof playManaGainVfx==='function'
-        &&playManaGainVfx(source,e.side==='p2'?'enemy':'ally'));
+      const _manaVfxShown=presentLabManaGainVfx(e,source,e.side==='p2'?'enemy':'ally');
       // **数字はVFXが見え始めてから動かす**（尺は present.js が唯一の定義）。
       if(_manaVfxShown){
         await sleep((typeof PRESENT_MANA_GAIN_TO_THRESHOLD_DELAY_MS==='number'

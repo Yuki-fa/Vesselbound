@@ -122,6 +122,28 @@ const Assets = {
       'C019': 'vfx:C019_1:centaur-missile', // ケンタウロス（攻撃：対象へ飛ばす）
       'C043': 'vfx:C043:flame-sweep',
       'C090': 'vfx:C090:steal-mark', // 奪う（対象の上で再生してから移動する）
+      // 2026-10-12: 実戦はPRESENT_LAB_FXの発動単位で再生する新規定義。
+      'C004': 'vfx:C004:satyr',
+      'C020': 'vfx:C020:hecatoncheir',
+      'C021': 'vfx:C021:zombie',
+      'C060': 'vfx:C060:behemoth',
+      'C064': 'vfx:C064:sylph',
+      'C071': 'vfx:C071:nymph',
+      'C089': 'vfx:C089:familiar',
+      'C099': 'vfx:C099:fiend',
+      'C029': 'vfx:C029:phantom',
+      'C034': 'vfx:C034:eidolon',
+      'C082': 'vfx:C082:arch-demon',
+      'C083': 'vfx:C083:gremlin',
+      'C095': 'vfx:C095:lilith',
+      'C097': 'vfx:C097:overlord',
+      'C009': 'vfx:C009:minotaur',
+      'C042': 'vfx:C042:sleep-sheep',
+      'C056': 'vfx:C056:scylla',
+      'C066': 'vfx:C066:undine',
+      'C079': 'vfx:C079:spriggan',
+      'C084': 'vfx:C084:incubus',
+      'C094': 'vfx:C094:chaos-imp',
     },
     // 強化カード（エンチャント）の効果そのものの演出定義。カードのNo.（EXXX）で引く。
     // マナ効果のように「発動してから処理が終わるまで出し続ける」用途に使う
@@ -301,6 +323,28 @@ const Assets = {
     E058: 'assets/sfx/E058_1.wav', // 炎の矢（発生元）
     E058_HIT: 'assets/sfx/E058_2.wav', // 炎の矢（着弾）
     E067: 'assets/sfx/E067.wav', // 援護射撃（LABの命中に合わせる）
+    // 2026-10-12: 21キャラのSEは候補1を仮配置（利用者未選択）。
+    C004: 'assets/sfx/C004.wav',
+    C020: 'assets/sfx/C020.wav',
+    C021: 'assets/sfx/C021.wav',
+    C060: 'assets/sfx/C060.wav',
+    C064: 'assets/sfx/C064.wav',
+    C071: 'assets/sfx/C071.wav',
+    C089: 'assets/sfx/C089.wav',
+    C099: 'assets/sfx/C099.wav',
+    C029: 'assets/sfx/C029.wav',
+    C034: 'assets/sfx/C034.wav',
+    C082: 'assets/sfx/C082.wav',
+    C083: 'assets/sfx/C083.wav',
+    C095: 'assets/sfx/C095.wav',
+    C097: 'assets/sfx/C097.wav',
+    C009: 'assets/sfx/C009.wav',
+    C042: 'assets/sfx/C042.wav',
+    C056: 'assets/sfx/C056.wav',
+    C066: 'assets/sfx/C066.wav',
+    C079: 'assets/sfx/C079.wav',
+    C084: 'assets/sfx/C084.wav',
+    C094: 'assets/sfx/C094.wav',
     // VFX LABで採用済みの戦闘SE。
     E006: 'assets/sfx/E006.wav',
     C024: 'assets/sfx/C024.wav',

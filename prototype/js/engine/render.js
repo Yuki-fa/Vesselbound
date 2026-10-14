@@ -2423,13 +2423,13 @@ async function playReviveVfx(unit,side){
 // **発生させたキャラクターの上**に、魔導板の方向アイコンと同じ大きさで出す。
 // 大きさ・尺は present.js（PRESENT_MANA_GAIN_VFX_*）が唯一の定義。
 // 素材が登録されていなければ何もしない（SEだけが鳴る）。
-function playManaGainVfx(unit,side){
+function playManaGainVfx(unit,side,options){
   _syncEffectFlashWithVfx();
   if(!unit||typeof document==='undefined') return false;
   const url=typeof getEffectVfxPath==='function'?getEffectVfxPath('S004'):'';
   if(!url) return false;
-  const rect=typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(unit,side)
-    :(typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null);
+  const rect=options&&options.rect|| (typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(unit,side)
+    :(typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null));
   if(!rect||!(rect.width>0)) return false;
   const num=(name,fallback)=>{
     const n=Number(typeof window!=='undefined'?window[name]:undefined);
@@ -2459,6 +2459,9 @@ function playManaGainVfx(unit,side){
   });
   _vfxHostParent().appendChild(host);
   const playing=_playDefinedVfx(host,url,riseMs+80);
+  // 2026-10-12: 新しい固有演出の後続を共通presenterが待てるよう完了だけを通知。
+  // 既存呼び出しの大きさ・動き・尺・戻り値は保持する。
+  if(options&&typeof options.onDone==='function')Promise.resolve(playing.promise).then(options.onDone,options.onDone);
   if(typeof actionBannerTrackVfxHost==='function') actionBannerTrackVfxHost(host);
   requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
     host.style.opacity='1';

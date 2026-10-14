@@ -659,7 +659,52 @@ const onlineScript = sc => `
   return got;
 `;
 
+// 2026-10-12: 新21種は同じ実カードfixture・コアイベントを両受け口へ流す。
+// VB_ONLY=LAB1012 または LAB1012：C004 で節単位に実行できる。
+const LAB_1012_SCENARIOS=[['C004','mana'],['C020','injury'],['C021','death'],['C060','release'],['C064','attackContact'],['C071','opening'],['C089','attackContact'],['C099','release'],['C029','death'],['C034','injury'],['C082','release'],['C083','injury'],['C095','opening'],['C097','release'],['C009','injury'],['C042','death'],['C056','mana'],['C066','mana'],['C079','mana'],['C084','kill'],['C094','releaseObserver']];
+function lab1012ParityScript(code,trigger,online){
+  const fixtures=require('node:fs').readFileSync(require('node:path').join(__dirname,'lab_vfx_fixtures.js'),'utf8');
+  return fixtures+`\n
+    vbLabVfxResetBattle();
+    const state=vbLabVfxFixture(${JSON.stringify(code)}), initial=JSON.parse(JSON.stringify(state));
+    G.allies=state.units.p1;G.enemies=state.units.p2;G._savedBattleReplaying=false;
+    actionBannerSetBattleData({units:state.units,items:state.items,rings:state.rings});renderAll();
+    await new Promise(r=>requestAnimationFrame(r));
+    const calls=[],sounds=[],play=VbFx.play,sound=window.playSfx;
+    VbFx.play=function(name,opt){
+      calls.push([name,opt.speed,opt.durationMs||null,opt.value||null,
+        opt.source&&opt.source.element&&opt.source.element.dataset.unitId||null,
+        (opt.targets||[]).map(r=>r.element&&r.element.dataset.unitId||null)]);
+      return play(name,opt);
+    };
+    window.playSfx=function(code,opt){if(presentLabFx(code))sounds.push(code);return sound(code,opt);};
+    try{
+      let events;
+      if(${online}){
+        // コアの実体イベントを生成する間だけPvEの受け口を外す。数値は同じfixtureが解決する。
+        const flush=window._flushCorePveHitEvents;
+        window._flushCorePveHitEvents=()=>Promise.resolve();
+        try{const run=vbLabVfxStartPve(${JSON.stringify(code)},state,${JSON.stringify(trigger)});await run.done;events=run.events;}
+        finally{window._flushCorePveHitEvents=flush;}
+        const result={events:[{type:'battle_start',sides:initial.units},...events],formations:{p1:{units:initial.units.p1,items:initial.items.p1,rings:initial.rings.p1},p2:{units:initial.units.p2,items:initial.items.p2,rings:initial.rings.p2}}};
+        beginOnlineVersusField(result);
+        // 2026-10-12指定: PvEは配置後から計測する。オンラインも登場・カットインを
+        // 終えた最初の実体イベント直前から揃える。VFX名で除外せず、以後は全て比較する。
+        let started=false;
+        await playOnlineBattleEvents(result,{onEvent:(e,ctx)=>{
+          if(!started&&e.type!==ONLINE_EVENT.BATTLE_START){
+            started=true;calls.length=0;sounds.length=0;
+          }
+          return renderOnlineVersusBoard(e,ctx);
+        }});
+      }else{const run=vbLabVfxStartPve(${JSON.stringify(code)},state,${JSON.stringify(trigger)});await run.done;events=run.events;}
+      return {calls:calls.filter(c=>!c[0].endsWith('-state')),sounds,events:events.length,
+        own:calls.filter(c=>c[0]===presentLabFx(${JSON.stringify(code)})[0]).length};
+    }finally{VbFx.play=play;window.playSfx=sound;_forceStopAllVfx();if(${online})hideOnlineVersusBoard();}
+  `;
+}
 (async () => {
+  if (require.main !== module) return;
   const b = await launch();
   try {
     await b.call('Emulation.setDeviceMetricsOverride',
@@ -847,6 +892,13 @@ const onlineScript = sc => `
         + ` オンライン=複製${online.leftovers.attackClone}/非表示${online.leftovers.motionHidden}`);
     }
 
+    for(const [code,trigger]of LAB_1012_SCENARIOS.filter(([code])=>!wanted.length||wanted.some(w=>('LAB1012：'+code).includes(w)))){
+      const pve=await b.eval(lab1012ParityScript(code,trigger,false));
+      const online=await b.eval(lab1012ParityScript(code,trigger,true));
+      check('LAB1012：'+code+' 実体イベントから発動',pve.own>0&&online.own>0,'PvE '+pve.own+' / online '+online.own);
+      check('LAB1012：'+code+' 発生元・対象・回数・入力・尺・SEの一致',JSON.stringify(pve.calls)===JSON.stringify(online.calls)&&JSON.stringify(pve.sounds)===JSON.stringify(online.sounds),JSON.stringify({pve,online}));
+    }
+
     const errs = (await b.consoleErrors()).filter(e => !/404|Failed to load resource/.test(e));
     check('コンソールに例外が無い', errs.length === 0, errs[0] || 'なし');
   } finally { await b.close(); }
@@ -856,3 +908,6 @@ const onlineScript = sc => `
   console.log(`演出一致検証: NG ${ng}`);
   process.exitCode = ng ? 1 : 0;
 })();
+
+// Node回帰でもChromeへ渡す同じスクリプトを実行し、計測区間のずれを検出する。
+module.exports = { LAB_1012_SCENARIOS, lab1012ParityScript };
