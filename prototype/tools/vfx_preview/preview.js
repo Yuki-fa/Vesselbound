@@ -122,7 +122,10 @@ var VbFxPreview = (function () {
   // （2026-10-14 利用者指摘：カード名から再生するとメデューサ・サイレン等でSEが鳴らなかった）。
   function gameSound(name) {
     var def = VbFx.effects.find(function (d) { return d.name === name; }), code = def && def.sourceCode;
-    var key = code === 'appearance_sheet' ? 'appearance' : code;
+    var key = code === 'appearance_sheet' ? 'appearance' : code === 'hit' ? 'attack' : code;
+    // 飛ぶ矢と着弾で番号が分かれる効果（C019_1／C019_2、E058_1／E058_2）は、ゲームの音のキーが「番号」と「番号_HIT」。
+    var split = /^(.+)_([12])$/.exec(key || '');
+    if (split) key = split[1] + (split[2] === '2' ? '_HIT' : '');
     var file = key && typeof Assets !== 'undefined' && Assets.sfx && Assets.sfx[key];
     // 登場・盤面変化の音はキー名が番号ではない（js/engine/audio.js が直接ファイルで鳴らす）。
     if (!file && ['appearance', 'board_change1', 'board_change2'].indexOf(key) >= 0) file = 'assets/sfx/' + key + '.wav';
