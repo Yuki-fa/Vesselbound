@@ -52,7 +52,8 @@ async function run(){
   }
   // 効果全体が描けても、材質の不足で一層だけ空になることを見逃さない。
   // 実際の共通レンダラーで層を単独再生し、出力Canvasへの不透明な描画を数える。
-  const layers=effects.flatMap(effect=>effect.layers.map((layer,index)=>({
+  // カードの明るさ・揺れ（card/shake）はCanvasへ描かずDOMへ効くので、描画の有無を数える対象から外す（2026-10-14）。
+  const layers=effects.flatMap(effect=>effect.layers.map((layer,index)=>({layer,index})).filter(x=>x.layer.type!=='card'&&x.layer.type!=='shake').map(({layer,index})=>({
     ...effect,name:'audit-'+effect.name+'-'+index,label:'層検査 '+effect.name+' '+index,layers:[layer]
   })));
   const audit=harness(false,{schemaVersion:2,effects:layers});let paints=0,paintContext;
