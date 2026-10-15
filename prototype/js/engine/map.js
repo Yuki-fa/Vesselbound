@@ -432,6 +432,7 @@ const VILLAGE_FACILITY_DEFS={
   '祭壇':     {key:'ringExchange'},
   '踊り場':   {key:'landing'},
   '五聖の座': {key:'landing'},
+  [TOWER_BOON_CONFIG.name]: {key:TOWER_BOON_CONFIG.key},
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導店／魔道店、旧称ショップ）を吸収した候補名を返す。
 function villageFacilityNameVariants(name){
@@ -464,6 +465,7 @@ const VILLAGE_FACILITY_FALLBACK_DESC={
 // 施設ボタンの表示名は「テキストメッセージ」シートの「街「◯◯」ボタン」行から引く。
 // シートに行が無ければ地域情報シートの施設名をそのまま出す。
 function villageFacilityLabelText(name){
+  if(name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.name;
   const variants=villageFacilityNameVariants(name);
   const prefixes=(G&&G._isWaveAltar)?['塔','街']:['街','塔'];
   for(const pre of prefixes){
@@ -483,6 +485,7 @@ function _villageLifeFull(){
   return life>=max;
 }
 function villageFacilityDescText(name){
+  if(name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.description;
   const variants=villageFacilityNameVariants(name);
   if(variants.includes('五聖の座')&&(!_fiveSaintsUnlocked()
     ||(typeof fiveSaintsCurrentTowerResolved==='function'&&fiveSaintsCurrentTowerResolved()))){
@@ -583,6 +586,7 @@ const TOWER_FACILITY_POS={
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋）を吸収して個別配置を引く。
 function _villageFacilityFixedPos(name){
+  if(G&&G._isWaveAltar&&name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.position;
   const wave=Math.max(0,Number(G&&G._wave)||0);
   const table=(G&&G._isWaveAltar)?TOWER_FACILITY_POS:(VILLAGE_FACILITY_POS_BY_WAVE[wave]||null);
   const variants=villageFacilityNameVariants(name);
@@ -617,6 +621,8 @@ function villageFacilityList(){
   const raw=(G&&G._isWaveAltar)?(info&&info.towerFacilities):(info&&info.townFacilities);
   const names=String(raw||'').split(/[、,／\/]/).map(s=>s.trim()).filter(Boolean);
   if(!names.length&&G&&G._isWaveAltar) names.push('祭壇');
+  // 試験施設だけコードで末尾へ追加。五聖の座の解放・周回判定を共有しない。
+  if(G&&G._isWaveAltar) names.push(TOWER_BOON_CONFIG.name);
   return (names.length?names:['ショップ']).filter(name=>{
     const def=VILLAGE_FACILITY_DEFS[name]||null;
     // 1周目は塔の「五聖の座」自体を描画しない。
@@ -857,7 +863,7 @@ async function _onVillageFacility(fac){
       return;
     }finally{ if(isCurrent()) G._villageFacilityBusy=false; }
   }
-  if(['ringExchange','library','landing'].includes(fac.key)){
+  if(['ringExchange','library','landing',TOWER_BOON_CONFIG.key].includes(fac.key)){
     return fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
   }
   return _enterVillageFacilityNow(fac);
@@ -893,6 +899,7 @@ function _revealFacilityUi(){
   window.setTimeout(()=>{ try{ cover.remove(); }catch(_e){} },FACILITY_UI_FADE_MS+120);
 }
 function _enterVillageFacilityNow(fac){
+  if(fac.key===TOWER_BOON_CONFIG.key){ openTowerBoonSeat(); return; }
   if(fac.key==='shop'||fac.key==='forge'||fac.key==='item'){
     // 施設は既存の編成画面（#scr-battle上の報酬UI）をそのまま使う。
     // 左上のラベルは「編成」ではなくシートに書かれた施設名にする。
@@ -1353,7 +1360,8 @@ function renderVillageScreen(){
   if(departReset) departReset.style.display='';
   const info=regionInfoForWave(G&&G._wave);
   // 五聖の座の中は、左上に塔の名前ではなく「五聖の座」見出しを出す（2026-10-01 利用者指摘）。
-  const name=(G&&G._isFiveSaints&&typeof fiveSaintsRewardTitle==='function')
+  const name=G&&G._isTowerBoon?TOWER_BOON_CONFIG.name
+    :(G&&G._isFiveSaints&&typeof fiveSaintsRewardTitle==='function')
     ?String(fiveSaintsRewardTitle()||'五聖の座')
     :(G&&G._isWaveAltar)
     ?String((info&&info.towerName)||'塔')
@@ -1533,6 +1541,9 @@ async function _playVillageEnterIntro(build,beforeReveal){
 // 施設から「店を出る」で戻る場合はfalse（演出なしで即表示）。
 // options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
+  G._isTowerBoon=false;
+  document.body.classList.remove('tower-boon-active');
+  document.getElementById('tower-boon-choices')?.remove();
   G._savePresentation=false;
   _clearShopPortrait();
   // 店で「別れる」を選んだ直後など、致死クエスト会話が必要でも、
@@ -2765,7 +2776,7 @@ function _mapPickSaleCard(pred, used){
   if(!def) return null;
   consumePanelSaleStock(def);
   used.add(def.id);
-  const card=makePanel(def.id);
+  const card=towerBoonGeneratedOffers([makePanel(def.id)])[0];
   if(card) card._buyPrice=_shopBuyPriceWithRings(_mapSalePrice(card));
   return card;
 }

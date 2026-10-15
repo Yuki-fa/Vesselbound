@@ -35,7 +35,7 @@ const SaveRun=(()=>{
         _debugMode / _onlineMode 等）。再開時に前回のUI状態が復活してしまう。
      ══════════════════════════════════════════════════════════ */
   const fields={
-    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome'],
+    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons'],
     progress:['floor','_wave','_waveStage','_debugStoryCycle','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_waveEnemySnapshotAtEnd','_waveEnemySnapshotBlood','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','_waveBosses','_arenaActive','_arenaRound','_arenaWins','runStats'],
     choices:['panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards','_fiveSaints','_peddlerStock'],
     place:['_isPeddler','_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
@@ -170,7 +170,7 @@ const SaveRun=(()=>{
     a(Number.isFinite(s.player.gold)&&s.player.gold>=0&&Number.isFinite(s.player._waveLife)&&s.player._waveLife>=0,'資源が不正です');
     a(Array.isArray(s.player.mainBoard)&&s.player.mainBoard.length===MAIN_BOARD_SIZE,'魔導板が不正です');
     for(const key of ['globalPanels','spellSlots','rings']) a(Array.isArray(s.player[key]),`所持欄がありません: ${key}`);
-    const pools=[...(typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]),...(typeof ITEM_POOL!=='undefined'?ITEM_POOL:[]),...(typeof RING_POOL!=='undefined'?RING_POOL:[])];
+    const pools=[...(typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'?ENEMY_POOL:[]),...(typeof ITEM_POOL!=='undefined'?ITEM_POOL:[]),...(typeof RING_POOL!=='undefined'?RING_POOL:[])];
     function cards(list){for(const c of list){if(!c)continue;const ref=SaveProfile.identity(c);a(typeof c==='object'&&pools.some(def=>c.id===def.id||(ref&&SaveProfile.identity(def)?.id===ref.id)),`未登録の所持カードIDです: ${c.id||c.no||c.No||c.name||'?'}`);}}
     for(const key of ['mainBoard','globalPanels','spellSlots','rings']) cards(s.player[key]);
     a(s.reward&&Array.isArray(s.reward.cards)&&typeof s.reward.freePickDone==='boolean'&&Number.isInteger(s.reward.phaseId),'報酬状態が不正です');cards(s.reward.cards);
@@ -542,6 +542,7 @@ const SaveRun=(()=>{
     if(_battleRunStale(runId)) return;
     // 保存済みの全結果からも集計する。終戦や描画されなかったdeathを落とさず、既読の個体は重ねない。
     if(typeof questRecordBattleDeaths==='function') questRecordBattleDeaths(p.events,p.setup.units.p2);
+    if(typeof towerBoonRecordBattleDeaths==='function') towerBoonRecordBattleDeaths(p.events,p.setup.units.p2);
     G._deferManaThresholdEffects=false;
     if(p.outcome==='p2'){
       applyEnd(state);

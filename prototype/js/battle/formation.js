@@ -125,6 +125,11 @@ function buildBoardFormation(board, opts) {
         ? _makePanelSummonUnit({ ...spec, panelName: panel.name, summonCount: openingCopy ? 1 : baseCount }, [])
         : null;
       if (!unit) continue;
+      if(panel.boon) unit.boon={...panel.boon};
+      if((panel.boon||contributingPanels.some(entry=>(entry.panel||entry).boon))
+        &&typeof _panelSummonDisplayBoardCards==='function'){
+        unit.boardCards=_panelSummonDisplayBoardCards(panel,contributingPanels);
+      }
       unit._mapPanelPower = panelPower;
       unit._stageNumber = stageNumber;
       if (enh && typeof _applyAdjacentPanelEnhancements === 'function') _applyAdjacentPanelEnhancements(unit, enh);

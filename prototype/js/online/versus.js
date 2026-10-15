@@ -45,6 +45,7 @@
         race: String(u.race || panel.race || ''),
         grade: Number(panel.grade) || 1,
         desc: String(u.desc || ''),
+        ...(u.boon ? { boon: { ...u.boon } } : {}),
         sfxType: String(u.sfxType || panel.sfxType || ''),
         keywords: Array.isArray(u.keywords) ? u.keywords.slice() : [],
         // 決着台詞はルール入力ではないが、オンライン再生側が同じ演出入口で必要。

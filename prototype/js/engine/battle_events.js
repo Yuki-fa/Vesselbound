@@ -3,6 +3,8 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
   // 演出に入る前にコアの結果を記録する。詰め直しで消えた体も開始時の一覧から引ける。
   if(typeof questRecordBattleDeaths==='function') questRecordBattleDeaths(events,
     [...(state.units.p2||[]),...(beforeUnits||[])]);
+  if(typeof towerBoonRecordBattleDeaths==='function') towerBoonRecordBattleDeaths(events,
+    [...(state.units.p2||[]),...(beforeUnits||[])]);
   // コアの資源変更を、演出開始前にPvE側へ共通反映する。
   _syncCoreLifeToG(state);
   G._battleEventPlaybackDepth=(Number(G._battleEventPlaybackDepth)||0)+1;

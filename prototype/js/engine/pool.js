@@ -97,6 +97,7 @@ function applyMergedPanelForm(card){
     else card[k]=Array.isArray(v)?v.slice():v;
   });
   card._mergedFormApplied=true;
+  if(card.boon) coreApplyCardBoon(card,card.boon,{freshEffects:true,effectsOnly:true});
   return true;
 }
 // そのカードが「カード定義には無いキーワード」を持っているか（アイテム等で個別に付いたもの）。
@@ -104,7 +105,8 @@ function applyMergedPanelForm(card){
 function extraPanelKeywords(card){
   if(!card||!Array.isArray(card.keywords)) return [];
   const def=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(card.id&&p.id===card.id)||p.name===card.name))||null;
-  const base=new Set(((def&&def.keywords)||[]).map(k=>String(k||'').trim()));
+  const ownDef=def&&card.boon?coreApplyCardBoon(clone(def),card.boon,{effectsOnly:true}):def;
+  const base=new Set(((ownDef&&ownDef.keywords)||[]).map(k=>String(k||'').trim()));
   return card.keywords.map(k=>String(k||'').trim()).filter(k=>k&&!base.has(k));
 }
 
@@ -508,7 +510,7 @@ function drawPanel(n=1, maxGrade){
     consumePanelSaleStock(picked);
     usedIds.add(picked.id);
     const card=makePanel(picked.id);
-    if(card) res.push(card);
+    if(card) res.push(towerBoonBlessGeneratedCard(card));
   }
   return res;
 }
@@ -649,7 +651,7 @@ function drawRewards(){
     const picked=_rewardWeightedPick(candidates,maxGrade,used,true,true);
     if(!picked) return null;
     consumePanelSaleStock(picked);
-    return makePanel(picked.id);
+    return towerBoonBlessGeneratedCard(makePanel(picked.id));
   };
   const used=new Set(res.filter(Boolean).map(c=>c.id));
   const isNormalSummon=p=>String(p.category||'')==='キャラクター';
@@ -679,5 +681,5 @@ function drawRewards(){
   // 規則は _dedupePanelDirections() が唯一の実装。魔導店は drawRewards() を通らないため
   // `_ensureWaveShopStock()`（map.js）が同じ関数を自分で呼ぶ。新しい提示口を足したら同様に呼ぶこと。
   _dedupePanelDirections(res);
-  return res;
+  return towerBoonGeneratedOffers(res);
 }

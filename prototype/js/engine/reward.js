@@ -679,7 +679,8 @@ function goToReward(options){
       ()=>_arrangeRewardRarity(drawRewards().filter(c=>c).slice(0,_waveRewardCount)));
     if(!_noNewRewards&&!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
     G._retryRewardCards=null;
-    _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
+    _rewCards.forEach(c=>{ if(c){ towerBoonBlessGeneratedCard(c); c._isOriginalReward=true; } });
+    if(_saveCheckpoint&&!_isFacilityEntry&&!_noNewRewards) towerBoonGrantRewardRerolls();
     if(_peddler){
       // 商品は報酬ではない（1枚だけ取れる制限を掛けない）。代金は各商品の _buyPrice。
       _rewCards=clone(G._peddlerStock||[]);
@@ -1555,6 +1556,8 @@ function _hideRewardRingTooltip(){
   if(tip&&tip.dataset.rewardLocked!=='1') tip.style.display='none';
 }
 function renderRewCards(){
+  towerBoonSyncRerollButton();
+  requestAnimationFrame(towerBoonSyncRerollButton);
   _syncRewardPanelPlacementOverlay();
   _syncRewardProductionUi();
   document.body.classList.toggle('ring-offer-phase',!!(G&&G.phase==='reward'&&G._ringOfferPhase));
@@ -3436,6 +3439,7 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
     return {idx,rect,cloneEl,baseWidth,baseHeight};
   }).filter(Boolean);
   const target=unit.boardCards[targetIdx];
+  const sourceBoonMuls=new Map(picked.map(idx=>[idx,unit.boardCards[idx]?.boon?.statMul||1]));
   const def=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(target.id&&p.id===target.id)||p.name===target.name))||target;
   const baseName=String(target.name||'').replace(/\+$/,'');
   // アイテム等で個別に付与されたキーワードも、3枚すべてから合体後へ引き継ぐ。
@@ -3454,6 +3458,8 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
       tripleExtraKeywords=_mergeCardKeywordsForBond(tripleExtraKeywords,extraPanelKeywords(source));
     }
   });
+  const mergedBoon=coreMergeBoons(picked.map(idx=>unit.boardCards[idx]));
+  if(mergedBoon) coreApplyCardBoon(target,mergedBoon,{effectsOnly:true});
   target.keywords=mergedKeywords;
   target._tripleMerged=true;
   target._tripleBaseName=baseName;
@@ -3513,14 +3519,16 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
       const sdef=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(src.id&&p.id===src.id)||p.name===src.name))||src;
       const sAtk=Number(sdef.power??sdef.atk??0)||0;
       const sHp=Number(sdef.life??sdef.hp??1)||1;
-      atkBuff+=(Number(src.power??src.atk??sAtk)||0)-sAtk;
-      hpBuff+=(Number(src.life??src.hp??sHp)||0)-sHp;
+      const statMul=sourceBoonMuls.get(idx)||1;
+      atkBuff+=(Number(src.power??src.atk??sAtk)||0)-sAtk*statMul;
+      hpBuff+=(Number(src.life??src.hp??sHp)||0)-sHp*statMul;
     });
     // 2026-10-12 利用者指定: 基本能力3倍＋3枚の個別補正。ポート等は従来どおり。
-    target._permBasePower=tripleBase.power;
-    target._permBaseLife=tripleBase.life;
-    target.power=tripleBase.power+atkBuff;
-    target.life=Math.max(1,tripleBase.life+hpBuff);
+    const statMul=mergedBoon?mergedBoon.statMul:1;
+    target._permBasePower=tripleBase.power*statMul;
+    target._permBaseLife=tripleBase.life*statMul;
+    target.power=target._permBasePower+atkBuff;
+    target.life=Math.max(1,target._permBaseLife+hpBuff);
     if(target.atk!=null) target.atk=target.power;
     if(target.hp!=null) target.hp=target.life;
   }

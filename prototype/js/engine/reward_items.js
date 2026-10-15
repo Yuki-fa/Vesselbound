@@ -764,8 +764,23 @@ function _handlePendingItemBoardTarget(slotIdx){
     if(!first||first===card||card.name!==pending.firstName||card._merged||first._merged){
       ; return true;
     }
-    first.power=(Number(first.power)||0)+(Number(card.power)||0);
-    first.life=(Number(first.life)||0)+(Number(card.life)||0);
+    const bondBoon=coreMergeBoons([first,card]);
+    if(bondBoon){
+      // 祝福由来の基礎値と、アイテム等の個別補正を分けて最大の祝福を保持する。
+      const stats=[first,card].map(src=>{
+        const def=PANEL_POOL.find(p=>p.id===src.id)
+          ||ENEMY_POOL.find(p=>src._towerBoonBoss&&p.no===src.no)||src;
+        const ownMul=src.boon?src.boon.statMul:1;
+        return {power:Number(src.power||0)+Number(def.power||0)*(bondBoon.statMul-ownMul),
+          life:Number(src.life||0)+Number(def.life||0)*(bondBoon.statMul-ownMul)};
+      });
+      first.power=stats.reduce((n,s)=>n+s.power,0);
+      first.life=stats.reduce((n,s)=>n+s.life,0);
+      coreApplyCardBoon(first,bondBoon,{effectsOnly:true});
+    }else{
+      first.power=(Number(first.power)||0)+(Number(card.power)||0);
+      first.life=(Number(first.life)||0)+(Number(card.life)||0);
+    }
     first.manaOnAttack=(Number(first.manaOnAttack)||0)+(Number(card.manaOnAttack)||0);
     first.manaOnInjury=(Number(first.manaOnInjury)||0)+(Number(card.manaOnInjury)||0);
     first.manaOnDeath=(Number(first.manaOnDeath)||0)+(Number(card.manaOnDeath)||0);

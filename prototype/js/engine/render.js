@@ -4029,6 +4029,7 @@ function _enchantKeywordDesc(k){
 }
 function _enchantEffectTextForPanel(p){
   if(!p) return '';
+  if(p.boon&&String(p.desc||'').trim()) return _plainEffectTextForPreview(p)||'';
   if(corePermanentDamageSpec(p.desc)) return _plainEffectTextForPreview(p)||'';
   if(p.name==='封印されしもの'){
     return _stripOwnNameFromEffectText(p.desc||p.effectText||p.effect||'','封印されしもの')
@@ -5087,7 +5088,7 @@ function _evalMath(desc){
 // キーワードとステータスを添える。
 //   例）「青スケルトン」を召喚し… → 復活を持つ4/1の「青スケルトン」を召喚し…
 // **数値もキーワードもカードの定義（シート）から引く。** 文章へ書き足さないこと。
-function _summonNameAnnotation(name, owner){
+function _summonNameAnnotation(name, owner, isSummon){
   const wanted=String(name||'').trim();
   if(!wanted) return '';
   const defs=[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),
@@ -5106,6 +5107,9 @@ function _summonNameAnnotation(name, owner){
     const actual=coreEnemySummonStats(owner);
     if(actual){ atk=actual.atk; hp=actual.hp; }
   }
+  if(isSummon&&owner&&owner.boon){
+    const stats=coreBoonFamiliarStats({atk,hp},owner.boon);atk=stats.atk;hp=stats.hp;
+  }
   const head=kws.length?`${kws.join('・')}を持つ`:'';
   const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${atk}/${hp}の`:'';
   return `${head}${stat}`;
@@ -5115,8 +5119,8 @@ function _summonNameAnnotation(name, owner){
 function _annotateSummonNames(desc, owner){
   // 中身から「も除く。除かないと入れ子（「死亡：「青スケルトン」を召喚する。」）で
   // 外側を先に掴んでしまい、内側のキャラ名に注釈が付かない（ボーンチャリオット）。
-  return String(desc||'').replace(/「([^「」]{1,24})」(?=(?:を\d*体?召喚|に変身))/g,(m,name)=>{
-    const note=_summonNameAnnotation(name, owner);
+  return String(desc||'').replace(/「([^「」]{1,24})」(?=(?:を\d*体?召喚|に変身))/g,(m,name,offset,whole)=>{
+    const note=_summonNameAnnotation(name, owner,/^を\d*体?召喚/.test(whole.slice(offset+m.length)));
     return note?`${note}${m}`:m;
   });
 }
@@ -5136,7 +5140,10 @@ function _stageEngravingDescription(card,desc){
   // Xは取得した時のステージで固定（カードの _engravingStage）。記録の無いカード（未取得の提示中・古いセーブ）は現在のステージ。
   const stage=(typeof engravingCardStage==='function'&&engravingCardStage(card))
     ||Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
-  const value=stage*(name==='苦悶の刻印'||no==='E078'?20:5);
+  let value=stage*(name==='苦悶の刻印'||no==='E078'?20:5);
+  if(name==='宿業の刻印'||name==='修道の刻印'||no==='E066'||no==='E079'){
+    value=-coreBoonDynamicValue(card,card.desc,-value,'mod');
+  }else if(name==='受難の刻印'||no==='E077') value=coreBoonDynamicValue(card,card.desc,value,'damage');
   let out=String(desc||'');
   if(name==='宿業の刻印'||no==='E066'){
     out=out.replace(/-\s*\d+\s*\/\s*-\s*\d+/,`-${value}/-${value}`);
@@ -5154,11 +5161,15 @@ function _rawSubstitutedDesc(card){
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
   desc=_stageEngravingDescription(card,desc);
   desc=corePermanentDamageDescription(card,desc);
+  desc=coreBoonDisplayText(card,desc,typeof TOWER_BOON_CONFIG!=='undefined'?TOWER_BOON_CONFIG.text:null);
   // （状態異常：毒N）は今の毒の値で出す（永続化した毒／戦闘中はその体の毒。預言者"ディナ"、2026-10-11）。
   const shownPoison=card._persistentPoison!=null?card._persistentPoison
     :(card._mainBoardSlot!=null&&card.poison!=null?card.poison:null);
   if(shownPoison!=null) desc=desc.replace(/（状態異常：毒\d+）/,`（状態異常：毒${Math.max(0,Number(shownPoison)||0)}）`);
   desc=_annotateSummonNames(desc,card);
+  if(card.boon&&card.boon.famMul>1&&/召喚/.test(String(card.desc||''))){
+    desc+=TOWER_BOON_CONFIG.text.familiar.replace('{mul}',card.boon.famMul);
+  }
   // **合体後の効果文はシートの「合体効果」列がそのまま入っている**（loader.js／pool.js）。
   // ここで数字を2倍にしてはいけない（シートには倍にしない値がある）。
   // シートに指定が無いカード（`_mergedFormApplied` が立たない）は、合体しても効果は変わらない。

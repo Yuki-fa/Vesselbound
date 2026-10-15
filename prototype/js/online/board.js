@@ -53,6 +53,7 @@
       race: snap.race || info.race || '',
       grade: Number(info.grade) || 1,
       desc: snap.desc || info.desc || '',
+      ...((snap.boon||info.boon)?{boon:{...(snap.boon||info.boon)}}:{}),
       keywords: Array.isArray(snap.keywords) ? snap.keywords.slice() : [],
       deathBattleLines: Array.isArray(snap.deathBattleLines) ? snap.deathBattleLines.slice()
         : (Array.isArray(info.deathBattleLines) ? info.deathBattleLines.slice() : []),
