@@ -63,6 +63,7 @@ var VbFxLabCheck = (function () {
     await expectedStop('検査の演出切替', function () { return VbFxPreview.select(name); }); await imagesReady();
     var definition = VbFx.effects.find(function (d) { return d.name === name; });
     var before = values(elements()), expected = VbFxPreview.snapshot().targetIds.length;
+    var conf=VbFxPreviewCatalog[name], pulses=conf&&conf.mode==='purple'?VbFx.pulseTimes(name,conf.value).length:1;
     var start = performance.now(), result = await VbFxPreview.play();
     // 続けて出す演出（catalog の then。例：ヴリコラカス → 復活獲得）が終わるまで待ってから残りを調べる。
     if (window.VbFxPreviewCatalog && VbFxPreviewCatalog[name] && VbFxPreviewCatalog[name].then) {
@@ -70,8 +71,9 @@ var VbFxLabCheck = (function () {
     }
     assert(!result.result.cancelled, name + ': 予期しない停止 / ' + JSON.stringify(stopRecords.filter(function (r) { return !r.expected; }).slice(-1)));
     assert(!result.result.assetErrors.length, name + ': 素材エラー');
-    assert(result.impacts.length === expected, name + ': 命中数 ' + result.impacts.length + ' / ' + expected);
+    assert(result.impacts.length === expected*pulses, name + ': 命中数 ' + result.impacts.length + ' / ' + (expected*pulses));
     assert(new Set(result.impacts.map(function (x) { return x.targetIndex; })).size === expected, name + ': 命中の重複');
+    for(var targetIndex=0;targetIndex<expected;targetIndex++)assert(result.impacts.filter(function(x){return x.targetIndex===targetIndex;}).length===pulses,name+': 対象ごとの反復命中数');
     if (definition.loop) {
       assert(result.result.looping && VbFx.activeCount() === 1, name + ': 状態の1周と継続');
       expectedStop('状態の1周を確認した後の片付け', function () { VbFxPreview.stop(); });

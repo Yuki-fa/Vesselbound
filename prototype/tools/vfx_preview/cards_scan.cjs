@@ -12,12 +12,14 @@ const root = path.resolve(__dirname, '../..');
 const { gameGeometry, webpInfo } = require('./cards_geometry.cjs');
 const geometry = gameGeometry(root);
 const { makeElement } = require('../balance_sim/stub');
+const { RUNTIME_SCRIPTS } = require('../vfx_export');
 const sheet = require('../balance_sim/sheet_data');
 const scripts = ['assets.js', 'js/engine/constants.js', 'js/data/floors.js', 'js/data/events.js',
   'js/data/local_xlsx_data.js', 'js/data/loader.js', 'js/data/units.js', 'js/engine/state.js',
   'js/engine/pool.js', 'js/battle/core.js', 'js/battle/formation.js', 'js/online/protocol.js', 'js/battle/present.js',
   'js/battle/present_events.js', 'js/engine/battle.js', 'js/engine/battle_events.js', 'js/engine/render.js', 'js/engine/map.js',
-  'js/engine/action_banner.js', 'js/engine/reward.js', 'js/engine/reward_items.js'];
+  'js/engine/action_banner.js', 'js/engine/reward.js', 'js/engine/reward_items.js',
+  ...RUNTIME_SCRIPTS, 'js/engine/battle_fx.js'];
 global.setTimeout = () => 0;
 global.requestAnimationFrame = () => 0;
 for (const rel of scripts) vm.runInThisContext(fs.readFileSync(path.join(root, rel), 'utf8'), { filename: rel });
@@ -31,6 +33,7 @@ let current = null, callStack = [], currentEvent = null, imageRecords = [];
 const rect = { left: 100, top: 100, right: 100 + geometry.cardWidth,
   bottom: 100 + geometry.cardHeight, width: geometry.cardWidth, height: geometry.cardHeight };
 const slot = makeElement(); slot.cloneNode = () => { const e = makeElement(); e.cloneNode = slot.cloneNode; return e; }; slot.getBoundingClientRect = () => rect;
+slot.isConnected = true;
 const portrait = makeElement();
 slot.querySelector = selector => selector === '.unit-portrait' ? portrait : slot;
 global.document.getElementById = id => {
@@ -79,6 +82,25 @@ global.playSfx = key => {
     trigger: currentEvent && (currentEvent.reason || currentEvent.type) || '共通' });
   return !!Assets.sfx[key];
 };
+// 共通presenterがLABへ渡した実際の再生を採取する。旧素材へのフォールバックだけを採らない。
+// 選択・対象・尺は本体に任せ、Canvasと実時間だけをここで置き換える。
+const realLab = playBattleLabFx;
+global.playBattleLabFx = (code, source, targets, options) => {
+  const spec = presentLabFx(code);
+  if (spec) add('vfx', {path:`vfx:${code}:${spec[0]}`,definition:spec[0],sourceCode:code,
+    fn:'playBattleLabFx',ms:options?.durationMs || VbFx.duration(spec[0],presentLabSpeed(code)),
+    fadeMs:0,loop:false,scale:1,trigger:currentEvent?.reason || currentEvent?.type || '共通',mode:'hit',
+    geometry:{widthRatio:1,heightRatio:1,offsetX:0,offsetY:0,anchor:['self','lost','howl'].includes(spec[2])?'source':'target',fit:'contain'}});
+  return realLab(code,source,targets,options);
+};
+VbFx.play = (name, options = {}) => new Promise(resolve => queueMicrotask(() => {
+  (options.targets || []).forEach((_,i) => options.onImpact?.(i));
+  (options.cueTimesMs || []).forEach((_,i) => options.onCue?.(i));
+  resolve({name,cancelled:false,assetErrors:[]});
+}));
+VbFx.stop = () => 1;
+VbFx.stopAll = () => {};
+global._battleFxTimer = fn => { queueMicrotask(fn);return 0; };
 global.playFileSfx = file => ({ addEventListener(event, fn) {
   if (fs.existsSync(path.join(root, file))) add('se', { path: file, fn: 'playFileSfx', trigger: currentEvent?.type || '共通' });
   else if (event === 'error') queueMicrotask(fn);
@@ -163,6 +185,7 @@ for (const name of drawNames) {
     } catch (err) { unknown('vfx', `${name}: ${err.message}`); }
     finally { callStack.pop(); }
     if (typeof opts.onFadeStart === 'function') opts.onFadeStart();
+    if (name === 'playManaGainVfx' && typeof opts.onDone === 'function') queueMicrotask(opts.onDone);
     if (name === 'playEffectVfxOnUnit') return { stop: () => Promise.resolve() };
     if (name === 'playKeywordEffectVfxSustained') return true;
     return Promise.resolve();

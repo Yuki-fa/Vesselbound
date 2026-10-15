@@ -4,6 +4,35 @@ var VbFxCards = (function () {
   var cards = [], selected = null, token = 0, voices = [], animations = [], hosts = [];
   var history = [], activeRecord = null;
   var listed = [], cardList;
+  var M=VbFxLabModel, pageId='character';
+  var keywordKeys=typeof KEYWORD_ASSET_KEYS!=='undefined'?KEYWORD_ASSET_KEYS:{};
+  var labFx=typeof PRESENT_LAB_FX!=='undefined'?PRESENT_LAB_FX:{};
+  function generics(card){return M.generic(card,cards,VbFxCardRoutes,keywordKeys,labFx);}
+  function overrides(card){return M.assignmentsFor(card,VbFxLabStore.get(),cards);}
+  function gameLab(card){
+    if(card.kind==='keyword'&&M.states[card.name])return [{name:M.states[card.name],assign:{se:null}}];
+    var codes=[card.kind==='keyword'?keywordKeys[card.name]:card.no].concat(card.kind==='specialFx'&&keywordKeys[card.name]?[keywordKeys[card.name]]:[],String(card.row['VFX/SE']||'').split(/[\s,、/]+/));
+    return codes.filter(function(c){return labFx[c];}).map(function(c){return {name:labFx[c][0]};});
+  }
+  function allowed(card,vfx){return !M.suppressed(card,vfx,VbFxLabStore.get(),keywordKeys);}
+  function previewPaths(card){
+    var list=card.vfx.slice();
+    M.rawVfx(card,VbFxCardRoutes).concat(generics(card).flatMap(function(g){return g.media;})).forEach(function(m){
+      if(!list.some(function(x){return (x.path||x.definition||x.fn)===(m.path||m.definition||m.fn)&&x.trigger===m.trigger;}))list.push(m);
+    });return list;
+  }
+  function suppressedNames(card){return generics(card).filter(function(g){return (VbFxLabStore.get().suppressGeneric[card.no]||[]).indexOf(g.id)>=0;}).flatMap(function(g){return g.media.map(M.definitionName);});}
+  function genericControls(card){
+    var box=element('div','generic-controls'),all=generics(card);
+    if(!all.length){box.appendChild(element('small','','汎用VFXの採取なし'));return box;}
+    box.appendChild(element('strong','','汎用VFX（チェック＝再生しない）'));
+    all.forEach(function(g){var lab=element('label'),input=element('input');input.type='checkbox';input.dataset.genericId=g.id;input.dataset.no=card.no;
+      input.checked=(VbFxLabStore.get().suppressGeneric[card.no]||[]).indexOf(g.id)>=0;
+      input.addEventListener('click',function(ev){ev.stopPropagation();});
+      input.addEventListener('change',function(){stop();VbFxLabStore.suppress(card.no,g.id,input.checked);});
+      lab.appendChild(input);lab.appendChild(document.createTextNode('再生しない：'+g.name));lab.title=g.basis+' / '+g.media.map(function(m){return M.definitionName(m)||m.fn;}).join(', ');box.appendChild(lab);
+    });return box;
+  }
   // チェック用の★。全カードに付けられる（2026-10-06 利用者指定）。この端末のブラウザにだけ保存する。
   var STAR_KEY = 'vbfx-card-stars', stars = {};
   try { stars = JSON.parse(localStorage.getItem(STAR_KEY) || '{}') || {}; } catch (e) { stars = {}; }
@@ -96,7 +125,9 @@ var VbFxCards = (function () {
       op.value = String(i); choice.appendChild(op);
     });
     choice.value = String(VbFxCardCatalog.defaultVfxIndex(selected));
-    choice.disabled = !selected.vfx.length; controls.appendChild(choice);
+    previewPaths(selected).slice(selected.vfx.length).forEach(function(vfx,i){var op=element('option','','共通 '+(vfx.path||vfx.definition||vfx.fn)+' / '+vfx.trigger);op.value=String(selected.vfx.length+i);choice.appendChild(op);});
+    choice.disabled = !previewPaths(selected).length; controls.appendChild(choice);
+    controls.appendChild(button('割り振り優先で再生',function(){playCard(selected);}));
     controls.appendChild(button('現行再生（近似）', function () { playCurrent(selected); }));
     var currentSe = button('現行SEだけ', function () { listen(selected, false); });
     currentSe.disabled = !selected.se.length; controls.appendChild(currentSe);
@@ -111,6 +142,9 @@ var VbFxCards = (function () {
     volumeLabel.appendChild(volume); controls.appendChild(volumeLabel);
     detail.appendChild(controls);
     var ps = element('p', 'card-play-status', '番号を指定して改良内容を伝えられます。'); ps.id = 'card-play-status'; ps.setAttribute('role', 'status'); detail.appendChild(ps);
+    detail.appendChild(element('p','scene-description','場面：'+M.scene(selected).note+'。発動条件・対象の例はLAB用です。'));
+    var planned=overrides(selected);detail.appendChild(element('p','planned-assignments',planned.length?'編集中／保存済みの割り振り：'+planned.map(function(x){return VbFxLabStore.meta(x.name).title+'（'+(x.assign.trigger||'指定なし')+'）';}).join(' / '):'編集した割り振りなし：現在のゲームの演出を使います。'));
+    detail.appendChild(genericControls(selected));
     detail.appendChild(element('p', '', 'LAB再生は既存のVbFxPreview.playを使用（既存の候補選択・命中時刻とのSE合わせを維持）。現行再生は本体で採取した素材／関数と尺による近似です。'));
     if (selected.unknown.vfx.length || selected.unknown.se.length) {
       detail.appendChild(element('p', 'card-unknown', '不明：' + selected.unknown.vfx.concat(selected.unknown.se).filter(function (x, i, a) { return a.indexOf(x) === i; }).join(' / ')));
@@ -121,12 +155,13 @@ var VbFxCards = (function () {
     if (!selected || selected.no !== card.no) choose(card.no); stop();
     showPlayback();
     var name = $('card-lab-choice').value;
+    if(suppressedNames(card).indexOf(name)>=0){status(card.no+' · この汎用VFXは「再生しない」に設定されています');return;}
     var id = token, entry = record(card, 'lab', name);
     entry.status = 'playing'; entry.startedAt = performance.now();
     entry.expectedMs = VbFx.duration(name, Number($('speed').value));
     status(card.no + ' · LAB ' + name + '（既存のSE合わせ）');
     try {
-      var result = await VbFxPreview.play(name);
+      var result = await VbFxPreview.playInScene(name,M.scene(card),{suppress:suppressedNames(card)});
       entry.result = result.result; entry.finishedAt = performance.now();
       entry.elapsedMs = entry.finishedAt - entry.startedAt;
       entry.completed = !result.result.cancelled; entry.status = entry.completed ? 'completed' : 'cancelled';
@@ -143,8 +178,9 @@ var VbFxCards = (function () {
   }
   function sourceAndTarget() {
     var snapshot = VbFxPreview.snapshot();
-    var source = middleOf('ally', 'front') || $(snapshot.sourceId), target = middleOf('enemy', 'front') || $(snapshot.targetIds[0]) || source;
-    var foes = Array.from(document.querySelectorAll('.lab-card[data-side="enemy"]'));
+    var scene=M.scene(selected),source=$(snapshot.sourceId)||middleOf(scene.side||'ally',scene.lane||'front');
+    var target=scene.type==='board'||scene.self?source:middleOf(scene.side==='enemy'?'ally':'enemy','front')||source;
+    var foes = Array.from(document.querySelectorAll('.lab-card[data-side="'+(scene.side==='enemy'?'ally':'enemy')+'"]'));
     return { source: source, target: target, targets: foes.length ? foes : [target] };
   }
   async function playAsset(vfx, nodes, id, entry, onStart, retainLoop) {
@@ -155,7 +191,7 @@ var VbFxCards = (function () {
     var ms = VbFxLabGeometry.visibleMs(vfx, Number($('speed').value));
     var fadeMs = Math.max(0, Number(vfx.fadeMs) || 0);
     var host;
-    var definition = (String(vfx.path || '').match(/^vfx:[^:]+:([^:]+)$/) || [])[1];
+    var definition = M.definitionName(vfx);
     var playing = null;
     if (definition) {
       host = element('div', 'card-current-vfx');
@@ -220,12 +256,13 @@ var VbFxCards = (function () {
     if (window.VbFxLabCheck && VbFxLabCheck.busy()) return;
     if (!selected || selected.no !== card.no) choose(card.no); stop(); var id = token;
     showPlayback();
-    // 既存の盤面を使い、発生元・対象・速さ・大きさの選択を維持する。
+    VbFxPreview.applyScene(M.scene(card));
     var nodes = sourceAndTarget(), value = Number($('card-current-choice').value);
     // 肩代わり（マータ等）は、ゲームでは肩代わりした本人が被弾した位置に固有VFXが出る（present.js presentDamageVfxSource）。
     // 一覧では本人＝味方前衛の真ん中に出す（2026-10-06 利用者指摘：マータのVFXが敵側に出る）。
     if (/代わりに受ける/.test(card.effect || '')) { nodes.target = nodes.source; nodes.targets = [nodes.source]; }
-    var paths = value < 0 ? card.vfx : card.vfx.slice(value, value + 1);
+    var allPaths=previewPaths(card), paths = (value < 0 ? allPaths : allPaths.slice(value, value + 1)).filter(function(m){return allowed(card,m);});
+    if (!paths.length && allPaths.length) {status(card.no+' · 選択した汎用VFXは「再生しない」に設定されています');return;}
     if (!paths.length) {
       if (card.se.length) { status(card.no + ' · VFXなし、現行SEを再生'); for (var sound of card.se) { if (id !== token) break; await audio(sound.path); } }
       else status(card.no + ' · ' + (card.unknown.vfx.length || card.unknown.se.length ? '演出を確定できません。注記を確認してください。' : '確認した経路にVFX・SEはありません。'));
@@ -258,11 +295,55 @@ var VbFxCards = (function () {
     for (var se of sounds) { if (id !== token) return; status(card.no + ' · ' + (adopted ? '採用SE' : '現行SE') + '：' + se.path); await audio(se.path); }
     if (id === token && sounds.length) status(card.no + ' · SE再生が完了');
   }
-  function playCard(card) { if (card.lab.length) return playLab(card); return playCurrent(card); }
+  function gameSound(card,name){
+    var codes=[card.kind==='keyword'?keywordKeys[card.name]:card.no].concat(card.kind==='specialFx'&&keywordKeys[card.name]?[keywordKeys[card.name]]:[],String(card.row['VFX/SE']||'').split(/[\s,、/]+/));
+    var code=codes.find(function(c){return labFx[c]&&labFx[c][0]===name;});
+    if(!code){var media=M.rawVfx(card,VbFxCardRoutes).find(function(m){return M.definitionName(m)===name;});code=media&&M.codeOf(media);}
+    if(!code)code=codes.find(function(c){return Assets.sfx[c];});
+    if(code==='hit')code='attack';
+    if(code==='S004')return null; // マナ獲得のゲームSEは鳴らさない（本体と同じ）。
+    var se=card.seRoutes.find(function(s){return s.key===code;});
+    if(!code){se=card.seRoutes.find(function(s){return s.key&&s.key!=='effectDamage'&&s.key!=='attack';});code=se&&se.key;}
+    var file=se&&se.path || code&&Assets.sfx[code];
+    return file?{id:'game:'+code,url:'../'+file,filename:file,peak:presentSfxPeakSec(code)}:null;
+  }
+  async function playAssigned(card,list){
+    if(window.VbFxLabCheck&&VbFxLabCheck.busy())return;
+    if(!selected||selected.no!==card.no)choose(card.no);stop();var id=token;showPlayback();
+    for(var fx of list){
+      if(id!==token)return;
+      var entry=record(card,'assignment',fx.name),opts={suppress:suppressedNames(card)},a=fx.assign;
+      if(a){opts.sound=a.se==='game'?gameSound(card,fx.name):a.se===null?null:VbFxSeCatalog.sounds[a.se]||null;}
+      else opts.sound=gameSound(card,fx.name);
+      entry.status='playing';entry.startedAt=performance.now();entry.expectedMs=VbFx.duration(fx.name,Number($('speed').value));
+      status(card.no+' · '+VbFxLabStore.meta(fx.name).title+' / '+(a&&a.trigger||'現行ゲーム'));
+      try{var result=await VbFxPreview.playInScene(fx.name,M.scene(card,a&&a.trigger),opts);entry.result=result.result;entry.completed=!result.result.cancelled;entry.status=entry.completed?'completed':'cancelled';entry.finishedAt=performance.now();entry.elapsedMs=entry.finishedAt-entry.startedAt;}
+      catch(err){entry.status='failed';entry.error=err.message;if(id===token)status('割り振り再生：'+err.message);return;}
+      // preview.js自身が続けたVFXの終了も待つ（元のSE同期・フェードはそのまま）。
+      while(id===token&&VbFx.snapshot().some(function(job){return !VbFx.effects.find(function(d){return d.name===job.name&&d.loop;});}))await wait(40);
+    }
+    // 専用の後に付く汎用効果も個別に抑止できる。各経路を効果ごとに比較する。
+    if(list.every(function(f){return VbFx.effects.find(function(d){return d.name===f.name&&d.loop;});})){if(id===token)status(card.no+' · 状態を常時表示中（停止するまで継続）');return;}
+    var used=new Set(list.map(function(f){return f.name;}));
+    list.forEach(function(f){var conf=VbFxPreviewCatalog[f.name];if(conf&&conf.then)used.add(conf.then);});
+    for(var g of generics(card))for(var media of g.media){
+      var mediaKey=M.definitionName(media)||media.fn;
+      if(id!==token)return;if(!allowed(card,media)||used.has(mediaKey))continue;
+      used.add(mediaKey);
+      var e=record(card,'generic',M.definitionName(media)||media.fn);status(card.no+' · 汎用 '+g.name);
+      try{await playAsset(media,sourceAndTarget(),id,e,null,!!media.loop);}catch(err){e.status='failed';e.error=err.message;}
+    }
+    if(id===token)status(card.no+' · 割り振りと汎用VFXの再生完了');
+  }
+  function playCard(card) {
+    var list=overrides(card);if(list.length)return playAssigned(card,list);
+    var current=gameLab(card).filter(function(f){return suppressedNames(card).indexOf(f.name)<0;});
+    if(current.length)return playAssigned(card,current);return playCurrent(card);
+  }
   function mediaCell(card, kind) {
     var td = element('td', 'card-media'); td.appendChild(label(kind === 'vfx' ? card.vfxSetting : card.seSetting));
     if (kind === 'vfx' && card.vfx.length) td.appendChild(label('現行再生は近似'));
-    card[kind].forEach(function (x) {
+    (kind==='vfx'?M.rawVfx(card,VbFxCardRoutes):M.rawSe(card,VbFxCardRoutes)).forEach(function (x) {
       var p = element('div', 'card-media-entry'); p.appendChild(element('code', '', x.path || x.fn + '()'));
       p.appendChild(element('small', '', x.fn + ' / ' + x.trigger + (kind === 'vfx' ? ' / ' + timing(x) : ''))); td.appendChild(p);
     });
@@ -273,9 +354,11 @@ var VbFxCards = (function () {
     return td;
   }
   function render() {
-    var result = VbFxCardCatalog.filter(cards, { search: $('card-search').value, kind: $('card-kind').value,
-      vfx: $('card-vfx-filter').value, se: $('card-se-filter').value, lab: $('card-lab-filter').value });
-    $('card-result-count').textContent = result.length + ' / ' + cards.length + '件';
+    var inPage=cards.filter(function(c){return M.pageFor(c).id===pageId;});
+    var result = VbFxCardCatalog.filter(inPage, { search: $('card-search').value, kind: $('card-kind').value,
+      vfx: $('card-vfx-filter').value, se: $('card-se-filter').value });
+    var labFilter=$('card-lab-filter').value;if(labFilter)result=result.filter(function(c){return (labFilter==='yes')===!!(overrides(c).length||gameLab(c).length);});
+    $('card-result-count').textContent = result.length + ' / ' + inPage.length + '件';
     // 左側の一覧（絞り込みと同じ並び）。押すとそのカードを選んで再生する（2026-10-06 利用者指定）。
     listed = result;
     if (cardList) {
@@ -299,15 +382,17 @@ var VbFxCards = (function () {
       if (card.mergedEffect) { var merged = element('details'); merged.appendChild(element('summary', '', '合体時の効果')); merged.appendChild(element('p', '', card.mergedEffect)); effect.appendChild(merged); }
       tr.appendChild(effect); tr.appendChild(mediaCell(card, 'vfx')); tr.appendChild(mediaCell(card, 'se'));
       var lab = element('td', 'card-media');
-      card.lab.forEach(function (fx) { lab.appendChild(element('code', '', fx.name)); lab.appendChild(element('div', '', fx.provisional ? '仮（候補1・利用者未選択） / ADOPTED.md' : fx.adopted ? 'SE採用済み / ADOPTED.md' : '試作 / LAB演出名・試験設定')); });
-      if (!card.lab.length) lab.appendChild(document.createTextNode('割当なし'));
+      overrides(card).forEach(function(fx){lab.appendChild(element('p','planned-assignments','編集指定：'+VbFxLabStore.meta(fx.name).title+' / '+(fx.assign.trigger||'指定なし')));});
+      gameLab(card).forEach(function (fx) { lab.appendChild(element('code', '', fx.name)); lab.appendChild(element('div', '', '現行ゲーム / '+VbFxLabStore.meta(fx.name).title)); });
+      if (!gameLab(card).length&&!overrides(card).length) lab.appendChild(document.createTextNode('編集指定なし（現行経路を参照）'));
       if (card.adopted) { lab.appendChild(element('code', '', card.adopted.path)); lab.appendChild(element('div', '', card.adopted.seconds + '秒 / peak ' + card.adopted.peak + '秒')); }
-      tr.appendChild(lab);
-      var actions = element('td', 'card-buttons'); var play = button('再生' + (card.lab.length ? ' · LAB' : ' · 現行'), function () { playCard(card); }); play.title = card.no + ' ' + card.name; actions.appendChild(play);
+      lab.appendChild(genericControls(card));tr.appendChild(lab);
+      var actions = element('td', 'card-buttons'); var play = button('再生' + (overrides(card).length ? ' · 編集指定' : ' · 現行'), function () { playCard(card); }); play.title = card.no + ' ' + card.name; actions.appendChild(play);
       if (card.lab.length) actions.appendChild(button('現行と比較', function () { playCurrent(card); }));
       var seOnly = button('現行SEだけ', function () { listen(card, false); }); seOnly.disabled = !card.se.length; actions.appendChild(seOnly);
       if (card.adopted) actions.appendChild(button(card.adopted.provisional?'仮SEだけ':'採用SEだけ', function () { listen(card, true); }));
-      actions.appendChild(button('詳細', function () { choose(card.no); })); tr.appendChild(actions); tableBody.appendChild(tr);
+      actions.appendChild(button('詳細', function () { choose(card.no); })); tr.appendChild(actions);
+      tr.addEventListener('click',function(ev){if(ev.target.closest('button,input,label,select,summary'))return;pick(card.no,true);});tableBody.appendChild(tr);
     });
     $('card-empty').hidden = result.length > 0;
   }
@@ -328,12 +413,16 @@ var VbFxCards = (function () {
   });
   function switchTab(which) {
     if (window.VbFxLabCheck && VbFxLabCheck.busy()) return;
-    stop(); var catalog = which === 'cards';
+    if(which==='cards')which='character';
+    if(!M.pages.some(function(p){return p.id===which;}))throw new Error('ページがありません：'+which);
+    stop(); var catalog = which !== 'effects';
+    if(catalog){pageId=which;$('category-title').textContent=M.pages.find(function(p){return p.id===which;}).title;$('card-kind').value='';render();if(!selected||M.pageFor(selected).id!==pageId){var first=cards.find(function(c){return M.pageFor(c).id===pageId;});if(first)choose(first.no);}}
     page.hidden = !catalog; sidebar.hidden = !catalog;
+    document.querySelectorAll('.lab-effect-editor').forEach(function(el){el.hidden=catalog;});
     original.forEach(function (el) { if (catalog) el.setAttribute('data-card-lab-hidden', ''); else el.removeAttribute('data-card-lab-hidden'); });
     document.querySelectorAll('.lab-tabs button').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === which)); });
-    if (catalog) { stageMount.appendChild(stage); stageMount.appendChild(playbar); }
-    else { stageAnchor.after(stage); playAnchor.after(playbar); }
+    if (catalog) { stageMount.appendChild(stage); stageMount.appendChild(playbar);if(selected)VbFxPreview.applyScene(M.scene(selected)); }
+    else { stageAnchor.after(stage); playAnchor.after(playbar);VbFxPreview.select(VbFxPreview.snapshot().name); }
     window.dispatchEvent(new Event('resize'));
   }
   function selectFilter(container, id, title, options) {
@@ -343,20 +432,21 @@ var VbFxCards = (function () {
   }
   function init() {
     cards = VbFxCardCatalog.build(window.VESSELBOUND_LOCAL_XLSX_CSV, _parseCSVWithHeader, VbFxCardRoutes, VbFx.effects, VbFxPreviewCatalog);
+    cards.filter(function(c){return ['card','enemy','char'].indexOf(c.kind)>=0;}).forEach(function(c){if(!VbFxPreviewCards[c.no])VbFxPreviewCards[c.no]={no:c.no,name:c.name,color:c.color};});
     stage = document.querySelector('.stage-wrap'); playbar = document.querySelector('.playbar');
     stageAnchor = document.createComment('全カードタブから盤面を戻す位置'); stage.before(stageAnchor);
     playAnchor = document.createComment('全カードタブから操作を戻す位置'); playbar.before(playAnchor);
     original = Array.from(document.querySelector('main').children).filter(function (el) { return el !== stage && el !== playbar; });
     original = original.concat(Array.from(document.querySelector('.library').children).filter(function (el) { return !el.classList.contains('brand') && !el.classList.contains('library-note'); }));
     var tabs = element('nav', 'lab-tabs'); tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'VFX LABの画面');
-    [['effects', '演出の一覧'], ['cards', '全カード VFX・SE']].forEach(function (pair) {
-      var b = button(pair[1], function () { switchTab(pair[0]); }); b.dataset.tab = pair[0]; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(pair[0] === 'effects')); tabs.appendChild(b);
+    M.pages.forEach(function (p) {
+      var b = button(p.title, function () { switchTab(p.id); }); b.dataset.tab = p.id; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(p.id === 'effects')); tabs.appendChild(b);
     });
     document.querySelector('main').prepend(tabs);
     page = element('section', 'cards-page'); page.id = 'card-catalog'; page.hidden = true;
-    var heading = element('header', 'cards-heading'); heading.appendChild(element('h1', '', '全カードのVFX・SE'));
+    var heading = element('header', 'cards-heading'),categoryTitle=element('h1','','キャラクター');categoryTitle.id='category-title';heading.appendChild(categoryTitle);
     var count = element('span'); count.id = 'card-result-count'; heading.appendChild(count); page.appendChild(heading);
-    page.appendChild(element('p', 'cards-intro', '敵・NPC・特殊マスも番号ごとに表示。同じ演出を使うカードも省略しません。再生ボタンはLABの割当を優先します。'));
+    page.appendChild(element('p', 'cards-intro', '行を押すと選択・再生。編集中の割り振りを優先し、なければ現行ゲームの演出を表示します。共通の被弾・消滅・発光も参照できます。'));
     var filters = element('div', 'card-filters'); var searchLabel = element('label', '', '検索 '), search = element('input'); search.id = 'card-search'; search.type = 'search'; search.placeholder = 'C037 / デュラハン'; search.addEventListener('input', render); searchLabel.appendChild(search); filters.appendChild(searchLabel);
     selectFilter(filters, 'card-kind', 'カード種', [['', '全種類']].concat(Object.keys(VbFxCardCatalog.kinds).map(function (k) { return [k, VbFxCardCatalog.kinds[k]]; })));
     ['vfx', 'se'].forEach(function (kind) { selectFilter(filters, 'card-' + kind + '-filter', kind.toUpperCase(), [['', '全設定'], ['専用', '専用あり'], ['汎用', '汎用'], ['無し', '無し'], ['不明', '不明']]); });
@@ -375,7 +465,7 @@ var VbFxCards = (function () {
       + '件。名前が空の予約行はカードとして扱わず、合体効果は同じ番号の詳細へ収録。',
       '現行経路はcards_scan.cjsで本体コア→PvEの受け口→共通presenter→render.jsを実行して採取。魔導板のアイテム使用・マス変更・結界の状態素材も本体の処理を呼ぶ。通常攻撃・キーワード・効果・合体時も含む。選ばれなかった登録素材を使用中とは表示しない。',
       '専用＝その番号またはシートの指定番号の個別素材。汎用＝共通S素材・他カードやキーワードと共通の演出・通常命中・フラッシュ等。各カードに複数経路があれば専用を優先。不明は未成立の条件や未実装・台帳の古さがある場合（採取できた経路は併記）。',
-      'VFX／SEの割当はse/ADOPTED.mdの対応表。仮（候補1）は利用者未選択。LABで候補1〜3を切り替えて比較できる。',
+      '現在の割り振りは採取した実経路とpresent.jsの対応表で確認。編集指定は確定保存JSONと編集中の内容を優先する。SE採用表はse/ADOPTED.md。仮（候補1）は利用者未選択。',
       '現行VFXの既定は専用素材、無ければ先頭の実経路。素材をデコードしてから、ゲームの指定尺と素材1周の長い方を最後まで表示する。常時素材は停止操作まで表示。幅・縦横比・中心は本体の描画関数とCSSから採取。関数のみのフラッシュ・死亡等、対象選択・束・移動・逆再生は近似。LAB再生は既存の公開APIをそのまま使用。',
       '不明の理由は各行に表示。未検出を推測で埋めない。確認した盤面で演出がない経路は無し。永続状態のCSS／全ての条件の網羅は本体での実戦確認が別途必要。'
     ].forEach(function (t) { list.appendChild(element('li', '', t)); }); notes.appendChild(list); page.appendChild(notes); document.querySelector('main').appendChild(page);
@@ -390,11 +480,13 @@ var VbFxCards = (function () {
     sidebar.appendChild(totalsBox);
     document.querySelector('.library').appendChild(sidebar);
     render(); choose(cards[0].no);
+    VbFxLabStore.onChange(function(){render();if(selected)choose(selected.no);});
     $('stop').addEventListener('click', stop); window.addEventListener('pagehide', stop);
   }
   init();
   return { cards: function () { return cards.slice(); }, summary: function () { return VbFxCardCatalog.summary(cards); },
     choose: choose, show: switchTab, play: function (no) { var c = cards.find(function (x) { return x.no === no; }); if (c) return playCard(c); },
+    refresh:render, generics:function(no){return generics(cards.find(function(c){return c.no===no;}));},
     playCurrent: function (no) { var c = cards.find(function (x) { return x.no === no; }); if (c) return playCurrent(c); },
     history: function () { return history.map(function (entry) { return Object.assign({}, entry); }); }, stop: stop };
 })();

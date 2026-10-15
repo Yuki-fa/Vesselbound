@@ -37,7 +37,7 @@ for (const c of cards) {
   assert.equal(context.VbFxCardRoutes.records[c.no].signature, model.signature(c.row), c.no + ' シートと台帳一致');
   for (const media of [...c.vfx, ...c.se]) if (media.path) {
     const name = (media.path.match(/^vfx:[^:]+:([^:]+)$/) || [])[1];
-    if (name) assert.ok(context.VbFx.effects.some(d => d.name === name && d.sourceCode === media.sourceCode), c.no + ' 定義と元番号あり: ' + media.path);
+    if (name) assert.ok(context.VbFx.effects.some(d => d.name === name && (d.sourceCode === media.sourceCode || context.presentLabFx(media.sourceCode)?.[0] === name)), c.no + ' 定義と元番号（または本体の明示的なLAB対応）あり: ' + media.path);
     else assert.ok(fs.existsSync(path.join(root, media.path)), c.no + ' 素材あり: ' + media.path);
   }
   c.lab.forEach(fx => assert.ok(context.VbFx.effects.some(d => d.name === fx.name), c.no + ' LAB演出がある: ' + fx.name));

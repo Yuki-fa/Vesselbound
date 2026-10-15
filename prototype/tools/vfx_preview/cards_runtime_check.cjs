@@ -132,11 +132,11 @@ async function main() {
   ctx.VbFxCards.choose('C019'); await env.drive(ctx.VbFxCards.playCurrent('C019'));
   assert.equal(ctx.VbFxCards.history().at(-1).completed, true, '有限の飛翔体定義を完了');
   assert.equal(env.document.querySelector('.card-current-vfx'), null, '有限定義の後片付け');
-  ctx.VbFxCards.choose('C008'); // マナ効果の保持定義。
-  const stateCard = ctx.VbFxCards.cards().find(c => c.no === 'C008');
+  ctx.VbFxCards.choose('E045'); // 現行の実経路で保持されるマナ強化（C008は熱波へ置換済み）。
+  const stateCard = ctx.VbFxCards.cards().find(c => c.no === 'E045');
   const stateIndex = stateCard.vfx.findIndex(v => v.loop);
   assert.ok(stateIndex >= 0, '常時素材の経路がある'); $('card-current-choice').value = String(stateIndex);
-  await env.drive(ctx.VbFxCards.playCurrent('C008'));
+  await env.drive(ctx.VbFxCards.playCurrent('E045'));
   assert.ok(env.document.querySelector('.card-current-vfx'), '状態素材は3秒で消さず表示を保持');
   ctx.VbFxCards.stop(); assert.equal(env.document.querySelector('.card-current-vfx'), null, '明示停止で状態素材を消す');
   env.imageDelay = 1;

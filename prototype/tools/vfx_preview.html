@@ -6,14 +6,15 @@
   <title>Vesselbound · VFXプレビュー</title>
   <link rel="stylesheet" href="vfx_preview/preview.css?v=fxlab1006-geometry2">
   <link rel="stylesheet" href="vfx_preview/cards.css?v=cards1006-star1">
+  <link rel="stylesheet" href="vfx_preview/lab.css?v=lab-layout1015-1">
 </head>
 <body>
   <aside class="library">
     <a class="brand" href="vfx_preview/README.md"><span>VESSELBOUND</span><strong>VFX LAB <small>03</small></strong></a>
     <p class="library-note">演出と音の試作集</p>
-    <label class="search"><span>演出を探す</span><input id="search" type="search" placeholder="名前で検索" autocomplete="off"></label>
+    <label class="search"><span>演出を探す</span><input id="search" type="search" placeholder="見出し・タグ・割り振り先" autocomplete="off"></label>
     <nav id="effect-list" aria-label="演出の一覧"></nav>
-    <div class="library-footer"><span id="effect-count"></span><span>本体への組み込み前</span></div>
+    <div class="library-footer"><span id="effect-count"></span><span>現行演出＋編集案</span></div>
   </aside>
   <main>
     <header class="topbar"><div><span class="eyebrow">CANVAS 2D / SOUND STUDY</span><h1 id="effect-title">準備中</h1></div><div class="badges"><span id="duration"></span><span id="protocol"></span></div></header>
@@ -75,16 +76,20 @@
   <script src="vfx_preview/catalog.js?v=vfx-webp1009-3-vfx21-1012-5-q1015b"></script>
   <script src="vfx_preview/se_catalog.js?v=fxlab1007-summon1-vfx21-1012-2-q1015b"></script>
   <!-- 2026-10-12指定・撮影第3回: 変更した本体の指紋を全カードLAB台帳へ再採取するため、台帳のキャッシュだけ更新。 -->
-  <script src="vfx_preview/cards_routes.js?v=vfx-webp1013-r5r4-vfx21-1012-5"></script>
+  <script src="vfx_preview/cards_routes.js?v=lab-layout1015-1"></script>
   <script src="vfx_preview/cards_geometry.js?v=cards1006-geometry3"></script>
+  <script src="vfx_preview/lab_meta.js?v=lab-layout1015-1"></script>
+  <script src="vfx_preview/lab_model.js?v=lab-layout1015-1"></script>
+  <script src="vfx_preview/lab_store.js?v=lab-layout1015-1"></script>
   <!-- 2026-10-12指定・撮影第2回: LABの命中表示を各脈動へ同期した再生処理だけキャッシュ更新。 -->
-  <script src="vfx_preview/preview.js?v=vfx-webp1009-3-vfx21-1012-4-q1015a-q1015b"></script>
+  <script src="vfx_preview/preview.js?v=lab-layout1015-1"></script>
   <script src="vfx_preview/capture_frames.js?v=fxlab1006-4"></script>
   <script src="vfx_preview/frame_capture.js?v=fxlab1006-4"></script>
   <script src="../js/data/local_xlsx_data.js?v=cards1006-read"></script>
   <script src="../js/data/loader.js?v=cards1006-read"></script>
   <script src="vfx_preview/cards_model.js?v=vfx-webp1009-2-vfx21-1012-2"></script>
-  <script src="vfx_preview/cards.js?v=vfx-webp1009-2-vfx21-1012-2"></script>
-  <script src="vfx_preview/check.js?v=fxlab1006-verify7"></script>
+  <script src="vfx_preview/cards.js?v=lab-layout1015-1"></script>
+  <script src="vfx_preview/lab_ui.js?v=lab-layout1015-1"></script>
+  <script src="vfx_preview/check.js?v=lab-layout1015-1"></script>
 </body>
 </html>

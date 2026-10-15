@@ -9,7 +9,7 @@ var VbFxPreview = (function () {
   var allyPortraits = ['C041', 'C024', 'C046', 'C067', 'C077'];
   var enemyPortraits = ['EN001', 'EN020', 'EN005', 'EN010', 'EN011'];
   var colorFrames = { 赤: 1, 青: 2, 緑: 3, 黄: 4, 紫: 5 };
-  var allNames = VbFx.effects.map(function (d) { return d.name; });
+  var allNames = VbFx.effects.map(function (d) { return d.name; }), activeScene = null;
   try { choices = JSON.parse(localStorage.getItem('vb-fx-lab-choices') || '{}'); } catch (_) {}
   function saveChoices() { try { localStorage.setItem('vb-fx-lab-choices', JSON.stringify(choices)); } catch (_) {} }
   function message(text) { $('message').textContent = text; }
@@ -17,11 +17,11 @@ var VbFxPreview = (function () {
   function cardsFor(side) { return Array.from(document.querySelectorAll('.lab-card[data-side="' + side + '"]:not(.summon-slot)')); }
   function card(id) { return document.getElementById(id); }
   function def(name) { return VbFx.effects.find(function (d) { return d.name === (name || effect); }); }
-  function config(name) { return VbFxPreviewCatalog[name || effect]; }
+  function config(name) { return VbFxPreviewCatalog[name || effect] || {source:'C041',mode:'self',note:'プレビュー設定未採取。戦闘盤面のカード上で確認します。'}; }
   function applyPortrait(el, no) {
     var c = VbFxPreviewCards[no];
     if (!c) throw new Error('プレビュー用カードがありません: ' + no);
-    var dir = no.indexOf('EN') === 0 ? 'enemies' : 'characters';
+    var dir = /^(BC|NPC|MC)/.test(no)?'npcs':no.indexOf('EN') === 0 ? 'enemies' : 'characters';
     var artNo = no === 'C081' ? 'C061' : no;
     el.querySelector('.art').src = '../assets/art/' + dir + '/' + artNo + '.jpg';
     el.querySelector('.frame').src = '../assets/cards/' + (el.dataset.side === 'enemy' ? 'enemy_frame.svg' : 'character_frame' + (colorFrames[c.color] || 3) + '.svg');
@@ -39,6 +39,9 @@ var VbFxPreview = (function () {
     applyPortrait(el, no); el.addEventListener('click', function () { pickCard(el.id); }); return el;
   }
   function configureBoard() {
+    activeScene=null; $('board-design').classList.remove('lab-board-scene');
+    document.querySelectorAll('.lab-board-decoration').forEach(function(el){el.remove();});
+    $('side').disabled=false; $('background').disabled=false;
     var cards = $('cards'); cards.replaceChildren();
     var conf = config(), side = ownSide(), frontCount = conf.mode === 'summon' ? 4 : 3;
     allyPortraits.forEach(function (no, i) { cards.appendChild(buildCard('ally', i, no, false, 3)); });
@@ -63,6 +66,44 @@ var VbFxPreview = (function () {
       if (i % 2 === 0) { var tag = document.createElement('span'); tag.className = 'poison'; tag.textContent = '毒'; el.appendChild(tag); }
     });
     chooseDefaultTargets(); refreshSourceSelect(); refreshSelection(); lastImpacts = [];
+  }
+  // 分類ページからだけシーンを変更する。効果名でselectする撮影APIの配置は変えない。
+  function scenePortrait(el,no) {
+    var c=VbFxPreviewCards[no];if(!c)return;
+    applyPortrait(el,no);
+    if(typeof getCharacterNoArtPath==='function')el.querySelector('.art').src='../'+getCharacterNoArtPath({no:no});
+  }
+  function applyScene(scene) {
+    configureBoard();
+    activeScene=scene;
+    if(scene.type==='board') {
+      var board=$('board-design'),frame=document.createElement('div');frame.className='lab-board-decoration lab-board-frame';board.appendChild(frame);
+      var heading=document.createElement('span');heading.className='lab-board-decoration lab-board-heading';heading.textContent='魔導板';board.appendChild(heading);
+      board.classList.add('lab-board-scene');$('cards').replaceChildren();
+      for(var i=0;i<15;i++) {
+        var el=buildCard('ally',i,'C041',false,3);el.id='lab-board-'+i;el.classList.add('lab-board-cell');
+        el.dataset.cell=String(i);el.dataset.lane='board';el.style.left=(1214+(i%5)*288)+'px';el.style.top=(465+Math.floor(i/5)*423)+'px';
+        el.querySelector('.frame').src='../assets/cards/magic_board6.svg';
+        el.querySelector('.art').hidden=i!==7;el.querySelector('.stats-overlay').hidden=i!==7;el.querySelector('.stats').hidden=i!==7;
+        if(i===7)el.querySelector('.frame').src='../assets/cards/character_frame3.svg';
+        el.setAttribute('aria-label','魔導板 '+(Math.floor(i/5)+1)+'行'+(i%5+1)+'列');$('cards').appendChild(el);
+      }
+      sourceId='lab-board-'+(scene.cell==null?7:scene.cell);targetIds=[sourceId];$('side').value='ally';
+      $('side').disabled=true;$('background').disabled=true;
+    } else {
+      var side=scene.side||'ally';$('side').value=side;
+      if(side==='enemy' && scene.lane==='rear') {
+        var rear=cardsFor('enemy').filter(function(el){return el.dataset.lane==='rear';});
+        if(rear.length===2) {
+          VbFxLabGeometry.applyCard(rear[0],'enemy','rear',3,0);VbFxLabGeometry.applyCard(rear[1],'enemy','rear',3,2);
+          var middle=buildCard('enemy',5,'EN001',false,3);VbFxLabGeometry.applyCard(middle,'enemy','rear',3,1);$('cards').appendChild(middle);
+        }
+        sourceId='enemy-5';
+      } else sourceId=side+'-1';
+      if(['card','enemy','char'].indexOf(scene.kind)>=0)scenePortrait(card(sourceId),scene.no);
+      chooseDefaultTargets();if(scene.self)targetIds=[sourceId];
+    }
+    refreshSourceSelect();refreshSelection();
   }
   function layoutSummonRow(el) {
     var side = el.dataset.side;
@@ -104,7 +145,9 @@ var VbFxPreview = (function () {
     }); $('source-select').value = sourceId;
   }
   function pickCard(id) {
-    if ($('pick-mode').value === 'source') {
+    if(activeScene && activeScene.type==='board') {
+      sourceId=id;targetIds=[id];
+    } else if ($('pick-mode').value === 'source') {
       sourceId = id; $('side').value = card(id).dataset.side; chooseDefaultTargets();
     } else {
       var multi = ['foes', 'front', 'friends', 'green', 'others', 'colors', 'kenzoku', 'purple', 'sequence'].indexOf(config().mode) >= 0;
@@ -188,7 +231,7 @@ var VbFxPreview = (function () {
       row.append(strong, info, path, button); $('candidate-details').appendChild(row);
     });
     if (!ids || !ids.length) {
-      $('sound-name').textContent = NO_SOUND.filename; $('sound-duration').textContent = ''; $('sound-source').textContent = ''; $('sound-reason').textContent = NO_SOUND.reason;
+      $('sound-name').textContent = selected.filename; $('sound-duration').textContent = ''; $('sound-source').textContent = selected.source; $('sound-reason').textContent = selected.reason;
       $('aux-sound').hidden = true; return;
     }
     $('sound-select').value = selected.id; $('sound-name').textContent = selected.filename;
@@ -205,7 +248,7 @@ var VbFxPreview = (function () {
     if (allNames.indexOf(name) < 0) throw new Error('演出がありません: ' + name);
     stop(); effect = name; generation++; configureBoard();
     var d = def(), conf = config();
-    $('effect-title').textContent = d.label; $('duration').textContent = (d.ms / 1000).toFixed(2) + ' s'; $('description').textContent = conf.note;
+    $('effect-title').textContent = VbFxLabStore.meta(name).title; $('duration').textContent = (d.ms / 1000).toFixed(2) + ' s'; $('description').textContent = conf.note;
     var reference = $('webp-reference');
     reference.hidden = !conf.sourceCode;
     if (conf.sourceCode) {
@@ -216,7 +259,8 @@ var VbFxPreview = (function () {
     $('notice').hidden = !conf.notice; $('notice').textContent = conf.notice || '';
     $('attack-proposals').hidden = !conf.proposal;
     document.querySelectorAll('#effect-list button').forEach(function (b) { b.classList.toggle('selected', b.dataset.name === name); b.setAttribute('aria-current', b.dataset.name === name ? 'true' : 'false'); });
-    refreshSound(); message(''); if (shouldPlay) return play(); return Promise.resolve();
+    refreshSound(); message(''); if(window.VbFxLabUI)VbFxLabUI.select(name);
+    if (shouldPlay) return play(); return Promise.resolve();
   }
   function impact(index, targets, name, impacts, token) {
     if (token !== generation) return;
@@ -316,15 +360,16 @@ var VbFxPreview = (function () {
     return { source: host, targets: targets, followGeometry: true, followOpacity: true, impactTimesMs: impactTimes,
       dispose: function () { disposed = true; host.remove(); poseHosts.delete(host); } };
   }
-  function play(name) {
-    if (name && name !== effect) return select(name, true);
+  function play(name, options) {
+    if (name && name !== effect) return select(name).then(function(){return play(null,options);});
+    options=options||{};
     if (!targetIds.length) { message('対象がありません'); return Promise.reject(new Error('対象なし')); }
     if (!VbFx.activeCount()) {
       if (effect === 'dragonnet' || effect === 'bandersnatch') targetIds.forEach(function (id) { applyPortrait(card(id), config().source); });
       if (effect === 'direwolf') targetIds.forEach(function (id) { card(id).classList.remove('is-summoned'); });
       if (effect === 'direwolf') targetIds.forEach(function (id) { layoutSummonRow(card(id)); });
     }
-    var name = effect, conf = config(name), sound = selectedSound(name), token = generation;
+    var name = effect, conf = config(name), sound = Object.prototype.hasOwnProperty.call(options,'sound')?options.sound:selectedSound(name), token = generation;
     var targetColors=PRESENT_LAB_CARD_COLORS;
     var targets = targetIds.map(function (id) { var r=VbFx.rect(card(id));if(conf.mode==='colors')r.color=targetColors[card(id).dataset.color];return r; }), impacts = [];
     impacts.start = performance.now(); playCount++; running++; $('active-status').textContent = '再生中 ' + running;
@@ -358,7 +403,7 @@ var VbFxPreview = (function () {
     }).then(function (result) {
       if (result.assetErrors.length) message('素材を読み込めません: ' + result.assetErrors.join(', '));
       // 続けて出す演出（例：ヴリコラカス → 復活獲得）。ゲームでも本来のVFXの後に自動で続ける予定（2026-10-06 利用者指定）。
-      if (conf.then && generation === token && !result.cancelled) (conf.thenAt==='source'?[sourceId]:targetIds).forEach(function (id) { playChained(conf.then, card(id), token); });
+      if (conf.then && (options.suppress || []).indexOf(conf.then)<0 && generation === token && !result.cancelled) (conf.thenAt==='source'?[sourceId]:targetIds).forEach(function (id) { playChained(conf.then, card(id), token); });
       return { name: name, result: result, impacts: impacts.slice() };
     }).catch(function (err) { message('演出エラー: ' + err.message); throw err; }).finally(function () {
       placement.dispose();
@@ -407,23 +452,40 @@ var VbFxPreview = (function () {
     var anchor = document.createElement('a'); anchor.href = url; anchor.download = 'vesselbound-vfx-selection.json'; anchor.click();
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000); message('選択したSEの一覧を保存しました');
   }
-  VbFx.effects.forEach(function (d, i) {
-    var b = document.createElement('button'); b.dataset.name = d.name;
-    var number = document.createElement('span'); number.className = 'number'; number.textContent = String(i + 1).padStart(2, '0');
-    var label = document.createElement('span'); label.textContent = d.label;
-    b.append(number, label); b.addEventListener('click', function () { select(d.name, true).catch(function () {}); }); $('effect-list').appendChild(b);
-  });
+  function refreshList() {
+    var list=VbFxLabModel.effects(VbFx.effects,VbFxLabStore.get(),VbFxLabMeta);
+    allNames=list.map(function(e){return e.name;});
+    list.forEach(function (entry, i) {
+      var d=entry.definition,b=document.querySelector('#effect-list button[data-name="'+d.name+'"]');
+      if(!b){
+        b=document.createElement('button');b.dataset.name=d.name;
+        var number=document.createElement('span');number.className='number';
+        var label=document.createElement('span'),caption=document.createElement('span');caption.className='effect-caption';
+        var tags=document.createElement('small');tags.className='effect-tags';label.append(caption,tags);b.append(number,label);
+        b.addEventListener('click',function(){select(d.name,true).catch(function(){});});
+      }
+      b.querySelector('.number').textContent=String(i+1).padStart(2,'0');
+      b.querySelector('.effect-caption').textContent=entry.meta.title+(entry.meta.missing?'（新規・見出し未設定）':'');
+      b.querySelector('.effect-tags').textContent=entry.meta.tags.join(' / ');
+      b.dataset.search=[d.name,entry.meta.title].concat(entry.meta.tags,window.VbFxLabUI?VbFxLabUI.searchText(d.name):[]).join(' ').toLowerCase();
+      b.classList.toggle('selected',effect===d.name);b.setAttribute('aria-current',effect===d.name?'true':'false');
+      var at=$('effect-list').children[i];if(at!==b)$('effect-list').insertBefore(b,at||null);
+    });filterList();
+  }
+  function filterList() {
+    var query=$('search').value.toLowerCase().trim();document.querySelectorAll('#effect-list button').forEach(function(b){b.hidden=!(b.dataset.search||b.textContent.toLowerCase()).includes(query);b.style.display=b.hidden?'none':'';});
+    $('effect-count').textContent=document.querySelectorAll('#effect-list button').length+'種類';
+  }
+  refreshList();
   ['all-sweep', 'all-ring', 'all-cross'].forEach(function (name) {
     var b = document.createElement('button'); b.textContent = def(name).label;
     var note = document.createElement('small'); note.textContent = { 'all-sweep': '速い薙ぎ払い・460ms', 'all-ring': '中央から広がる一撃・580ms', 'all-cross': '斬撃の交差・460ms' }[name];
     b.appendChild(note); b.addEventListener('click', function () { select(name, true).catch(function () {}); }); $('proposal-buttons').appendChild(b);
   });
   $('effect-count').textContent = VbFx.effects.length + '種類'; $('protocol').textContent = location.protocol === 'file:' ? 'FILE:// LOCAL' : 'HTTP PREVIEW';
-  $('search').addEventListener('input', function () {
-    var query = this.value.toLowerCase(); document.querySelectorAll('#effect-list button').forEach(function (b) { b.hidden = !b.textContent.toLowerCase().includes(query); b.style.display = b.hidden ? 'none' : ''; });
-  });
+  $('search').addEventListener('input', filterList);
   $('source-select').addEventListener('change', function () { sourceId = this.value; $('side').value = card(sourceId).dataset.side; chooseDefaultTargets(); refreshSelection(); });
-  $('auto-target').addEventListener('click', function () { stop(); configureBoard(); });
+  $('auto-target').addEventListener('click', function () { var scene=activeScene;stop();configureBoard();if(scene)applyScene(scene); });
   $('side').addEventListener('change', function () { stop(); configureBoard(); });
   $('background').addEventListener('change', function () { $('board-design').style.backgroundImage = 'url("../assets/art/backgrounds/' + this.value + '")'; });
   $('replay').addEventListener('click', function () { play().catch(function () {}); });
@@ -494,5 +556,7 @@ var VbFxPreview = (function () {
   }
   select(effect);
   return { select: select, play: play, playAll: playAll, stop: stop, audition: audition, ready: true,
+    refreshList:refreshList, applyScene:applyScene, gameSound:gameSound,
+    playInScene:function(name,scene,options){return select(name).then(function(){applyScene(scene);return play(null,options);});},
     snapshot: function () { return { name: effect, sourceId: sourceId, targetIds: targetIds.slice(), impacts: lastImpacts.slice(), active: VbFx.activeCount(), plays: playCount, se: selectedSound().id }; } };
 })();
