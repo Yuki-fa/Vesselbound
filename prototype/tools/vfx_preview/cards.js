@@ -442,7 +442,9 @@ var VbFxCards = (function () {
     M.pages.forEach(function (p) {
       var b = button(p.title, function () { switchTab(p.id); }); b.dataset.tab = p.id; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(p.id === 'effects')); tabs.appendChild(b);
     });
-    document.querySelector('main').prepend(tabs);
+    // 2026-10-15 利用者指定：タブは固定ヘッダー。確定保存の帯（.lab-savebar、上端に固定）の中へ入れて一緒に固定する。
+    var savebar = document.querySelector('.lab-savebar');
+    if (savebar) savebar.appendChild(tabs); else document.querySelector('main').prepend(tabs);
     page = element('section', 'cards-page'); page.id = 'card-catalog'; page.hidden = true;
     var heading = element('header', 'cards-heading'),categoryTitle=element('h1','','キャラクター');categoryTitle.id='category-title';heading.appendChild(categoryTitle);
     var count = element('span'); count.id = 'card-result-count'; heading.appendChild(count); page.appendChild(heading);

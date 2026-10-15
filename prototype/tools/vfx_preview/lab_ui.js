@@ -61,6 +61,8 @@ var VbFxLabUI = (function () {
     file.addEventListener('change',async function(){try{if(file.files[0])S.importData(JSON.parse(await file.files[0].text()));}catch(e){$('lab-save-status').textContent='読込失敗：'+e.message;}file.value='';});
     bar.appendChild(button('JSONを読み込む',function(){file.click();}));bar.appendChild(file);
     var status=el('span');status.id='lab-save-status';status.setAttribute('role','status');bar.appendChild(status);document.querySelector('main').prepend(bar);
+    // タブ（.lab-tabs）は固定ヘッダーの帯の中に置く（2026-10-15 利用者指定）。先に作られていれば移す。
+    var tabs=document.querySelector('.lab-tabs');if(tabs)bar.appendChild(tabs);
     editor=el('section','lab-effect-editor');editor.id='lab-effect-editor';document.querySelector('.sound-panel').after(editor);
     S.onChange(refresh);refresh();
     window.addEventListener('beforeunload',function(e){if(S.info().dirty){e.preventDefault();e.returnValue='';}});

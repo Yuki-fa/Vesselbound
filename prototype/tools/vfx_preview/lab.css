@@ -1,6 +1,8 @@
 /* 2026-10-15 LABの一覧・編集レイアウト。VFXの層・寸法・合成には触れない。 */
 body{grid-template-columns:244px minmax(0,1fr)}
-.lab-tabs{flex-wrap:wrap;gap:5px}.lab-tabs button{font-size:12px;padding:7px 10px}
+.lab-tabs{flex-wrap:wrap;gap:5px}
+/* 2026-10-15 タブを固定ヘッダー（.lab-savebar）の下段に並べる */
+.lab-savebar .lab-tabs{display:flex;flex-basis:100%;order:10;margin:2px 0 0;padding:8px 0 0;border-top:1px solid #3b4232}.lab-tabs button{font-size:12px;padding:7px 10px}
 .lab-savebar{position:sticky;top:0;z-index:2000030;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;margin:-12px -12px 12px;background:#182019;border-bottom:1px solid #6c6346;box-shadow:0 4px 14px #0006}
 .lab-savebar button{font-size:12px}.lab-savebar .primary{min-width:100px}.lab-save-note{flex:1;color:#c3c9ba;font-size:11px;min-width:180px}
 #lab-save-status{flex-basis:100%;font-size:11px;color:#c6cdbd;overflow-wrap:anywhere}#lab-dirty{font-size:11px;color:#a6b4a0}#lab-dirty.dirty{color:#ffd38b}
