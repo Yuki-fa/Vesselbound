@@ -195,13 +195,17 @@ function towerBoonSyncRerollButton() {
   button.style.display = 'inline-flex';
   button.querySelector('.bcv-label').textContent = TOWER_BOON_CONFIG.text.reroll.replace('{count}', towerBoonState().rerolls);
   button.disabled = !towerBoonCanReroll() || towerBoonState().rerolls <= 0 || !_rewCards.some(c => c && c._isOriginalReward);
-  const anchor = document.getElementById('board-card-visibility-btn'), row = document.getElementById('reward-offer-row');
+  // X は「カード非表示」と同じ。Y は「報酬カード」の見出し（#reward-offer-section::before）の中心へ揃える
+  // （「カード非表示」が「魔導板」の見出しの横にあるのと同じ形。カード列の中央だと5枚目と重なる）。
+  const anchor = document.getElementById('board-card-visibility-btn'), section = document.getElementById('reward-offer-section');
   const parent = button.offsetParent;
-  if (!anchor || !row || !parent) return;
-  const a = anchor.getBoundingClientRect(), r = row.getBoundingClientRect(), p = parent.getBoundingClientRect();
-  const scale = p.width / parent.offsetWidth;
-  if (!(scale > 0)) return;
+  if (!anchor || !section || !parent || !section.offsetWidth) return;
+  const a = anchor.getBoundingClientRect(), r = section.getBoundingClientRect(), p = parent.getBoundingClientRect();
+  const scale = p.width / parent.offsetWidth, sectionScale = r.width / section.offsetWidth;
+  if (!(scale > 0) || !(sectionScale > 0)) return;
+  const title = getComputedStyle(section, '::before');
+  const titleCenter = r.top + ((parseFloat(title.top) || 0) + (parseFloat(title.height) || 0) / 2) * sectionScale;
   button.style.left = `${(a.left - p.left) / scale}px`;
   button.style.right = 'auto';
-  button.style.top = `${(r.top + r.height / 2 - p.top) / scale - button.offsetHeight / 2}px`;
+  button.style.top = `${(titleCenter - p.top) / scale - button.offsetHeight / 2}px`;
 }
