@@ -564,6 +564,8 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         beginBattleMotion();
         try{
           await playAttackMotion(attacker,target,attackSide==='p2',null,{...PRESENT_ATTACK_MOTION,
+            // 割り込み攻撃は、止めている本来の一撃を消さずに残す（render.js）。
+            suspendPaused:!!e.immediate,
             onContact:()=>_fireAttackContact(e,eventIndex),
             targetRect:target._lastVisualRect||null});
         } finally {

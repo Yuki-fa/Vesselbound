@@ -192,12 +192,27 @@ var VbFxCards = (function () {
     var fadeMs = Math.max(0, Number(vfx.fadeMs) || 0);
     var host;
     var definition = M.definitionName(vfx);
-    var playing = null;
-    if (definition) {
+    var playing = null, place = null;
+    var motionConf = definition && window.VbFxPreviewCatalog && VbFxPreviewCatalog[definition];
+    if (definition && motionConf && motionConf.motion && VbFxPreview.placement) {
+      // 入れ物が動く定義（サイレンの拡大・薙ぎ払い等）は本体と同じ動きで出す。
+      // カードの大きさの入れ物に固定すると、画面全体へ広がる波がカードの周りだけになる（2026-10-16 利用者指摘：サイレン）。
+      place = VbFxPreview.placement(definition, source, nodes.targets && nodes.targets.length ? nodes.targets : [target], Math.max(1, ms));
+      host = place.source.nodeType ? place.source : element('div', 'card-current-vfx');
+      VbFx.settings.layer = document.body;
+      playing = VbFx.play(definition,{ source:place.source,targets:place.targets,durationMs:Math.max(1,ms),size:Number($('size').value),
+        followGeometry:!!place.followGeometry,followOpacity:!!place.followOpacity,impactTimesMs:place.impactTimesMs,
+        board:board,seed:53,dir:1,key:'card-current:'+id });
+      playing.catch(function(err){ status('定義の再生：'+err.message); });
+      var sr = source.getBoundingClientRect();
+      entry.geometry = {width:sr.width,height:sr.height,centerX:sr.left+sr.width/2,centerY:sr.top+sr.height/2,cardWidth:source.offsetWidth};
+    } else if (definition) {
       host = element('div', 'card-current-vfx');
       var at = vfx.geometry && vfx.geometry.anchor === 'source' ? source : target;
       var rect = at.getBoundingClientRect(), scale = Number($('size').value);
-      Object.assign(host.style,{ position:'fixed',left:rect.left+'px',top:rect.top+'px',
+      // 入れ物は画面固定にせず文書の座標で置く。固定だと再生中にページをスクロールした時、
+      // VFXがカードに付いていかず画面の同じ位置に取り残される（2026-10-16 利用者指摘：アラクネ）。
+      Object.assign(host.style,{ position:'absolute',left:rect.left+window.scrollX+'px',top:rect.top+window.scrollY+'px',
         width:rect.width+'px',height:rect.height+'px',transform:'none',pointerEvents:'none' });
       document.body.appendChild(host);
       VbFx.settings.layer = document.body;
@@ -250,7 +265,7 @@ var VbFxCards = (function () {
     if (id !== token) return;
     entry.finishedAt = performance.now(); entry.elapsedMs = entry.finishedAt - entry.startedAt;
     entry.completed = true; entry.status = 'completed'; entry.looping = !!(vfx.loop && retainLoop);
-    if (!entry.looping) { if(definition) VbFx.stop({name:definition,key:'card-current:'+id}); host.remove(); hosts = hosts.filter(function (h) { return h !== host; }); }
+    if (!entry.looping) { if(definition) VbFx.stop({name:definition,key:'card-current:'+id}); if(place) place.dispose(); host.remove(); hosts = hosts.filter(function (h) { return h !== host; }); }
   }
   async function playCurrent(card) {
     if (window.VbFxLabCheck && VbFxLabCheck.busy()) return;

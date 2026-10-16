@@ -328,7 +328,9 @@ var VbFxPreview = (function () {
       from = { x: to.left+to.width/2, y: to.top+to.height/2 };
     } else if (conf.motion === 'rise') { w = h = source.width * .55; from.y -= source.height * PRESENT_MANA_GAIN_VFX_START_Y; }
     else if (conf.motion === 'opening') { w = source.width * 2.44; h = source.height * 2.44; }
-    Object.assign(host.style, { position: 'fixed', left: (from.x-w/2)+'px', top: (from.y-h/2)+'px', width: w+'px', height: h+'px', pointerEvents: 'none', transformOrigin: 'center' });
+    // 入れ物は文書の座標で置く（画面固定だと再生中のスクロールでカードから取り残される。2026-10-16）。
+    var scrollX0 = window.scrollX, scrollY0 = window.scrollY;
+    Object.assign(host.style, { position: 'absolute', left: (from.x-w/2+scrollX0)+'px', top: (from.y-h/2+scrollY0)+'px', width: w+'px', height: h+'px', pointerEvents: 'none', transformOrigin: 'center' });
     document.body.appendChild(host); poseHosts.add(host);
     function step(now) {
       if (disposed || !host.isConnected) return;
@@ -352,7 +354,7 @@ var VbFxPreview = (function () {
         opacity = Math.min(1,t/.1,(1-t)/.25);
       } else if (conf.motion === 'rise') p = { x: from.x, y: from.y-source.height*PRESENT_MANA_GAIN_VFX_RISE*t };
       else if (conf.motion === 'opening') opacity = t < 560/980 ? 1 : (1-t)/(420/980);
-      Object.assign(host.style,{ left:(p.x-w/2)+'px',top:(p.y-h/2)+'px',width:w+'px',height:h+'px',
+      Object.assign(host.style,{ left:(p.x-w/2+scrollX0)+'px',top:(p.y-h/2+scrollY0)+'px',width:w+'px',height:h+'px',
         opacity:String(Math.max(0,opacity)),transform:'rotate('+angle+'rad) scaleY('+scaleY+')' });
       if (t < 1) requestAnimationFrame(step);
     }
@@ -557,6 +559,8 @@ var VbFxPreview = (function () {
   select(effect);
   return { select: select, play: play, playAll: playAll, stop: stop, audition: audition, ready: true,
     refreshList:refreshList, applyScene:applyScene, gameSound:gameSound,
+    // 定義の入れ物の動き（サイレンの拡大等）を、分類ページの現行再生からも同じ規則で使う（2026-10-16）。
+    placement:function(name,sourceEl,targetEls,ms){return definitionPlacement(config(name),VbFx.rect(sourceEl),(targetEls||[]).map(function(el){return VbFx.rect(el);}),ms);},
     playInScene:function(name,scene,options){return select(name).then(function(){applyScene(scene);return play(null,options);});},
     snapshot: function () { return { name: effect, sourceId: sourceId, targetIds: targetIds.slice(), impacts: lastImpacts.slice(), active: VbFx.activeCount(), plays: playCount, se: selectedSound().id }; } };
 })();

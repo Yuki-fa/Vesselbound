@@ -1010,6 +1010,10 @@ function presentPreAttackPlan(events, fromIndex) {
     if (i > start && (ev.type === 'turn_begin' || ev.type === 'battle_start' || ev.type === 'battle_end')) break;
     if (ev.type === 'attack') {
       if (ev.attackVisual === false) continue;
+      // 攻撃効果の途中で起きた本人の割り込み攻撃（ミノタウロスの負傷→攻撃等。immediate）は、
+      // 止めておいた本来の一撃ではない。ここで対にすると、踏み込みが割り込み攻撃に使われ、
+      // 本来の攻撃が再開されずに最後に最初から出し直される（2026-10-16 利用者指摘：ミノタウロス＋懺悔）。
+      if (ev.immediate && actorId != null && String(ev.attackerId) === actorId) continue;
       if (actorId != null && String(ev.attackerId) === actorId) {
         return hasEffects ? { event: ev, index: i, actorId } : null;
       }
@@ -1249,7 +1253,9 @@ const PRESENT_STAT_CHANGE_TRIGGER_REASONS = {
   // ラミア・ユミル・エルヴンメイジはカード名の reason で来る。ここに無いとトリガが決まらず、S005 が出なかった。
   attack: new Set([...PRESENT_ATTACK_BUFF_REASONS, 'brownie_attack', 'imp_gain', 'imp_steal', 'lamia', 'ymir', 'elven_mage',
     'sacrifice_atk_steal', 'sacrifice_atk_gain',
-    'attack_swap', 'different_color_attack', 'sentinel', 'arch_demon_purple_buff']),
+    'attack_swap', 'different_color_attack', 'sentinel', 'arch_demon_purple_buff',
+    // 扇動（強化）。無いとトリガが決まらず、付けた本人の固有番号へ落ちて何も出なかった（2026-10-16 ペガサス＋扇動）。
+    'incite']),
   injury: new Set(['golem', 'gigantes', 'kobold', 'healing', 'brownie', 'fornjot', 'chaos_imp', 'umbra',
     'injury_self_buff', 'injury_allies_atk', 'injury_color_buff', 'injury_sacrifice_hp',
     'injury_allies_hp', 'injury_enemy_atk_down', 'injury_allies_fixed_buff']),

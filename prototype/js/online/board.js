@@ -608,6 +608,8 @@
     // 2026-10-11: PvEと同じ接触表示へ渡す。振動も共通のダメージ表示側で開始する。
     _motion = playAttackMotion(attacker, target, ev.side === 'p2', paused ? (() => { markReady(); return held; }) : null, {
       ...PRESENT_ATTACK_MOTION,
+      // 割り込み攻撃は、止めている本来の一撃を消さずに残す（render.js。PvEと同じ）。
+      suspendPaused: !!ev.immediate,
       onContact: () => _fireAttackContact(ev, ctx),
     });
     // 後続の負傷・死亡・詰め直しは、PvEと同じく戻りモーションの完了を待つ。

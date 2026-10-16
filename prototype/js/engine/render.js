@@ -919,9 +919,10 @@ function _posTipRelative(tip,anchor,side,clampY=true){
 // 右に出した時に他のカードを隠す面積が、左に出した時より20%以上多ければ左に出す。**（2026-09-30 利用者指定）
 // 数えるのは魔導板と報酬カード枠に置かれているカードだけ（空きマス・特殊マスの枠、デバッグカード領域は数えない）。
 // 空きマスも数えると、何も無いマスを覆う側を避けてカードを隠す側へ出てしまった（2026-09-30 利用者指摘）。
-// 右にも左にもカードが無ければ右のまま。店・鍛冶屋などの施設では従来どおり。
+// 右にも左にもカードが無ければ右のまま。
+// 店・行商人・鍛冶屋などの施設でも同じ規則にする（2026-10-16 利用者指摘：行商人で常に右に出てカードを隠していた）。
 function _formationTipPrefersLeft(anchor,safe,w,h,top,rightLeft,leftLeft){
-  if(typeof G==='undefined'||!G||G.phase!=='reward'||G._isShop||G._isItemShop||G._isForge||G._isTavern) return false;
+  if(typeof G==='undefined'||!G||G.phase!=='reward') return false;
   if(!anchor||!anchor.closest||!anchor.closest('#hand-slots,#reward-offer-row')) return false;
   const others=[...document.querySelectorAll('#hand-slots .card,#reward-offer-row > .rew-card,#reward-offer-row > .character-card')]
     .filter(el=>el!==anchor&&!anchor.contains(el)&&!el.contains(anchor)&&!el.classList.contains('card-empty'))
@@ -3558,10 +3559,16 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
   const clone=_buildMotionCardClone(fromEl, fr);
   const motionKey=String(attacker.id);
   const previousOwner=_attackMotionOwners.get(motionKey);
-  if(previousOwner){ previousOwner.cancel(); previousOwner.clone.remove(); }
+  // 攻撃効果の途中（25%で止めている間）に本人が割り込み攻撃をする場合（ミノタウロスの負傷→攻撃等）、
+  // 止めている本来の一撃は取り消さずに隠して残し、割り込み攻撃はその止めた位置から出て同じ位置へ戻る。
+  // 割り込みが終わったら本来の一撃を再表示し、解放されたら続きから接触する（2026-10-16 利用者指摘）。
+  const suspendedOwner=opt.suspendPaused&&previousOwner&&previousOwner.paused?previousOwner:null;
+  if(suspendedOwner) suspendedOwner.clone.style.setProperty('opacity','0','important');
+  else if(previousOwner){ previousOwner.cancel(); previousOwner.clone.remove(); }
+  const homeTransform=suspendedOwner&&suspendedOwner.clone.style.transform||'translate(0,0) rotate(0deg)';
   let cancelled=false, cancelPause=()=>{};
   const cancellation=new Promise(resolve=>{ cancelPause=resolve; });
-  const motionOwner={clone,cancel:()=>{ cancelled=true; cancelPause({abort:true}); }};
+  const motionOwner={clone,paused:false,cancel:()=>{ cancelled=true; cancelPause({abort:true}); }};
   _attackMotionOwners.set(motionKey,motionOwner);
   attacker._motionHidden=true;
   fromEl.classList.add('motion-hidden');
@@ -3595,6 +3602,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     const side=isEnemySide?'enemy':'ally';
     const currentList=isEnemySide?G.enemies:G.allies;
     const ownLiveCountNow=(currentList||[]).filter(u=>u&&u.hp>0).length;
+    if(suspendedOwner) return homeTransform;
     if(ownLiveCountNow===ownLiveCountAtStart) return 'translate(0,0) rotate(0deg)';
     const current=typeof getCurrentUnitSlot==='function'?getCurrentUnitSlot(side,attacker):null;
     if(!current) return 'translate(0,0) rotate(0deg)';
@@ -3610,6 +3618,12 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     // 複製を外してから実枠を戻す。同一IDの次の攻撃が始まっていたら、後始末を引き継ぐ。
     clone.remove();
     if(_attackMotionOwners.get(motionKey)!==motionOwner) return;
+    if(suspendedOwner&&suspendedOwner.clone.isConnected){
+      // 止めていた本来の一撃へ戻す。実枠は隠したまま（本来の一撃の後始末で戻す）。
+      _attackMotionOwners.set(motionKey,suspendedOwner);
+      suspendedOwner.clone.style.removeProperty('opacity');
+      return;
+    }
     _attackMotionOwners.delete(motionKey);
     if(attacker&&attacker.id!=null&&G._suppressCompactUnitIds){
       // cleanup直後のrenderAll／死亡後compactが同じフレームで走るため、
@@ -3741,7 +3755,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
           {transform:atStop},
         ],opt.firstDuration||260);
         if(cancelled) return;
+        motionOwner.paused=true;
         const pauseResult=await Promise.race([onImpactPause(),cancellation]);
+        motionOwner.paused=false;
         if(cancelled) return;
         if(typeof _recordBattleTrace==='function') _recordBattleTrace('attack_motion_effect_pause',{
           attackerId:attacker.id,targetId:target.id,isEnemySide:!!isEnemySide
@@ -3804,7 +3820,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
         ],opt.secondDuration||360,()=>getTargetMotionTransform(1)||resumedHit);
       } else {
         await runSegment([
-          {transform:'translate(0,0) rotate(0deg)'},
+          {transform:homeTransform},
           {transform:atHit},
         ],opt.firstDuration||420);
       }
@@ -3840,7 +3856,7 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
       const returnStart=clone.style.transform||atHit;
       await runSegment([
         {transform:returnStart},
-        {transform:'translate(0,0) rotate(0deg)'},
+        {transform:homeTransform},
       ],opt.returnDuration||480,stableReturn);
     } finally {
       cleanup();
