@@ -12,7 +12,7 @@ async function baselineChecks(){
   const cache=new Map(),sourceLoader=file=>{if(!cache.has(file))cache.set(file,execFileSync('git',['show',BASELINE+':prototype/'+file],{cwd:ROOT,encoding:'utf8',maxBuffer:4e6}));return cache.get(file);};
   // webp.js（置換32種）は2026-10-14から品質向上で作り直しているので、不変の確認は元の50種と図形だけにする。
   for(const file of ['js/vfx/defs/geometry.js','js/vfx/defs/effects.js','js/vfx/defs/webp_geometry.js'])assert.equal(read(file),sourceLoader(file),'既存の全定義を保持: '+file);
-  const before=harness(false,null,{sourceLoader,excludeScripts:['js/vfx/defs/characters_1012.js']}),after=harness(false);
+  const before=harness(false,null,{sourceLoader,excludeScripts:['js/vfx/defs/characters_1012.js','js/vfx/defs/additions_1017.js']}),after=harness(false);
   assert.equal(before.fx.effects.length,82);
   // 描画命令の完全一致は元の50種（effects.js）だけ。置換32種（webp.js）は2026-10-14から作り直している。
   const original=new Set(literalDefinition(read('js/vfx/defs/effects.js'),'effects').effects.map(d=>d.name));assert.equal(original.size,50);
@@ -28,8 +28,10 @@ async function newDataChecks(){
   const {bundle,jsonBytes}=validatedBundle(),data=literalDefinition(read('js/vfx/defs/characters_1012.js'),'characters_1012');
   assert.equal(names.length,21);assert.equal(new Set(names).size,21);assert.equal(data.effects.length,20);
   const shared=data.effects.find(d=>d.name==='phantom');assert.equal(shared.variants.length,1);assert.equal(shared.variants[0].name,'eidolon');
-  assert.ok(jsonBytes<=1e6);assert.equal(bundle.effects.length,102);
-  const h=harness(false);assert.equal(h.fx.effects.length,103);
+  // 2026-10-17: additions_1017.js の新規分を除いて数える（第2段の総数は変えない）。
+  const added1017=(t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/additions_1017.js'),'utf8')).effects.length;
+  assert.ok(jsonBytes<=1e6);assert.equal(bundle.effects.length,102+added1017);
+  const h=harness(false);assert.equal(h.fx.effects.length,103+added1017);
   assert.equal(h.fx.effects.find(d=>d.name==='phantom').layers,h.fx.effects.find(d=>d.name==='eidolon').layers,'共有定義の層を参照し、複製しない');
   for(const name of names)for(const speed of [1.5,3,4.5]){
     const def=h.fx.effects.find(d=>d.name===name);assert.ok(def&&def.sourceCode);

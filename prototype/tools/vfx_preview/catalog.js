@@ -107,7 +107,34 @@ var VbFxPreviewCatalog = {
   "spriggan": {"source": "C079", "mode": "friend", "sampleValue": 1, "value": 1, "note": "地面から枝と蔓の輪が育ち、淡い光の環へ変わって既存結界へつなぐ。", "new1012": true, "then": "shield-gain"},
   "incubus": {"source": "C084", "mode": "foe", "sampleValue": 2, "value": 2, "note": "実際に倒した敵の位置を赤い霧でほどき、2滴へまとめて消す。", "new1012": true},
   "chaos-imp": {"source": "C094", "mode": "friend", "sampleValue": 1, "value": 1, "note": "インプから歪んだ紫の稲妻が跳び、小径の開戦陣へ再点火。開戦効果本体は元の演出へ渡す。", "new1012": true},
-
+  // 2026-10-17 未設定だった演出の新規制作（Claude直接）
+  "dragon-pact": {"source": "C041", "mode": "foe", "note": "竜の契約（E008）。赤黒い渦に橙金の炎が集まり、白金の芯の火球が長い尾を引いて飛び、着弾で炎が爆ぜる。実戦は攻撃効果のdamage1件につき1発。"},
+  "rage-shards": {"source": "C041", "mode": "foe", "note": "逆上（E032）。負傷したカードに赤い裂け目が走り、3本の赤い破片が弧を描いて対象へ刺さる。"},
+  "storm-ring": {"source": "C041", "mode": "foes", "note": "嵐の指輪（R023）。敵の上に暗雲が垂れこめ、上端から各敵へ雷が2度落ちる。"},
+  "scroll-shield": {"source": "C041", "mode": "self", "note": "盾の巻物（I003）の使用。青い魔法陣と紋の輪が集まり、結晶の紋が刻まれる。"},
+  "scroll-revive": {"source": "C041", "mode": "self", "note": "幻視の巻物（I004）の使用。金の魔法陣と紋の輪が集まり、羽の紋が刻まれる。"},
+  "scroll-giant": {"source": "C041", "mode": "self", "note": "巨大化の巻物（I005）の使用。橙の魔法陣と紋の輪が集まり、星の紋が刻まれる。"},
+  "scroll-mana": {"source": "C041", "mode": "self", "note": "魔力の巻物（I011）の使用。水色の魔法陣と紋の輪が集まり、結晶の紋が刻まれる。"},
+  "scroll-guts": {"source": "C041", "mode": "self", "note": "鼓舞の旗（I012）の使用。赤い魔法陣と紋の輪が集まり、閃光の紋が刻まれる。"},
+  "ring-eye-red": {"source": "C041", "mode": "friends", "note": "赤い瞳の指輪（R001）の開戦。赤の味方の縁が赤く光り、額に結晶が灯って光の粒が昇る。"},
+  "ring-eye-blue": {"source": "C041", "mode": "friends", "note": "青い瞳の指輪（R002）の開戦。"},
+  "ring-eye-green": {"source": "C041", "mode": "friends", "note": "緑の瞳の指輪（R003）の開戦。"},
+  "ring-eye-yellow": {"source": "C041", "mode": "friends", "note": "黄の瞳の指輪（R004）の開戦。"},
+  "ring-eye-purple": {"source": "C041", "mode": "friends", "note": "紫の瞳の指輪（R005）の開戦。"},
+  "ring-eye-rainbow": {"source": "C041", "mode": "friends", "note": "虹の瞳の指輪（R032）の開戦。味方全員の縁を5色が順に走り、白い結晶と色の粒が昇る。"},
+  "paladin-ring": {"source": "C041", "mode": "friends", "note": "聖騎士の指輪（R019）の開戦。金の縁が二重に重なり、金の結晶が灯ってHPが倍になる。"},
+  "speed-ring": {"source": "C041", "mode": "friend", "note": "神速の指輪（R031）の開戦。白金の集中線が左端のカードへ集まり、光の輪とともに前へ踏み出す。"},
+  "toughness-ring": {"source": "C041", "mode": "friends", "note": "強靭の指輪（R015）の開戦。緑の縁が光り、生命の紋が刻まれる。"},
+  "curse-ring": {"source": "C041", "mode": "foes", "note": "呪いの指輪（R042）・憎悪の指輪（R041）の開戦。敵に黒紫の煙と呪いの陣がまとわりつき、色が沈む。"},
+  "sealed-power": {"source": "C041", "mode": "self", "note": "封印されしもの（E057）の解放。紫の封印の輪が砕け、金の裂け目の光が走り、金の光の柱が立つ。"},
+  "void-mastery": {"source": "C093", "mode": "friends", "note": "ヴォイド・ウォーカー（C093）の開戦。虚空の渦と紋の輪から紫の稲妻が紫の味方へ走り、縮む紋の輪と紫の縁で熟練が刻まれる。"},
+  "keyword-grant": {"source": "C041", "mode": "friends", "note": "金床の賢者“シンドリ”（EN044）の開戦。金の紋の輪が味方へ縮み、金の縁でキーワード（貫通）が刻まれる。"},
+  "fate-sever": {"source": "C041", "mode": "self", "note": "刻を織る者“ウルズ・ラグナ”（EN075_1）の開戦。時の紋の輪が回り、白い亀裂の光が走って画面が灰色に沈み、敵のライフが1になる。"},
+  "penance-ring": {"source": "C041", "mode": "friends", "note": "苦行の指輪（R012）の開戦。暗い紅の茨の輪が全ての味方を締め付け、締まった瞬間に赤い裂け目と血の滴で1ダメージ。"},
+  "alchemy": {"source": "C041", "mode": "self", "note": "錬成（E030）の終戦。金貨が渦を巻いて金の錬成陣へ吸い込まれ、白金の閃光とともにアイテムの結晶が生まれる。"},
+  "hydra-reward": {"source": "C055", "mode": "self", "note": "ハイドラ（C055）の終戦。翠の首が3本、彗星の尾を引いて上へ伸び、先に報酬の宝石が灯る。"},
+  "gold-loss": {"source": "C041", "mode": "self", "note": "苦悶の刻印（E078）の死亡。紫黒の刻印が疼き、金貨が上へ弾けてから重く落ち、黒い靄に崩れる。"},
+  "suffering-brand": {"source": "C041", "mode": "friends", "note": "受難の刻印（E077）の死亡。倒れた場所の刻印が割れ、暗い紅の呪いが全ての味方へ飛んでダメージを刻む。"}
 };
 
 /* カード名・色は内蔵CSVのヘッダから抽出したプレビュー用スナップショット。 */

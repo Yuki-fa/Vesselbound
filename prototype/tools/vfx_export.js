@@ -5,8 +5,8 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),asse
 const ROOT=path.resolve(__dirname,'..');
 // 2026-10-12: 21キャラ追加後も1MB上限を守る。読みやすい定義JSは保持し、配布JSONだけ空白を省く。
 const JSON_INDENT=0;
-const DEFINITION_SCRIPTS=['js/vfx/schema.js','js/vfx/defs/geometry.js','js/vfx/defs/effects.js','js/vfx/defs/webp_geometry.js','js/vfx/defs/webp.js','js/vfx/defs/characters_1012.js'];
-const RUNTIME_SCRIPTS=['js/vfx/schema.js','js/vfx/curves.js','js/vfx/textures.js','js/vfx/defs/geometry.js','js/vfx/defs/effects.js','js/vfx/defs/webp_geometry.js','js/vfx/defs/webp.js','js/vfx/defs/characters_1012.js','js/vfx/renderer.js','js/engine/fx_lab.js'];
+const DEFINITION_SCRIPTS=['js/vfx/schema.js','js/vfx/defs/geometry.js','js/vfx/defs/effects.js','js/vfx/defs/webp_geometry.js','js/vfx/defs/webp.js','js/vfx/defs/characters_1012.js','js/vfx/defs/additions_1017.js'];
+const RUNTIME_SCRIPTS=['js/vfx/schema.js','js/vfx/curves.js','js/vfx/textures.js','js/vfx/defs/geometry.js','js/vfx/defs/effects.js','js/vfx/defs/webp_geometry.js','js/vfx/defs/webp.js','js/vfx/defs/characters_1012.js','js/vfx/defs/additions_1017.js','js/vfx/renderer.js','js/engine/fx_lab.js'];
 function uncomment(source){
   let out='',quote=false,escape=false;
   for(let i=0;i<source.length;i++){

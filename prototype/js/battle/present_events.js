@@ -169,7 +169,10 @@ function _presentLabPlan(ev, events, index, api, context) {
   const sourceId = code === 'E062' || ev.type === 'mana_threshold' ? ev.unitId : ev.sourceId || source && source.card.id || ev.unitId;
   const ownerSide = source && source.side || ev.side;
   const find = id => api.findUnit('p1',id) || api.findUnit('p2',id);
-  const owner = find(sourceId) || (source && source.kind === 'item' ? api.units(ownerSide).find(Boolean) : null);
+  // 強化カードの「自分に出す」演出（錬成・苦悶の刻印）は、発生元IDが無く、強化カードのIDは盤面の体ではない。
+  // その強化を付けた体（イベントのunitId）を発動者にする（2026-10-17）。
+  const owner = find(sourceId) || (source && source.kind === 'item' ? api.units(ownerSide).find(Boolean) : null)
+    || (source && source.kind === 'enchant' && spec[2] === 'self' ? find(ev.unitId) : null);
   const members = presentLabEffectEvents(events,index,code,sourceId);
   let targets = members.filter(e=>!['mana_threshold','effect_flash'].includes(e.type)).map(e=>find(e.type==='summon'&&e.unit?e.unit.id:e.unitId)).filter(Boolean);
   if (ev.type === 'effect_flash') {
@@ -243,7 +246,8 @@ async function _presentLabFinish(plan) {
 // ダメージ等を「VFXが当たった瞬間」まで待たせる演出（ワーム・援護射撃の弾・隕石の巻物）。
 // 隕石の巻物は、隕石が墜落した直後にダメージを出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。
 // アラクネ（C008）は熱波が届いた瞬間に強化とダメージを同時に出す（2026-10-15）。
-const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006','C099','C056','C066','C079','C095','C082','C008']);
+// 竜の契約（E008）・逆上（E032）・嵐の指輪（R023）・苦行の指輪（R012）・受難の刻印（E077）も着弾の瞬間に数値を出す（2026-10-17）。
+const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006','C099','C056','C066','C079','C095','C082','C008','E008','E032','R023','R012','E077']);
 async function presentLabBeginEvent(ev, events, index, api) {
   if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
   const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
@@ -883,8 +887,13 @@ async function presentGoldGainEvent(ev, api) {
   }
   const rect = typeof api.getVisualRect === 'function' ? api.getVisualRect(ev, source) : null;
   if (rect && rect.width > 0 && rect.height > 0) source._lastVisualRect = { ...rect };
-  const code = typeof _effectPresentationCode === 'function'
+  const own = typeof _effectPresentationCode === 'function'
     ? String(_effectPresentationCode(source) || '').toUpperCase() : '';
+  const hasOwnVfx = own && typeof getCharacterEffectVfxPath === 'function'
+    && getCharacterEffectVfxPath({ fxCode: own });
+  // 固有の演出が無いカード（遺産などの強化から得たゴールド）は、汎用の金貨（S003）を出す。
+  // 以前は何も出ずに所持金だけが増えていた（2026-10-17）。
+  const code = hasOwnVfx ? own : 'S003';
   const hasSfx = code && typeof getEffectSfxKey === 'function' && getEffectSfxKey(code);
   const hasVfx = code && typeof getCharacterEffectVfxPath === 'function'
     && getCharacterEffectVfxPath({ fxCode: code });

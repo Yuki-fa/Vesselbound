@@ -697,6 +697,21 @@ function handlePendingItemBoardTarget(slotIdx){
   }
   return handled;
 }
+// 巻物などを魔導板のキャラクターに使った時の演出（2026-10-17 新規。見た目は js/vfx/defs/additions_1017.js）。
+// 効果の適用・保存には関わらない。素材が無い時・描画できない時は何もしない。
+const ITEM_USE_VFX={shield_scroll:'scroll-shield',vision_scroll:'scroll-revive',giant_scroll:'scroll-giant',mana_scroll:'scroll-mana',inspire_flag:'scroll-guts'};
+function _playItemUseVfx(key,slotIdx){
+  const name=ITEM_USE_VFX[key];
+  if(!name||typeof VbFx==='undefined'||!VbFx.effects.some(d=>d.name===name)) return;
+  const el=typeof getBoardSlotElement==='function'?getBoardSlotElement(slotIdx)
+    :document.querySelector(`#hand-slots [data-board-idx="${slotIdx}"]`);
+  if(!el||!el.isConnected) return;
+  if(typeof _vfxClipLayer==='function') VbFx.settings.layer=_vfxClipLayer;
+  VbFx.play(name,{source:el,targets:[el],speed:1,seed:53,dir:1}).catch(()=>{});
+  if(typeof playSfx==='function'&&typeof getEffectSfxKey==='function'){
+    const sfx=getEffectSfxKey(name);if(sfx) playSfx(sfx,{group:'magic',guardKey:`item-use:${name}`,guardMs:120});
+  }
+}
 function _handlePendingItemBoardTarget(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending||!Number.isInteger(slotIdx)) return false;
@@ -707,21 +722,21 @@ function _handlePendingItemBoardTarget(slotIdx){
   if(key==='shield_scroll'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
     card.keywords.push('結界1');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='giant_scroll'){
     card.power=(Number(card.power)||0)+5; card.life=(Number(card.life)||0)+5;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='inspire_flag'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
     if(!card.keywords.includes('根性')) card.keywords.push('根性');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='vision_scroll'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
     if(!card.keywords.includes('復活')) card.keywords.push('復活');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='mana_scroll'){
     const fields=_MANA_SCROLL_FIELDS;
@@ -749,7 +764,7 @@ function _handlePendingItemBoardTarget(slotIdx){
         card.desc=card.desc.replace(re,`$1${value}マナ`);
       });
     }
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='bond_scroll'){
     if(!pending.firstIdx&&pending.firstIdx!==0){
@@ -793,7 +808,7 @@ function _handlePendingItemBoardTarget(slotIdx){
     }
     delete first.effectRepeatBonus;
     boardList[slotIdx]=null;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); ; return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='sacrifice_doll'){
     if(!pending.destroyIdx&&pending.destroyIdx!==0){

@@ -1255,12 +1255,15 @@ const PRESENT_STAT_CHANGE_TRIGGER_REASONS = {
     'sacrifice_atk_steal', 'sacrifice_atk_gain',
     'attack_swap', 'different_color_attack', 'sentinel', 'arch_demon_purple_buff',
     // 扇動（強化）。無いとトリガが決まらず、付けた本人の固有番号へ落ちて何も出なかった（2026-10-16 ペガサス＋扇動）。
-    'incite']),
+    // ヘルナイトの攻撃効果（血の数だけ+X/+X）も同じ理由で何も出ていなかった（2026-10-17）。
+    'incite', 'hell_knight_blood']),
   injury: new Set(['golem', 'gigantes', 'kobold', 'healing', 'brownie', 'fornjot', 'chaos_imp', 'umbra',
     'injury_self_buff', 'injury_allies_atk', 'injury_color_buff', 'injury_sacrifice_hp',
     'injury_allies_hp', 'injury_enemy_atk_down', 'injury_allies_fixed_buff']),
   death: new Set(['will', 'inherit', 'death_color_buff', 'ghost',
-    'death_random_blue_buff', 'death_random_ally_buff']),
+    'death_random_blue_buff', 'death_random_ally_buff',
+    // 献身・血の結束（強化）。トリガが決まらず何も出ていなかった（2026-10-17）。
+    'devotion', 'blood_bond']),
   // 常時の誘発（「〜たび」）。開戦（opening_*）もここと同じ S009。
   passive: new Set(['ettin', 'shana_damage', 'gargoyle',
     'ally_death_buff', 'ally_death_self_buff', 'character_death_self_buff',
@@ -1578,8 +1581,9 @@ function presentActionBannerReasonSource(ev, api) {
   if (['strange_bond', 'strategy', 'tactician', 'fate_engraving'].includes(reason))
     return make(api.card(PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason], 'enchant'), 'enchant');
   if (reason === 'color_ring' || reason === 'color_ring_summon') {
+    // コアが載せた指輪の色を優先する（召喚直後の体は PvE とオンラインで引き直した色が食い違った。2026-10-17）。
     const target = api.unit(ev.unitId) || {};
-    const code = { 赤: 'R001', 青: 'R002', 緑: 'R003', 黄: 'R004', 紫: 'R005' }[target.color];
+    const code = { 赤: 'R001', 青: 'R002', 緑: 'R003', 黄: 'R004', 紫: 'R005' }[ev.eyeRingColor || target.color];
     return make(api.card(code || 'R001', 'ring'), 'ring');
   }
   if (reason === 'map_passive_team_buff') {
@@ -1794,6 +1798,19 @@ const PRESENT_LAB_FX = {
   C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
   // 2026-10-15 アラクネの熱波（ゲームのC008.wavのピーク0.38秒）
   C008:['arachne-ring',.38,'friends'],
+  // 2026-10-17 未設定だった演出（Claude直接）。SEは候補を聴き比べてから付ける（それまで無音＝null）。
+  E008:['dragon-pact',null,'foe'], E032:['rage-shards',null,'foe'], R023:['storm-ring',null,'foes'],
+  // 指輪の開戦効果・封印されしもの（2026-10-17。それまで何も出ていなかった）。
+  R001:['ring-eye-red',null,'friends'], R002:['ring-eye-blue',null,'friends'], R003:['ring-eye-green',null,'friends'],
+  R004:['ring-eye-yellow',null,'friends'], R005:['ring-eye-purple',null,'friends'], R032:['ring-eye-rainbow',null,'friends'],
+  R019:['paladin-ring',null,'friends'], R031:['speed-ring',null,'friend'], R015:['toughness-ring',null,'friends'],
+  R041:['curse-ring',null,'foes'], R042:['curse-ring',null,'foes'], E057:['sealed-power',null,'self'],
+  C093:['void-mastery',null,'friends'],
+  // 敵の開戦効果（2026-10-17。何も出ていなかった）：全員へのキーワード付与・ライフを1にする。
+  EN044:['keyword-grant',null,'friends'], EN075_1:['fate-sever',null,'self'],
+  // 第3弾（2026-10-17。何も出ていなかった）：苦行の指輪・錬成・ハイドラ・苦悶の刻印・受難の刻印。
+  R012:['penance-ring',null,'friends'], E030:['alchemy',null,'self'], C055:['hydra-reward',null,'self'],
+  E078:['gold-loss',null,'self'], E077:['suffering-brand',null,'dead'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
@@ -1863,6 +1880,8 @@ function presentLabEffectEvents(events, index, code, ownerId) {
       || out.some(e=>e.type==='damage'&&e.unitId===ev.unitId&&e.side===ev.side))) break;
     if (ev.sourceId != null && ev.sourceId !== ownerId && !['damage','stat_change'].includes(ev.type)) break;
     if (mana || code === 'C054' || code === 'C078') out.push(ev);
+    // 錬成は「ゴールドを払う→アイテムを得る」の2つで1回の発動（演出を2回出さない）。
+    else if (code === 'E030' && first.type === 'gold_spend' && ev.type === 'item_reward' && ev.unitId === first.unitId) out.push(ev);
     else if (ev.type === first.type && ev.sourceId === first.sourceId &&
       (first.type === 'damage' || ev.reason === first.reason || code === 'C081' && /^imp_/.test(ev.reason))) out.push(ev);
     else if (['stat_change','keyword_effect','damage','summon','transform','seal_apply','death_summon_grant'].includes(ev.type)) break;

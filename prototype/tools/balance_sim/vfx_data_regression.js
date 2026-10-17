@@ -117,8 +117,10 @@ function schemaChecks(bundle){
 }
 async function allEffects(bundle){
   const old=harness(true),next=harness(false),again=harness(false);
-  assert.deepEqual(bundle.effects.filter(d=>!d.sourceCode).map(d=>d.name),Array.from(old.fx.effects,d=>d.name),'旧版の全効果と順序を保持');
-  for(const d of bundle.effects.filter(d=>!d.sourceCode)){
+  // 2026-10-17: additions_1017.js の新規分は旧版との比較から外す。
+  const added1017=new Set((t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(fs.readFileSync(path.join(ROOT,'js/vfx/defs/additions_1017.js'),'utf8')).effects.map(d=>d.name));
+  assert.deepEqual(bundle.effects.filter(d=>!d.sourceCode&&!added1017.has(d.name)).map(d=>d.name),Array.from(old.fx.effects,d=>d.name),'旧版の全効果と順序を保持');
+  for(const d of bundle.effects.filter(d=>!d.sourceCode&&!added1017.has(d.name))){
     if(process.env.VB_ONLY&&!process.env.VB_ONLY.split(',').includes(d.name))continue;
     const original=old.fx.effects.find(e=>e.name===d.name);
     for(const key of ['label','ms','color','light','loop','underStatus','stackable'])assert.equal(d[key],original[key],d.name+' のメタデータ '+key);
@@ -270,7 +272,9 @@ async function shapeAxisChecks(bundle){
   console.log('OK 形状の軸別倍率：全時刻の固定縦横比との一致・未指定/倍率1一致・入力/変調・範囲拒否');
 }
 async function run(){
-  const {bundle}=validatedBundle();assert.equal(bundle.effects.filter(d=>!d.sourceCode).length,50);assert.ok(Object.keys(bundle.shapes).length>=15,'元の図形を保持');
+  // 2026-10-17: additions_1017.js の新規分（番号なしの指輪・巻物）は元の50種に数えない。
+  const added1017=new Set((t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/additions_1017.js'),'utf8')).effects.map(d=>d.name));
+  const {bundle}=validatedBundle();assert.equal(bundle.effects.filter(d=>!d.sourceCode&&!added1017.has(d.name)).length,50);assert.ok(Object.keys(bundle.shapes).length>=15,'元の図形を保持');
   schemaChecks(bundle);await allEffects(bundle);await stateChecks();await genericParts(bundle);await shapeAxisChecks(bundle);
   console.log('VFXデータ回帰: 50効果・9時刻・5速さ・状態値8段階・許可リスト拒否・新部品 OK（画面は未確認）');
 }

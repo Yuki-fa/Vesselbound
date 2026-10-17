@@ -2534,7 +2534,9 @@ function coreApplySummonEyeRings(state, unit, emit, sourceUnit, sourceId) {
   const addStats = (amount, reason, rainbowBonus) => {
     const atk = coreStatBonus(unit, amount, sourceUnit), hp = coreStatBonus(unit, amount, sourceUnit);
     unit.atk = Math.max(0, unit.atk + atk); unit.maxHp += hp; unit.hp += hp;
+    // eyeRingColor：どの色の瞳の指輪の効果か（演出・行動表示用。召喚直後の体の色を再生側で引き直さない）。
     emit({ type: 'stat_change', side, unitId: unit.id, atk, hp, reason, sourceId: sourceId || null,
+      ...(reason === 'color_ring_summon' ? { eyeRingColor: unit.color } : {}),
       ...(rainbowBonus != null ? { rainbowBonus } : {}) });
   };
   const colorCount = coreResolvedRings(state, side).filter(ring => {
@@ -2564,7 +2566,7 @@ function coreApplyOpeningRingsToUnitEarly(state, unit, emit) {
     const color = CORE_COLOR_EYE_RINGS[String(ring && ring.name || ring || '')];
     if (!color || unit.color !== color) return;
     unit.atk = Math.max(0, unit.atk + 10); unit.maxHp += 10; unit.hp += 10;
-    emit({ type: 'stat_change', side, unitId: unit.id, atk: 10, hp: 10, reason: 'color_ring' });
+    emit({ type: 'stat_change', side, unitId: unit.id, atk: 10, hp: 10, reason: 'color_ring', eyeRingColor: color });
   });
   // **虹の瞳の指輪は個数分**（鏡の指輪の写しを含む。coreRingCount は鏡を解決した一覧で数える）。
   // 以前は「持っているか」だけを見ていて、鏡で2つ分になっても1つ分しか上がらなかった（2026-10-05 利用者指摘）。
@@ -3386,7 +3388,8 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
       // ダメージ量は本文から読む（基本5／合体10）。
       const pact = coreEffectNumbers(damageDefinition, '攻撃', /ランダムな敵に(\d+)ダメージを与える/, [5])[0];
       const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
-      if (target) applyHit(unit, target, pact, false, false, false, coreEnhancementHitOpt());
+      // 演出だけに使う効果名（竜の契約の火球＝E008）。結果は変わらない。
+      if (target) applyHit(unit, target, pact, false, false, false, { ...coreEnhancementHitOpt(), fxEffect: '竜の契約' });
     }
     // 攻撃：ランダムな敵（N体）にXダメージを与える。Xはマナに等しい（ケンタウロス）。
     // **本文は「Xはマナに等しい」。**「マナの数に等しい」しか受け付けていなかったため、
@@ -3632,7 +3635,8 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   const rageDamage = coreEffectNumbers(unit, '負傷', /ランダムな敵に(\d+)ダメージを与える/, [4])[0];
   for (let i = 0; i < coreEffectRepeatCount(unit, '逆上'); i++) {
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
-    if (target) applyHit(unit, target, rageDamage, false, false, false, coreEnhancementHitOpt());
+    // 演出だけに使う効果名（逆上の破片＝E032）。結果は変わらない。
+    if (target) applyHit(unit, target, rageDamage, false, false, false, { ...coreEnhancementHitOpt(), fxEffect: '逆上' });
   }
   // メデューサ：対象の人数は本文から読む（合体後は2体）。
   const medusaTargets = Math.max(1, coreEffectNumbers(unit, '負傷', /ランダムな敵(\d+)体にXダメージを与える/, [1])[0]);
