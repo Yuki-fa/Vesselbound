@@ -229,6 +229,21 @@ function cardRevealShowFace(rig) {
   p.faceFront.style.transform = 'rotateY(0deg) translateZ(.1px)';
   p.faceBack.style.transform = 'rotateY(180deg) translateZ(.1px)';
 }
+// 再抽選は全札を伏せ終えてから新しい表を入れる。通常のめくりと同じ台・尺を逆向きに使う。
+function cardRevealTurnDown(rig) {
+  cardRevealShowFace(rig);
+  const p=rig&&rig._cr;
+  if(!p) return Promise.resolve();
+  const tier=CARD_REVEAL_TIERS[1];
+  const frames=off=>tier.frames.slice().reverse().map(([offset,angle])=>({
+    offset:1-offset,transform:`rotateY(${angle+off}deg) translateZ(.1px)`,
+  }));
+  const timing={duration:tier.flip,easing:`cubic-bezier(${CARD_REVEAL_FLIP_EASE.join(',')})`,fill:'forwards'};
+  cardRevealTrack(rig,cardRevealAnimate(p.faceFront,frames(0),timing));
+  cardRevealTrack(rig,cardRevealAnimate(p.faceBack,frames(180),timing));
+  cardRevealSoundAt(rig,'cardFlip',tier.flip-cardRevealEdgeMs(1));
+  return new Promise(resolve=>setTimeout(resolve,tier.flip));
+}
 
 // ── 演出の部品 ────────────────────────────────────
 function cardRevealTrack(rig, anim) { if (anim && rig && rig._cr) rig._cr.anims.push(anim); return anim; }
@@ -608,6 +623,6 @@ async function cardRevealPlaySequence(rigs, rarities, opts) {
 if (typeof window !== 'undefined') {
   Object.assign(window, {
     CARD_REVEAL_TIERS, CARD_REVEAL_GROUP_GAP_MS, cardRevealTier, cardRevealLandMs, cardRevealImpactMs, cardRevealSettleMs, cardRevealEdgeMs,
-    cardRevealEnsureStyles, cardRevealCreateRig, cardRevealReset, cardRevealShowFace, cardRevealPlay, cardRevealPlaySequence,
+    cardRevealEnsureStyles, cardRevealCreateRig, cardRevealReset, cardRevealShowFace, cardRevealTurnDown, cardRevealPlay, cardRevealPlaySequence,
   });
 }

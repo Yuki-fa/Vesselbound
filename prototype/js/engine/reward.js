@@ -6,6 +6,20 @@
 let _rewCards=[];
 let _rewFreePickDone=false; // 通常報酬フェイズで無料取得済みフラグ
 let _rewPhaseId=0; // この報酬フェイズで取得したカードだけを戻せるよう識別する
+// 試験実装の設定・追加文言はここだけで管理する（シート参照は増やさない）。
+const SHOP_EXCHANGE_TRIAL={
+  stockCount:3, ringCardCost:3,
+  text:{
+    shopIntro:'魔導店：カード交換',
+    shopSteps:[
+      '店のカードを、魔導板上のカードへドラッグすると交換できます。',
+      '空きマスには置けません。交換の回数・カードの種類に制限はなく、ゴールドも使いません。',
+      '店へ渡したカードも再び交換できます。品揃えと交換結果は、この街へ再訪しても残ります。',
+    ],
+    ringTitle:'指輪の交換が必要です',
+    ringRequired:'出発する前に、塔の祭壇でカードを捧げて指輪を取得してください。',
+  },
+};
 const REWARD_GRID_CAPACITY=5; // 報酬置き場：最大5枚
 // チュートリアルの移動の手順（map.js の runBoardTutorial が G._libraryTutorialMove に入れる）。
 // index が null なら魔導板のどのマスへ置いてもよい（「マージとは」）。
@@ -169,17 +183,70 @@ function _rewardDragZoneForCard(card){
   if(_isItemCard(card)) return 'dragzone-reward-item';
   return _isSpellCard(card)?'dragzone-reward-spell':'dragzone-reward-nonspell';
 }
-// 提示枠の数。道具屋は3枠、それ以外（ショップ／通常報酬）は5枠。
-function _shopSlotCapacity(){
-  return G._isItemShop?3:REWARD_GRID_CAPACITY;
+// 今回の試験はPvEだけ。オンラインは従来の売買規則を同じ入口で使う。
+// 2026-10-18 利用者指定：通常プレイではカードもアイテムも売却できない（売却という機能そのものを無くす）。オンライン対戦は従来どおり。
+const CARD_TRADING_RULES={exchange:{sellCards:false,sellItems:false,exchangeShop:true},legacy:{sellCards:true,sellItems:true,exchangeShop:false}};
+function _cardSellable(card){const r=_cardTradingRules();return _isItemCard(card)?!!r.sellItems:!!r.sellCards;}
+function _cardTradingRules(){ return G&&G._onlineMode?CARD_TRADING_RULES.legacy:CARD_TRADING_RULES.exchange; }
+function _isCardExchangeShop(){
+  return !!(G&&G._isShop&&!G._isItemShop&&_cardTradingRules().exchangeShop);
 }
-// 魔導店の商品パネルを、既存カードのある魔導板へ置く入れ替えだけを止める。
-// 商品枠へ手動で戻した売却待ちカード（_shopSalePending）は返品／売却経路の一部なので対象外。
-// 同名カードの合体は押し出しを伴わないため、従来どおり許可する。
+function _shopSlotCapacity(){
+  return G._isItemShop?3:(_isCardExchangeShop()?SHOP_EXCHANGE_TRIAL.stockCount:REWARD_GRID_CAPACITY);
+}
+// オンラインの従来の購入では押し出しを許さない。交換店は専用の共通入口へ渡す。
 function _shopOfferBoardSwapBlocked(card,destCard,merged,isOfferSource){
-  if(!isOfferSource||typeof G==='undefined'||!G||!G._isShop||!card||!destCard
-    ||card._shopSalePending||_isItemCard(card)) return false;
-  return !merged;
+  return !!(isOfferSource&&G&&G._isShop&&!_isCardExchangeShop()&&card&&destCard
+    &&!card._shopSalePending&&!_isItemCard(card)&&!merged);
+}
+function _exchangeShopCardCopy(card){
+  const copy=clone(card);
+  for(const key of ['_buyPrice','_shopBuy','_shopSalePending','_sellDisplayPrice','_temporaryRewardAreaCard',
+    '_isOriginalReward','_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId']) delete copy[key];
+  return copy;
+}
+function canExchangeShopCardAt(offerIdx,boardIdx){
+  if(!_isCardExchangeShop()||G.phase!=='reward'||G._pendingPanelPlacement) return false;
+  if(!Number.isInteger(offerIdx)||offerIdx<0||offerIdx>=_shopSlotCapacity()) return false;
+  const unit=_getPartyBoardUnit(),board=unit&&unit.boardCards;
+  if(!board||!Number.isInteger(boardIdx)||boardIdx<0||boardIdx>=board.length) return false;
+  const incoming=_rewCards[offerIdx],outgoing=board[boardIdx];
+  if(!incoming||!outgoing||_isSpellCard(incoming)||_isSpellCard(outgoing)) return false;
+  if(!_libraryTutorialAllowsMove(incoming,boardIdx)||!_rewardAreaAcceptsCard(outgoing)) return false;
+  if(!_canCardUseBoardSlot(incoming,boardIdx,unit)) return false;
+  const next=board.slice();next[boardIdx]=incoming;
+  return _canApplyBoardChange(unit,next);
+}
+function _exchangeShopOfferDropAllowedAt(offerIdx){
+  return !!(_dragSrc&&_dragSrc.arr==='boardCards'&&canExchangeShopCardAt(offerIdx,_dragSrc.idx));
+}
+function _clearExchangeShopDropHints(){
+  document.querySelectorAll('.shop-exchange-drop-hint').forEach(el=>el.classList.remove('shop-exchange-drop-hint','drag-over'));
+}
+function _syncExchangeShopDropHints(){
+  _clearExchangeShopDropHints();
+  if(!_isCardExchangeShop()||!_dragSrc) return false;
+  const hint=(el,allowed)=>{if(allowed) el.classList.add('shop-exchange-drop-hint','drag-over');};
+  if(_dragSrc.arr==='rew'){
+    document.querySelectorAll('#hand-slots.board-slots > *').forEach((el,idx)=>hint(el,canExchangeShopCardAt(_dragSrc.idx,idx)));
+  }else if(_dragSrc.arr==='boardCards'){
+    document.querySelectorAll('#reward-offer-row > .rew-card[data-merge-rew-idx]').forEach(el=>hint(el,_exchangeShopOfferDropAllowedAt(Number(el.dataset.mergeRewIdx))));
+  }else return false;
+  return true;
+}
+// ドラッグ・クリック指定・周回ボットで共用する、ゴールドを動かさない1対1の交換。
+function exchangeShopCard(offerIdx,boardIdx){
+  if(!canExchangeShopCardAt(offerIdx,boardIdx)) return false;
+  const unit=_getPartyBoardUnit(),incoming=_rewCards[offerIdx],outgoing=unit.boardCards[boardIdx];
+  unit.boardCards[boardIdx]=_exchangeShopCardCopy(incoming);
+  _rewCards[offerIdx]=_exchangeShopCardCopy(outgoing);
+  _syncUnitPanelEffectsAfterMove(unit);
+  if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
+  if(typeof markCardAcquired==='function') markCardAcquired(incoming);
+  _persistCurrentShopStock();
+  if(typeof playSfx==='function') playSfx('fit',{group:'reward'});
+  renderRewCards();renderHandEditor();renderFieldEditor();renderMoveSlotsInEnemy();
+  return true;
 }
 function _prepareRewardAreaCard(card,isCurrentReturn,restoreItemBuff){
   const returned=clone(isCurrentReturn?card._rewardReturnCard:card);
@@ -190,7 +257,7 @@ function _prepareRewardAreaCard(card,isCurrentReturn,restoreItemBuff){
   if(!isCurrentReturn){
     returned._isOriginalReward=false;
     returned._temporaryRewardAreaCard=true;
-    if(G._isShop){
+    if(G._isShop&&_cardSellable(returned)){
       returned._shopSalePending=true;
       returned._sellDisplayPrice=_shopCardSellGain(returned);
     }
@@ -204,6 +271,8 @@ function _clearShopSalePending(card){
 }
 function _pushToRewardArea(card){
   if(!card) return true;
+  if(_isCardExchangeShop()) return false;
+  if(G._isShop&&!_isItemCard(card)&&!_cardTradingRules().sellCards) return false;
   if(!_rewardAreaAcceptsCard(card)) return false;
   if(_isCurrentRewardReturnCard(card)) return _restoreRewardReturnCard(card);
   const returned=_prepareRewardAreaCard(card,false);
@@ -229,7 +298,9 @@ function _pushToRewardArea(card){
 // allowSwap=trueの場合、指定スロットが埋まっていても入れ替え、押し出されたカードを返す
 // （戻り値は{ok, displaced}。allowSwap未指定時は従来通りboolean互換のtrue/falseを返す）
 function _pushToRewardAreaAt(card,idx,allowSwap){
+  if(_isCardExchangeShop()) return allowSwap?{ok:false,displaced:null}:false;
   if(!card) return allowSwap?{ok:true,displaced:null}:true;
+  if(G._isShop&&!_isItemCard(card)&&!_cardTradingRules().sellCards) return allowSwap?{ok:false,displaced:null}:false;
   if(!_rewardAreaAcceptsCard(card)) return allowSwap?{ok:false,displaced:null}:false;
   if(!Array.isArray(_rewCards)) _rewCards=[];
   if(!Number.isInteger(idx)||idx<0||idx>=REWARD_GRID_CAPACITY||(_rewCards[idx]&&!allowSwap)){
@@ -249,8 +320,9 @@ function _persistCurrentShopStock(){
 }
 
 function _sellPendingShopCard(idx){
+  if(_isCardExchangeShop()) return false;
   const card=Array.isArray(_rewCards)?_rewCards[idx]:null;
-  if(!card||!card._shopSalePending||_cardIsEngraved(card)) return false;
+  if(!card||!_cardSellable(card)||!card._shopSalePending||_cardIsEngraved(card)) return false;
   if(typeof questTryBlockedCardSale==='function'&&questTryBlockedCardSale(card)) return false;
   if(typeof _playRewardAcquireSfx==='function') _playRewardAcquireSfx('sell.wav');
   const base=Math.max(0,Number(card._sellDisplayPrice??_shopCardSellGain(card))||0);
@@ -294,7 +366,7 @@ function _reclaimSacrificedRingCards(){
   // カードが手元にあるまま指輪だけ解放された状態になる。
   G._ringSacrificedCards=[];
   G._boardDiscardCount=Math.max(0,(Number(G._boardDiscardCount)||0)-restored);
-  if(G._boardDiscardCount<3) G._ringOfferUnlocked=false;
+  if(G._boardDiscardCount<SHOP_EXCHANGE_TRIAL.ringCardCost) G._ringOfferUnlocked=false;
   return restored;
 }
 // 祭壇（指輪交換）を、指輪を取らずに離れる時の確認。
@@ -385,6 +457,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
     renderHandEditor();
     return false;
   }
+  if(_isCardExchangeShop()) return false;
   const unit=_getPartyBoardUnit();
   if(!unit) return false;
   const boardList=_normalizeUnitBoardCards(unit);
@@ -394,7 +467,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
   const merged=_mergedPanelCard(oldCard,pending.card);
   // 依頼カードをクリックで既存カードと入れ替える場合も、押し出すカードが依頼枠へ戻せる時だけ許可する。
   if(oldCard&&!merged&&!_rewardAreaAcceptsCard(oldCard)) return false;
-  // 魔導店の商品で既存の魔導板カードを商品枠へ押し出す入れ替えは禁止する。
+  // 行商人の購入では、既存カードの押し出しを許可しない。
   const isShopOfferPlacement=pending.rewardIdx>=0||pending.sourceName==='報酬';
   if(_shopOfferBoardSwapBlocked(pending.card,oldCard,merged,isShopOfferPlacement)) return false;
   const nextBoardList=boardList.slice();
@@ -455,7 +528,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
   _syncRewardPanelPlacementOverlay();
   if(done) done();
   // 3枚合体時は通常配置音を鳴らさず、1.5秒の吸い込み完了時にmerge.wavだけを鳴らす。
-  // 魔導店での配置＝購入なので、通常の配置音ではなくbuy1.wavを鳴らす。
+  // 行商人で代金を支払う配置は購入音を鳴らす。
   if(!tripleMerge){
     _clearTripleMergeHidden();
     if(G._isShop&&typeof _playRewardAcquireSfx==='function'&&!isPendingSale) _playRewardAcquireSfx('buy1.wav');
@@ -601,10 +674,9 @@ function _detachBoardConnectionVisuals(srcIdx, srcEl, srcCard){
 }
 
 // デバッグモード中、所持金の下の枠に「リロール」を表示する（戦闘中は#btn-debug-killが同じ枠に表示される）
-// 魔導板上のカードを売却できる施設か。魔導店（_isShop）に加え、鍛冶屋（_isForge）でも売却できる。
-// **デバッグモードの編成画面でも魔導店と同じ売却ボタンを出す**（利用者指定）。
-// 以前はデバッグモードだけボタンが出ず、×の経路でゴールドも入らずに消えていた。
+// PvEのカード換金は廃止。アイテムとオンラインの既存の売買は従来どおり。
 function _boardCardSellEnabled(card){
+  if(!_cardSellable(card)) return false;
   if(card&&card._npcCard) return false;
   if(_cardIsEngraved(card)) return false;
   if(typeof questCardSellHidden==='function'&&questCardSellHidden(card)) return false;
@@ -618,7 +690,8 @@ function _boardCardSellEnabled(card){
 }
 
 function _shopCardSellGain(card){
-  if(!card) return 0;
+  if(_isCardExchangeShop()) return 0;
+  if(!card||!_isItemCard(card)&&!_cardTradingRules().sellCards) return 0;
   // 売値は「どの店にいるか」ではなく「何を売るか」で決める（全店共通）。
   //   アイテム   → 道具屋準拠（レアリティ×45）
   //   その他カード → 魔導店準拠（_mapSalePrice の4分の1）
@@ -644,7 +717,7 @@ function goToReward(options){
   const _restoreCheckpoint=!!(options&&options.restoreCheckpoint);
   const _saveCheckpoint=!!(options&&options.checkpoint);
   const _noNewRewards=!!(options&&options.noNewRewards);
-  // 行商人（初めての敗北のイベントの後。peddler.js）：敗北後の編成画面を、魔導店と同じ売買の画面として開く。
+  // 行商人（peddler.js）：敗北後の編成画面を、魔導店と同じ交換の画面として開く。
   // 施設として入るのではないので、敗北後の reward チェックポイントはそのまま作る（品揃えと店の旗も保存される）。
   const _peddler=!!(options&&options.peddler);
   // 前回のめくりが途中で残っていれば片付ける（報酬欄が隠れたままにならないように）。
@@ -679,17 +752,17 @@ function goToReward(options){
       ()=>_arrangeRewardRarity(drawRewards().filter(c=>c).slice(0,_waveRewardCount)));
     if(!_noNewRewards&&!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
     G._retryRewardCards=null;
-    _rewCards.forEach(c=>{ if(c) c._isOriginalReward=true; });
+    _rewCards.forEach(c=>{ if(c){ towerBoonBlessGeneratedCard(c); c._isOriginalReward=true; } });
+    if(_saveCheckpoint&&!_isFacilityEntry&&!_noNewRewards) towerBoonGrantRewardRerolls();
     if(_peddler){
-      // 商品は報酬ではない（1枚だけ取れる制限を掛けない）。代金は各商品の _buyPrice。
-      _rewCards=clone(G._peddlerStock||[]);
+      // 商品は報酬ではない（1枚だけ取れる制限を掛けない）。交換は魔導店と共通。
       _rewFreePickDone=false;
       G._freeRewardPanelMode=false;
       G._isShop=true;
       G._isPeddler=true;
       G._isItemShop=false;
       G._mapReturnAfterReward=false;
-      G._shopVisitSeq=(Number(G._shopVisitSeq)||0)+1;
+      _rewCards=_ensureDefeatPeddlerStock();
       G._facilityLabel=typeof defeatPeddlerTitle==='function'?defeatPeddlerTitle():'';
     }
     _storeRewardStartSnapshot();
@@ -701,7 +774,7 @@ function goToReward(options){
   if(typeof _resumeRewardBgVideo==='function') _resumeRewardBgVideo();
   if(!_isFacilityEntry&&typeof playSfx==='function') playSfx('menuOpen',{group:'ui'});
   // 街のBGMが鳴っている間（＝街の施設に入っている間）はmenu.wavへ切り替えない。
-  // 行商人の売買の編成画面は camp の背景と行商人の立ち絵のまま、BGM を流さない（peddler.js。再開時もここで戻す）。
+  // 行商人の交換の編成画面は camp の背景と行商人の立ち絵のまま、BGM を流さない（peddler.js。再開時もここで戻す）。
   if(G._isPeddler&&typeof defeatPeddlerApplySaleScene==='function') defeatPeddlerApplySaleScene();
   // 魔獣撃退依頼の討伐後の編成画面は BGM を流さない（環境音だけ。quest.js _qShowGarmCamp の G._questNoBgm）。
   if(!G._villageBgmActive&&!G._questNoBgm&&typeof playBgm==='function') playBgm('menu',{fadeInMs:700});
@@ -774,7 +847,61 @@ const REWARD_REVEAL_START_MS=800;// 暗転が明けてからめくり始める�
 const REWARD_REVEAL_FADE_MS=520; // 手前のカードと黒が消える時間（CSSと揃える）
 const REWARD_REVEAL_SWEEP_MS=640; // 光の帯が流れ切るまで（CSSのアニメーションの長さと揃える）
 let _rewardRevealToken=0;        // 画面を離れる・出し直す時に、走っている演出を無効にする
+let _rewardRerollReveal=null;    // DOMと演出の参照はセーブへ入れない
 function _rewardRevealRarity(card){ return Math.max(1,Math.min(5,Number(card&&card.rarity)||1)); }
+function _rewardRerollVfxIndex(cards){
+  let best=-1;
+  (cards||[]).forEach((card,i)=>{if(card&&(best<0||_rewardRevealRarity(card)>_rewardRevealRarity(cards[best]))) best=i;});
+  return best;
+}
+function _rewardRerollFace(card){
+  const front=mkCardEl(card,-1,'reveal');
+  front.classList.add('reward-reveal-face');
+  if(typeof applyCardVisual==='function') applyCardVisual(front,card);
+  return front;
+}
+function _prepareRewardRerollReveal(cards){
+  const host=document.getElementById('scr-battle'),row=document.getElementById('reward-offer-row');
+  if(!host||!row||typeof cardRevealCreateRig!=='function') return null;
+  const bounds=host.getBoundingClientRect(),scale=host.offsetWidth?bounds.width/host.offsetWidth:0;
+  if(!(scale>0)) return null; // Node検査・非表示画面では描画だけ省く。
+  _finishRewardReveal(true);
+  const layer=document.createElement('div');layer.id='reward-reroll-layer';
+  const rigs=[];
+  Array.from(row.children).forEach(el=>{
+    const idx=Number(el.dataset.mergeRewIdx),card=cards[idx],rect=el.getBoundingClientRect();
+    if(!card||!(rect.width>0)) return;
+    const rig=cardRevealCreateRig(_rewardRerollFace(card),rect.width/scale);
+    rig.style.left=`${(rect.left-bounds.left)/scale}px`;rig.style.top=`${(rect.top-bounds.top)/scale}px`;
+    cardRevealShowFace(rig);layer.appendChild(rig);rigs.push({idx,rig});
+  });
+  if(!rigs.length) return null;
+  host.appendChild(layer);
+  document.body.classList.add('reward-reroll-active');
+  _rewardRerollReveal={layer,rigs,token:_rewardRevealToken};
+  return _rewardRerollReveal;
+}
+async function _playRewardRerollReveal(reveal,cards){
+  try{
+    await Promise.all(reveal.rigs.map(({rig})=>cardRevealTurnDown(rig)));
+    if(_rewardRerollReveal!==reveal||reveal.token!==_rewardRevealToken||G.phase!=='reward') return;
+    const best=_rewardRerollVfxIndex(cards);
+    reveal.rigs=reveal.rigs.filter(({rig,idx})=>{if(cards[idx]) return true;rig.remove();return false;});
+    reveal.rigs.forEach(({rig,idx})=>{
+      rig._cr.faceFront.querySelector('.cr-front-content').replaceChildren(_rewardRerollFace(cards[idx]));
+      rig.style.zIndex=idx===best?'2':'1';
+    });
+    // 全部が裏になった後、最高レア1枚だけ既存VFXを出す。他の札は通常めくり。
+    await cardRevealPlaySequence(reveal.rigs.map(x=>x.rig),reveal.rigs.map(x=>x.idx===best?_rewardRevealRarity(cards[x.idx]):1));
+  }catch(e){console.error('[reward reroll]',e);}
+  finally{
+    if(_rewardRerollReveal===reveal){
+      reveal.rigs.forEach(({rig})=>cardRevealReset(rig));reveal.layer.remove();
+      _rewardRerollReveal=null;document.body.classList.remove('reward-reroll-active');
+      towerBoonSyncRerollButton();
+    }
+  }
+}
 function _playRewardReveal(){
   const host=document.getElementById('scr-battle');
   const cards=(_rewCards||[]).filter(Boolean);
@@ -816,6 +943,10 @@ function _playRewardReveal(){
 function _finishRewardReveal(immediate){
   const layer=document.getElementById('reward-reveal-layer');
   if(immediate) _rewardRevealToken++;
+  if(immediate&&_rewardRerollReveal){
+    _rewardRerollReveal.rigs.forEach(({rig})=>cardRevealReset(rig));_rewardRerollReveal.layer.remove();
+    _rewardRerollReveal=null;document.body.classList.remove('reward-reroll-active');
+  }
   // 報酬欄のカードはCSSのトランジションでフェードインする。
   document.body.classList.remove('reward-reveal-active');
   if(immediate){ document.getElementById('reward-reveal-sweep')?.remove(); }
@@ -880,6 +1011,7 @@ function _facilityCommitStateChanged(){
 
 function resetRewardToStart(options){
   if(G.phase!=='reward'||!G._rewardStartSnapshot) return;
+  _finishRewardReveal(true);
   const s=G._rewardStartSnapshot;
   if(s.retainedQuests&&typeof questRestoreRetainedProgress==='function') questRestoreRetainedProgress(s.retainedQuests);
   const _forgePlacementOnly=!!(options&&options.forgePlacementOnly);
@@ -925,7 +1057,7 @@ function resetRewardToStart(options){
   renderHandEditor();
   renderFieldEditor();
   renderMoveSlotsInEnemy();
-  if(G._isRingExchange&&typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
+  if((G._isRingExchange||_isCardExchangeShop())&&typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
 }
 
 // ── 行き先ノード表示 ───────────────────────────
@@ -1004,6 +1136,7 @@ function renderMoveSlotsInEnemy(){
     // 項目選択（村/祭壇メニュー）へ戻るだけにする。
     // 行商人（敗北後の編成画面を兼ねる）は店を出るのではなく、そのまま再戦へ進む。
     const _waveFacilityReturn=G._isLibrary||((G._isShop&&!G._isPeddler)||G._isForge||G._isRingExchange);
+    const ringDepartureControl=!_waveFacilityReturn&&!G._isTavern&&!G._isFiveSaints;
     const btn=document.createElement('button');
     btn.className='btn rew-move-btn';
     btn.dataset.sfxSilent='1';
@@ -1032,6 +1165,7 @@ function renderMoveSlotsInEnemy(){
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
       if(G._pendingPanelPlacement) return;
+      if(ringDepartureControl&&!guardRingExchangeDeparture()) return;
       if(!_waveFacilityReturn&&G._moveInlineLocked) return;
       if(_waveFacilityReturn&&!guardFormationLeave()) return;
       if(!_waveFacilityReturn&&typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
@@ -1049,7 +1183,7 @@ function renderMoveSlotsInEnemy(){
             if(typeof openMapVillage==='function') openMapVillage();
           }
         };
-        // 魔導店を出る時の確認は廃止した（商品枠に魔導板のカードを置けなくなったため）。
+        // 魔導店の交換はその場で完了し、未決済のカードを残さない。
         // 途中離脱の確認が要るのは祭壇（カードを捧げ切る前に離れる時）だけ。
         // 施設を出る時は暗転を挟む（map.js の fadeScreenSwitch。2026-09-24 利用者指定）。
         const goBackFaded=()=>{
@@ -1078,6 +1212,7 @@ function renderMoveSlotsInEnemy(){
       if(G._isWaveAltar&&typeof departWithWorldMap==='function'){ departWithWorldMap({save:true}); return; }
       if(typeof shopDone==='function') shopDone();
     };
+    if(ringDepartureControl) syncRingExchangeDepartureButton(btn);
     el.appendChild(btn);
     // 鍛冶屋には「元に戻す」を置かない（ショップ・指輪交換とは異なり、鍛冶屋は仕様として置かない）。
     // ただしデバッグモードでは検証用に鍛冶屋でも表示し、押すと入店時点まで巻き戻す。
@@ -1143,6 +1278,7 @@ function renderMoveSlotsInEnemy(){
     const label=_onlineFormLabel||_startLabel2;
     btn.innerHTML=`<span class="rew-btn-label">${label}</span>`;
     btn.onclick=()=>{
+      if(!guardRingExchangeDeparture()) return;
       if(btn.disabled||G._moveInlineLocked) return;
       if(!_onlineFormLabel&&!guardFormationLeave()) return;
       btn.disabled=true;
@@ -1150,6 +1286,7 @@ function renderMoveSlotsInEnemy(){
       chooseMoveInline(opt.nodeType);
     };
     if(G._pendingPanelPlacement||G._moveInlineLocked){ btn.classList.add('disabled'); btn.disabled=true; }
+    syncRingExchangeDepartureButton(btn);
     el.appendChild(btn);
   });
   const reset=document.createElement('button');
@@ -1164,6 +1301,7 @@ function renderMoveSlotsInEnemy(){
 }
 
 function chooseMoveInline(nt){
+  if(!guardRingExchangeDeparture()) return;
   if(G._pendingPanelPlacement) return;
   if(G._moveInlineLocked) return; // 連打による戦闘開始の二重発火を防止
   G._moveInlineLocked=true;
@@ -1206,6 +1344,8 @@ function _canReturnDragSrcToRewardArea(){
   // （この関数のリスナー自体は#reward-offer-rowに一度だけ登録され、フェイズが変わっても残り続けるため
   // ここで都度チェックする必要がある）。
   if(G._ringOfferPhase) return false;
+  if(_isCardExchangeShop()) return false;
+  if(G._isShop&&!_isItemCard(_dragSrcCard())&&!_cardTradingRules().sellCards) return false;
   if(G._isForge) return false;
   // 五聖の座は提示された刻印を盤面へ置く一方向の編成。盤面カードとの報酬枠交換を許すと、
   // 抑圧の刻印が指定マス判定を通らずドラッグ元マスへ入る。戻す操作は全体リセットだけに限定する。
@@ -1335,7 +1475,7 @@ function _syncRewardProductionUi(){
   if(!body) return;
   _syncRewardJourneyUi();
   if(!G||G.phase!=='reward'){
-    body.classList.remove('reward-pick-finished','reward-return-open','reward-pick-taken','forge-screen-active','shop-screen-active','tavern-screen-active','five-saints-formation-active');
+    body.classList.remove('reward-pick-finished','reward-return-open','reward-pick-taken','reward-pick-resources-dim','forge-screen-active','shop-screen-active','tavern-screen-active','five-saints-formation-active');
     body.classList.remove('map-forge-roll-hide-cards');
     _syncMoneyTurnTile();
     return;
@@ -1358,6 +1498,7 @@ function _syncRewardProductionUi(){
     ?!!G._ringOfferResolved
     :!!(G._rewardOnePickMode&&_rewFreePickDone&&!G._pendingPanelPlacement&&!returnDragging);
   body.classList.toggle('reward-pick-taken',pickTaken);
+  body.classList.toggle('reward-pick-resources-dim',!G._onlineMode&&!!(G._rewardOnePickMode&&_rewFreePickDone));
   _syncMoneyTurnTile();
   _syncRewardProductionItems();
   _syncRewardProductionRings();
@@ -1555,6 +1696,8 @@ function _hideRewardRingTooltip(){
   if(tip&&tip.dataset.rewardLocked!=='1') tip.style.display='none';
 }
 function renderRewCards(){
+  towerBoonSyncRerollButton();
+  requestAnimationFrame(towerBoonSyncRerollButton);
   _syncRewardPanelPlacementOverlay();
   _syncRewardProductionUi();
   document.body.classList.toggle('ring-offer-phase',!!(G&&G.phase==='reward'&&G._ringOfferPhase));
@@ -1644,11 +1787,10 @@ function renderRewCards(){
     return;
   }
   if(G._isShop){
-    for(let i=0;i<REWARD_GRID_CAPACITY;i++){
+    for(let i=0;i<_shopSlotCapacity();i++){
       const card=_rewCards[i]||null;
       // 購入済みの枠は詰めずに残し、中心に「売切」と表示する。
-      // 行商人のアイテム枠（右端）は、売切も道具屋と同じ正方形の枠で下側に揃える（2026-10-11 利用者指摘：カードの売切になっていた）。
-      if(!card){ el.appendChild(G._isPeddler&&typeof defeatPeddlerIsItemSlot==='function'&&defeatPeddlerIsItemSlot(i)?_mkShopSoldOutDiv(0):_mkShopSoldOutDiv()); continue; }
+      if(!card){ el.appendChild(_mkShopSoldOutDiv()); continue; }
       const d=_mkRewDiv(card,()=>takeRewCard(i),i);
       // 行商人のアイテムは道具屋と同じ正方形の枠で、行の下側に揃える（2026-10-10 利用者指定）。
       if(_isItemCard(card)){
@@ -1841,15 +1983,30 @@ function _ensureRewardCardDimLayer(cardEl){
 }
 
 function _mkRewDiv(card, onBuy, rewIdx){
-  const isPendingSale=!!card._shopSalePending;
+  const exchange=_isCardExchangeShop();
+  const isPendingSale=!exchange&&!!card._shopSalePending&&(_isItemCard(card)||_cardTradingRules().sellCards);
   const cost=Math.max(0,(card._buyPrice??1));
-  const canBuy=!isPendingSale&&(!G._isRewardTown||G._freeRewardPanelMode||cost===0||G.gold>=cost);
+  const canBuy=exchange||!isPendingSale&&(!G._isRewardTown||G._freeRewardPanelMode||cost===0||G.gold>=cost);
   const isLegend=!!card._isLegend;
   const div=typeof mkCardEl==='function'?mkCardEl(card,rewIdx??-1,'reward'):document.createElement('div');
   div.classList.add('rew-card');
   if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
   // 盤面が変わった後に「取ると合体」を付け直せるよう、対応する提示カードの位置を残す。
   if(Number.isInteger(rewIdx)&&rewIdx>=0) div.dataset.mergeRewIdx=String(rewIdx);
+  if(exchange&&Number.isInteger(rewIdx)&&rewIdx>=0){
+    div.addEventListener('dragover',e=>{
+      if(!_exchangeShopOfferDropAllowedAt(rewIdx)) return;
+      e.preventDefault();div.classList.add('drag-over');
+    });
+    div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
+    div.addEventListener('drop',e=>{
+      if(!_exchangeShopOfferDropAllowedAt(rewIdx)) return;
+      e.preventDefault();e.stopPropagation();
+      const boardIdx=_dragSrc.idx;_dragSrc=null;
+      _clearExchangeShopDropHints();_removeDragGhost();_clearDragZoneClass();
+      exchangeShopCard(rewIdx,boardIdx);
+    });
+  }
   if(_rewardMergeCandidate(rewIdx,card)) div.classList.add('merge-ready');
   if(card.rarity>=1&&card.rarity<=5) div.classList.add(`rarity-${card.rarity}`);
   // 戦闘報酬で最初から置かれていたカード（レア度2以上）は、取得するまで枠をめくり演出と同じ色で光らせる。
@@ -1868,7 +2025,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
   }
 
   // 価格バッジはショップかつ価格1以上の場合のみ。無料報酬（cost===0）ではDOM自体を作らない
-  const showPriceBadge=!!G._isShop&&cost>0&&!isPendingSale;
+  const showPriceBadge=!!G._isShop&&!exchange&&cost>0&&!isPendingSale;
   if(showPriceBadge){
     // ショップ価格は丸囲み数字／括弧表示を使わず、売却価格と同じ価格枠で表示する。
     div.querySelector('.card-badge')?.remove();
@@ -1883,7 +2040,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     div.querySelector('.card-badge')?.remove();
     div.querySelector('.shop-buy-price')?.remove();
   }
-  if(G._isRewardTown&&!isPendingSale&&!canBuy){
+  if(G._isRewardTown&&!exchange&&!isPendingSale&&!canBuy){
     const shortBadgeItem=document.createElement('div');
     shortBadgeItem.className='shop-insufficient-badge';
     shortBadgeItem.textContent=_uiLabel('ショップ「ゴールド不足」表示','ゴールド不足');
@@ -1900,7 +2057,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
     div.appendChild(sale);
     // 売却待ちカードはクリックでも魔導板へ戻せるようにする（売却ボタン以外の領域）。
     if(typeof onBuy==='function') div.onclick=onBuy;
-  }else if(canBuy&&(G._isShop||G._isTavern)) div.onclick=onBuy;
+  }else if(canBuy&&!exchange&&(G._isShop||G._isTavern)) div.onclick=onBuy;
   _appendLibraryLoanBadge(div);
   if(rewIdx!=null){
     // 売却待ち（魔導板から販売枠へ戻した手持ちカード）は購入対象ではないので canBuy=false になるが、
@@ -2185,7 +2342,7 @@ function _discardBoardCardForRingOffer(idx,card){
   const ringGetCount=Math.max(1,Math.min(3,G._ringSacrificedCards.length));
   _playRewardAcquireSfx(`ring_get${ringGetCount}.wav`);
   // 3枚廃棄すると指輪を1つだけ得られるようになる（6枚廃棄しても2つにはならない：1度解放したら再度解放しない）
-  if(G._boardDiscardCount>=3&&!G._ringOfferUnlocked){
+  if(G._boardDiscardCount>=SHOP_EXCHANGE_TRIAL.ringCardCost&&!G._ringOfferUnlocked){
     G._ringOfferUnlocked=true;
   }
   renderHandEditor();
@@ -2194,7 +2351,7 @@ function _discardBoardCardForRingOffer(idx,card){
   renderMoveSlotsInEnemy();
 }
 
-// ── 返品（魔導店・道具屋で、この来店で買った商品）─────────────────
+// ── 返品（PvEはアイテムのみ。オンラインは従来の商品も対象）─────────────────
 // 買った商品には _shopBuy（来店の番号・商品枠・買値・商品の写し）を付ける。
 // この来店の間は、右上に売価の代わりに「返品」（テキストメッセージ「「返品」ボタン」）を出し、
 // 押すと買値と同額を返して商品枠へ戻す（強欲の指輪などの倍率は掛けない）。
@@ -2202,13 +2359,14 @@ function _shopPurchaseKey(){
   return `${Number(G&&G._shopVisitSeq)||0}:${G&&G._isItemShop?'item':'shop'}`;
 }
 function markShopPurchase(target,offerCard,rewIdx,price){
-  if(!target||!G||!G._isShop||!(Number(price)>0)) return;
+  if(!target||!_isItemCard(target)&&!_cardTradingRules().sellCards||!G||!G._isShop||!(Number(price)>0)) return;
   const copy=clone(offerCard);
   delete copy._shopBuy;
   target._shopBuy={key:_shopPurchaseKey(),idx:Number(rewIdx),price:Number(price),card:copy};
 }
 function isShopReturnable(card){
-  return !!(card&&!_cardIsEngraved(card)&&card._shopBuy&&G&&G._isShop&&card._shopBuy.key===_shopPurchaseKey());
+  if(_isCardExchangeShop()) return false;
+  return !!(card&&(_isItemCard(card)||_cardTradingRules().sellCards)&&!_cardIsEngraved(card)&&card._shopBuy&&G&&G._isShop&&card._shopBuy.key===_shopPurchaseKey());
 }
 function returnShopPurchase(card,removeFromOwner){
   if(_cardIsEngraved(card)||!isShopReturnable(card)) return false;
@@ -2234,6 +2392,7 @@ function _shopReturnLabel(){ return _uiLabel('「返品」ボタン','返品'); 
 
 function takeRewCard(i, targetSlot){
   if(G._pendingPanelPlacement) return;
+  if(_isCardExchangeShop()) return exchangeShopCard(i,targetSlot);
   const card=_rewCards[i]; if(!card) return;
   if(!_libraryTutorialAllowsMove(card,targetSlot)) return;
   // 売却待ち（魔導板から販売枠へ戻した自分のカード）は購入ではなく「戻す」操作なので、
@@ -2560,8 +2719,10 @@ function _setDragZoneClass(cls){
     }
   }
   _syncRewardProductionUi();
+  _syncExchangeShopDropHints();
 }
 function _clearDragZoneClass(){
+  _clearExchangeShopDropHints();
   _setInvalidBoardOverlayDragDimming(false);
   document.body.classList.remove(..._DRAG_ZONE_CLASSES);
   _clearDragZoneRaise();
@@ -3252,6 +3413,7 @@ function _panelCharacterPreviewStats(unit,idx,card){
   return base;
 }
 function _mergedPanelCard(a,b){
+  if(!panelMergeEnabled()) return null;
   if(!a||!b||typeof PANEL_POOL==='undefined'||typeof makePanel!=='function') return null;
   if(typeof questCardRemovalLocked==='function'&&(questCardRemovalLocked(a)||questCardRemovalLocked(b))) return null;
   // 荷物は通常の2枚合体不可。魔鏡も3枚目の代替素材としてのみ扱う。
@@ -3278,6 +3440,8 @@ function _ownedMergeCards(){
   return out.filter(card=>typeof questCardRemovalLocked!=='function'||!questCardRemovalLocked(card));
 }
 function _rewardMergeCandidate(rewIdx,card){
+  if(!panelMergeEnabled()) return false;
+  if(_isCardExchangeShop()) return false;
   if(!card||!G) return false;
   if(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)) return false;
   if(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(card)) return false;
@@ -3381,6 +3545,7 @@ function _clearTripleMergeHidden(){
   G._tripleMergeHiddenIdx=null;
 }
 function _tryTripleMergeOnBoard(unit,placedIdx){
+  if(!panelMergeEnabled()) return null;
   if(!unit||!Array.isArray(unit.boardCards)) return null;
   const placed=unit.boardCards[placedIdx];
   if(!placed||placed._tripleMerged) return null;
@@ -3436,6 +3601,7 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
     return {idx,rect,cloneEl,baseWidth,baseHeight};
   }).filter(Boolean);
   const target=unit.boardCards[targetIdx];
+  const sourceBoonMuls=new Map(picked.map(idx=>[idx,unit.boardCards[idx]?.boon?.statMul||1]));
   const def=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(target.id&&p.id===target.id)||p.name===target.name))||target;
   const baseName=String(target.name||'').replace(/\+$/,'');
   // アイテム等で個別に付与されたキーワードも、3枚すべてから合体後へ引き継ぐ。
@@ -3454,6 +3620,8 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
       tripleExtraKeywords=_mergeCardKeywordsForBond(tripleExtraKeywords,extraPanelKeywords(source));
     }
   });
+  const mergedBoon=coreMergeBoons(picked.map(idx=>unit.boardCards[idx]));
+  if(mergedBoon) coreApplyCardBoon(target,mergedBoon,{effectsOnly:true});
   target.keywords=mergedKeywords;
   target._tripleMerged=true;
   target._tripleBaseName=baseName;
@@ -3513,14 +3681,16 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
       const sdef=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(src.id&&p.id===src.id)||p.name===src.name))||src;
       const sAtk=Number(sdef.power??sdef.atk??0)||0;
       const sHp=Number(sdef.life??sdef.hp??1)||1;
-      atkBuff+=(Number(src.power??src.atk??sAtk)||0)-sAtk;
-      hpBuff+=(Number(src.life??src.hp??sHp)||0)-sHp;
+      const statMul=sourceBoonMuls.get(idx)||1;
+      atkBuff+=(Number(src.power??src.atk??sAtk)||0)-sAtk*statMul;
+      hpBuff+=(Number(src.life??src.hp??sHp)||0)-sHp*statMul;
     });
     // 2026-10-12 利用者指定: 基本能力3倍＋3枚の個別補正。ポート等は従来どおり。
-    target._permBasePower=tripleBase.power;
-    target._permBaseLife=tripleBase.life;
-    target.power=tripleBase.power+atkBuff;
-    target.life=Math.max(1,tripleBase.life+hpBuff);
+    const statMul=mergedBoon?mergedBoon.statMul:1;
+    target._permBasePower=tripleBase.power*statMul;
+    target._permBaseLife=tripleBase.life*statMul;
+    target.power=target._permBasePower+atkBuff;
+    target.life=Math.max(1,target._permBaseLife+hpBuff);
     if(target.atk!=null) target.atk=target.power;
     if(target.hp!=null) target.hp=target.life;
   }
@@ -4105,6 +4275,8 @@ function _wireHeCardDiscard(div,card,arr,arrName,i,_ringOfferDiscardable){
     discardBtn.onclick=ev=>{
     ev.stopPropagation();
     if(_libraryTutorialIsMoveStep()) return;
+    if(!_cardTradingRules().sellCards&&discardBtn.classList.contains('shop-board-sell-action')
+      &&!['library-loan-return-btn','shop-return-btn','quest-part-btn','ring-offer-discard-btn'].some(c=>discardBtn.classList.contains(c))) return;
     if(typeof questTryBlockedCardSale==='function'&&questTryBlockedCardSale(card)) return;
     if(discardBtn.classList.contains('library-loan-return-btn')){
       _returnLibraryLoanCard(i,card);
@@ -4304,6 +4476,7 @@ function _renderHeEmptySlot(el,arrName,i,_slotDef,_handPos,_handMid,_handArc){
   }
   ph.addEventListener('dragover',e=>{
     if(arrName==='globalPanels') return;
+    if(arrName==='boardCards'&&!_boardDropAllowedAt(i)) return;
     if(arrName==='boardCards'&&_dragSrc&&_dragSrc.arr==='rew'&&_isItemCard(_rewCards[_dragSrc.idx])) return;
     if(arrName==='boardCards'&&_dragSrc){
       const c=_dragSrc.arr==='rew'?_rewCards[_dragSrc.idx]:_dragSrc.arr==='boardCards'?(_getPartyBoardUnit()?.boardCards||[])[_dragSrc.idx]:_dragSrc.card;
@@ -4725,8 +4898,9 @@ function _dragSrcCard(){
   return _dragSrc.card||null;
 }
 function _syncNpcDropHints(){
+  const exchanging=_syncExchangeShopDropHints();
   const card=_dragSrcCard();
-  const on=_cardRequiresDeployableSlot(card);
+  const on=!_isCardExchangeShop()&&_cardRequiresDeployableSlot(card);
   const srcIdx=on&&_dragSrc.arr==='boardCards'?_dragSrc.idx:-1;
   const questDrag=on&&typeof questRequestDragActive==='function'&&questRequestDragActive(card);
   const board=(_getPartyBoardUnit()||{}).boardCards||[];
@@ -4737,10 +4911,11 @@ function _syncNpcDropHints(){
     el.classList.toggle('npc-drop-hint',allowed&&(_boardDropAllowedAt(i)||danger));
     el.classList.toggle('npc-drop-danger',!!danger);
   });
-  return on;
+  return on||exchanging;
 }
 let _npcDropHintFrame=0;
 function _clearNpcDropHints(){
+  _clearExchangeShopDropHints();
   if(_npcDropHintFrame) cancelAnimationFrame(_npcDropHintFrame);
   _npcDropHintFrame=0;
   document.querySelectorAll('.npc-drop-hint,.npc-drop-danger').forEach(el=>el.classList.remove('npc-drop-hint','npc-drop-danger'));
@@ -4759,6 +4934,7 @@ if(typeof window!=='undefined'){
 // dropOnCard() と同じ条件：持っているカードがそのマスを使えること、入れ替えなら相手が元のマスを使えること。
 function _boardDropAllowedAt(destIdx){
   if(!_dragSrc) return true;
+  if(_dragSrc.arr==='rew'&&_isCardExchangeShop()) return canExchangeShopCardAt(_dragSrc.idx,destIdx);
   const unit=_getPartyBoardUnit();
   const board=(unit&&unit.boardCards)||[];
   const src=_dragSrc.arr==='rew'?_rewCards[_dragSrc.idx]
@@ -4779,6 +4955,11 @@ function _boardDropAllowedAt(destIdx){
 function dropOnCard(destArr,destIdx){
   if(!_dragSrc) return;
   const srcArr=_dragSrc.arr; const srcIdx=_dragSrc.idx;
+  if(srcArr==='rew'&&_isCardExchangeShop()){
+    _dragSrc=null;
+    if(destArr==='boardCards') exchangeShopCard(srcIdx,destIdx);
+    return;
+  }
   const srcUnitIdx=_dragSrc.unitIdx;
   const debugCard=_dragSrc.card||null;
   const srcCard=srcArr==='debugPanel'?debugCard

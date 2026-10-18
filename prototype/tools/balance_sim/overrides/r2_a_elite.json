@@ -1,0 +1,10 @@
+{
+  "label": "A エリートATK/HP倍率0.72",
+  "simulation": {
+    "eliteStatMultiplier": 0.72
+  },
+  "override": {
+    "change": [],
+    "add": []
+  }
+}

@@ -1,0 +1,3222 @@
+{
+  "schemaVersion": 1,
+  "options": {
+    "input": "/Users/yuki/vb-worktrees/balance-bot/prototype/tools/balance_sim/out/runs.jsonl",
+    "out": "/Users/yuki/vb-worktrees/balance-bot/prototype/tools/balance_sim/fixed",
+    "samples": 30,
+    "count": 5,
+    "seed": 3101,
+    "workers": 4,
+    "candidates": 96
+  },
+  "elapsedMs": 133611.133875,
+  "inputHash": "532e1053aeef166a0fc2302a36ee7ee1ba7588cf9cfaf84669aa1e32583822bf",
+  "sourceHashes": {
+    "js/battle/core.js": "477bdd4879267c290d2e2c18f13ffd91c845201450cbedf9d37cb9f493b11bbb",
+    "js/battle/formation.js": "5da8bd0a37f9707253ef8710eee32343e3d9bd9e4b7d33c3659d0e021f72af5b",
+    "js/engine/battle.js": "b168b276aa774f8aae248a0f39a4f7db21bca97c44af42caae520fb3aae1654d",
+    "js/engine/enemy.js": "cbf7a6edd4eec04d88bfa7f15363e0f5702df74a7f8d1b3a461e61f75b40a9ea",
+    "js/engine/main.js": "09cd12b7335dd7de96c5e57c35df3d8681052474b344df0288d9956ecf3091f7",
+    "js/engine/pool.js": "f11d9b9bc6f9b28de7241e5849ac35ce327c55b492adfc3ed2ba5c71cc67d882",
+    "js/engine/reward.js": "d01aae8ff689fc6ab143346061b4e6c538c87604ba62c112d5d030fce7b3d2b0",
+    "js/engine/map.js": "37c8ccd765bd8d65890a06b4f48e451082c7f4ecfc754639389dfea790674101",
+    "js/save/run_save.js": "cdda2a9985aa5a7f2358464cd492e1c6df67db961e61a22da85e709e52b42978",
+    "js/data/loader.js": "361c6c35e378283cfde8252fe89c13fe05cffd4ecd4a4054b8679b3600174fb4",
+    "js/data/local_xlsx_data.js": "753edaedfd869adde6fa211704d6d0010c59ba4526e239bf1c986534a7e643f1"
+  },
+  "candidateCounts": {
+    "st2_normal": 580,
+    "st2_elite": 567,
+    "st3_normal": 112,
+    "st3_elite": 89
+  },
+  "screened": [
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 1,
+      "key": "st2_normal:97a4dfc3da067506b7add1143c41788718586d35f146647965298d5d5bdaf485:2:229:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 191,
+      "key": "st2_normal:d2f6deda510e34c9c801920315dc56405bcb99c2b7ef58d915cd9f62c7481937:2:264:紫の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 4,
+      "key": "st2_normal:1c118a8c49801ab766f5f8b8805dfbf4266cc2fedb948d2f21c26179b67f0d95:2:317:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 43,
+      "key": "st2_normal:a855b6a6ade891247d15b61c4c23cf5a02a16c307c1f0f20a43e5f18605ddaf5:2:333:",
+      "winRate": 0.9333333333333333
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 28,
+      "key": "st2_normal:b9b04e5a3129b7ce0853c41b684ba9aee80c30d5721e903f5111bc894425f7af:3:319:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 40,
+      "key": "st2_normal:2520c5c84290a6f93e9887523336d94230935a4c99760b2d4154da01935f73e1:2:318:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 13,
+      "key": "st2_normal:1d2c8b84ec6f73ff4288bf7d25eefc2f5926ac2810144198ed5951b71426146a:1:236:",
+      "winRate": 0.6666666666666666
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 85,
+      "key": "st2_normal:64468a327a536224f59757611295a6727cc56488b2d60af9ceb6628f96f1e0df:3:384:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 69,
+      "key": "st2_normal:6247dc634b7284d42f33426f99d51d97668c064a491f5953c92be0f2f3615be7:2:246:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 84,
+      "key": "st2_normal:2a5cba21c7a6551b7bbc9dc16e903c5d748b21b40fde314492311b79bf2eecce:2:240:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 106,
+      "key": "st2_normal:a8b2642e4e8e0628d96ecb073b6965f6a866c48df5d6044b74d6b9e2b7ad0a5f:3:369:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 145,
+      "key": "st2_normal:7baa79bdc027f1afa3caf681e91e6c79746d9f7838049519d6679607f1023f9e:3:269:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 128,
+      "key": "st2_normal:c51b52ae08a2770fed359f6a5cc85ffe50bfd28d5d65599bad6e0d62f309d859:3:297:",
+      "winRate": 0.23333333333333334
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 37,
+      "key": "st2_normal:3f24cc2f06f195e1b181dffd775711a48fb8f7f554ee50e1247a600d45bab765:3:291:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "greedy",
+      "seed": 30,
+      "key": "st2_normal:6e229c3a267da834a56d76b5c2edb7b7b8d788d9ec89ca8ec5ba7d85b77e1491:2:237:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 34,
+      "key": "st2_normal:b93fba38a114ff2bbba2a36e5e8163bd5b94d74af883c721de761ebb999e211c:2:234:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "greedy",
+      "seed": 115,
+      "key": "st2_normal:99a5dcab66464b345d76876c3dd8dc624dfae34c8f92f49b1699245ad80eab4d:1:237:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 100,
+      "key": "st2_normal:3829efe836d0b748fea5dce84d2a838abb6e9ac877caed11e7a8a5e4ba08d119:3:285:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "color",
+      "seed": 121,
+      "key": "st2_normal:589f10047a1eb19a5e4b31ccedd0a93dc65fb5d517b748df4b264613517dc1f0:1:164:赤い瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 116,
+      "key": "st2_normal:06af80ab4def140dd77da3bbe9a9a0d453b95b772493d9a101a8dfab9b0f29d7:1:144:嵐の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 88,
+      "key": "st2_normal:bf44e430850f50f9113c5081e7ba1ad9f407872a3efb76347d045f13df4f22ad:1:274:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 180,
+      "key": "st2_normal:110029ad7dfcf0f98a32b03c0002e11fdf6c6e1e900a1a737584326df8f58cbd:2:266:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 94,
+      "key": "st2_normal:ef75f64e837af038334dcf8a95b5f34ac7bc58e15b60282442f0976e27d0af75:2:258:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "color",
+      "seed": 12,
+      "key": "st2_normal:a2d354be1483812acb814858260e37a0793d99ed754f98fa3f00219f970d8316:1:179:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 107,
+      "key": "st2_normal:3a83c5d0b7ccd91bec405f15d0ed51d01a70e62f66d202200def3c02484da895:3:294:青い瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 173,
+      "key": "st2_normal:f4e2a339697bf35392801396ca5a5349edee6c78c2456b7c89d6f7ac3b1dc92d:1:344:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "color",
+      "seed": 171,
+      "key": "st2_normal:3a20c4322f0361b6f3f89a2446e998d4c2479451f884f2057ae3db6d720a6da7:3:309:黄の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 115,
+      "key": "st2_normal:c396703076160c9610e64708a6055c927fc36df6eaecbddd33453a091a69d904:3:290:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 3,
+      "key": "st2_normal:55f6864f3d4deee48b71bb897b788153497860e61f286fe7d76aba89f2f5285c:2:259:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 58,
+      "key": "st2_normal:5aa542750050012bdcdee77c7f2655522c982065e5a9ffcfcf12b22cdc9f2428:3:347:",
+      "winRate": 0.9
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 119,
+      "key": "st2_normal:5818f51f666844b469251fcef4d8d2797167db6cfc02ab127faa45355a1e28a5:2:165:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 102,
+      "key": "st2_normal:0aecdcb0e8144506e4242790bec7e5728a7b4ddee8700af36a0c6c8afa9a65bb:3:272:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 103,
+      "key": "st2_normal:376528a9825e42ac752d8ae724185d2e693aa748c0029fe7ba2970b32d578ebc:3:307:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 100,
+      "key": "st2_normal:d8ba3c71e7ac31f4f94601881fb8b0150dcfecbc27a7ea42a4507701427b88aa:3:285:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 131,
+      "key": "st2_normal:0ca1c87d4b1e1804a0fa5dcc062e04ab20a83e0685a47ff87a1172ad0511cf6c:3:326:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "color",
+      "seed": 76,
+      "key": "st2_normal:2bf100fa60c71deff727b0ccccae10c82f1f07643173a6e25eb81285fdb53fd7:1:163:紫の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 57,
+      "key": "st2_normal:1de86face3ae772d725ab3a262bf2b7b3af2a7bf9e8002494855e43679bf98f5:1:184:緑の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "greedy",
+      "seed": 152,
+      "key": "st2_normal:2fbfd380fb962b69ae37616e23b3f971cc240f8cb25b11cfaab57fd7b9d540d8:1:93:",
+      "winRate": 0.5666666666666667
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 106,
+      "key": "st2_normal:c19787e3ee2dba6ae2b063c64fe9f32e3b40ac8cf85487e97849b4ce89213ad9:3:269:紫の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 11,
+      "key": "st2_normal:263cbdbb6ede832a0d89aa2c9cf78b922421e935333c3e6d30d9c01e2a23cfe4:3:240:黄の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 45,
+      "key": "st2_normal:a2bd87364af81138ff31d31a37ae9ca71eb09d4b41c955fbd0dd2d9b57e8d170:3:287:",
+      "winRate": 0.9666666666666667
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 65,
+      "key": "st2_normal:6714af07f081a442c003185eda3932ee6b82eb902bf93c90d945c468d511c9b8:3:290:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 91,
+      "key": "st2_normal:a20fa4ecb22cda433844238ab85016b1567ef6e98c6e99049e469d213f2d7f78:3:366:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 142,
+      "key": "st2_normal:14653b27c817db359418f2883358f6fc4c26d70145dd83bcba8a115fef3489d1:3:352:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 193,
+      "key": "st2_normal:0293736356f3385b918e879583e6d72cca1a5cbaeddac49a79e3257ce696dec1:3:280:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "greedy",
+      "seed": 44,
+      "key": "st2_normal:413780e76fcd9dde44c68e756a816dd49b60ea72e223addc55fff9bce6bbca76:3:289:",
+      "winRate": 0.8666666666666667
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 81,
+      "key": "st2_normal:344795644ee118cd3d7b06f08413bbf5d10d9ac49792e515abc60f75f10e88dc:3:266:",
+      "winRate": 0.9333333333333333
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 163,
+      "key": "st2_normal:ed43694ce6c40de0c01987e92cd6a48a128d28d878ffa682ea21f0fd3936b7c0:3:246:",
+      "winRate": 0.7333333333333333
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 12,
+      "key": "st2_normal:1132b01d811f2a39552df5042b743c3451661502d93480040dd45ead49c5dd3d:3:313:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 55,
+      "key": "st2_normal:ad127c008f60d18c39e18c9425b4d6271d13e0c4a5ef491f21e5d0fea2eaceb7:3:301:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 146,
+      "key": "st2_normal:bfd68761110ac8a8d385347c5cfd64d9d5840cb62582ea161c20b08587cd0b4a:2:268:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 184,
+      "key": "st2_normal:8704715a2d8577a0bc451da96d9b723f6579db8ec0a241609f921ecdcf522e33:3:379:",
+      "winRate": 0.5
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "color",
+      "seed": 132,
+      "key": "st2_normal:974dcd42051f1e1e3da7d26300e23cd292e4c47ceb3ad9fd54970ed20d3249ae:2:85:",
+      "winRate": 0.06666666666666667
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 7,
+      "key": "st2_normal:bd2f23f516ff7c8d5bd1f53a719449970f49ce8ed605ed474b1f88f4269ee73b:3:354:",
+      "winRate": 0.9666666666666667
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 39,
+      "key": "st2_normal:b575d3d52d6a30df3798322364f2d0fb5e4f83fe610f3fd0051c5af463c3e46d:3:312:紫の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 165,
+      "key": "st2_normal:22acf703b99101ffcd65f011aafa5096699bd52b8a96f27980469db0819ade6b:1:177:青い瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 29,
+      "key": "st2_normal:245ba5f56e41bba8210c020d00a13709f47ca470dd4937b518bccf130be91628:3:372:",
+      "winRate": 0.9666666666666667
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 41,
+      "key": "st2_normal:8e9a636848beeb4670fbef7c63e6cab1390afe8677565f859b6d591182f3b1c4:3:361:",
+      "winRate": 0.9
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 196,
+      "key": "st2_normal:170f7a64133f4b4600bdc7c6a9c05b03612c7f0a7f543b80a3f3c8edb1d15a25:3:295:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 117,
+      "key": "st2_normal:d615dbd792b6f629eb3eb7c48936d5265c0f9730bdb85d571b547bd283271e57:2:237:",
+      "winRate": 0.13333333333333333
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 86,
+      "key": "st2_normal:d521f93e9a227d9f4a940f2841fd43c882219728d80ff5c2ca173e23bbb8e0d1:1:310:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 158,
+      "key": "st2_normal:f60e0faaedecd52a5d89fb82d6d6f7fb4e71f3b57c1b6013efef3ee55bdd5cfd:3:376:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 199,
+      "key": "st2_normal:ba83876c530c414cccfc2e0f365bcc94236fb607b0ee22c9430dd6fe18c5ba6e:2:275:黄の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 183,
+      "key": "st2_normal:9a28d2f7ae444be8b0e28338f92a322afab70995ae64e65a1ce073051454c820:1:91:",
+      "winRate": 0.6333333333333333
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 38,
+      "key": "st2_normal:2625a783ffc0ca54713a0872b15dcd4a61eb093ab6e7c4524c43c9a78b6e21f0:3:290:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "color",
+      "seed": 24,
+      "key": "st2_normal:4a15a43268dc192bde36d9e14e052af547c82de175c61fa7dc1fdd752fb8e042:2:251:黄の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 129,
+      "key": "st2_normal:6ca8c4fd589b50f811a4544a482dfa0a59ad43dc8c260c50e2cc458bdf1ed277:2:242:黄の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "mana",
+      "seed": 4,
+      "key": "st2_normal:df2320e2770d611b4a7c535a62af1b2f9ea1c43d2d335c7587f259273f9e40f7:2:257:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 4,
+      "key": "st2_normal:f0ed024036c5ebce4fd0b527cc215360fb5d2b8c6daace4f9331e88ed327655a:2:311:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 154,
+      "key": "st2_normal:3f90ec71c80314e1db214e93bc257126008205ab7bd957b0cc36b99c6b7db281:3:342:",
+      "winRate": 0.9
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 71,
+      "key": "st2_normal:044620b83186d20bc16e3be81890a693652c50a5e57f5681438e56e1e1cda42b:3:292:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 149,
+      "key": "st2_normal:fe99adbb7b80b09db751003f780c4c8af6857d4bc84b81748278f2d2811f1d24:2:283:",
+      "winRate": 0.36666666666666664
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "color",
+      "seed": 139,
+      "key": "st2_normal:e36cf2672c82d7ba9a39734c05ea7da1b65c63d9517212687063128589302cb5:1:158:紫の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 157,
+      "key": "st2_normal:8314ce6fcd6efb8e37f0a6f37711557d087fafaab26d543a6fa8fb6c6771f89d:1:206:緑の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 75,
+      "key": "st2_normal:950b1e25eddcee14341437c5602649ae0f79f3a7876e54cd6342be3da724c8aa:2:247:",
+      "winRate": 0.4
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 23,
+      "key": "st2_normal:5cd357839d17c55a5c74fa05b71f8b78f7ed6a3906e947f1bc3a5bb760f16da3:3:273:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 24,
+      "key": "st2_normal:e6e3f50e1aa14db9cf59b4d8e43722c6d7a8d73dd507dcee9d627beda377c50a:2:251:赤い瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 33,
+      "key": "st2_normal:bb1585b8d5158f2c07c9a4417a91245560fa270eb1317302056f9453563427ba:3:274:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 144,
+      "key": "st2_normal:b347a6134cc764dfaee819e2c6f8cabe35a14c34534950a1d7e082224546bf24:3:383:",
+      "winRate": 0.9
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 181,
+      "key": "st2_normal:ecf1283f805eefc89f3a2d58a658128f08fd00545a49c7c524504848b7795df7:1:319:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "greedy",
+      "seed": 57,
+      "key": "st2_normal:41a35b54ad26833854851a59a2bdd2e20dbc190281764f70d982a1d401c17b95:2:256:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 127,
+      "key": "st2_normal:dec723dab08ee1c4a26315af52d15cdabd21b76cc2aa292e0df4f4b131724b48:3:291:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 54,
+      "key": "st2_normal:0d16e5f28dd93d925cd79ea7c48825263f0ce1407fc66512d1e8d1dab78011ef:2:260:紫の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 173,
+      "key": "st2_normal:892b65c57c202ac83406841149bb64d2139af361158432f3f20ff2067f3f8ad4:3:246:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 159,
+      "key": "st2_normal:739d145060b3164d1966b2eefab5f9f68e4ef13ae66814cc0d09e8adfeaa5ed4:3:288:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 37,
+      "key": "st2_normal:fe48514fd15e36a4b6c359c2d09fa871bb51fe4d3621538eb02cf8ef628762cf:3:291:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 110,
+      "key": "st2_normal:84ff3f5acd5e793fff77d0b078f95ec68f22788bf7f40ddc801debac6d89a51d:2:192:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "greedy",
+      "seed": 50,
+      "key": "st2_normal:b57acb8111ed5a9709272054219a49b6930dedc43436a5120166127ef02e5bfe:2:257:",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "greedy",
+      "seed": 146,
+      "key": "st2_normal:03fccc0688414dec7b2f2cb71ecb1fccb3641b1a37f258fc8e4d49d3ced4755a:2:248:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 150,
+      "key": "st2_normal:963e9b702b3f74f0f5a5d50e6bb7fd25e0d1205e6159967ad5215d4f7d9b1a7a:3:307:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "greedy",
+      "seed": 165,
+      "key": "st2_normal:b6a9bdd1e4c783e70a3634393c3579503b678367550665a3a328ae87803a1a97:2:243:青い瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 88,
+      "key": "st2_normal:8e1602517a5d353f6768d244f584445401085fd0af41b8e0f360d6cbd49052ab:1:246:黄の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 188,
+      "key": "st2_normal:242b51bc1b532c366d92124720f1ae1ec5bd12be1ddc01a19c46fff62cdcdf97:2:245:",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "enchant",
+      "seed": 15,
+      "key": "st2_normal:72380fe9ac69a949e3dbfc09b8a657e3fc249f72b79f3c2fd93a5fb53c53f030:2:251:赤い瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 161,
+      "key": "st2_normal:0428ab51dbf2d9989ecdf17525a3ef5d9f982d62db530781968cf4cc5129d3d2:2:253:",
+      "winRate": 0.5666666666666667
+    },
+    {
+      "scene": "st2_normal",
+      "policy": "lookahead",
+      "seed": 17,
+      "key": "st2_normal:800838d1c2cd723de462ad0da221c1d7299bb559259a4f8581ad85792fbeac12:3:278:",
+      "winRate": 0.9666666666666667
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 1,
+      "key": "st2_elite:5cecb658d0e56e4b4114b473d55dce3b29bbcae80e51a1c7da3c92d8fec90d2d:2:280:",
+      "winRate": 0.4
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 191,
+      "key": "st2_elite:ec687756bd202fc3824b18e48025fcce86bb32d5bb38b0b4e4377a6a37ea1f87:2:311:紫の瞳の指輪",
+      "winRate": 0.6666666666666666
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 4,
+      "key": "st2_elite:3b1b3b545e06cd5c1032dc90ba4ddcd9de2d352a46a4a4fcdb39ea1d4849c352:2:381:虹の瞳の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 7,
+      "key": "st2_elite:e5aa108e60ad29157b6a65d46c309060fe8a591bad8e2339d59682c531b64370:3:406:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 55,
+      "key": "st2_elite:e5e39386b01dcdbd37c7a745a43b3d7810d6d2d25e2c85f2f6a8335e0516a4ed:3:354:",
+      "winRate": 0.3
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 9,
+      "key": "st2_elite:8dc6331007903e7cd1c3e85d7dee1109190f07e6ae4d62f792a2bb4d76c27c1c:2:312:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 160,
+      "key": "st2_elite:07c38c6b49369b1d9d78d5ec91f90cd99a5ef7c670c352d56968bca4f676a2c8:3:317:赤い瞳の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 21,
+      "key": "st2_elite:96fabc2c15f2d367176c2ce13ee2fd74f840f73184c6ec3e4a75d40a465b51ab:3:410:",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 165,
+      "key": "st2_elite:da33553217775c259f2e2de90dbe36e36d2922e5875d8894dc7e4d2bd4f8d3ad:1:221:青い瞳の指輪",
+      "winRate": 0.4666666666666667
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 110,
+      "key": "st2_elite:b60a2697128e88f7fb60b1d888040cf3079eafc7ebe813e8006ac97c276fdd4b:2:253:虹の瞳の指輪",
+      "winRate": 0.8
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 145,
+      "key": "st2_elite:40fcb95c5f37ea1958c43690654bbf7ff8b2b73b8bbb9dc748a01e62eefa633d:3:312:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 116,
+      "key": "st2_elite:fa28fc83663b111fd31dc062dd074b395272137e7b70c781dab4f154304f1fa1:1:292:虹の瞳の指輪",
+      "winRate": 0.5333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 123,
+      "key": "st2_elite:98b40fb056555d99f117184f58ce9786e51a06a48b7649d2cc0c201a102ec3ac:2:220:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 37,
+      "key": "st2_elite:5b1986812a7a02f1969a8f8cf79d92f3fff4f7d36284a8a3f5a4482fd82c96b4:3:343:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 17,
+      "key": "st2_elite:a7e2b25df7e7e2abe07c0ecc19f6ca37f149a3790787039519c6ad6f4d98b85e:2:304:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "greedy",
+      "seed": 152,
+      "key": "st2_elite:e73ca7779f7b62dd188c6cfe9d5231579e82eb6b466580a8a753477e23119d30:1:141:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 39,
+      "key": "st2_elite:5a83d5458b651568165a4a8784f1f20cfec61615bb6b0bf24d2dde73d4f47730:3:352:虹の瞳の指輪",
+      "winRate": 0.13333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 57,
+      "key": "st2_elite:425ff672ca8ec7642a95a8f1b24ee681dbbe1e6fd2c30cbe6571d67b81b4df76:2:350:虹の瞳の指輪",
+      "winRate": 0.06666666666666667
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 133,
+      "key": "st2_elite:913825a4765277c38af42aa6f4b1ce12abfbf31f5404a37c6bc26100451f24c1:1:245:虹の瞳の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 114,
+      "key": "st2_elite:e2f4845d29c0e3dd14d6ce4a7b001e2054ce1940c5add038f08c9451b97de746:1:295:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 58,
+      "key": "st2_elite:ce62ae8c4e50a11b24b639907aeb6ccd80a31b1028ca60267feb742de8a19233:3:387:",
+      "winRate": 0.13333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 24,
+      "key": "st2_elite:b8641ce35b704a215d09d7904016380f0818e2eec75f269166bbe3e73468cd13:2:303:黄の瞳の指輪",
+      "winRate": 0.5666666666666667
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 10,
+      "key": "st2_elite:9ef2190fdc134f3f66f50077471afed4f77849e5852172f2fbab74e1172acdd5:2:298:黄の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 139,
+      "key": "st2_elite:6d21a1f9fd2fe4a8a3e414ba1bcb036be672a5df99b4c9f870cb25e102544770:1:199:紫の瞳の指輪",
+      "winRate": 0.5
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 47,
+      "key": "st2_elite:b25469e4cf7623e64a2bf18c38a6771a2f755acff839c1fcfffa0eabbb89fad1:1:260:赤い瞳の指輪",
+      "winRate": 0.3
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 153,
+      "key": "st2_elite:003f7e9a1050c1a1fa9905b97e5048fd611de75c5a0a48a99d9c40f6517ac252:1:314:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 154,
+      "key": "st2_elite:2416addfc8d2d8ca218df8222492f38583a20b3191fc698bb4d39e6e49aae68f:1:206:虹の瞳の指輪",
+      "winRate": 0.1
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 34,
+      "key": "st2_elite:5bc4297c560d23153d6437a0ad69fbb68146a250327938ac01a1b3eb99f2db3f:2:281:虹の瞳の指輪",
+      "winRate": 0.6666666666666666
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 40,
+      "key": "st2_elite:b3860aab9df159b2a56302c70bbbf8c6887a65546a846bc1640af141d7316c46:2:294:赤い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 154,
+      "key": "st2_elite:e6866f6a65972ea0c9c8fa634e625e47941e7f61b4b25ed247821985a1d05514:2:331:青い瞳の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 106,
+      "key": "st2_elite:75262fec500d996fd04432c7ba14bf69814a3784271ed6b9dd6f0f10697707cf:3:318:紫の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 39,
+      "key": "st2_elite:0a8f17d3f578f5d07099aab5c4b1bb48273776c055e73793a9502d907c38898d:3:351:紫の瞳の指輪",
+      "winRate": 0.26666666666666666
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 144,
+      "key": "st2_elite:c03341326c70d6b5a1b50c52dd6c17b1e5a8fba44b6c03cb7583e933b2c6b7f6:3:436:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 102,
+      "key": "st2_elite:d6098b42d6dedabb86a610320a2f9e235d36cc712900885f6b9489529ca606d8:3:309:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 115,
+      "key": "st2_elite:99e41abd9052142708c0ad9903fadbae091ab92f611550d2403e49defcf91131:3:336:虹の瞳の指輪",
+      "winRate": 0.6333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 61,
+      "key": "st2_elite:4b8474d6d991c5e251796b25e9f5eb3aa5d12a18227520d43aa5fe8d0293b16e:2:271:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 45,
+      "key": "st2_elite:c01967dd46e7f56e01d146ed48135a1d42ca162de2a159e40ff16ef938d62837:3:340:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 100,
+      "key": "st2_elite:dfb6edff9bb3b1c5916ff87b6bff141104a40e644de33c398e1a9018f69d6e2b:3:327:",
+      "winRate": 0.5
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 11,
+      "key": "st2_elite:c735a2b06739c904471f0581d1ef186c7f806e2de9d45b973a7b16769b52be10:3:343:黄の瞳の指輪",
+      "winRate": 0.3333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 189,
+      "key": "st2_elite:e988d16f12ff72f58456fd9a1acc0432ab78b68abbceb6ab837a9ade703110b3:1:224:虹の瞳の指輪",
+      "winRate": 0.23333333333333334
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 12,
+      "key": "st2_elite:74ffec381123f9ba6350b6c7dc86a1576b2952b368cf226725beb216ed67c881:1:212:虹の瞳の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 107,
+      "key": "st2_elite:3277609cebd1e2424c55885f8fc186b12fcfd200ac52265bc1d4def788123956:3:341:青い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 44,
+      "key": "st2_elite:aac00b73dfdb8be1c32767aad869f8d9e86040ae71ffc2a7462c8e6cd4f9a0b2:3:326:虹の瞳の指輪",
+      "winRate": 0.16666666666666666
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 85,
+      "key": "st2_elite:2c7c6622559d583e4611d27644a4a0a83bef516c91edf781430df07270751ac7:3:435:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 94,
+      "key": "st2_elite:9701e94b9bff794e24025b998814f415aa1fc59dd05f5016608f0918c9fe0dfc:2:305:虹の瞳の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 106,
+      "key": "st2_elite:d26a266a811d86c3e8681dcce4ed79c6bcf4ca9d985d3a347703a787c99a34c0:3:418:虹の瞳の指輪",
+      "winRate": 0.6333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 28,
+      "key": "st2_elite:93ccee2aec9c35bf15a1f0e54c6985e7179c5ff7bb766e40bd3227fcfdeedf17:3:343:紫の瞳の指輪",
+      "winRate": 0.7333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 35,
+      "key": "st2_elite:3c9d13a725b8079dca6711ca3acc939f35da44b0f1bae038c6abb0bc5d2a3e30:2:213:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 29,
+      "key": "st2_elite:fde572d80cf64c7d87c1dea625b796efa337135a45694a4d1abc0294d7bf7046:3:423:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 119,
+      "key": "st2_elite:c485457c7df0c7606c57c3dcce566a5af77ae2ad633801dd8084b0ffe1168618:2:215:虹の瞳の指輪",
+      "winRate": 0.6333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 65,
+      "key": "st2_elite:6aa3b65713e5534912f596647af9b5116c0a989063efad53bf406f5187b56721:3:348:虹の瞳の指輪",
+      "winRate": 0.5
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 184,
+      "key": "st2_elite:d58647bd31de7188610cb083b290996f6e034ed0f4f0d4c25212de3790ddefd1:3:426:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "greedy",
+      "seed": 89,
+      "key": "st2_elite:78c02cb03df9cc63e750e304997cc3fe12e327efa1cf7138516d658a372af50d:2:277:緑の瞳の指輪",
+      "winRate": 0.36666666666666664
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 179,
+      "key": "st2_elite:9f3296361abaf7a90ea06a88f41112e0312faab84df36a1140ac346ce916efcf:2:279:虹の瞳の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 181,
+      "key": "st2_elite:a8a37018f478819c8d7db285069bf3524c83ad2695cc15bcac588f78d3c9232d:1:360:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 199,
+      "key": "st2_elite:e59b51a8f53f15120f218181eed4be60193b491f8fec63ce97d84655af7ebd31:2:324:黄の瞳の指輪",
+      "winRate": 0.3
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 158,
+      "key": "st2_elite:844f625da804818385746280b963d0c0df2532f27858a41be5c6774feb352d4e:3:424:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 91,
+      "key": "st2_elite:0daafd03fa5020e115c4e6a985272878436c22086de12ff885eb69c0c797497f:3:412:",
+      "winRate": 0.3
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 33,
+      "key": "st2_elite:345e9be89712a55c921448da614418848dcac13e6dde8636eedf77e1e462a558:3:324:",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "greedy",
+      "seed": 144,
+      "key": "st2_elite:60ea7cfdac52ef5fc55226a9ef0d063c8749ac193fcffadc2474dfd53b724c6b:1:218:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 86,
+      "key": "st2_elite:6dd5f9f50b1b18b9a89def70b03a1532303e8f7e170222164aedaba8443dfd92:1:352:虹の瞳の指輪",
+      "winRate": 0.1
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 40,
+      "key": "st2_elite:6dd73c58b87e0c9aebce4e3ef3fde7bc73d3d47ac7cee7e8641b57305325d50d:2:385:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 3,
+      "key": "st2_elite:6a25b4901c8113959d6a828c0706fb172f8cc6c6016e5e1af813b42a196026f8:2:312:",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 125,
+      "key": "st2_elite:264dfb1b222ae6a9b1c6fe58f006fb50217d45e99b0a1bda35248d02b9cef313:3:407:",
+      "winRate": 0.1
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "greedy",
+      "seed": 13,
+      "key": "st2_elite:7a2a89f7686d7897cbfeb5c877c07709c866c4613e238345046b6671e6191827:2:260:虹の瞳の指輪",
+      "winRate": 0.3333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 184,
+      "key": "st2_elite:c0e8412fd98cd275e59eea819c85e865bf61dc933bcc8400f06a829a1ed08f8d:2:286:緑の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 54,
+      "key": "st2_elite:0371bce5ca15aa827a848a85fb3b942c882b21de2b568e5d4a3d58355a2b259d:2:307:紫の瞳の指輪",
+      "winRate": 0.4
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 4,
+      "key": "st2_elite:8c379723c3d6d2c2cfa1af0797ba86935a6d5c7adc3780879cce1ff05f743619:2:301:虹の瞳の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 87,
+      "key": "st2_elite:931e91f5d08647d4538c6e90e493ea0a5381092abc94f61fb80fd870f0a8eb28:2:309:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 4,
+      "key": "st2_elite:e1d93d4d69d46fbc6bac9f95901bf730ea5fd09f0e0403c1b6a38b71c056add0:2:355:虹の瞳の指輪",
+      "winRate": 0.5666666666666667
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 115,
+      "key": "st2_elite:d4c532f5c3d2f61f5c317d77ae79147b860503f5ed1817bcd19bad0f3a4124e3:3:336:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 178,
+      "key": "st2_elite:bcd634f645dbe3be08600c871d5e030f49f02c9468721b8e338cdb257f576373:2:284:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 132,
+      "key": "st2_elite:6ce757b3bdf1c120bbcd090006dab2918300846f8e65f2fcc8d46c2154043c55:3:345:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 138,
+      "key": "st2_elite:7f47fe34fecbc9aa1f3c9d6d4e9d570b7496b84572aa3bbb446dc99c54f60e97:3:333:虹の瞳の指輪",
+      "winRate": 0.5666666666666667
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 131,
+      "key": "st2_elite:e6dd9f993137da1de4810aed31cc63f631ac61f450a38c42c127c155a249ca96:3:366:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 124,
+      "key": "st2_elite:daa0e839c428739fb11945216c38e41bf1984ec3d850efba3485f59f0fd85d30:3:313:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 171,
+      "key": "st2_elite:7046a09e043bf9149c8c695cb3e333e460561ef72a355d2a35f748a35f30c21e:3:355:黄の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 23,
+      "key": "st2_elite:2318fb7ddedd1f3a394c5f7fde4ee32b5d4f9ab6bd60c3f982caa38c13c0fd12:3:322:",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 12,
+      "key": "st2_elite:2a797b066fcf6f294dca306db5560bbfe812f8c920eedadc1e5fc5956d79da13:1:226:虹の瞳の指輪",
+      "winRate": 0.06666666666666667
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 18,
+      "key": "st2_elite:09c0d5759a71d132bc40b003fef52ea4638a7265e4d869262f011f76cab53b51:3:412:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 177,
+      "key": "st2_elite:cfcc11c1977bac2a5f56e7dcf0fa1df4055870993b522c990452f12738fb7f7d:3:338:",
+      "winRate": 0.43333333333333335
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 128,
+      "key": "st2_elite:bf803acd4ce6386f9a5ea4b99b8d8f568dca45b62de6ad2ec30b89db9f0e5ae3:2:121:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 127,
+      "key": "st2_elite:6a2879033bee5a7621d96ee90c1e7e7e60a2b0ddce2ca4c8e7f83b4e5e1fd93d:1:210:虹の瞳の指輪",
+      "winRate": 0.5
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 17,
+      "key": "st2_elite:1586f6445c90d509516e12d15904ceecaffc20437ed0d9b9dd38759417df7284:3:323:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 76,
+      "key": "st2_elite:25d5ad017cd33ae9ceb2ec75d3aef00f15e1e4ba53b578bc12973787ec121de9:2:303:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 88,
+      "key": "st2_elite:7bb6fd991f06a04f3d8c9882f5b280a6fa697bd20d0f07c0bfaa7142e51f1918:1:290:黄の瞳の指輪",
+      "winRate": 0.16666666666666666
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 154,
+      "key": "st2_elite:416b430e99371cddb72b5b858b8f6c954b1cd54989a8ba56f53a2dc53e8e4938:3:387:",
+      "winRate": 0
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 71,
+      "key": "st2_elite:1723cd8c42ae10d134802cd40d8ce4a7e067ea4fc200c2848e8fbe1b03b38822:3:338:",
+      "winRate": 0.2
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 84,
+      "key": "st2_elite:1de387269a18d491100d58e845fd366171a4e937159ab2d3903785a1a8f9041f:2:288:",
+      "winRate": 0.3
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "enchant",
+      "seed": 152,
+      "key": "st2_elite:55c3a792a226cf2517958cd364696c4aacdcf87000165428146cb955a729d90c:2:268:青い瞳の指輪",
+      "winRate": 0.23333333333333334
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 121,
+      "key": "st2_elite:1b21c40e6c315f06d4b7fb574310482d36266f044d29270a7a876d149e7c7d48:1:203:赤い瞳の指輪",
+      "winRate": 0.43333333333333335
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "greedy",
+      "seed": 136,
+      "key": "st2_elite:78468658ae790702f6382672ea9fe54a6a0654600eec7935b82bc54ad09176da:1:187:紫の瞳の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 127,
+      "key": "st2_elite:637df3895209a04bff0b8fcccf847f5bda171bcf426118b0c08c0b8c873f1559:3:334:",
+      "winRate": 0.2
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "lookahead",
+      "seed": 12,
+      "key": "st2_elite:bb139844b9a5909aae077c4260e5e43bab5c37ff04c7285a26fce37e0acca1e0:3:350:虹の瞳の指輪",
+      "winRate": 0.9333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "color",
+      "seed": 101,
+      "key": "st2_elite:1b92d99622e15a11e59fad98dcc3c60bd879b799705fd6ade505158940c3ed9d:3:332:紫の瞳の指輪",
+      "winRate": 0.3333333333333333
+    },
+    {
+      "scene": "st2_elite",
+      "policy": "mana",
+      "seed": 129,
+      "key": "st2_elite:08599bf1c2cfdadbb9c33593520cf4a3a86732d5c6bd1318b05ae35a8895c6ce:2:319:",
+      "winRate": 0.5
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 2,
+      "key": "st3_normal:56b4d8571d95977cde3a1a29a4b7d6a40a7368c4cea58e5fc55c58a473936ed0:1:178:虹の瞳の指輪",
+      "winRate": 0.6
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 12,
+      "key": "st3_normal:d163439d7f24a04a066c739d5cd9af7a7e41cf0f3c61f5242b8ecc1d99e34e5f:3:422:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 18,
+      "key": "st3_normal:ad1a44d3e57f0ca3976104835ac6579dfcf11d715ffb8f62bf95680d06e90a0c:1:433:",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 20,
+      "key": "st3_normal:5252a7a65fbee99b093f833ddfbb2b6151624e942d5eef911e27480a1864f13a:3:451:",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 39,
+      "key": "st3_normal:5bfd5f24a7497d8092da8f58a5620b353f0ef1d430834f8f56d414c9ee574452:2:430:紫の瞳の指輪",
+      "winRate": 0.3
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 100,
+      "key": "st3_normal:2329b8244eebb29ec969df84ef5c50219412c573d72e3d92949b100ce76dd173:2:347:",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 38,
+      "key": "st3_normal:6347fbc7055f178ba6483184a4cb348021146cf8da2d7e8f49f9d3a23953db0d:3:656:虹の瞳の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 65,
+      "key": "st3_normal:7f185d1c3d6ee6cba03dd35dc46bbaaeb4509c57c4cdb2350a2244f0fe3d0a94:2:280:虹の瞳の指輪",
+      "winRate": 0.23333333333333334
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 140,
+      "key": "st3_normal:7980f4ed9b4b681067c15334ee3a9b39438c8fd89a05cda15b391abad73bc5f8:1:278:虹の瞳の指輪,紫の瞳の指輪",
+      "winRate": 0.23333333333333334
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 84,
+      "key": "st3_normal:2688ada2e2107dc5499dcc27a1c6750b595fdf7013eaecaf10f33428fce4609a:2:13:黄の瞳の指輪,嵐の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 66,
+      "key": "st3_normal:b4977ee4ab3be3f0e93c799fd798275bcc3f957f5a68ea91b794b30c2983ea7e:1:22:虹の瞳の指輪,復活の指輪",
+      "winRate": 0.3333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 15,
+      "key": "st3_normal:e41169b203f7ec87fe9481b8a3ef9f3893a5f07ff6b2246497ab04f5186a9364:3:394:",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 44,
+      "key": "st3_normal:278b98625a2c924d98af03eeda88a4eaee0515f217bb493ba25cc6d544b99141:1:336:",
+      "winRate": 0.6666666666666666
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 106,
+      "key": "st3_normal:6da8c31be7041c3a089bbbd1c567daa2db0fe3c702a3ec0ff65b314fb24d2f3a:3:799:虹の瞳の指輪",
+      "winRate": 0.36666666666666664
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 21,
+      "key": "st3_normal:214d18133166051f3981719109e5a63ae49e58255f44e161e68d23dd88e16dcd:1:240:",
+      "winRate": 0.26666666666666666
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 28,
+      "key": "st3_normal:e4bc838ff29acda8c27d8f59ef39d6c18ca25b1c8e876841ffb96877fe37ff04:3:382:",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 110,
+      "key": "st3_normal:87b445782a48cfd639f62e8bf54b7f7657530486062cb4c7c6d7c35be8feca8e:2:365:虹の瞳の指輪,赤い瞳の指輪",
+      "winRate": 0.7333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 193,
+      "key": "st3_normal:788ed25238c80834891701e6ccbc5b5bcd50bb1d3987646fd77d82d076e8ccae:3:562:",
+      "winRate": 0.36666666666666664
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 139,
+      "key": "st3_normal:c1a4ff40aa1efacd32a91361e4fe50d8368db1c0d68deeb60746a80fea1c7874:1:335:紫の瞳の指輪,聖騎士の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 68,
+      "key": "st3_normal:06213ba0a3d881e3fc071ed25a95c0624ffac71a595838a000b37155ff951922:1:206:虹の瞳の指輪,聖騎士の指輪",
+      "winRate": 0.4666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "mana",
+      "seed": 129,
+      "key": "st3_normal:6913c44b02a56a5ddea8c94cd702645ab69042dcd76464ad5766d21de4577e8e:1:110:賢者の指輪",
+      "winRate": 0.36666666666666664
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 129,
+      "key": "st3_normal:6f31f550b33197f7887a6c5c3c22cc88796562b8be714f5080435382f07fbf28:2:311:黄の瞳の指輪",
+      "winRate": 0.23333333333333334
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 74,
+      "key": "st3_normal:c43e1d0fb6ce6481f7cbbf514b409e750439f370bf69bfb21acf1c0e2edd5ea3:3:435:",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 54,
+      "key": "st3_normal:8d40cc39f145585bc4b4693fbc76d6048e5cf0b767182125f46661f4ed2f26ec:2:364:紫の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.8333333333333334
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 91,
+      "key": "st3_normal:d53e5e3bfb39807ecad1ea75545fb03e75bdba0b586b5edd21e1036dbe31e875:3:463:",
+      "winRate": 0.9333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 84,
+      "key": "st3_normal:0c06954d8d209707a0f8deafe629d5dd62711a3e0e53b58646a5cd506fbf30f6:2:459:",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 79,
+      "key": "st3_normal:9e5b420c8cd04701d2d343622ad19d05acec305fc2c45ac4548035367b1b3f4a:2:424:",
+      "winRate": 0.9
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 198,
+      "key": "st3_normal:50415e296ccf75295311199ceded4522bd7738d2108eae1c1f031b686d9785d6:1:448:",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 37,
+      "key": "st3_normal:7853967ccf76f254f59d33ea3ae37f2617fe32bede93f159ef7a223617a4b79f:2:187:虹の瞳の指輪",
+      "winRate": 0.06666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 47,
+      "key": "st3_normal:ea209cb706d353d322f5bc1e4919d85ba2188ee0744bb7d03b1e94325aab50fb:2:312:虹の瞳の指輪,神速の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 92,
+      "key": "st3_normal:36cf2346f074ceab8fa1c5d715531f68c83f329633f919f52e5bb42c15f39307:1:186:青い瞳の指輪",
+      "winRate": 0.9666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 180,
+      "key": "st3_normal:b8cb0277392169d1865c3bd0e025686cbc0babe478a16dfadf9a2ea828eece23:1:330:紫の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.6333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 23,
+      "key": "st3_normal:b30e68c994a84bcd04a4352106475b1ad720f72c4d7245161c14273e0a714bc0:2:366:聖騎士の指輪,赤い瞳の指輪",
+      "winRate": 0.6666666666666666
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 115,
+      "key": "st3_normal:b05d7734caf35c979ea172402a0f65d33142c2b483567b746b83a97ca4c73dc4:3:436:虹の瞳の指輪",
+      "winRate": 0.6666666666666666
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 147,
+      "key": "st3_normal:a142cdbf146ee3c892d6252cd12f83c1b24e2c4ac74a6251fa034c05f8fcd3ef:2:399:紫の瞳の指輪,血の指輪",
+      "winRate": 0.9666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 89,
+      "key": "st3_normal:b5c1c660314bf0a782082034014c882229022e618878fd8c7abe580d765c1869:1:575:虹の瞳の指輪",
+      "winRate": 0.2
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 16,
+      "key": "st3_normal:e1428f060a840fd855d3173ef62ecb220361139265ebe106bc7f50a5b2b629ae:2:585:虹の瞳の指輪,青い瞳の指輪",
+      "winRate": 0.9
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 51,
+      "key": "st3_normal:71d570d2387c5d02775f19eab7994820d8a7e37b3f516a6804f8a2b321b87e98:2:361:虹の瞳の指輪,緑の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 137,
+      "key": "st3_normal:963969c9e17873d7d30e9ba781874f08c5d8d91f1089f5d9f72cd273f548883b:1:187:",
+      "winRate": 0.8666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 125,
+      "key": "st3_normal:ee33790d44394b493f03b1140126c65f72de2366e621f1b6a764d3ced2661c15:2:449:",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 35,
+      "key": "st3_normal:2b605c858da48120b579d655fd609da408d785ebcf922e9e78fe0f8d553c0036:1:183:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.5333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 148,
+      "key": "st3_normal:a549d79f7dc52c594f7e8fcb801d17fcf64af02b2bc9ceadada517ef0dc3db61:2:326:虹の瞳の指輪,青い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "mana",
+      "seed": 193,
+      "key": "st3_normal:cc2e86418d279fe30a63c8af7e91a1c5c5b18337ddf6f3d183da02c0fc850613:3:341:赤い瞳の指輪,賢者の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 71,
+      "key": "st3_normal:18f0e5b187458fc2a02ac2bb3edfc398bb860ffee1956a85f36fb6d3f8eaa6a0:2:194:",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 132,
+      "key": "st3_normal:398e7561528decac0c828ca535b86a4ef994d1937152771d729bf7891f70c53e:1:336:復活の指輪",
+      "winRate": 0.36666666666666664
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 160,
+      "key": "st3_normal:64e496ae61671aa06930be579db7c90cc756fa483220d909f0bdf9b5c172d172:3:542:赤い瞳の指輪,激怒の指輪",
+      "winRate": 0.5666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 142,
+      "key": "st3_normal:b973e822a73d0b25e20e3bc3408544d53c47f69f65f07a48edfafb702c1359f5:2:249:虹の瞳の指輪",
+      "winRate": 0.13333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 26,
+      "key": "st3_normal:675a3835a4c172fd5dd7c8285349c2bb46bab09395b633d0aad512293bb3d048:2:366:",
+      "winRate": 0.06666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 108,
+      "key": "st3_normal:d6301e2dc4cab776997afcae4a12a2b401ffe7631d7ecc1aa342bb17a9092243:1:368:黄の瞳の指輪,威圧の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 48,
+      "key": "st3_normal:f541b805ae81b9517b59f4d9845853cb77ab6fae56fb5598fb1c2c60175ad29d:1:168:虹の瞳の指輪,黄の瞳の指輪",
+      "winRate": 0.4
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 2,
+      "key": "st3_normal:513d6349ac26d9e1535c8e6ee09d65a9e32454b10ea49aaf9e7cde0503a06fcf:2:338:虹の瞳の指輪",
+      "winRate": 0.7666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 177,
+      "key": "st3_normal:fb0d80c3d03f4d5c6ad674c0991cca364ef283fa696fa92e5a6ea3498eda13d9:3:329:激怒の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 195,
+      "key": "st3_normal:9b0b37c9749bfc629c3f4ed45f9b3a4d385167369e5530dd3980b600dc9d7ebb:2:331:虹の瞳の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "mana",
+      "seed": 105,
+      "key": "st3_normal:2ce0c03e64898cfee44a8a29f81b7e38992614fb74e9b226987b3967bc18e883:1:351:魔力の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 109,
+      "key": "st3_normal:0de87a20f15e680f265445317fd43c2ffbf7ea9b492db39df05f6a378acced66:2:317:虹の瞳の指輪,加護の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 55,
+      "key": "st3_normal:543ebf3efcf0a2d14af6daf58f31782514d98d11802e580e806e0336060b0f71:3:344:",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 170,
+      "key": "st3_normal:5712e8224ce895d6500339da344ccdfff859120011a5ff3aac340cc8fadcbd4c:2:398:黄の瞳の指輪,神速の指輪",
+      "winRate": 0.9
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 163,
+      "key": "st3_normal:8b1dac403e11d8fe1e6bb03ed6271f4e4d53357b9f6856b39e20c77a8a974fc9:1:71:紫の瞳の指輪,血の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 176,
+      "key": "st3_normal:7e6489007702e4fb44164148ac87157fdeb9e7451ec9dbebb880d361121e1c4b:2:392:虹の瞳の指輪",
+      "winRate": 0.06666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "mana",
+      "seed": 28,
+      "key": "st3_normal:d6283627380bdc030a8deeb485ca6dd1ca5a0b041d10abee45d72856e57ac03b:1:99:虹の瞳の指輪,神速の指輪",
+      "winRate": 0.8
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 62,
+      "key": "st3_normal:96d388cb7ea1c5725d8cf0ed984e9dd2f4259bf40abeab8bb84bb553e58197bb:3:325:",
+      "winRate": 0.9666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 108,
+      "key": "st3_normal:86450912ad1d58400dd0f5392aa0e6f4b50b365863545ab024aacb579c2b40b6:1:519:黄の瞳の指輪",
+      "winRate": 0.2
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 148,
+      "key": "st3_normal:c266d88d73b21b61d67bf34a2c2f2af0d43e21ee7e0d91719c07a92dc084b56f:1:223:虹の瞳の指輪,賢者の指輪",
+      "winRate": 0.06666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 28,
+      "key": "st3_normal:00b384383c80cb8ef0da8d0572da7f6370dacf031b12e2b80175777c512ba72f:3:364:紫の瞳の指輪,緑の瞳の指輪",
+      "winRate": 0.7666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 113,
+      "key": "st3_normal:f6db3f6bca3a21bf6f390455b6c14eecac81eaf0589831755b7b5a97873897ea:1:325:虹の瞳の指輪",
+      "winRate": 0.7
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 86,
+      "key": "st3_normal:625f4abd0e4547502d1be15c1f0f86bec0f22a3319155db43ff04f3277aeecaf:1:173:虹の瞳の指輪,緑の瞳の指輪",
+      "winRate": 0.3333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "mana",
+      "seed": 164,
+      "key": "st3_normal:d9250a4d33b3cd716d2bcd2d798e90424cf6d2353e17bc94061730f199b15a9c:3:418:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.8
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 111,
+      "key": "st3_normal:ddafb705027288e04c80d7fc881645d37cd538a186c9d5be5c3e47d35dd9c480:1:237:聖騎士の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 159,
+      "key": "st3_normal:0b3addea46c6e0cf499b8fa48f1f54386153cb9a72f3821bc01860c29a39a0a4:3:363:",
+      "winRate": 0.7333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 150,
+      "key": "st3_normal:89fc7fe400ef633c7eeb38f66afc70e10c03565a8ea180df544b339ee04664bf:2:458:虹の瞳の指輪,緑の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 13,
+      "key": "st3_normal:6bdd3fc9b0a13387eef9a909fff9dac59e88ddca769d3527f85012578b3ad3d5:1:71:虹の瞳の指輪,紫の瞳の指輪",
+      "winRate": 0.5666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 23,
+      "key": "st3_normal:4d58dddd5fff3311654c7d7b6e6b9a121f84b08bc9b824b189cc98b2402a77df:2:370:赤い瞳の指輪,苦行の指輪",
+      "winRate": 0.5
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 151,
+      "key": "st3_normal:20355c8ac510ab0e26233486861af4ea9fd45858237ae6340985f8b6a6082978:1:107:赤い瞳の指輪,加護の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 135,
+      "key": "st3_normal:b1adf2b55f52f2f050e8c6dbfee341b8a129d4b6be212b7e8cb502e3e71e6d9d:2:122:虹の瞳の指輪,緑の瞳の指輪",
+      "winRate": 0.36666666666666664
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 66,
+      "key": "st3_normal:0ef534d6ffc2c5e6fc3ea24beecc2f80935d38552b46661727d2a5e2e8ddfb96:1:355:赤い瞳の指輪,苦行の指輪",
+      "winRate": 0.6333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 60,
+      "key": "st3_normal:d5923a9825a38e5f50aab361234a5fd86765977d93a2a80bd47a611e24624c59:1:183:",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 160,
+      "key": "st3_normal:d6f698c98d3b8ced28da7cbbe1daafdc7b14bf062b27ee5afec9ad13a1bea361:3:324:赤い瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.7666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 101,
+      "key": "st3_normal:c130afb6a79fd80eff3226c12e065d01112af287579deb9eabc7bfc8910f15cc:3:422:虹の瞳の指輪,威圧の指輪",
+      "winRate": 0.7666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 90,
+      "key": "st3_normal:a4de0082f9416bd0d0a84fd2823b42fec38b5fd39c400739ba72cb8dcc44ffb7:1:223:虹の瞳の指輪,紫の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 177,
+      "key": "st3_normal:10996e8cc2e10d683486e9419546140720aa999f64b1deee3c28204b66d758cb:2:310:赤い瞳の指輪,強靭の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 10,
+      "key": "st3_normal:f26ab0d24da0f5628d02270c3e9d788b894f1892ae0a393371dc4b6d0c4433dc:2:377:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.26666666666666666
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 101,
+      "key": "st3_normal:246eb07962c090608b2e90594a6504719add839db8ea46aac16e4de6354947da:2:275:紫の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.5
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 157,
+      "key": "st3_normal:1a44d4e2b35f560bcd8d18f0f18bd2ec39ba54b4d6856d0568b22dca0692d3ae:1:353:虹の瞳の指輪,緑の瞳の指輪",
+      "winRate": 0.13333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 159,
+      "key": "st3_normal:08fbdda2db2f416694ebbf1751f7195ae49bb0a4efc6c7cbbaf6fda22e99f150:3:341:赤い瞳の指輪,激怒の指輪",
+      "winRate": 0.26666666666666666
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 24,
+      "key": "st3_normal:dc0deea096e86f3746f7000db45f5abacb8b78344aef50663f52cbfb6561031e:1:78:黄の瞳の指輪,狂戦士の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 103,
+      "key": "st3_normal:d11bc38f28bb5b8cc3a5cda050d077f719ca71f417bfdf67e52b9edf75f86b68:1:330:虹の瞳の指輪,復活の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 82,
+      "key": "st3_normal:f5d8572de36cec63462e55f69c03b4a6527e305abc0ea274b509802cb53071a1:3:333:虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "enchant",
+      "seed": 7,
+      "key": "st3_normal:021a451544a638018e7da3a397202715533647f3c33612d99e12dc8c1654f911:1:361:赤い瞳の指輪,虹の瞳の指輪",
+      "winRate": 1
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 198,
+      "key": "st3_normal:706de0089015c5b656828ab85e5e9504abe6c6152fb2d30b11f80889b533d692:2:373:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.6333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 179,
+      "key": "st3_normal:0ebc293182372f29230e8cac58fa0c2bc725231a14e85305f36cabd9dbc11f98:2:472:虹の瞳の指輪,赤い瞳の指輪",
+      "winRate": 0.8666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 159,
+      "key": "st3_normal:22f2a72ff9e530a5cee2bd68c8ba869e1cbfa3abd68523cfe3372dc4893b55f4:2:263:赤い瞳の指輪,強靭の指輪",
+      "winRate": 0.43333333333333335
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 164,
+      "key": "st3_normal:1fbab6c478cd17a0d39590d87b4b866ac88d998801d2f694e3c2042470e93573:3:418:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0.8666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "greedy",
+      "seed": 12,
+      "key": "st3_normal:145bd6068e4f0379ddd933f78b36a7fa6dd955afbe5eb31a7e035a3e17cf248e:2:398:虹の瞳の指輪,聖騎士の指輪",
+      "winRate": 0.7666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "color",
+      "seed": 156,
+      "key": "st3_normal:67b69efd6e8cd0f53c63f279e5a41349b2113da6cf1fe77809135976da6d4122:1:365:紫の瞳の指輪,神速の指輪",
+      "winRate": 0.3333333333333333
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "mana",
+      "seed": 87,
+      "key": "st3_normal:e629f580f26c31ce1698b6be7d2f3d2e7140bc73a8eda79f789676525d0b91fe:2:414:緑の瞳の指輪,魔力の指輪",
+      "winRate": 0.5666666666666667
+    },
+    {
+      "scene": "st3_normal",
+      "policy": "lookahead",
+      "seed": 94,
+      "key": "st3_normal:5301d6303c7389a5de9d7a1efbee2b496cf1928906558b3276c4ef4d76da7d28:2:460:虹の瞳の指輪,強靭の指輪",
+      "winRate": 0.7666666666666667
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 5,
+      "key": "st3_elite:c9155fe42c53248fab0ee608dfbd8419baf5b48c9e556797c23c7102bc501900:2:413:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 12,
+      "key": "st3_elite:58715d5c2a8e51698ca76af55238b0ee1db7fbdf37a501370ba725f86ab93156:3:483:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 15,
+      "key": "st3_elite:5271f0d7be1e476a4ccba03a7b89276a2e358ae563213b5fb2cb5e9119a24b46:3:457:",
+      "winRate": 0.1
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 108,
+      "key": "st3_elite:7edadc5eaced342824b7af2e7c10da9f9a6d8da00826c71deca3f3a6a409c503:1:582:黄の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 51,
+      "key": "st3_elite:7456208bf0e0219ddf13c8c487e8d711ca3e5f49426ffe2694d46210e342f0d1:2:421:虹の瞳の指輪,緑の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 18,
+      "key": "st3_elite:cfee1ba0436e626984a8300be6082a295aea11ae4c611fb2f3e7c7a2ac1eb4f1:1:494:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 106,
+      "key": "st3_elite:65e24e3a58bc72192ddaea936fcfc75be24cc93586202050f40450e7a9380546:2:930:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 100,
+      "key": "st3_elite:7070084ddbab6ac2269e997da93b73e076293373ccf0c2277daa260987294c5a:2:407:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 115,
+      "key": "st3_elite:506680690c10cd8006c5468397c1529eea1b52698e54211a5359716dd23626f9:2:218:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 125,
+      "key": "st3_elite:e2a5a111fcfb1b00162d75154bcf66bd71e79ca1febb598ebd83e504498f5978:2:511:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "mana",
+      "seed": 129,
+      "key": "st3_elite:09542cd41235536bb6ce2d0783c30d26450c567ed68cd827b8336f9e745d90a1:1:165:賢者の指輪",
+      "winRate": 0.1
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 139,
+      "key": "st3_elite:f04ecc9ff02f09346ea578fa02ee3bb54a915c3ca6552691eadfedb4c1ac42c5:1:387:紫の瞳の指輪,聖騎士の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 110,
+      "key": "st3_elite:3869d71b5acaba2bd07d5821c8fa07d14468126f25a615000e1a5594403b9406:2:428:虹の瞳の指輪,赤い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 54,
+      "key": "st3_elite:853f3f15e1a616cfbf8c4e1b5e3f8db0c1a2249071ecf1c46b8ba05002237b9a:2:426:紫の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 28,
+      "key": "st3_elite:c8a5a1a9cf9b4a814bc079abc8c80888c310f450755c955951b873fe615e6ccc:1:492:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 84,
+      "key": "st3_elite:36e2ddb072c416464b1552ef0f3bc81171f53d4658b65871af8f14a2aa949b2a:2:68:黄の瞳の指輪,嵐の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "greedy",
+      "seed": 12,
+      "key": "st3_elite:108fab05ef723a6d14d7254786a62b20f9682b0d7dba1e6992f278321e335cff:2:453:虹の瞳の指輪,聖騎士の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 38,
+      "key": "st3_elite:3f596be995d283e78336ce088568265781f2991228dee78420aa9713d0292cbe:3:714:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 65,
+      "key": "st3_elite:dd81434a7fbe6e99fcdc7813cc072014d869368241eff4090906b08b5d7aa95b:1:227:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 39,
+      "key": "st3_elite:841b708cd61afcaa8181815a9b162411767c640b383bb0e93854e359b084871e:2:490:紫の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "enchant",
+      "seed": 23,
+      "key": "st3_elite:0a14b42be23477162820b6e74b5d0eb06e40b9cfae666682c132412d93312165:2:416:聖騎士の指輪,赤い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 84,
+      "key": "st3_elite:9e972bbea1fe00773447c344f8c27563ddb7f7f8f093b046dbb561e841325090:1:550:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 91,
+      "key": "st3_elite:d59678931ecea4166f40916c0cf7d0c39f660ec352feb4dd274d5efa482da2aa:3:524:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 137,
+      "key": "st3_elite:7702008e7a9f37f1a21cd20f752c8c43f71fd0cd7f456bc07ee02a33f52926c2:1:247:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "enchant",
+      "seed": 68,
+      "key": "st3_elite:c90a5bb56e5f2331a65b43b66bb7c6ab4ba47e0988592829773dd0322421acc9:1:270:虹の瞳の指輪,聖騎士の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 71,
+      "key": "st3_elite:6077f4622e0688b8d63faa72e2769f2a956f188e2dfb91afff1f48a7f361425b:2:245:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "mana",
+      "seed": 193,
+      "key": "st3_elite:b0a7456ff7daa8459941442e3e384bb452d046535097e48fe5096ccead89fb48:3:398:赤い瞳の指輪,賢者の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "mana",
+      "seed": 105,
+      "key": "st3_elite:5373e40647df899e46ed194d1ced3d00a8cdfd60a842e5e29f85dd0ba1adf0df:1:412:魔力の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 179,
+      "key": "st3_elite:24994cb92a7dbc028960b6fe52cfc4d5580215c0e2fb35901d6db3beaeb8b8f7:2:535:虹の瞳の指輪,赤い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 79,
+      "key": "st3_elite:1d043ffbca23f85921af83911ad4aa0654196137e0626852bce77119b8ee7769:2:484:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 147,
+      "key": "st3_elite:f20b54b05ae709506ec4d457f336a769136c03fdb5e61cf9c35eeda7fabd6af5:1:100:紫の瞳の指輪,血の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 74,
+      "key": "st3_elite:facd91e73209a8a4aa547f81c7fe4449e05e3475a5f013cac53f9e28e78913f1:3:494:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 16,
+      "key": "st3_elite:42af7d95cdd9c5fca42c883a5da42b7bc69a34f36720fc92d3bb94b74daeca3a:2:646:虹の瞳の指輪,青い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 177,
+      "key": "st3_elite:44585c0d79eac0213258562db7893344c482ace6c7f8f81fbe743a547f1360ab:3:389:激怒の指輪",
+      "winRate": 0.7666666666666667
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 132,
+      "key": "st3_elite:c9ba60a2160804ab01e5890d969860cd9ac92c3fa443599526cce1eac8c26dd4:1:392:復活の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 55,
+      "key": "st3_elite:c337ea122a76768981cf0e1f756066e33ad279d3f7894e6e1e4f5fde26c4aa04:3:403:",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 35,
+      "key": "st3_elite:8f9ee1afd8197b92172a2d54bb07c2221b8e1e4babb62a92db152511a0427827:1:239:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 89,
+      "key": "st3_elite:f1070537aef446d5b6d6ca307e9a43341c848d55f0294b4de62aa2fb654e6750:1:630:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 142,
+      "key": "st3_elite:4e826dfec9829029e82aa18f49b0e306d6a79266a690c24457bc524df1b7e26e:2:307:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 44,
+      "key": "st3_elite:2e025b737373e76e2f9790c8512b491ecf74e3539d4c05c366fa9bd5a68131fe:1:388:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 2,
+      "key": "st3_elite:0adbca568c24683ff9f8b406ba1587ec77ba099d42100449513f170531053c6f:2:387:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "greedy",
+      "seed": 109,
+      "key": "st3_elite:22329c01e13c0a47bb3e8642aa46b7b3422f50443380ef03ce016718e177b825:2:364:虹の瞳の指輪,加護の指輪",
+      "winRate": 0.43333333333333335
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 26,
+      "key": "st3_elite:196bf38185c2ddd9bc3880ebc1a9fc519496a570fc1c5bc69f91a4960e1ea7cd:1:268:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "mana",
+      "seed": 87,
+      "key": "st3_elite:ca5eed412ab87aefb737fccdd38d1612735de7c651e3e3e899e1125d08c22792:2:473:緑の瞳の指輪,魔力の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 101,
+      "key": "st3_elite:422746a5be6122bb5f4c28251d0063f12c1f211133882efd571659e0fc0bbe02:2:332:紫の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 170,
+      "key": "st3_elite:dbaf826e66f3cd3411608347e0fc20d1d5819d428fe59413244dcac644aab304:2:460:黄の瞳の指輪,神速の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 129,
+      "key": "st3_elite:e7a4938befd28fddc676b38f19769fd12f6106f154aa83d47588bcc7388c2c50:1:174:黄の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 160,
+      "key": "st3_elite:df99c35aa48484ff88f4ab682122571b9523668d181244c20d41e897e1447955:1:618:赤い瞳の指輪,激怒の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 195,
+      "key": "st3_elite:29b6909b79ab298335bfb34867d1b312857281e4d2e23308f702c0870057a2ec:1:160:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "mana",
+      "seed": 28,
+      "key": "st3_elite:7ee644e42c65006bf2ea99d3b15a97ee4ce4001c231121e610a78137a9040ee6:1:148:虹の瞳の指輪,神速の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 23,
+      "key": "st3_elite:4fcc63a1442df66dd790e5d62ac655e8013bb2ae8b284666606beb30bbcfec62:2:420:赤い瞳の指輪,苦行の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 66,
+      "key": "st3_elite:417777c0bb9e742f86149e0b8023dac608d02c66ef2e0234559415298ade2073:1:412:赤い瞳の指輪,苦行の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "greedy",
+      "seed": 159,
+      "key": "st3_elite:86bce0992ffdc32370d4b94766d9004f4b2206bc63c498d5812bd379e4c85393:2:314:赤い瞳の指輪,強靭の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "greedy",
+      "seed": 47,
+      "key": "st3_elite:cd7558227ba08b3ffb9b5baa740f19d228ced655d06fb8a2f1b914eb0692af3e:1:205:虹の瞳の指輪,神速の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "enchant",
+      "seed": 13,
+      "key": "st3_elite:3169afa84a3cc2dce60fb85cf9243f1c447d26fc2aa509156220c2d355990f29:1:131:虹の瞳の指輪,紫の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 159,
+      "key": "st3_elite:395a8884c557936a404c4b496c4b5c27fb1567de9525d9fbf96a614a5c72d44b:3:425:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 28,
+      "key": "st3_elite:f134fad58512b96f4bfd6eae234a1314c285cdce9fcbc7652fb16a8223575730:3:426:紫の瞳の指輪,緑の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "enchant",
+      "seed": 180,
+      "key": "st3_elite:0b8151dc2dd844c92efea4ec389d9c40b321bae08792ae5f89820ac3ac055f55:1:393:紫の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 150,
+      "key": "st3_elite:fd210b6afb843fd49df93965e9c9229c184bdedbf8227b707e1832a2b4c51c61:2:525:虹の瞳の指輪,緑の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 193,
+      "key": "st3_elite:179dbdf01699eabbbfefa730c7f870bde972daa765956cbd6bd609afa0c05113:3:619:",
+      "winRate": 0.3333333333333333
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 198,
+      "key": "st3_elite:30cddbebeb2cebe3314c2f04a5e8a698212d896e3a36df9740a52c55aed7a81b:2:437:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 62,
+      "key": "st3_elite:8c5cbcac60bfe587bb34f2ed2f1256b5610ad133fd637dfe2535ecf246062164:3:381:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 25,
+      "key": "st3_elite:cedceb6e848fff02ecdd96e7dc4a2a19c228ef3fe814d9d74c2d7431feb6f196:1:424:虹の瞳の指輪",
+      "winRate": 0.03333333333333333
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "greedy",
+      "seed": 86,
+      "key": "st3_elite:3fd22e7d7cba5e7c905db32696c499e95beb5d62962066283cc9bcf9740974d4:1:235:虹の瞳の指輪,緑の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 60,
+      "key": "st3_elite:4147b4e5259a9d6ea92634587567a53a843eac59bbdd8f0f49c78f03c4be734d:1:236:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 82,
+      "key": "st3_elite:62bce52f7a509f6a48bf1b2f0aa18f9b2138130a83924716deddaf25c815b6c0:3:398:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "enchant",
+      "seed": 177,
+      "key": "st3_elite:813052d87dd263a025bade5794b38ff3496bf854781a99cf3a80c0ab9904ffad:1:167:赤い瞳の指輪,強靭の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 20,
+      "key": "st3_elite:c76a4684872269dc0c9e63a87d5dc9700bd283e4fdfc24fd2ad9703e592d9b18:3:508:",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 10,
+      "key": "st3_elite:49c24e73be54c04fbcf04d06ad7ef7af047d3c9f945eec9d9e0a3efa86aa366d:2:423:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "enchant",
+      "seed": 7,
+      "key": "st3_elite:c8a24e6de30477ad06eae4acbc78939ebc890c726b69699976382e5d0b2fc23c:1:413:赤い瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 92,
+      "key": "st3_elite:942e33f04de9836a52cbb7415ff5fe5f00e0f59f420f3a87c9c0b28887164859:1:243:青い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 119,
+      "key": "st3_elite:d5257f858e8ef8497615e2d7e9af24c043cf79aabe9e9331cfd866a978df0815:1:320:虹の瞳の指輪,狂戦士の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "color",
+      "seed": 159,
+      "key": "st3_elite:2de090486b670f95ee13958ffc0fc1cd5ea07d823f4bd7e7a22a32bd7913dc20:3:403:赤い瞳の指輪,激怒の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "greedy",
+      "seed": 164,
+      "key": "st3_elite:6fbb09a5a06d3d0a39f881e816aac62f04e7f18628a8a9935b680a8d25366115:1:66:黄の瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 63,
+      "key": "st3_elite:e1b22d1d6695107e6b2fae87782bd59ea4eb869f703925f0a23e39f5aee1e8c8:2:317:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 176,
+      "key": "st3_elite:434806dc4fbb5bd8c6e4bff55eae23e1853653cb436eb2e19bafedf55c0c86c1:1:155:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 94,
+      "key": "st3_elite:c364d356ff47d91dc36437cf3cdc616ff9432554634321cfd59804ea1d123ddf:2:515:虹の瞳の指輪,強靭の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 118,
+      "key": "st3_elite:612b4a98fecea76ecc97854a20bd53e0d1e188aff58256c1db8b173b8283c334:1:504:緑の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 101,
+      "key": "st3_elite:739bcb027817af04ce1f50f8d97627e77bf26bd7d1a80c4bb7ad4a05030678bc:3:471:虹の瞳の指輪,威圧の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 111,
+      "key": "st3_elite:7bd6117ee25c7f8ca91afd2ba82f702b5a1fe61aaf5e0011324cd05a66e27d75:1:296:聖騎士の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 116,
+      "key": "st3_elite:6c45f8879d6b74100fa1f34204f3d5199b90b63fcb2017695c0e28be09bb18a6:1:558:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 133,
+      "key": "st3_elite:e04ec5fc23804feff95605b20a0707a52bb377b566833076efe2c27e4f13bfcd:1:358:虹の瞳の指輪,疾風の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 171,
+      "key": "st3_elite:e9ededd15f92e82e69d01dfd7198df7833056a8b24ddb45a575abdefeab7e89d:3:591:虹の瞳の指輪,召喚師の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 196,
+      "key": "st3_elite:cd446370f15937c5d462ebf21593ab1889fb384ed1c563de2c5444b83af00035:3:437:虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "greedy",
+      "seed": 150,
+      "key": "st3_elite:f82dd1ace1d07f49e7ae0f5ed02215526e91d8545c11b9b0b79225779930b488:1:326:虹の瞳の指輪,赤い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 117,
+      "key": "st3_elite:fa034d52ca0bbf07d3ca9dc5b82779f82d52bf9c21a5e1c260ea4b42ba47e133:2:368:虹の瞳の指輪,赤い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "enchant",
+      "seed": 160,
+      "key": "st3_elite:29986f9c249afaf7688f91287ec5662a63ffe7f40b5303b04506820aea317912:2:116:赤い瞳の指輪,虹の瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "lookahead",
+      "seed": 73,
+      "key": "st3_elite:3c3dd6165871e86d191925b580143b51395e1e8e97fad621e6a1b3197df7e6bb:3:501:虹の瞳の指輪,赤い瞳の指輪",
+      "winRate": 0
+    },
+    {
+      "scene": "st3_elite",
+      "policy": "greedy",
+      "seed": 175,
+      "key": "st3_elite:87d64313d06617159db44995e22c57186608623e168a1aba646ba0dd80e7c9f5:2:389:虹の瞳の指輪,赤い瞳の指輪",
+      "winRate": 0
+    }
+  ],
+  "boards": [
+    {
+      "id": "st2_normal_1",
+      "scene": "st2_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 184,
+        "storyCycle": 1,
+        "battleIndex": 7
+      },
+      "winRate": 0.5,
+      "features": {
+        "colors": {
+          "黄": 1,
+          "赤": 3,
+          "青": 1
+        },
+        "main": [
+          "エルヴンメイジ",
+          "アラクネ",
+          "アラクネ"
+        ],
+        "type": "赤3・青1・黄1 / エルヴンメイジ・アラクネ・アラクネ"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_normal_2",
+      "scene": "st2_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 183,
+        "storyCycle": 1,
+        "battleIndex": 9
+      },
+      "winRate": 0.6333333333333333,
+      "features": {
+        "colors": {
+          "黄": 1,
+          "緑": 1,
+          "紫": 3
+        },
+        "main": [
+          "ガーゴイル",
+          "グリマルキン",
+          "ハイドラ"
+        ],
+        "type": "紫3・緑1・黄1 / ガーゴイル・グリマルキン・ハイドラ"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_normal_3",
+      "scene": "st2_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 149,
+        "storyCycle": 1,
+        "battleIndex": 8
+      },
+      "winRate": 0.36666666666666664,
+      "features": {
+        "colors": {
+          "紫": 2,
+          "青": 2,
+          "赤": 1
+        },
+        "main": [
+          "ナイトメア",
+          "ヘルハウンド",
+          "スケルトンキング"
+        ],
+        "type": "紫2・赤1・青2 / ナイトメア・ヘルハウンド・スケルトンキング"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_normal_4",
+      "scene": "st2_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 75,
+        "storyCycle": 1,
+        "battleIndex": 8
+      },
+      "winRate": 0.4,
+      "features": {
+        "colors": {
+          "緑": 1,
+          "黄": 1,
+          "紫": 1,
+          "赤": 1,
+          "青": 1
+        },
+        "main": [
+          "スリン",
+          "インキュバス",
+          "ラミア"
+        ],
+        "type": "紫1・緑1・赤1・青1・黄1 / スリン・インキュバス・ラミア"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_normal_5",
+      "scene": "st2_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 13,
+        "storyCycle": 1,
+        "battleIndex": 9
+      },
+      "winRate": 0.6666666666666666,
+      "features": {
+        "colors": {
+          "青": 1,
+          "紫": 1,
+          "黄": 1
+        },
+        "main": [
+          "デスナイト",
+          "フロスト・スプライト",
+          "グレムリン"
+        ],
+        "type": "紫1・青1・黄1 / デスナイト・フロスト・スプライト・グレムリン"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_elite_1",
+      "scene": "st2_elite",
+      "source": {
+        "policy": "lookahead",
+        "seed": 100,
+        "storyCycle": 1,
+        "battleIndex": 8
+      },
+      "winRate": 0.5,
+      "features": {
+        "colors": {
+          "赤": 3,
+          "緑": 2
+        },
+        "main": [
+          "ダイアウルフ",
+          "ハーピー",
+          "ゴーレム"
+        ],
+        "type": "緑2・赤3 / ダイアウルフ・ハーピー・ゴーレム"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_elite_2",
+      "scene": "st2_elite",
+      "source": {
+        "policy": "lookahead",
+        "seed": 199,
+        "storyCycle": 1,
+        "battleIndex": 9
+      },
+      "winRate": 0.3,
+      "features": {
+        "colors": {
+          "黄": 3,
+          "紫": 2
+        },
+        "main": [
+          "エレメンタル",
+          "サキュバス",
+          "ケットシー"
+        ],
+        "type": "紫2・黄3 / エレメンタル・サキュバス・ケットシー"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_elite_3",
+      "scene": "st2_elite",
+      "source": {
+        "policy": "lookahead",
+        "seed": 116,
+        "storyCycle": 1,
+        "battleIndex": 10
+      },
+      "winRate": 0.5333333333333333,
+      "features": {
+        "colors": {
+          "紫": 2,
+          "黄": 1,
+          "青": 1,
+          "緑": 1
+        },
+        "main": [
+          "エルヴンメイジ",
+          "ファミリア",
+          "ユミル"
+        ],
+        "type": "紫2・緑1・青1・黄1 / エルヴンメイジ・ファミリア・ユミル"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_elite_4",
+      "scene": "st2_elite",
+      "source": {
+        "policy": "lookahead",
+        "seed": 65,
+        "storyCycle": 1,
+        "battleIndex": 8
+      },
+      "winRate": 0.4,
+      "features": {
+        "colors": {
+          "紫": 1,
+          "赤": 1,
+          "緑": 1,
+          "青": 2
+        },
+        "main": [
+          "サイクロプス",
+          "ボーンチャリオット",
+          "グレムリン"
+        ],
+        "type": "紫1・緑1・赤1・青2 / サイクロプス・ボーンチャリオット・グレムリン"
+      },
+      "additions": []
+    },
+    {
+      "id": "st2_elite_5",
+      "scene": "st2_elite",
+      "source": {
+        "policy": "lookahead",
+        "seed": 160,
+        "storyCycle": 1,
+        "battleIndex": 8
+      },
+      "winRate": 0.6666666666666666,
+      "features": {
+        "colors": {
+          "赤": 4,
+          "黄": 1
+        },
+        "main": [
+          "ギガンテス",
+          "ブラウニー",
+          "マータ"
+        ],
+        "type": "赤4・黄1 / ギガンテス・ブラウニー・マータ"
+      },
+      "additions": []
+    },
+    {
+      "id": "st3_normal_1",
+      "scene": "st3_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 160,
+        "storyCycle": 1,
+        "battleIndex": 14
+      },
+      "winRate": 0.5666666666666667,
+      "features": {
+        "colors": {
+          "赤": 4,
+          "黄": 1
+        },
+        "main": [
+          "ギガンテス",
+          "メデューサ",
+          "ブラウニー"
+        ],
+        "type": "赤4・黄1 / ギガンテス・メデューサ・ブラウニー"
+      },
+      "additions": []
+    },
+    {
+      "id": "st3_normal_2",
+      "scene": "st3_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 39,
+        "storyCycle": 1,
+        "battleIndex": 15
+      },
+      "winRate": 0.3,
+      "features": {
+        "colors": {
+          "紫": 4,
+          "青": 1
+        },
+        "main": [
+          "ナイトメア",
+          "ヴァンパイアロード",
+          "リリス"
+        ],
+        "type": "紫4・青1 / ナイトメア・ヴァンパイアロード・リリス"
+      },
+      "additions": []
+    },
+    {
+      "id": "st3_normal_3",
+      "scene": "st3_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 44,
+        "storyCycle": 1,
+        "battleIndex": 16
+      },
+      "winRate": 0.6666666666666666,
+      "features": {
+        "colors": {
+          "赤": 1,
+          "緑": 1,
+          "青": 2,
+          "黄": 1
+        },
+        "main": [
+          "スリン",
+          "センチネル",
+          "タイタニア"
+        ],
+        "type": "緑1・赤1・青2・黄1 / スリン・センチネル・タイタニア"
+      },
+      "additions": []
+    },
+    {
+      "id": "st3_normal_4",
+      "scene": "st3_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 106,
+        "storyCycle": 1,
+        "battleIndex": 14
+      },
+      "winRate": 0.36666666666666664,
+      "features": {
+        "colors": {
+          "青": 1,
+          "黄": 1,
+          "赤": 1,
+          "緑": 1,
+          "紫": 1
+        },
+        "main": [
+          "ケットシー",
+          "ダークワン",
+          "マミー"
+        ],
+        "type": "紫1・緑1・赤1・青1・黄1 / ケットシー・ダークワン・マミー"
+      },
+      "additions": []
+    },
+    {
+      "id": "st3_normal_5",
+      "scene": "st3_normal",
+      "source": {
+        "policy": "lookahead",
+        "seed": 115,
+        "storyCycle": 1,
+        "battleIndex": 14
+      },
+      "winRate": 0.6666666666666666,
+      "features": {
+        "colors": {
+          "黄": 2,
+          "赤": 2,
+          "紫": 1,
+          "青": 1
+        },
+        "main": [
+          "サイクロプス",
+          "ヴォイド・ウォーカー",
+          "ヘカトンケイル"
+        ],
+        "type": "紫1・赤2・青1・黄2 / サイクロプス・ヴォイド・ウォーカー・ヘカトンケイル"
+      },
+      "additions": []
+    },
+    {
+      "id": "st3_elite_1",
+      "scene": "st3_elite",
+      "source": {
+        "policy": "lookahead",
+        "seed": 25,
+        "storyCycle": 1,
+        "battleIndex": 17
+      },
+      "winRate": 0.5,
+      "features": {
+        "colors": {
+          "紫": 2,
+          "緑": 1,
+          "赤": 1,
+          "黄": 1
+        },
+        "main": [
+          "ナイトメア",
+          "ギガンテス",
+          "スリン"
+        ],
+        "type": "紫2・緑1・赤1・黄1 / ナイトメア・ギガンテス・スリン"
+      },
+      "additions": [
+        {
+          "name": "威光+",
+          "slot": 6,
+          "form": "合体",
+          "directions": [
+            "up",
+            "right",
+            "down",
+            "left"
+          ],
+          "beforeWinRate": 0.03333333333333333,
+          "afterWinRate": 0.5
+        }
+      ]
+    },
+    {
+      "id": "st3_elite_2",
+      "scene": "st3_elite",
+      "source": {
+        "policy": "lookahead",
+        "seed": 55,
+        "storyCycle": 1,
+        "battleIndex": 15
+      },
+      "winRate": 0.5333333333333333,
+      "features": {
+        "colors": {
+          "紫": 3,
+          "緑": 1,
+          "青": 1,
+          "赤": 1
+        },
+        "main": [
+          "ヘルハウンド",
+          "ファミリア",
+          "ウェンディゴ"
+        ],
+        "type": "紫3・緑1・赤1・青1 / ヘルハウンド・ファミリア・ウェンディゴ"
+      },
+      "additions": [
+        {
+          "name": "熟練",
+          "slot": 8,
+          "form": "通常",
+          "directions": [
+            "left",
+            "down",
+            "up"
+          ],
+          "beforeWinRate": 0.03333333333333333,
+          "afterWinRate": 0.5333333333333333
+        }
+      ]
+    },
+    {
+      "id": "st3_elite_3",
+      "scene": "st3_elite",
+      "source": {
+        "policy": "mana",
+        "seed": 129,
+        "storyCycle": 1,
+        "battleIndex": 17
+      },
+      "winRate": 0.43333333333333335,
+      "features": {
+        "colors": {
+          "緑": 3,
+          "黄": 2
+        },
+        "main": [
+          "ウンディーネ",
+          "ニンフ",
+          "ジャッカロープ"
+        ],
+        "type": "緑3・黄2 / ウンディーネ・ニンフ・ジャッカロープ"
+      },
+      "additions": [
+        {
+          "name": "複製+",
+          "slot": 11,
+          "form": "合体",
+          "directions": [
+            "up",
+            "right",
+            "down",
+            "left"
+          ],
+          "beforeWinRate": 0.1,
+          "afterWinRate": 0.43333333333333335
+        }
+      ]
+    },
+    {
+      "id": "st3_elite_4",
+      "scene": "st3_elite",
+      "source": {
+        "policy": "lookahead",
+        "seed": 193,
+        "storyCycle": 1,
+        "battleIndex": 15
+      },
+      "winRate": 0.3333333333333333,
+      "features": {
+        "colors": {
+          "緑": 2,
+          "赤": 4
+        },
+        "main": [
+          "ギガンテス",
+          "ミノタウロス",
+          "アラクネ"
+        ],
+        "type": "緑2・赤4 / ギガンテス・ミノタウロス・アラクネ"
+      },
+      "additions": []
+    },
+    {
+      "id": "st3_elite_5",
+      "scene": "st3_elite",
+      "source": {
+        "policy": "greedy",
+        "seed": 109,
+        "storyCycle": 1,
+        "battleIndex": 16
+      },
+      "winRate": 0.43333333333333335,
+      "features": {
+        "colors": {
+          "黄": 2,
+          "赤": 1,
+          "青": 1,
+          "緑": 1
+        },
+        "main": [
+          "ギガンテス",
+          "フロスト・スプライト",
+          "マーメイド"
+        ],
+        "type": "緑1・赤1・青1・黄2 / ギガンテス・フロスト・スプライト・マーメイド"
+      },
+      "additions": []
+    }
+  ],
+  "construction": "実周回の非再戦の開戦直前。JSONLで予備評価し、元seedを完全一致再実行して本体の正式なラン保存対象・開戦アイテムを採取。不足時のみ本体の通常／3枚合体カードを空きマスへ追加。既存カードの数値・方向は維持。"
+}

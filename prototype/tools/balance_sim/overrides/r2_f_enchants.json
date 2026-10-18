@@ -1,0 +1,35 @@
+{
+  "label": "F 不屈の盾R3・紫と緑の加護R2を追加",
+  "simulation": {
+    "explicitEnchantKeywords": true
+  },
+  "override": {
+    "change": [],
+    "add": [
+      {
+        "category": "エンチャント",
+        "name": "仮・不屈の盾",
+        "desc": "死亡：ランダムな味方2体は結界1を得る。",
+        "rarity": 3,
+        "grade": 1,
+        "directionCount": 3
+      },
+      {
+        "category": "エンチャント",
+        "name": "仮・紫の加護",
+        "desc": "開戦：全ての紫の味方は熟練1を得る。",
+        "rarity": 2,
+        "grade": 1,
+        "directionCount": 3
+      },
+      {
+        "category": "エンチャント",
+        "name": "仮・緑の加護",
+        "desc": "開戦：全ての緑の味方は熟練1を得る。",
+        "rarity": 2,
+        "grade": 1,
+        "directionCount": 3
+      }
+    ]
+  }
+}

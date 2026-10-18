@@ -1,11 +1,11 @@
 // peddler.js — 全ゲームを通して初めて戦闘に敗北した時の、行商人のイベント（2026-10-10 利用者指定）。
-// 依存: map.js（storyTalkEntry／_storyTalkLines／_mapPickSaleCard／fadeScreenSwitch）, quest.js（立ち絵・会話）,
-//       pool.js（drawItems）, reward.js（goToReward）, main.js（_finishWaveBattleDefeat から呼ばれる）
+// 依存: map.js（storyTalkEntry／_storyTalkLines／_drawExchangeShopStock／fadeScreenSwitch）, quest.js（立ち絵・会話）,
+//       reward.js（goToReward）, main.js（_finishWaveBattleDefeat から呼ばれる）
 //
 // 流れ：敗北の結果表示の「進む」→ camp を背景に行商人の会話（会話メッセージシート「戦闘敗北時（一度だけ）」）
-//       → そのまま魔導店と同じ売買の編成画面（敗北後の編成画面を兼ねる。「再戦」で同じ戦闘へ）。
-// 2回目以降の敗北は会話を飛ばし、camp の背景に行商人（Bキャラ）だけを出して売買の編成画面にする（2026-10-11 利用者指定）。
-// 売買の編成画面は背景を camp のまま（編成画面の背景に切り替えない）、BGM は流さず環境音だけ（2026-10-11 利用者指定）。
+//       → そのまま魔導店と同じ交換だけの編成画面（敗北後の編成画面を兼ねる。「再戦」で同じ戦闘へ）。
+// 2回目以降の敗北は会話を飛ばし、camp の背景に行商人（Bキャラ）だけを出して交換の編成画面にする（2026-10-11 利用者指定）。
+// 交換の編成画面は背景を camp のまま（編成画面の背景に切り替えない）、BGM は流さず環境音だけ（2026-10-11 利用者指定）。
 // 会話の一度きりの記録はランではなくプロフィール（SaveProfile）に持つ（AGENTS.md §7）。
 // 台詞・名前はシートが唯一の出どころ。ここに台詞を書かない。
 
@@ -18,10 +18,6 @@ const DEFEAT_PEDDLER_PROFILE_KEY='defeatPeddler';
 const DEFEAT_PEDDLER_PORTRAIT_B='MC025';
 const DEFEAT_PEDDLER_B_TAIL_Y=1140;
 const DEFEAT_PEDDLER_B_TAIL='bottom';
-// 品揃え：左からキャラクター2枚・エンチャント2枚・アイテム1つ。
-const DEFEAT_PEDDLER_CHARACTER_COUNT=2;
-const DEFEAT_PEDDLER_ENCHANT_COUNT=2;
-const DEFEAT_PEDDLER_ITEM_COUNT=1;
 
 function _defeatPeddlerLines(){
   const talk=typeof storyTalkEntry==='function'?storyTalkEntry(DEFEAT_PEDDLER_SCENE):null;
@@ -33,10 +29,6 @@ function defeatPeddlerTitle(){
   const name=String((_defeatPeddlerLines().talk||{}).characterName||'').trim();
   const fallback=name.split(/[ 　]+/)[0]||name;
   return typeof textMessage==='function'?textMessage('「行商人」見出し',fallback):fallback;
-}
-// 行商人の商品枠のうち、アイテムの枠か（左からキャラクター・エンチャントの後）。売切の枠の形に使う。
-function defeatPeddlerIsItemSlot(idx){
-  return Number(idx)>=DEFEAT_PEDDLER_CHARACTER_COUNT+DEFEAT_PEDDLER_ENCHANT_COUNT;
 }
 // 敗北の後に行商人が来るか（毎回）。オンライン・試験戦闘・闘技場では来ない。
 function defeatPeddlerPending(){
@@ -51,7 +43,7 @@ function _defeatPeddlerTalkPending(){
     &&SaveProfile.tutorialShown(DEFEAT_PEDDLER_PROFILE_KEY)) return false;
   return _defeatPeddlerLines().lines.length>0;
 }
-// 売買の編成画面：camp の背景と行商人の立ち絵を出し、BGM を止める（環境音だけ）。
+// 交換の編成画面：camp の背景と行商人の立ち絵を出し、BGM を止める（環境音だけ）。
 // reward.js goToReward() が G._isPeddler の時に呼ぶ（チェックポイントからの再開も同じ）。
 function defeatPeddlerApplySaleScene(){
   if(typeof _setOverrideBackground==='function') _setOverrideBackground('camp');
@@ -67,29 +59,23 @@ function defeatPeddlerApplySaleScene(){
     &&typeof _placePortraitInstant==='function') _placePortraitInstant(DEFEAT_PEDDLER_PORTRAIT_B,'battle');
 }
 function _buildDefeatPeddlerStock(){
-  const used=new Set();
-  const isChar=p=>String(p&&p.category||'')==='キャラクター';
-  const isEnchant=p=>['エンチャント','強化'].includes(String(p&&p.category||''));
-  const pick=pred=>typeof _mapPickSaleCard==='function'?_mapPickSaleCard(pred,used):null;
-  const cards=[
-    ...Array.from({length:DEFEAT_PEDDLER_CHARACTER_COUNT},()=>pick(isChar)),
-    ...Array.from({length:DEFEAT_PEDDLER_ENCHANT_COUNT},()=>pick(isEnchant)),
-  ];
-  // 魔導店と同じく、同じ品揃えの中で矢印の向きが完全に同じカードを重ねない。
-  if(typeof _dedupePanelDirections==='function') _dedupePanelDirections(cards);
-  const items=(typeof drawItems==='function'?drawItems(DEFEAT_PEDDLER_ITEM_COUNT,undefined,{forPeddler:true}):[]).filter(Boolean);
-  items.forEach(item=>{
-    item._buyPrice=typeof _shopBuyPriceWithRings==='function'&&typeof _itemShopBuyPrice==='function'
-      ?_shopBuyPriceWithRings(_itemShopBuyPrice(item)):0;
-  });
-  while(items.length<DEFEAT_PEDDLER_ITEM_COUNT) items.push(null);
-  return [...cards,...items];
+  // 同じ敗北の再開では固定、再戦して再び負けた時には新しい在庫を作る。
+  return _drawExchangeShopStock(`exchange-peddler:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`);
+}
+function _ensureDefeatPeddlerStock(){
+  const old=G._peddlerStock;
+  if(Array.isArray(old)&&old.length===SHOP_EXCHANGE_TRIAL.stockCount
+    &&old.every(c=>c&&!_isSpellCard(c)&&!('_buyPrice' in c))) return clone(old);
+  // 旧セーブの売買5枠は一度だけ移行。未購入の通常カードだけ抽選在庫へ返す。
+  if(Array.isArray(old)) old.filter(c=>c&&!_isSpellCard(c)&&!c._shopSalePending&&!c._towerBoonBoss).forEach(returnPanelToSalePool);
+  G._peddlerStock=_buildDefeatPeddlerStock();
+  return clone(G._peddlerStock);
 }
 
 async function runDefeatPeddlerEvent(){
   G._peddlerStock=_buildDefeatPeddlerStock();
-  // 売買の編成画面を開く（camp の背景と行商人は goToReward → defeatPeddlerApplySaleScene が出す）。
-  const openSale=()=>{
+  // 交換の編成画面を開く（camp の背景と行商人は goToReward → defeatPeddlerApplySaleScene が出す）。
+  const openExchange=()=>{
     if(typeof _qClearPresentation==='function') void _qClearPresentation({immediate:true});
     G._questCampScene=false;
     document.body.classList.remove('tavern-tower-event-active','quest-camp-scene','village-screen-active');
@@ -97,7 +83,7 @@ async function runDefeatPeddlerEvent(){
     if(typeof showScreen==='function') showScreen('battle');
     return typeof goToReward==='function'?goToReward({checkpoint:true,noNewRewards:true,peddler:true}):undefined;
   };
-  // 2回目以降：会話を飛ばし、暗転のまま売買の画面へ。
+  // 2回目以降：会話を飛ばし、暗転のまま交換の画面へ。
   if(!_defeatPeddlerTalkPending()){
     return fadeScreenSwitch(()=>{
       document.body.classList.remove('battle-victory-pending','battle-turn-active','reward-screen-active','facility-bg-active');
@@ -106,7 +92,7 @@ async function runDefeatPeddlerEvent(){
       const transitionFade=document.getElementById('battle-transition-fade');
       if(transitionFade) transitionFade.classList.remove('is-visible');
       G._battleFadeHeldByCaller=false;
-      return openSale();
+      return openExchange();
     });
   }
   const {talk,lines}=_defeatPeddlerLines();
@@ -125,7 +111,7 @@ async function runDefeatPeddlerEvent(){
     document.getElementById('scr-battle')?.classList.remove('battle-opening-pending','battle-opening-active');
     G.phase='reward';
     G._questCampScene=true;
-    // camp の会話と続く売買の画面は BGM を流さない（環境音だけ。2026-10-11 利用者指摘：街の曲になっていた）。
+    // camp の会話と続く交換の画面は BGM を流さない（環境音だけ。2026-10-11 利用者指摘：街の曲になっていた）。
     G._questNoBgm=true;
     if(typeof stopBgm==='function') stopBgm(600);
     if(typeof _qEnsureStyle==='function') _qEnsureStyle();
@@ -148,5 +134,5 @@ async function runDefeatPeddlerEvent(){
     ...(name?{namePlateText:name,namePlateLine:1,namePlateAnySpeaker:true}:{})});
   if(typeof _qRemoveDialogue==='function') _qRemoveDialogue();
   // イベントから編成画面へは暗転しない（camp のイベントと同じ。quest.js _qEventFormationSwitch）。
-  return typeof _qEventFormationSwitch==='function'?_qEventFormationSwitch(openSale):openSale();
+  return typeof _qEventFormationSwitch==='function'?_qEventFormationSwitch(openExchange):openExchange();
 }

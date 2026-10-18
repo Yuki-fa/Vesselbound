@@ -191,36 +191,36 @@ function runTrigger(unit,trigger,side='p1'){
       const save=SaveRun.buildRunSave('town');SaveRun.restoreRunState(save);assert.equal(G.questProgress.Q001.status,'ended');
     }
   });
-  check('エルムの売却は店ごとに阻止し、初回は特殊台詞A1、次から売却ボタンを消して保存する',()=>{
+  check('エルムの依頼カードは売却できず、交換・放棄・合体にも出せない',()=>{
     const entry=accept(),soul=G.mainBoard[0],gold=G.gold;G._isShop=true;
-    const original=showVillageShopSpecialDialogue,lines=[];
-    showVillageShopSpecialDialogue=column=>{lines.push(_facilityGreetingEntry(villageFacilityList().find(f=>f.key===(G._isItemShop?'item':'shop')))[column]);};
     for(const item of [false,true]){
-      G._isItemShop=item;assert.equal(_boardCardSellEnabled(soul),true);
-      assert.equal(questTryBlockedCardSale(soul),true);assert.equal(_boardCardSellEnabled(soul),false);
-      assert.equal(questTryBlockedCardSale(soul),true);assert.equal(G.gold,gold);assert.equal(G.mainBoard[0],soul);assert.equal(entry.status,'accepted');
+      G._isItemShop=item;assert.equal(_boardCardSellEnabled(soul),false);assert.equal(isShopReturnable(soul),false);
+      _rewCards=[makePanel('ノーム'),makePanel('ラミア'),makePanel('ゴーレム')];
+      if(!item)assert.equal(exchangeShopCard(0,0),false);
+      assert.equal(G.gold,gold);assert.equal(G.mainBoard[0],soul);assert.equal(entry.status,'accepted');
     }
-    assert.equal(lines.length,2);assert.ok(lines.every(line=>line.speaker==='B'&&line.text&&line.face));
     const save=SaveRun.buildRunSave('town');G._facilityTalkSeen={};SaveRun.restoreRunState(save);G._isShop=true;
     for(const item of [false,true]){G._isItemShop=item;assert.equal(_boardCardSellEnabled(soul),false);}
-    showVillageShopSpecialDialogue=original;
     assert.equal(_rewardAreaAcceptsCard(soul),false);assert.equal(_mergedPanelCard(soul,soul),null);
     const board=_getPartyBoardUnit();board.boardCards[2]=makeSoul();board.boardCards[3]=makeSoul();
     assert.equal(_tryTripleMergeOnBoard(board,3),null);
     G.spells=[soul];discardHeCard('spells',0);assert.equal(G.spells[0],soul);
   });
-  check('エルム以外の店の売却・報酬への放棄・合成素材化は所持から消えた場合だけ終了する',()=>{
+  check('エルム以外の店で交換・報酬への放棄・合成素材化により所持から消えた場合だけ終了する',()=>{
     const entry=accept();G._wave=2;G._waveVillage=true;G._isShop=true;G._isItemShop=false;
-    const soul=G.mainBoard[0];assert.equal(questCardRemovalLocked(soul),false);assert.equal(_boardCardSellEnabled(soul),true);
-    G.mainBoard[0]=null;_rewCards=[{...soul,_shopSalePending:true}];const gold=G.gold;
-    assert.equal(_sellPendingShopCard(0),true);assert.ok(G.gold>gold);assert.equal(entry.status,'ended');
+    const soul=G.mainBoard[0];assert.equal(questCardRemovalLocked(soul),false);assert.equal(_boardCardSellEnabled(soul),false);
+    _rewCards=[makePanel('ノーム'),makePanel('ラミア'),makePanel('ゴーレム')];const gold=G.gold;
+    assert.equal(exchangeShopCard(0,0),true);questCheckRetainedCards();assert.equal(G.gold,gold);assert.equal(entry.status,'ended');
     const discarded=accept();G._waveVillage=false;const card=G.mainBoard[0];_dragSrc={arr:'boardCards',idx:0};
     _returnDragSrcToRewardArea();assert.equal(G.mainBoard[0],null);assert.equal(discarded.status,'ended');
     const merged=accept();G._waveVillage=false;const ingredient=G.mainBoard[0];
     const recipe={id:'q001-test-recipe',name:'検査用合成',mergeFrom:[ingredient.name,ingredient.name],category:'強化',desc:'',grade:1,rarity:1};
     PANEL_POOL.push(recipe);
-    try{G.mainBoard[0]=_mergedPanelCard(ingredient,ingredient);assert.ok(G.mainBoard[0]);renderHandEditor();assert.equal(merged.status,'ended');}
-    finally{PANEL_POOL.splice(PANEL_POOL.indexOf(recipe),1);}
+    const enabled=PANEL_MERGE_TRIAL.enabled;
+    try{
+      assert.equal(_mergedPanelCard(ingredient,ingredient),null,'停止中は合成素材化でも所持を失わない');
+      PANEL_MERGE_TRIAL.enabled=true;G.mainBoard[0]=_mergedPanelCard(ingredient,ingredient);assert.ok(G.mainBoard[0]);renderHandEditor();assert.equal(merged.status,'ended');
+    }finally{PANEL_MERGE_TRIAL.enabled=enabled;PANEL_POOL.splice(PANEL_POOL.indexOf(recipe),1);}
   });
   check('元に戻すはカードとQ001の終了・割り振りを対で戻し、他クエストには触れない',()=>{
     accept();G._waveVillage=false;G.questProgress.Q003={questId:'Q003',wave:1,status:'offered'};_storeRewardStartSnapshot();

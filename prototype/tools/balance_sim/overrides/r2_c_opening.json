@@ -1,0 +1,10 @@
+{
+  "label": "C1 開戦マナ+2",
+  "simulation": {
+    "openingMana": 2
+  },
+  "override": {
+    "change": [],
+    "add": []
+  }
+}

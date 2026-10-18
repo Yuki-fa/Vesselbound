@@ -1,0 +1,418 @@
+{
+  "schemaVersion": 1,
+  "options": {
+    "boards": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/tools/balance_sim/fixed",
+    "out": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/tools/balance_sim/fixed",
+    "samples": 30,
+    "seed": 7411,
+    "workers": 4
+  },
+  "elapsedMs": 12068.703959,
+  "config": {
+    "key": "towerBoon",
+    "name": "祝福の座（仮）",
+    "description": "ゴールドを捧げ、これから出会うカードに祝福を授ける。",
+    "choiceCount": 3,
+    "firstPrices": [
+      200,
+      500,
+      1000
+    ],
+    "priceStep": 1000,
+    "multiplier": 3,
+    "modifierStep": 1,
+    "manaStep": 1,
+    "rerollsPerStack": 1,
+    "bossSlotChance": 0.15,
+    "position": {
+      "x": 650,
+      "y": 1402
+    },
+    "text": {
+      "leave": "塔に戻る",
+      "price": "{price}G",
+      "reroll": "再抽選（残{count}）",
+      "familiar": "（祝福：召喚する眷属のATKとHPは{mul}倍）",
+      "zeroModifier": "（X=0→0）",
+      "dynamicModifier": "（祝福：増加量+{delta}、0は変更なし）"
+    },
+    "blessings": [
+      {
+        "id": "stats",
+        "field": "statMul",
+        "label": "今後のキャラクターカードのATKとHPが{multiplier}倍"
+      },
+      {
+        "id": "modifiers",
+        "field": "modDelta",
+        "label": "今後のカードの戦闘修正を正の値は+{modifierStep}、負の値は-{modifierStep}"
+      },
+      {
+        "id": "damage",
+        "field": "dmgMul",
+        "label": "今後のカードの効果ダメージが{multiplier}倍"
+      },
+      {
+        "id": "mana",
+        "field": "manaDelta",
+        "label": "今後のカードから得られるマナが+{manaStep}"
+      },
+      {
+        "id": "familiars",
+        "field": "famMul",
+        "label": "今後のカードが出す眷属のATKとHPが{multiplier}倍"
+      },
+      {
+        "id": "bosses",
+        "label": "このランで倒したボスが報酬とショップに出現する"
+      },
+      {
+        "id": "rerolls",
+        "label": "報酬ごとに再抽選権を{rerollsPerStack}回得る"
+      }
+    ]
+  },
+  "sourceHashes": {
+    "js/battle/core.js": "640b5cb7561c0eaa874cb07127890dfc8c731dce30c864a7ef95559940229ae0",
+    "js/battle/formation.js": "3977a64afa962d09ab049569bb3edc4660fd51b2acde097758cd844580f76d6e",
+    "js/engine/battle.js": "37cd7e277fa744b1dd0d4848e585f199359c4c2b8ff7bad0f61f57117c3d4127",
+    "js/engine/enemy.js": "cbf7a6edd4eec04d88bfa7f15363e0f5702df74a7f8d1b3a461e61f75b40a9ea",
+    "js/engine/main.js": "e947a620da3dad573ace9ce7486854a287b414c4af332cca194344edb1cddc83",
+    "js/engine/pool.js": "d128f48dc94e7b344d57b9bf7a58541ad4cb5f1a3979666aa2b1871eb2a9e82e",
+    "js/engine/reward.js": "1703259f0d2177d20f62b12e17fe9d058f77192f3cb6fc440f421ed23b20e1c3",
+    "js/engine/map.js": "4c7a9640b11408f7ee87d0cf83a7a1bf8d24ab6b97da2314ff1fcb81d96c7e60",
+    "js/engine/tower_boon.js": "141430eabc6aad586dc923ed277cdd6ff39dddefcb7ad49edde9ae001a461062",
+    "js/save/run_save.js": "7cbbfaec7d121d32ec78a6e2b398822908b867acf49b250cafa3e3b201e604cd",
+    "js/data/loader.js": "361c6c35e378283cfde8252fe89c13fe05cffd4ecd4a4054b8679b3600174fb4",
+    "js/data/local_xlsx_data.js": "753edaedfd869adde6fa211704d6d0010c59ba4526e239bf1c986534a7e643f1"
+  },
+  "boardFiles": [
+    {
+      "file": "boards_st2_normal.json",
+      "hash": "2e4ffe8a67c0803923a93f185c347453cd6f62b062af84f4acabdb69932efcbb"
+    },
+    {
+      "file": "boards_st2_elite.json",
+      "hash": "7f4c536b59c4aebba9265cd7738b29304771d3f3c5fddb71ec1f5c3f63c50e30"
+    },
+    {
+      "file": "boards_st3_normal.json",
+      "hash": "98a52b7bdaece2cd08ef02effb72dbc56919811de73ead3d60578c262277f195"
+    },
+    {
+      "file": "boards_st3_elite.json",
+      "hash": "993c3504317a396851aa3da20a72d46abf02a2b1afa1a167785d82bc9cd99bbc"
+    }
+  ],
+  "scriptHash": "f73cf19bfa261e3a345a1c080b9419d191525828b7bdd6752b63afb6735cb303",
+  "summaries": [
+    {
+      "scene": "st2_normal",
+      "id": "stats",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 1,
+      "meanGainWinPt": 44.00000000000001,
+      "minGainWinPt": 33.333333333333336,
+      "maxGainWinPt": 53.333333333333336,
+      "ciLowPt": 31.906789593700346,
+      "ciHighPt": 56.09321040629967,
+      "meanGainHp": 54.19333333333334,
+      "meanGainDamage": 20.806666666666665
+    },
+    {
+      "scene": "st2_normal",
+      "id": "modifiers",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.8533333333333333,
+      "meanGainWinPt": 29.333333333333336,
+      "minGainWinPt": 3.3333333333333326,
+      "maxGainWinPt": 46.666666666666664,
+      "ciLowPt": 21.8782618768377,
+      "ciHighPt": 36.788404789828974,
+      "meanGainHp": 14.079999999999998,
+      "meanGainDamage": 3.8466666666666667
+    },
+    {
+      "scene": "st2_normal",
+      "id": "damage",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.5733333333333333,
+      "meanGainWinPt": 1.333333333333333,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 6.666666666666665,
+      "ciLowPt": -0.48243244561082177,
+      "ciHighPt": 3.149099112277488,
+      "meanGainHp": 0.05999999999999996,
+      "meanGainDamage": 0.8799999999999997
+    },
+    {
+      "scene": "st2_normal",
+      "id": "mana",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.5599999999999999,
+      "meanGainWinPt": 0,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 0,
+      "ciLowPt": 0,
+      "ciHighPt": 0,
+      "meanGainHp": 0,
+      "meanGainDamage": 0
+    },
+    {
+      "scene": "st2_normal",
+      "id": "familiars",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.7333333333333334,
+      "meanGainWinPt": 17.333333333333336,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 53.333333333333336,
+      "ciLowPt": 11.779006174120362,
+      "ciHighPt": 22.88766049254631,
+      "meanGainHp": 4.413333333333333,
+      "meanGainDamage": 3.6400000000000006
+    },
+    {
+      "scene": "st2_elite",
+      "id": "stats",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.9466666666666667,
+      "meanGainWinPt": 38.666666666666664,
+      "minGainWinPt": 23.33333333333333,
+      "maxGainWinPt": 56.666666666666664,
+      "ciLowPt": 27.88069479242044,
+      "ciHighPt": 49.452638540912886,
+      "meanGainHp": 46.406666666666666,
+      "meanGainDamage": 28.726666666666667
+    },
+    {
+      "scene": "st2_elite",
+      "id": "modifiers",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.64,
+      "meanGainWinPt": 7.999999999999998,
+      "minGainWinPt": 3.3333333333333326,
+      "maxGainWinPt": 19.999999999999996,
+      "ciLowPt": 3.552300349179582,
+      "ciHighPt": 12.447699650820415,
+      "meanGainHp": 6.006666666666666,
+      "meanGainDamage": 9.533333333333331
+    },
+    {
+      "scene": "st2_elite",
+      "id": "damage",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.5933333333333334,
+      "meanGainWinPt": 3.333333333333333,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 9.999999999999998,
+      "ciLowPt": 0.03304656998889355,
+      "ciHighPt": 6.633620096677772,
+      "meanGainHp": 1.8666666666666665,
+      "meanGainDamage": 6.060000000000002
+    },
+    {
+      "scene": "st2_elite",
+      "id": "mana",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.58,
+      "meanGainWinPt": 1.9999999999999987,
+      "minGainWinPt": -6.6666666666666705,
+      "maxGainWinPt": 16.666666666666664,
+      "ciLowPt": -2.736181108683756,
+      "ciHighPt": 6.736181108683754,
+      "meanGainHp": 0.30666666666666664,
+      "meanGainDamage": 2.139999999999998
+    },
+    {
+      "scene": "st2_elite",
+      "id": "familiars",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.5599999999999999,
+      "winRate": 0.6066666666666667,
+      "meanGainWinPt": 4.666666666666666,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 16.666666666666664,
+      "ciLowPt": 0.5992471019169434,
+      "ciHighPt": 8.734086231416388,
+      "meanGainHp": 1.3199999999999998,
+      "meanGainDamage": 2.620000000000002
+    },
+    {
+      "scene": "st3_normal",
+      "id": "stats",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.47333333333333333,
+      "winRate": 0.9733333333333334,
+      "meanGainWinPt": 50,
+      "minGainWinPt": 26.66666666666667,
+      "maxGainWinPt": 76.66666666666666,
+      "ciLowPt": 40.64962475398023,
+      "ciHighPt": 59.35037524601977,
+      "meanGainHp": 49.04,
+      "meanGainDamage": 95.91999999999999
+    },
+    {
+      "scene": "st3_normal",
+      "id": "modifiers",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.47333333333333333,
+      "winRate": 0.6866666666666668,
+      "meanGainWinPt": 21.333333333333332,
+      "minGainWinPt": 9.999999999999998,
+      "maxGainWinPt": 40,
+      "ciLowPt": 14.840678361569047,
+      "ciHighPt": 27.825988305097617,
+      "meanGainHp": 15.620000000000001,
+      "meanGainDamage": 35.48000000000002
+    },
+    {
+      "scene": "st3_normal",
+      "id": "damage",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.47333333333333333,
+      "winRate": 0.5866666666666667,
+      "meanGainWinPt": 11.333333333333336,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 43.333333333333336,
+      "ciLowPt": 7.726202039828429,
+      "ciHighPt": 14.940464626838242,
+      "meanGainHp": 3.206666666666667,
+      "meanGainDamage": 44.29333333333334
+    },
+    {
+      "scene": "st3_normal",
+      "id": "mana",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.47333333333333333,
+      "winRate": 0.47333333333333333,
+      "meanGainWinPt": 0,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 0,
+      "ciLowPt": 0,
+      "ciHighPt": 0,
+      "meanGainHp": 0,
+      "meanGainDamage": 0
+    },
+    {
+      "scene": "st3_normal",
+      "id": "familiars",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.47333333333333333,
+      "winRate": 0.5199999999999999,
+      "meanGainWinPt": 4.666666666666666,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 16.666666666666664,
+      "ciLowPt": 1.587885995450228,
+      "ciHighPt": 7.745447337883104,
+      "meanGainHp": 0.6933333333333334,
+      "meanGainDamage": 4.766666666666675
+    },
+    {
+      "scene": "st3_elite",
+      "id": "stats",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.4066666666666666,
+      "winRate": 0.6266666666666667,
+      "meanGainWinPt": 22,
+      "minGainWinPt": -6.666666666666665,
+      "maxGainWinPt": 70,
+      "ciLowPt": 14.880206641252546,
+      "ciHighPt": 29.119793358747454,
+      "meanGainHp": 129.84666666666664,
+      "meanGainDamage": 256.81333333333333
+    },
+    {
+      "scene": "st3_elite",
+      "id": "modifiers",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.4066666666666666,
+      "winRate": 0.6933333333333334,
+      "meanGainWinPt": 28.666666666666668,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 60.00000000000001,
+      "ciLowPt": 20.763093004812653,
+      "ciHighPt": 36.57024032852068,
+      "meanGainHp": 66.63999999999999,
+      "meanGainDamage": 123.88666666666668
+    },
+    {
+      "scene": "st3_elite",
+      "id": "damage",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.4066666666666666,
+      "winRate": 0.42000000000000004,
+      "meanGainWinPt": 1.333333333333333,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 6.666666666666665,
+      "ciLowPt": -3.9604881213315046,
+      "ciHighPt": 6.627154787998171,
+      "meanGainHp": -0.7933333333333327,
+      "meanGainDamage": 101.98000000000003
+    },
+    {
+      "scene": "st3_elite",
+      "id": "mana",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.4066666666666666,
+      "winRate": 0.5,
+      "meanGainWinPt": 9.333333333333332,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 46.666666666666664,
+      "ciLowPt": 5.244259207927296,
+      "ciHighPt": 13.422407458739368,
+      "meanGainHp": 10.286666666666667,
+      "meanGainDamage": 36.879999999999995
+    },
+    {
+      "scene": "st3_elite",
+      "id": "familiars",
+      "boards": 5,
+      "samples": 30,
+      "baselineWinRate": 0.4066666666666666,
+      "winRate": 0.4066666666666666,
+      "meanGainWinPt": 0,
+      "minGainWinPt": 0,
+      "maxGainWinPt": 0,
+      "ciLowPt": 0,
+      "ciHighPt": 0,
+      "meanGainHp": -1.4066666666666663,
+      "meanGainDamage": -2.506666666666672
+    }
+  ],
+  "values": {
+    "stats": 38.66666666666667,
+    "modifiers": 21.833333333333336,
+    "damage": 4.333333333333333,
+    "mana": 2.8333333333333326,
+    "familiars": 6.666666666666666
+  },
+  "method": "標準盤面の全キャラクター・エンチャントへ1回分。複製Gで本体towerBoonChooseを実行しtowerBoonBlessGeneratedCardを各個体に使用。盤面・所持金・アイテム・指輪は固定し購入費は差し引かない。既存の合体・永久強化後の個体へ付与し、取得からの履歴は再実行しない。敵/戦闘seedは基準と共通。6・7は周回で測る。"
+}

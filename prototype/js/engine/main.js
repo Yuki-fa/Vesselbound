@@ -843,6 +843,7 @@ function _startWaveBattle(stage){
   startBattle();
 }
 function _startWaveFlowNext(){
+  if(!guardRingExchangeDeparture()) return false;
   // オンラインの編成マスで敗れたクエスト戦は、サーバーへ準備完了を送る前に
   // 同じ対象戦を再開する。送信してしまうとraw stageが進み、受託済みQ004の
   // 対象を二度と踏めなくなる。

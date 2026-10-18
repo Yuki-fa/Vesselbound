@@ -122,7 +122,9 @@ OK／キャンセルの確認窓は game_confirm.js の showGameConfirm（見た
 クエストは quest.js の汎用実装。差はクエストシートと QUEST_CONFIG（必須カード・立ち絵）で表し、クエストIDで分岐を書かない。
 クエストの完了場所は QUEST_CONFIG の completeAt（tower／town／battle）で決める。塔・町・戦闘の到着処理はこれだけを見る。
 次の街のクエストは quest.js の _qPickForWave で選ぶ（前の街と同じ「分類」を続けない）。
-依頼カード枠には最初から置かれていたカード以外を置けない（questRewardSlotAcceptsCard）。店でも商品を置いて魔導板カードを押し出す入れ替えはしない。
+依頼カード枠には最初から置かれていたカード以外を置けない（questRewardSlotAcceptsCard）。
+魔導店と敗北時の行商人は交換だけの店（2026-10-17 利用者指定、2026-10-18 正規機能として main に統合）：通常の報酬と同じ出現率で3枚を並べ、魔導板のカードとの入れ替えだけを行う（reward.js の exchangeShopCard。回数・種類の制限なし、ゴールドは動かない。商品側・魔導板側のどちらから重ねても入れ替え）。**売却という機能は無い**：通常プレイではカードもアイテムも売れない（`CARD_TRADING_RULES`・`_cardSellable`。オンライン対戦だけ従来どおり）。魔導店でのカード購入も無い（道具屋のアイテム購入は残す）。同名3枚の合体は一旦停止（pool.js `PANEL_MERGE_TRIAL.enabled`）。
+塔の祭壇で指輪を取得するまで出発・戦闘開始はできない（map.js の ringExchangeDepartureBlocked。差し出すカードが足りない時だけ進める）。
 帰滅（召喚マスにしか置けない・HP永続・復活なしの死亡／逃走で消滅）はキーワードで判定し、判定はコア（coreKiemetsuExitReason）。カード名や効果文で判定しない。
 衰弱死（-X/-X・毒でHPが0）は死亡として扱う。コアが death（statChange付き）を出し、死亡効果・観測・復活も通常どおり。消え方だけ青い波打ち＋WASTED（docs/HISTORY.md）。
 PvEの盤面の体はコアの最終状態そのもの（state.units と同じ参照）。演出でイベントの写し（ev.unit）を上書きしない。倒れた・生きているの判定は presentShownHp()（画面の値）で見る。

@@ -2268,6 +2268,7 @@ function _resetStartingBattleAllies(carryBattle){
 }
 
 async function startBattle(){
+  if(typeof guardRingExchangeDeparture==='function'&&!guardRingExchangeDeparture()) return false;
   const savedBattle=typeof SaveRun!=='undefined'?SaveRun.takeResume():null;
   const showBattleStartAutosave=!!(G&&G._battleStartAutosaveRequested)&&!savedBattle;
   if(G) delete G._battleStartAutosaveRequested;

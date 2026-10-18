@@ -1,0 +1,11 @@
+{
+  "label": "G3 A+E（エリート0.72・初回祝福100G）",
+  "simulation": {
+    "eliteStatMultiplier": 0.72,
+    "firstBoonPrice": 100
+  },
+  "override": {
+    "change": [],
+    "add": []
+  }
+}

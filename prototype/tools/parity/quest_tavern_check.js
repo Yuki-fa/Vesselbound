@@ -62,7 +62,7 @@ const WAVE=1;
   }
   // 魔導店へ入る。入店時の台詞（会話メッセージシート）が出たら送る。初回説明はプロフィールで表示済みにしておく。
   async function enterShop(b){
-    await b.run(`['shop','item','forge'].forEach(k=>SaveProfile.markTutorialShown('shop:'+k));return 1;`);
+    await b.run(`['shop','exchange','item','forge'].forEach(k=>SaveProfile.markTutorialShown('shop:'+k));return 1;`);
     await clickFacility(b,'^魔[導道]店$');
     await b.until('(document.body.classList.contains("reward-screen-active")&&G._isShop)||document.body.classList.contains("facility-greeting-active")&&!!document.querySelector("#tavern-dialogue-layer .tavern-dialogue-text")');
     if(await b.run(`return document.body.classList.contains('facility-greeting-active')`)){
@@ -1069,8 +1069,10 @@ const WAVE=1;
     const soldOne=await soldAfter.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();
       const before=(G.mainBoard||[]).filter(c=>no(c)==='E102').length;const idx=(G.mainBoard||[]).findIndex(c=>no(c)==='E102');
       const card=document.querySelector('#hand-slots.board-slots > .card[data-board-idx="'+idx+'"]');const btn=card?.querySelector('.shop-board-sell-action');
-      if(btn) btn.click();return {before,after:(G.mainBoard||[]).filter(c=>no(c)==='E102').length,clicked:!!btn};})()`);
-    ok('Q007受託後、店で木箱を1枚売ると手持ちが1枚減る',soldOne.clicked&&soldOne.before===2&&soldOne.after===1,soldOne);
+      // 2026-10-18：売却は無い。売却UIが無いことを確かめ、木箱を1枚失った状態は直接作る（交換で渡した場合と同じ）。
+      const noButton=!btn;if(idx>=0){G.mainBoard[idx]=null;G._partyBoardUnit=null;}
+      return {before,after:(G.mainBoard||[]).filter(c=>no(c)==='E102').length,noButton};})()`);
+    ok('Q007受託後：店に木箱の売却UIは無く、木箱を1枚失うと手持ちが1枚減る',soldOne.noButton&&soldOne.before===2&&soldOne.after===1,soldOne);
     await soldAfter.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
     await soldAfter.until(`document.querySelector("#scr-village.active")&&!G._isShop&&${notFading}`,30000);
     await clickFacility(soldAfter,'^酒場$');
@@ -1495,23 +1497,15 @@ const WAVE=1;
     }
     await b.until(`!G._isTavern&&${notFading}`,30000);
     await enterShop(b);
-    const beforeSale=await b.run(`(()=>{const fac=villageFacilityList().find(f=>f.key==='shop');return {gold:G.gold,
-      line:_facilityGreetingEntry(fac)['特殊台詞A1'],portrait:_villageFacilityPortraitB(fac)};})()`);
-    const clicked=await b.run(`(()=>{const idx=G.mainBoard.findIndex(c=>_qCardNo(c)==='E075');
-      const btn=document.querySelector('#hand-slots.board-slots > .card[data-board-idx="'+idx+'"] .shop-board-sell-action');if(btn)btn.click();return !!btn;})()`);
-    ok('Q001エルム魔導店：魔族の魂の初回売却ボタンを押せる',clicked);
-    await visibleQ001Line(b,beforeSale.line);
-    const blocked=await b.run(`(()=>{const idx=G.mainBoard.findIndex(c=>_qCardNo(c)==='E075');
-      const p=document.querySelector('.tavern-presentation-host img.tavern-portrait[data-portrait-id="${beforeSale.portrait}"]');
-      const host=p?.closest('.tavern-presentation-host'),shade=document.querySelector('#scr-battle .quest-event-shade');let opacity=1;
-      for(let e=p;e;e=e.parentElement)opacity*=Number(getComputedStyle(e).opacity);
-      return {gold:G.gold,status:G.questProgress.Q001.status,owned:idx>=0,overlay:!!document.querySelector('#scr-battle .quest-event-shade'),
-        button:!!document.querySelector('#hand-slots.board-slots > .card[data-board-idx="'+idx+'"] .shop-board-sell-action'),
-        portrait:!!(p&&p.complete&&p.naturalWidth>0&&p.classList.contains('is-visible')&&opacity>.9&&host&&shade
-          &&Number(getComputedStyle(host).zIndex)>Number(getComputedStyle(shade).zIndex))};})()`);
-    ok('Q001エルム魔導店：店Bの特殊台詞A1を重ね表示し、売らず、売却ボタンが消える',blocked.gold===beforeSale.gold
-      &&blocked.status==='accepted'&&blocked.owned&&blocked.overlay&&blocked.portrait&&!blocked.button,blocked);
-    await clickDialogue(b);await b.until('!G._villageFacilityBusy&&!document.getElementById("tavern-dialogue-layer")',15000);
+    const protectedSoul=await b.run(`(()=>{
+      const idx=G.mainBoard.findIndex(c=>_qCardNo(c)==='E075'),gold=G.gold,card=G.mainBoard[idx];
+      const allowed=canExchangeShopCardAt(0,idx),exchanged=exchangeShopCard(0,idx);
+      return {button:!!document.querySelector('#hand-slots [data-board-idx="'+idx+'"] .shop-board-sell-action'),
+        allowed,exchanged,kept:G.mainBoard[idx]===card,goldKept:G.gold===gold,status:G.questProgress.Q001.status};
+    })()`);
+    ok('Q001エルム魔導店：売却UIがなく、保護された魔族の魂を交換でも手放せない',
+      !protectedSoul.button&&!protectedSoul.allowed&&!protectedSoul.exchanged&&protectedSoul.kept
+      &&protectedSoul.goldKept&&protectedSoul.status==='accepted',protectedSoul);
     await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
     await b.until(`!G._isShop&&${notFading}`,30000);await enterShop(b);
     ok('Q001エルム魔導店：同じランで再入店しても売却ボタンを復活させない',await b.run(`return (G.mainBoard||[]).filter(c=>_qCardNo(c)==='E075').every(c=>!_boardCardSellEnabled(c));`));
@@ -1678,7 +1672,7 @@ const WAVE=1;
       await startRunWithWaveQuest(b,3,'Q007');
       await openWave(b,3);
       // 店の初回説明は表示済みにしておく（enterShop と同じ）。
-      await b.run(`['shop','item','forge'].forEach(k=>SaveProfile.markTutorialShown('shop:'+k));return 1;`);
+      await b.run(`['shop','exchange','item','forge'].forEach(k=>SaveProfile.markTutorialShown('shop:'+k));return 1;`);
       const expected=await b.run(`(()=>{G._arenaChallengeUsed={3:true};G._arenaResults={3:${JSON.stringify(scenario.result)}};G._facilityTalkSeen={'3:shop':true};
         const talk=villageTalkEntry('「魔導店」入店時（闘技場後）')||{};
         const picked=_facilityArenaAfterTalkLine(talk);
@@ -1871,73 +1865,30 @@ const WAVE=1;
 
   // ── ショップ：「別れる」→ クエスト失敗警告 → 非戦闘時クエスト失敗台詞 → 失敗後の酒場 ──
   if(section('ショップ')){
-    // 商品パネルで既存の魔導板カードを押し出す入れ替えは、ドラッグ／クリックとも禁止する。
-    // 手動で商品枠へ戻す売却と、この来店中に買ったカードの返品は既存どおり確認する。
+    // 交換店：占有マスだけに1対1で入れ替え、取得・換金の旧経路は拒否する。
     const s=await newPage();
-    await acceptedRun(s);
-    await openWave(s,WAVE);
-    await enterShop(s);
-    await sleep(300);
-    const shopSetup=await s.run(`(()=>{
-      const unit=_getPartyBoardUnit();
-      const occupied=unit&&unit.boardCards.findIndex(Boolean);
-      const def=PANEL_POOL.find(x=>x&&x.name==='ゴーレム');
-      if(!unit||occupied<0||!def) throw new Error('ショップ入れ替え検査の盤面または商品を作れない');
-      const product=makePanel(def.id);product._buyPrice=50;
-      _rewCards=[product,null,null,null,null];
-      G.gold=1000;G._isRewardTown=true;G._freeRewardPanelMode=false;G._rewardOnePickMode=true;_rewFreePickDone=false;
-      renderRewCards();renderHandEditor();renderMoveSlotsInEnemy();
-      return {occupied,oldName:unit.boardCards[occupied].name};
+    await acceptedRun(s);await openWave(s,WAVE);await enterShop(s);await sleep(300);
+    const result=await s.run(`(()=>{
+      const unit=_getPartyBoardUnit(),slot=unit.boardCards.findIndex(c=>c&&!_cardIsEngraved(c)&&_rewardAreaAcceptsCard(c));
+      if(slot<0)throw new Error('交換できる自前のカードがない');
+      const original=clone(unit.boardCards[slot]),product=makePanel(PANEL_POOL.find(c=>c.name==='ゴーレム').id),gold=G.gold;
+      _rewCards=[product,makePanel(PANEL_POOL.find(c=>c.name==='ノーム').id),makePanel(PANEL_POOL.find(c=>c.name==='ラミア').id)];
+      renderRewCards();renderHandEditor();
+      const empty=unit.boardCards.findIndex(c=>!c);_dragSrc={arr:'rew',idx:0};const emptyAllowed=_boardDropAllowedAt(empty);dropOnCard('boardCards',empty);
+      const noFreeTake=!unit.boardCards[empty]&&_rewCards[0]===product;
+      _dragSrc={arr:'rew',idx:0};const occupiedAllowed=_boardDropAllowedAt(slot);dropOnCard('boardCards',slot);
+      const swapped=unit.boardCards[slot].name===product.name&&_rewCards[0].name===original.name;
+      _dragSrc={arr:'rew',idx:0};dropOnCard('boardCards',slot);
+      const restored=unit.boardCards[slot].name===original.name&&_rewCards[0].name===product.name;
+      _dragSrc={arr:'boardCards',idx:slot};const returnAllowed=_canReturnDragSrcToRewardArea();_returnDragSrcToRewardArea();_dragSrc=null;
+      const noSale=!_boardCardSellEnabled(unit.boardCards[slot])&&!isShopReturnable(unit.boardCards[slot])
+        &&!document.querySelector('#hand-slots .shop-board-sell-action:not(.quest-part-btn)')&&!document.querySelector('#reward-offer-row .shop-buy-price');
+      return {emptyAllowed,noFreeTake,occupiedAllowed,swapped,restored,returnAllowed,noSale,goldKept:G.gold===gold,
+        offers:document.querySelectorAll('#reward-offer-row .rew-card').length};
     })()`);
-    const blockedDrag=await s.run(`(()=>{
-      const unit=_getPartyBoardUnit();const idx=${shopSetup.occupied};const old=unit.boardCards[idx];
-      const beforeGold=G.gold;const offer=_rewCards[0];
-      _dragSrc={arr:'rew',idx:0};
-      const boardUsable=_canCardUseBoardSlot(offer,idx,unit);
-      const dragAllowed=_boardDropAllowedAt(idx);
-      dropOnCard('boardCards',idx);
-      return {boardUsable,dragAllowed,boardKept:unit.boardCards[idx]===old,offerKept:_rewCards[0]===offer,
-        goldKept:G.gold===beforeGold,pending:!!G._pendingPanelPlacement};
-    })()`);
-    ok('ショップ：埋まったマスはドラッグ判定も実ドロップも不可で、カード・お金が残る',
-      blockedDrag.boardUsable&&!blockedDrag.dragAllowed&&blockedDrag.boardKept&&blockedDrag.offerKept
-      &&blockedDrag.goldKept&&!blockedDrag.pending,blockedDrag);
-    const blockedClick=await s.run(`(()=>{
-      const unit=_getPartyBoardUnit();const idx=${shopSetup.occupied};const old=unit.boardCards[idx];
-      const beforeGold=G.gold;const offer=_rewCards[0];
-      takeRewCard(0);const started=!!G._pendingPanelPlacement;
-      const placed=placePendingPanelToSelectedUnit(idx);cancelPendingPanelPlacement();
-      return {started,placed,boardKept:unit.boardCards[idx]===old,offerKept:_rewCards[0]===offer,
-        goldKept:G.gold===beforeGold,pending:!!G._pendingPanelPlacement};
-    })()`);
-    ok('ショップ：埋まったマスへのクリック配置も不可で、カード・お金が残る',
-      blockedClick.started&&!blockedClick.placed&&blockedClick.boardKept&&blockedClick.offerKept
-      &&blockedClick.goldKept&&!blockedClick.pending,blockedClick);
-    const bought=await s.run(`(()=>{
-      const unit=_getPartyBoardUnit();const idx=unit.boardCards.findIndex(c=>!c);const beforeGold=G.gold;
-      takeRewCard(0);const started=!!G._pendingPanelPlacement;const placed=placePendingPanelToSelectedUnit(idx);
-      return {started,placed,paid:G.gold===beforeGold-50,boardName:unit.boardCards[idx]?.name||'',offerGone:!_rewCards[0]};
-    })()`);
-    ok('ショップ：空きマスなら商品を買えて、ゴールドだけ価格分減る',
-      bought.started&&bought.placed&&bought.paid&&bought.boardName==='ゴーレム'&&bought.offerGone,bought);
-    const returned=await s.run(`(()=>{
-      const unit=_getPartyBoardUnit();const idx=unit.boardCards.findIndex(c=>c&&c.name==='ゴーレム');
-      const card=idx>=0?unit.boardCards[idx]:null;const beforeGold=G.gold;
-      const returnable=!!card&&isShopReturnable(card);const btn=document.querySelector('#hand-slots .shop-return-btn');
-      if(btn) btn.click();
-      return {returnable,button:!!btn,refunded:G.gold===beforeGold+50,boardGone:idx>=0&&!unit.boardCards[idx],offerBack:!!_rewCards[0]};
-    })()`);
-    ok('ショップ：この来店で買ったカードは従来どおり返品でき、買値が全額戻る',
-      returned.returnable&&returned.button&&returned.refunded&&returned.boardGone&&returned.offerBack,returned);
-    const sold=await s.run(`(()=>{
-      const unit=_getPartyBoardUnit();const idx=unit.boardCards.findIndex(c=>!c);const held=makePanel(PANEL_POOL.find(x=>x&&x.name==='ゴーレム').id);
-      unit.boardCards[idx]=held;const beforeGold=G.gold;_dragSrc={arr:'boardCards',idx,unitIdx:G._selectedBoardUnitIdx};_returnDragSrcToRewardArea();
-      const saleIdx=_rewCards.findIndex(c=>c&&c._shopSalePending);const saleReady=saleIdx>=0&&!unit.boardCards[idx]&&G.gold===beforeGold;
-      const sold=saleReady&&_sellPendingShopCard(saleIdx);
-      return {saleReady,sold,goldIncreased:sold&&G.gold>beforeGold};
-    })()`);
-    ok('ショップ：魔導板カードを商品枠へ手動で戻す売却も従来どおり残る',
-      sold.saleReady&&sold.sold&&sold.goldIncreased,sold);
+    ok('ショップ：3枠・価格なし、占有マスへ交換して取り戻せる。空きマス取得・売却・返品は不可',
+      !result.emptyAllowed&&result.noFreeTake&&result.occupiedAllowed&&result.swapped&&result.restored
+      &&!result.returnAllowed&&result.noSale&&result.goldKept&&result.offers===3,result);
     await s.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
     await s.until(`document.querySelector("#scr-village.active")&&!G._isShop&&${notFading}`,30000);
     await finish(s);

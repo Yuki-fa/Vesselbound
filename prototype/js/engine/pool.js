@@ -5,6 +5,14 @@
 
 // キャラクターのグレードを階層に応じて決定
 
+// PvE試験用。trueへ戻すと新規合体・関連品の抽選・案内をまとめて復帰する。
+const PANEL_MERGE_TRIAL={enabled:false};
+function panelMergeEnabled(){ return PANEL_MERGE_TRIAL.enabled||!!(typeof G!=='undefined'&&G&&G._onlineMode); }
+function panelMergeContentAvailable(card){
+  return panelMergeEnabled()||!(card&&(card.itemEffectKey==='bond_scroll'
+    ||typeof _isMagicMirrorPanel==='function'&&_isMagicMirrorPanel(card)));
+}
+
 // 購入価格
 function calcBuyPrice(card){
   if(!card) return 1;
@@ -97,6 +105,7 @@ function applyMergedPanelForm(card){
     else card[k]=Array.isArray(v)?v.slice():v;
   });
   card._mergedFormApplied=true;
+  if(card.boon) coreApplyCardBoon(card,card.boon,{freshEffects:true,effectsOnly:true});
   return true;
 }
 // そのカードが「カード定義には無いキーワード」を持っているか（アイテム等で個別に付いたもの）。
@@ -104,7 +113,8 @@ function applyMergedPanelForm(card){
 function extraPanelKeywords(card){
   if(!card||!Array.isArray(card.keywords)) return [];
   const def=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(card.id&&p.id===card.id)||p.name===card.name))||null;
-  const base=new Set(((def&&def.keywords)||[]).map(k=>String(k||'').trim()));
+  const ownDef=def&&card.boon?coreApplyCardBoon(clone(def),card.boon,{effectsOnly:true}):def;
+  const base=new Set(((ownDef&&ownDef.keywords)||[]).map(k=>String(k||'').trim()));
   return card.keywords.map(k=>String(k||'').trim()).filter(k=>k&&!base.has(k));
 }
 
@@ -475,8 +485,10 @@ function _isSealPanel(panel){
 // `G._isShop` は魔導店（カード）だけを指し、道具屋は `G._isItemShop`。
 // 道具屋を見落としていたため、シートで「ショップ＝false」にしたアイテム
 // （黄金の巻物など）が道具屋の品揃えに出ていた。
-function _shopStockContext(){ return !!(typeof G!=='undefined'&&G&&(G._isShop||G._isItemShop)); }
-function _shopOrRewardExcluded(p){ return _shopStockContext()?p._shopExcluded===true:p._rewardExcluded===true; }
+function _shopStockContext(){ return !!(typeof G!=='undefined'&&G&&(G._isShop||G._isItemShop)
+  &&!(typeof _isCardExchangeShop==='function'&&_isCardExchangeShop())); }
+function _shopOrRewardExcluded(p){ return !panelMergeContentAvailable(p)
+  ||(_shopStockContext()?p._shopExcluded===true:p._rewardExcluded===true); }
 
 function drawPanel(n=1, maxGrade){
   ensurePanelSaleStock();
@@ -508,7 +520,7 @@ function drawPanel(n=1, maxGrade){
     consumePanelSaleStock(picked);
     usedIds.add(picked.id);
     const card=makePanel(picked.id);
-    if(card) res.push(card);
+    if(card) res.push(towerBoonBlessGeneratedCard(card));
   }
   return res;
 }
@@ -563,7 +575,7 @@ function drawItems(n, maxGrade, opts){
   const excluded=forPeddler?(p=>p._peddlerAvailable!==true):forShop?(p=>p._shopExcluded===true):_shopOrRewardExcluded;
   // _noItemEffectImpl：シートにだけある行から作ったアイテム。効果のコードが無いので
   // 入手・購入の抽選には入れない（コレクションには出る）。
-  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!p._noItemEffectImpl&&!excluded(p));
+  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!p._noItemEffectImpl&&panelMergeContentAvailable(p)&&!excluded(p));
   const res=[];
   const used=new Set();
   let t=0;
@@ -632,12 +644,12 @@ function _arrangeRewardRarity(cards){
   return res.map((c,i)=>target.includes(i)?highCards[target.indexOf(i)]:lowCards.shift());
 }
 
-// 戦闘報酬のカードを引く。**引数は取らない。**
+// 戦闘報酬の抽選。魔導店も同じ出現率・保証・祝福を使い、提示枚数だけ3枚にする。
 // 以前はアイテムを引く分岐（宝箱）を兼ねていたが、宝箱の機能は廃止済み。
 // アイテムを引くのは drawItems() が唯一の入口（道具屋・鍛冶屋・報酬アイテム）。
-function drawRewards(){
+function drawRewards(count=5){
   const baseGrade=1;
-  const res=drawPanel(5, baseGrade);
+  const res=drawPanel(count, baseGrade);
   const maxGrade=_currentRewardMapGrade(baseGrade);
   const pickGuaranteedPanel=(pred, used)=>{
     ensurePanelSaleStock();
@@ -649,7 +661,7 @@ function drawRewards(){
     const picked=_rewardWeightedPick(candidates,maxGrade,used,true,true);
     if(!picked) return null;
     consumePanelSaleStock(picked);
-    return makePanel(picked.id);
+    return towerBoonBlessGeneratedCard(makePanel(picked.id));
   };
   const used=new Set(res.filter(Boolean).map(c=>c.id));
   const isNormalSummon=p=>String(p.category||'')==='キャラクター';
@@ -671,13 +683,13 @@ function drawRewards(){
     G._nextRewardUniqueSlot=false;
   }
   if(Array.isArray(G._bonusRewardPanels)&&G._bonusRewardPanels.length){
-    const bonus=G._bonusRewardPanels.splice(0);
+    // 通常報酬の既存経路は維持し、3枚提示では余りを次の報酬へ残す。
+    const bonus=G._bonusRewardPanels.splice(0,count===REWARD_GRID_CAPACITY?Infinity:count);
     const visibleBonus=bonus.filter(Boolean);
     if(visibleBonus.length) res.splice(0,visibleBonus.length,...visibleBonus);
   }
   // **同じ提示の中で矢印の向きが完全に同じカードを重ねない。**
-  // 規則は _dedupePanelDirections() が唯一の実装。魔導店は drawRewards() を通らないため
-  // `_ensureWaveShopStock()`（map.js）が同じ関数を自分で呼ぶ。新しい提示口を足したら同様に呼ぶこと。
+  // 規則は _dedupePanelDirections() が唯一の実装。魔導店もこの抽選を使う。
   _dedupePanelDirections(res);
-  return res;
+  return towerBoonGeneratedOffers(res);
 }

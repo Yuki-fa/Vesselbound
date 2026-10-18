@@ -8,6 +8,7 @@ const {launch}=require('./parity/headless');
     const result=await b.eval(`
       const checks=[];
       const check=(name,value)=>{if(!value) throw new Error(name);checks.push(name);};
+      const sameSaved=(a,b)=>JSON.stringify(SaveRun.copy(a))===JSON.stringify(SaveRun.copy(b));
       window.alert=message=>{window.__saveAlert=message;};
       // セーブは入場演出の beforeReveal にある。演出だけ省き、保存は本体と同じ順で通す。
       _playVillageEnterIntro=async(build,beforeReveal)=>{
@@ -60,11 +61,22 @@ const {launch}=require('./parity/headless');
         return {name:c.name,no:c.no,canonicalNo:c.No||c['No.']||c.artCode,id,seen:!!stockProfile.cards[id]?.seen};
       });
       check('ショップ陳列で全商品seen=true '+JSON.stringify(stockState),stock.length>0&&stockState.every(x=>x.id&&x.seen));
-      const shopIdx=_rewCards.findIndex(Boolean),purchased=_rewCards[shopIdx];purchased.directions=['up','right','down','left'];
-      G.gold=10000;takeRewCard(shopIdx,G.mainBoard.findIndex(c=>!c));
+      check('魔導店は価格なしの3枚を陳列',_rewCards.length===3&&stock.length===3&&stock.every(c=>!('_buyPrice' in c)));
+      const pair=_rewCards.flatMap((offer,shopIdx)=>G.mainBoard.map((held,boardIdx)=>({offer,held,shopIdx,boardIdx})))
+        .find(p=>p.offer&&p.held&&SaveProfile.identity(p.offer)?.id!==SaveProfile.identity(p.held)?.id&&canExchangeShopCardAt(p.shopIdx,p.boardIdx));
+      check('魔導店の検査用に交換できる既存カードがある',!!pair);
+      const {shopIdx,boardIdx,offer:exchanged,held:handed}=pair;
+      const boardCount=G.mainBoard.filter(Boolean).length;
+      G.gold=0;const didExchange=takeRewCard(shopIdx,boardIdx);
       await new Promise(r=>setTimeout(r,80));
-      check('ショップ購入でacquired=true',SaveProfile.load().cards[SaveProfile.identity(purchased).id]?.acquired);
-      const town=loadRun();check('街途中の購入はrun saveへ書かない',town.state.choices._waveShopStock[1][shopIdx]!==null);
+      check('魔導店の交換でacquired=true',didExchange===true&&SaveProfile.load().cards[SaveProfile.identity(exchanged).id]?.acquired);
+      check('魔導店は双方のカードを入れ替え、ゴールドと盤面枚数を維持',
+        sameSaved(G.mainBoard[boardIdx],_exchangeShopCardCopy(exchanged))&&sameSaved(_rewCards[shopIdx],_exchangeShopCardCopy(handed))
+        &&G.gold===0&&G.mainBoard.filter(Boolean).length===boardCount);
+      const exchangedStock=SaveRun.copy(_rewCards),exchangedBoard=SaveRun.copy(G.mainBoard);
+      const town=loadRun();check('街途中の交換はrun saveへ書かない',
+        sameSaved(town.state.choices._waveShopStock[1],townStart.state.choices._waveShopStock[1])
+        &&sameSaved(town.state.player.mainBoard,townStart.state.player.mainBoard)&&town.state.player.gold===townStart.state.player.gold);
       openMapVillage();
       // departWithWorldMapが暗転後の保存コールバックを作る。マップ演出だけ省き、保存を待つ。
       const departOriginal=_playWorldMapDeparture;let departSave=null,committedTown;
@@ -82,10 +94,41 @@ const {launch}=require('./parity/headless');
       }finally{
         _playWorldMapDeparture=departOriginal;SaveRun.lockInput(false);document.body.classList.remove('village-departing');
       }
-      check('街の出発確定で購入結果を正式保存',committedTown.checkpoint.type==='town'&&committedTown.state.choices._waveShopStock[1][shopIdx]===null);
+      check('街の出発確定で交換結果と盤面を正式保存',committedTown.checkpoint.type==='town'
+        &&sameSaved(committedTown.state.choices._waveShopStock[1],exchangedStock)
+        &&sameSaved(committedTown.state.player.mainBoard,exchangedBoard)&&committedTown.state.player.gold===0);
       SaveRun.saveRun(townStart);
       SaveRun.restoreRunState(townStart);openMapVillage({restoreCheckpoint:true});showScreen('battle');openMapShop();
-      check('街復元で購入前の同じ商品へ戻る',_rewCards[shopIdx]!==null&&JSON.stringify(_rewCards)===JSON.stringify(townStart.state.choices._waveShopStock[1]));
+      check('街復元で交換前の同じ商品と盤面へ戻る',sameSaved(_rewCards,townStart.state.choices._waveShopStock[1])
+        &&sameSaved(G.mainBoard,townStart.state.player.mainBoard)&&G.gold===townStart.state.player.gold);
+      SaveRun.restoreRunState(committedTown);openMapVillage({restoreCheckpoint:true});showScreen('battle');openMapShop();
+      check('出発確定後の復元と再訪でも交換後の枠と盤面を維持',sameSaved(_rewCards,exchangedStock)
+        &&sameSaved(G.mainBoard,exchangedBoard)&&G.gold===0);
+
+      // 購入による取得記録は、引き続き有料購入できる道具屋・行商人で検査する。
+      SaveRun.restoreRunState(townStart);showScreen('battle');openMapItemShop();G.gold=10000;
+      const itemIdx=_rewCards.findIndex(Boolean),boughtItem=_rewCards[itemIdx],itemPrice=boughtItem?._buyPrice;
+      const itemSlot=_ensureItemSlots().findIndex(c=>!c),itemGold=G.gold;
+      check('道具屋の購入対象と空き所持枠がある',itemIdx>=0&&itemSlot>=0&&itemPrice>0);
+      takeRewCard(itemIdx);
+      check('道具屋の購入でacquired・支払・在庫・返品可否を更新',
+        SaveProfile.load().items[SaveProfile.identity(boughtItem).id]?.acquired&&_rewCards[itemIdx]===null
+        &&G.gold===itemGold-itemPrice&&SaveProfile.identity(G.spellSlots[itemSlot])?.id===SaveProfile.identity(boughtItem).id
+        &&isShopReturnable(G.spellSlots[itemSlot]));
+      SaveRun.restoreRunState(townStart);showScreen('battle');G._isVillageMenu=false;G._waveVillage=false;
+      G._peddlerStock=_buildDefeatPeddlerStock();goToReward({noNewRewards:true,peddler:true});
+      const peddlerIdx=_rewCards.findIndex(c=>c&&c.panelScope==='unit'&&!_cardIsEngraved(c)),peddlerCard=_rewCards[peddlerIdx];
+      const peddlerSlot=G.mainBoard.findIndex((c,i)=>!c&&_canCardUseBoardSlot(peddlerCard,i,_getPartyBoardUnit()));
+      check('行商人の購入対象と空きマスがある',peddlerIdx>=0&&peddlerSlot>=0&&peddlerCard._buyPrice>0);
+      G.gold=0;const peddlerStock=SaveRun.copy(_rewCards),peddlerBoard=SaveRun.copy(G.mainBoard);
+      takeRewCard(peddlerIdx,peddlerSlot);
+      check('行商人はゴールド不足なら購入しない',G.gold===0&&!G._pendingPanelPlacement
+        &&sameSaved(_rewCards,peddlerStock)&&sameSaved(G.mainBoard,peddlerBoard));
+      G.gold=peddlerCard._buyPrice+100;takeRewCard(peddlerIdx,peddlerSlot);
+      check('行商人のカード購入でacquired・支払・在庫・配置を更新',
+        SaveProfile.load().cards[SaveProfile.identity(peddlerCard).id]?.acquired&&G.gold===100&&_rewCards[peddlerIdx]===null
+        &&SaveProfile.identity(G.mainBoard[peddlerSlot])?.id===SaveProfile.identity(peddlerCard).id);
+      SaveRun.restoreRunState(townStart);
       openMapVillage({restoreCheckpoint:true});const current=loadRun();
       SaveRun.restoreRunState(current);G._waveVillage=false;G._isWaveAltar=false;G._isVillageMenu=false;G._isShop=false;G._isForge=false;G._isItemShop=false;G._isRingExchange=false;G.phase=null;G._waveRewardCount=3;
       goToReward({checkpoint:true});const rewardStart=loadRun(),rewardCards=JSON.stringify(rewardStart.state.reward.cards),rewardGold=rewardStart.state.player.gold;

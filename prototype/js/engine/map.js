@@ -125,7 +125,61 @@ async function fadeScreenSwitch(action){
 }
 if(typeof window!=='undefined') window.fadeScreenSwitch=fadeScreenSwitch;
 
+function ringExchangeSacrificeAllowed(card){
+  return !!(card&&!_cardIsEngraved(card)
+    &&!(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)));
+}
+// 出撃できる最後のキャラクターまで捧げると施設から出られないため、支払える枚数から除く。
+function ringExchangeSacrificeCapacity(){
+  const unit=_getPartyBoardUnit(),board=unit&&unit.boardCards||[];
+  const entries=board.map((card,slot)=>({card,slot})).filter(e=>ringExchangeSacrificeAllowed(e.card));
+  const remaining=board.map(card=>ringExchangeSacrificeAllowed(card)?null:card);
+  const deploy=cards=>boardHasDeployableCharacter({...unit,boardCards:cards});
+  if(deploy(remaining)) return entries.length;
+  for(const entry of entries){
+    const kept=remaining.slice();kept[entry.slot]=entry.card;
+    if(deploy(kept)) return Math.max(0,entries.length-1);
+  }
+  return 0;
+}
+function canSacrificeRingCards(slots){
+  const unit=_getPartyBoardUnit(),board=unit&&unit.boardCards||[];
+  if(new Set(slots).size!==slots.length||slots.some(i=>!ringExchangeSacrificeAllowed(board[i]))) return false;
+  const next=board.slice();slots.forEach(i=>{next[i]=null;});
+  return boardHasDeployableCharacter({...unit,boardCards:next});
+}
+function ringExchangeDepartureBlocked(){
+  if(!G||G._onlineMode||!G._isWaveAltar) return false;
+  const cached=G._waveRingExchange&&G._waveRingExchange[_waveFacilityCacheKey()];
+  const live=!!G._isRingExchange;
+  if(live?G._ringOfferResolved:cached&&cached.resolved) return false;
+  const paid=Number(live?G._boardDiscardCount:cached&&cached.discardCount)||0;
+  if(paid>=SHOP_EXCHANGE_TRIAL.ringCardCost) return true;
+  const available=ringExchangeSacrificeCapacity();
+  return available+paid>=SHOP_EXCHANGE_TRIAL.ringCardCost;
+}
+function guardRingExchangeDeparture(){
+  if(!ringExchangeDepartureBlocked()) return true;
+  if(typeof showErrorOverlay==='function') showErrorOverlay({
+    title:SHOP_EXCHANGE_TRIAL.text.ringTitle,message:SHOP_EXCHANGE_TRIAL.text.ringRequired,
+    buttonKey:'「戻る」ボタン',buttonFallback:'戻る',buttonSfx:'uiConfirm',
+  });
+  return false;
+}
+function syncRingExchangeDepartureButton(button,enabled=true){
+  if(!button) return;
+  const blocked=enabled&&ringExchangeDepartureBlocked();
+  const wasRequired=button.classList.contains('ring-exchange-required');
+  if(blocked) button.classList.add('disabled');
+  else if(wasRequired) button.classList.remove('disabled');
+  button.classList.toggle('ring-exchange-required',blocked);
+  button.setAttribute('aria-disabled',String(blocked));
+  if(blocked) button.title=SHOP_EXCHANGE_TRIAL.text.ringRequired;
+  else button.removeAttribute('title');
+}
+
 function shopDone(){
+  if(!guardRingExchangeDeparture()) return false;
   if(G._pendingPanelPlacement) return;
   if(typeof checkQ009CompanionPresence==='function') checkQ009CompanionPresence({leaving:true});
   if(typeof _syncWaveFacilityCache==='function') _syncWaveFacilityCache();
@@ -432,6 +486,7 @@ const VILLAGE_FACILITY_DEFS={
   '祭壇':     {key:'ringExchange'},
   '踊り場':   {key:'landing'},
   '五聖の座': {key:'landing'},
+  [TOWER_BOON_CONFIG.name]: {key:TOWER_BOON_CONFIG.key},
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導店／魔道店、旧称ショップ）を吸収した候補名を返す。
 function villageFacilityNameVariants(name){
@@ -464,6 +519,7 @@ const VILLAGE_FACILITY_FALLBACK_DESC={
 // 施設ボタンの表示名は「テキストメッセージ」シートの「街「◯◯」ボタン」行から引く。
 // シートに行が無ければ地域情報シートの施設名をそのまま出す。
 function villageFacilityLabelText(name){
+  if(name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.name;
   const variants=villageFacilityNameVariants(name);
   const prefixes=(G&&G._isWaveAltar)?['塔','街']:['街','塔'];
   for(const pre of prefixes){
@@ -483,6 +539,7 @@ function _villageLifeFull(){
   return life>=max;
 }
 function villageFacilityDescText(name){
+  if(name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.description;
   const variants=villageFacilityNameVariants(name);
   if(variants.includes('五聖の座')&&(!_fiveSaintsUnlocked()
     ||(typeof fiveSaintsCurrentTowerResolved==='function'&&fiveSaintsCurrentTowerResolved()))){
@@ -583,6 +640,7 @@ const TOWER_FACILITY_POS={
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋）を吸収して個別配置を引く。
 function _villageFacilityFixedPos(name){
+  if(G&&G._isWaveAltar&&name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.position;
   const wave=Math.max(0,Number(G&&G._wave)||0);
   const table=(G&&G._isWaveAltar)?TOWER_FACILITY_POS:(VILLAGE_FACILITY_POS_BY_WAVE[wave]||null);
   const variants=villageFacilityNameVariants(name);
@@ -617,6 +675,8 @@ function villageFacilityList(){
   const raw=(G&&G._isWaveAltar)?(info&&info.towerFacilities):(info&&info.townFacilities);
   const names=String(raw||'').split(/[、,／\/]/).map(s=>s.trim()).filter(Boolean);
   if(!names.length&&G&&G._isWaveAltar) names.push('祭壇');
+  // 試験施設だけコードで末尾へ追加。五聖の座の解放・周回判定を共有しない。
+  if(G&&G._isWaveAltar) names.push(TOWER_BOON_CONFIG.name);
   return (names.length?names:['ショップ']).filter(name=>{
     const def=VILLAGE_FACILITY_DEFS[name]||null;
     // 1周目は塔の「五聖の座」自体を描画しない。
@@ -857,7 +917,7 @@ async function _onVillageFacility(fac){
       return;
     }finally{ if(isCurrent()) G._villageFacilityBusy=false; }
   }
-  if(['ringExchange','library','landing'].includes(fac.key)){
+  if(['ringExchange','library','landing',TOWER_BOON_CONFIG.key].includes(fac.key)){
     return fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
   }
   return _enterVillageFacilityNow(fac);
@@ -893,6 +953,7 @@ function _revealFacilityUi(){
   window.setTimeout(()=>{ try{ cover.remove(); }catch(_e){} },FACILITY_UI_FADE_MS+120);
 }
 function _enterVillageFacilityNow(fac){
+  if(fac.key===TOWER_BOON_CONFIG.key){ openTowerBoonSeat(); return; }
   if(fac.key==='shop'||fac.key==='forge'||fac.key==='item'){
     // 施設は既存の編成画面（#scr-battle上の報酬UI）をそのまま使う。
     // 左上のラベルは「編成」ではなくシートに書かれた施設名にする。
@@ -1213,6 +1274,7 @@ async function _playDepartureMovie(src,done,beforeReveal){
 }
 // 街・塔の「出発する」共通処理。BGMを落としてマップ画面（またはムービー）を挟んでから次へ進む。
 function departWithWorldMap(options){
+  if(!guardRingExchangeDeparture()) return false;
   if(G._pendingPanelPlacement) return;
   const saveDeparture=!!(options&&options.save);
   if(saveDeparture&&typeof SaveRun!=='undefined'&&SaveRun.enabled()){
@@ -1269,6 +1331,7 @@ async function _playPlainDeparture(done,beforeReveal){
   fade.style.opacity='0';
 }
 function villageDepart(){
+  if(!guardRingExchangeDeparture()) return false;
   if(G._pendingPanelPlacement) return;
   if(G._villageIntroPlaying) return;
   if(typeof questBeforeTowerDepart==='function'&&questBeforeTowerDepart()) return;
@@ -1314,7 +1377,7 @@ function renderVillageScreen(){
     const btn=document.getElementById('library-howto-btn');
     if(btn) btn.textContent=textMessage('図書館「魔導板の使い方」ボタン','魔導板の使い方');
     const mergeBtn=document.getElementById('library-merge-btn');
-    const mergeUnlocked=_libraryBoardTutorialCompleted();
+    const mergeUnlocked=panelMergeEnabled()&&_libraryBoardTutorialCompleted();
     if(mergeBtn){
       // 2026-10-11: 魔導板の説明を最後まで終えたプロフィールだけ、マージの入口を表示する。
       mergeBtn.style.display=mergeUnlocked?'':'none';
@@ -1353,7 +1416,8 @@ function renderVillageScreen(){
   if(departReset) departReset.style.display='';
   const info=regionInfoForWave(G&&G._wave);
   // 五聖の座の中は、左上に塔の名前ではなく「五聖の座」見出しを出す（2026-10-01 利用者指摘）。
-  const name=(G&&G._isFiveSaints&&typeof fiveSaintsRewardTitle==='function')
+  const name=G&&G._isTowerBoon?TOWER_BOON_CONFIG.name
+    :(G&&G._isFiveSaints&&typeof fiveSaintsRewardTitle==='function')
     ?String(fiveSaintsRewardTitle()||'五聖の座')
     :(G&&G._isWaveAltar)
     ?String((info&&info.towerName)||'塔')
@@ -1405,6 +1469,7 @@ function renderVillageScreen(){
   const depart=document.getElementById('village-depart-btn');
   if(depart){
     depart.onclick=villageDepart;
+    syncRingExchangeDepartureButton(depart,!G._isTowerBoon&&!G._isFiveSaints&&!G._isTavern&&!G._isLibraryMenu);
     // 酒場では同じボタンの文字を「店を出る」に書き換える（quest.js _qCustomizeTavernVillage）。
     // 街・塔の画面では必ず「出発する」に戻す（酒場の後の塔で「店を出る」のままだった。2026-09-25 利用者指摘）。
     const departLabel=textMessage('「出発する」ボタン','出発する');
@@ -1533,6 +1598,9 @@ async function _playVillageEnterIntro(build,beforeReveal){
 // 施設から「店を出る」で戻る場合はfalse（演出なしで即表示）。
 // options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
+  G._isTowerBoon=false;
+  document.body.classList.remove('tower-boon-active');
+  document.getElementById('tower-boon-choices')?.remove();
   G._savePresentation=false;
   _clearShopPortrait();
   // 店で「別れる」を選んだ直後など、致死クエスト会話が必要でも、
@@ -1897,6 +1965,7 @@ function _libraryBoardHasMergedTutorialCard(){
     &&c.no===MERGE_TUTORIAL_CARD_NO);
 }
 function openLibraryMergeTutorial(){
+  if(!panelMergeEnabled()) return;
   if(!G||G._libraryTutorialActive||!_libraryBoardTutorialCompleted()) return;
   openMapLibraryFormation();
   _prepareLibraryLoanMode('merge');
@@ -2320,15 +2389,16 @@ function _maybeStartShopTutorial(fac){
   const facKey=fac&&fac.key;
   const textKeys=SHOP_TUTORIAL_TEXT_KEYS[facKey];
   if(!textKeys||!G||G._debugMode||G._onlineMode) return;
-  const flag=`shop:${facKey}`;
+  const flag=facKey==='shop'?'shop:exchange':`shop:${facKey}`;
   if(typeof SaveProfile!=='undefined'&&SaveProfile.tutorialShown(flag)) return;
   _waitLibraryUIReady(()=>{
     if(typeof SaveProfile!=='undefined') SaveProfile.markTutorialShown(flag);
     runBoardTutorial({
       id:`shop-${facKey}`,
-      introText:_shopTutorialText(facKey,'説明開始',facKey),
-      text:(key,fallback)=>_shopTutorialText(facKey,key,fallback),
-      buildSteps:()=>[['1',null,''],['2',null,''],['3',null,'']],
+      introText:facKey==='shop'?SHOP_EXCHANGE_TRIAL.text.shopIntro:_shopTutorialText(facKey,'説明開始',facKey),
+      text:(key,fallback)=>facKey==='shop'?SHOP_EXCHANGE_TRIAL.text.shopSteps[Number(key)-1]:_shopTutorialText(facKey,key,fallback),
+      // 売却の説明（道具屋の2・鍛冶屋の3）は、売却が無くなったので出さない（2026-10-18）。
+      buildSteps:()=>[['1',null,''],['2',null,''],['3',null,'']].filter(([k])=>_cardTradingRules().sellItems||!(facKey==='item'&&k==='2'||facKey==='forge'&&k==='3')),
     });
   });
 }
@@ -2765,13 +2835,11 @@ function _mapPickSaleCard(pred, used){
   if(!def) return null;
   consumePanelSaleStock(def);
   used.add(def.id);
-  const card=makePanel(def.id);
+  const card=towerBoonGeneratedOffers([makePanel(def.id)])[0];
   if(card) card._buyPrice=_shopBuyPriceWithRings(_mapSalePrice(card));
   return card;
 }
-function _ensureWaveShopStock(){
-  const waveKey=_waveFacilityCacheKey();
-  if(G._waveShopStock&&Array.isArray(G._waveShopStock[waveKey])) return clone(G._waveShopStock[waveKey]);
+function _drawPricedShopStock(){
   const used=new Set();
   const stock=[
     _mapPickSaleCard(p=>Number(p.rarity)===1,used),
@@ -2798,10 +2866,25 @@ function _ensureWaveShopStock(){
   _fillKind(_isEnch,'強化',p=>_isEnch(p));
   _fillKind(_isChar,'キャラクター',p=>_isChar(p));
   // **同じ品揃えの中で矢印の向きが完全に同じカードを重ねない**（報酬の提示と同じ規則）。
-  // 魔導店は drawRewards() を通らないので、ここで明示的に呼ぶ。
+  // オンラインの従来の価格付き在庫は、ここで明示的に呼ぶ。
   // 呼んでいなかった頃は、5枚中4〜5枚が同じ向きになることがあった
   // （実測：品揃えの83%に重複、最大5枚が同じ向き）。**在庫を保存する前に行うこと。**
   if(typeof _dedupePanelDirections==='function') _dedupePanelDirections(stock);
+  return stock;
+}
+// 魔導店・敗北時の行商人で共用。抽選・祝福は通常報酬の実装へ渡す。
+function _drawExchangeShopStock(key){
+  return runWithKeyedRandom(key,()=>drawRewards(SHOP_EXCHANGE_TRIAL.stockCount))
+    .filter(Boolean).map(_exchangeShopCardCopy);
+}
+function _ensureWaveShopStock(){
+  const waveKey=_waveFacilityCacheKey();
+  const old=G._waveShopStock&&G._waveShopStock[waveKey];
+  const exchange=_cardTradingRules().exchangeShop;
+  if(Array.isArray(old)&&(!exchange||old.length===SHOP_EXCHANGE_TRIAL.stockCount&&old.every(c=>c&&!('_buyPrice' in c)))) return clone(old);
+  // PvEの旧セーブの「価格付き5枚」は初回利用時に新しい3枚へ作り直す。
+  if(exchange&&Array.isArray(old)) old.filter(c=>c&&!c._shopSalePending&&!c._towerBoonBoss).forEach(returnPanelToSalePool);
+  const stock=exchange?_drawExchangeShopStock(`exchange-shop:${waveKey}`):_drawPricedShopStock();
   G._waveShopStock=G._waveShopStock||{};
   G._waveShopStock[waveKey]=clone(stock);
   return clone(stock);
@@ -2844,11 +2927,8 @@ function _ensureWaveFacilityCheckpointContents(){
   }
 }
 function openMapShop(){
-  // 来店ごとの番号。返品できるのは、この来店で買った商品だけ（reward.js の _shopPurchaseKey）。
-  G._shopVisitSeq=(Number(G._shopVisitSeq)||0)+1;
-  // 施設の在庫・提示内容は「この施設に入った時点のステージ」に紐づけて保存する。
-  // 保存時にG._waveを読むと、デバッグのステージジャンプのように
-  // 「G._waveを書き換えてから編成画面を開く」経路で移動先のキーへ上書きしてしまう。
+  const exchange=_cardTradingRules().exchangeShop;
+  if(!exchange) G._shopVisitSeq=(Number(G._shopVisitSeq)||0)+1;
   G._facilityCacheKey=_waveFacilityCacheKey();
   G._mapReturnAfterReward=true;
   G._isShop=true;
@@ -2857,25 +2937,19 @@ function openMapShop(){
   G._isForge=false;
   G._isTavern=false;
   G._isVillageMenu=false;
+  G._isRingExchange=false;
   G._freeRewardPanelMode=false;
   G.phase='reward';
   document.body.classList.remove('world-map-active');
-  goToReward();
-  const waveKey=_waveFacilityCacheKey();
-  const shopAllowed=card=>{
-    if(!card) return false;
+  goToReward({noNewRewards:exchange});
+  const allowed=card=>{
+    if(!card||exchange) return !!card;
+    if(card._towerBoonBoss) return !card._shopExcluded;
     const def=(PANEL_POOL||[]).find(p=>p&&((card.id&&p.id===card.id)||(!card.id&&p.name===card.name)))||card;
     return _isImplementedPoolCard(def)&&!def._shopExcluded&&!card._shopExcluded;
   };
-  // 購入済みの枠はnullのまま「売切」として残す（詰めない・補充しない）ため、
-  // filterで落とさずmapでnull化する（＝配列長と位置を保つ）。
-  const shopSlot=card=>(card&&shopAllowed(card))?card:null;
-  if(waveKey!=null&&G._waveShopStock&&Array.isArray(G._waveShopStock[waveKey])){
-    _rewCards=clone(G._waveShopStock[waveKey]).map(shopSlot);
-  }else _rewCards=_ensureWaveShopStock().map(shopSlot);
-  // 一度売れた枠は補充しない（再入店しても同じ品揃え＝売切のまま）。
-  while(_rewCards.length<5) _rewCards.push(null);
-  G._isShop=true;
+  _rewCards=_ensureWaveShopStock().map(card=>allowed(card)?card:null);
+  while(_rewCards.length<_shopSlotCapacity()) _rewCards.push(null);
   G._freeRewardPanelMode=false;
   _rewFreePickDone=false;
   renderRewCards();
@@ -2913,7 +2987,7 @@ function _waveFacilityCacheKey(){ return Math.max(0,Number(G._wave)||0); }
 function _syncWaveFacilityCache(){
   // 施設に入った時点のキー（G._facilityCacheKey）を優先する。理由はopenMap*()のコメント参照。
   const key=Number(G._facilityCacheKey)||_waveFacilityCacheKey();
-  // 行商人（初めての敗北のイベント。peddler.js）の品揃えは街の店とは別に持つ。
+  // 敗北ごとの行商人（peddler.js）の品揃えは街の店とは別に持つ。
   if(G._isPeddler){
     G._peddlerStock=clone(_rewCards||[]);
     return;

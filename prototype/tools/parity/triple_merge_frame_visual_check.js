@@ -23,10 +23,15 @@ const SHOT=process.env.VB_TRIPLE_FRAME_SHOT||'/tmp/vb-triple-merge-frame.png';
       const def=PANEL_POOL.find(c=>c.panelScope==='unit'&&
         ['強化','エンチャント'].includes(String(c.category||''))&&!_isMagicMirrorPanel(c));
       if(!def) throw new Error('合体検証用エンチャントがない');
-      const prep=()=>{ const c=_preparePanelCard(def); c.directions=['up','right']; c._sellDisplayPrice=40; return c; };
+      const prep=()=>{ const c=_preparePanelCard(def); c.directions=['up','right']; return c; };
       G.mainBoard=new Array(15).fill(null);
       G.mainBoard[0]=prep(); G.mainBoard[2]=prep(); G.mainBoard[3]=prep();
       unit.boardCards=G.mainBoard;
+      const before=JSON.stringify(G.mainBoard);
+      if(_tryTripleMergeOnBoard(unit,3)||JSON.stringify(G.mainBoard)!==before)throw Error('停止中に合体が起きた');
+      if(_rewardMergeCandidate(0,G.mainBoard[3]))throw Error('停止中に合体予告が出る');
+      // 復帰スイッチと既存の合体演出の検査も維持する。
+      PANEL_MERGE_TRIAL.enabled=true;
       renderHandEditor();
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
       const source=document.querySelector('#hand-slots [data-board-idx="3"]');
@@ -63,7 +68,7 @@ const SHOT=process.env.VB_TRIPLE_FRAME_SHOT||'/tmp/vb-triple-merge-frame.png';
     await browser.screenshot(SHOT);
     const failures=[];
     if(result.hiddenBefore!=='0') failures.push('実操作でドラッグ元の枠が非表示になっていない');
-    if(!result.sourceHadPrice) failures.push('合体前カードに売却価格がなく検証できない');
+    if(result.sourceHadPrice) failures.push('合体前カードに廃止した売却価格が残る');
     if(result.ghostHasPrice) failures.push('トリプル合体演出に売却価格が残る');
     if(result.connectionFlashCalls!==0||result.activeConnectionEffects!==0) failures.push('トリプル合体後に接続エフェクトが出る');
     if(result.count!==3) failures.push(`合体ゴーストが3枚でない: ${result.count}`);

@@ -1,0 +1,12 @@
+{
+  "add": [
+    {
+      "category": "エンチャント",
+      "name": "仮・共鳴",
+      "desc": "常時：このキャラクターは+100/+100を得る。",
+      "rarity": 1,
+      "grade": 1,
+      "directionCount": 4
+    }
+  ]
+}

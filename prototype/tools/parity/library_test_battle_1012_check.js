@@ -58,7 +58,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     await b.eval(`closeMapLibraryFormation();SaveRun.saveRun(SaveRun.buildRunSave('reward'));`);
     await open();await b.eval(`await SaveRun.continueRun();openMapLibraryMenu();`);
     const resumed=await b.eval(`return {completed:SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY),merge:VB1012Test.visible(document.getElementById('library-merge-btn'))};`);
-    assert.ok(resumed.completed&&resumed.merge,JSON.stringify(resumed));await completedEntry();
+    assert.ok(resumed.completed&&!resumed.merge,JSON.stringify(resumed));await completedEntry();
     console.log('OK 3/4: E014貸出の表示、途中離脱、実際の完走、同ページと再読込→コンティニュー後の説明省略');
 
     await open();await menu(true);

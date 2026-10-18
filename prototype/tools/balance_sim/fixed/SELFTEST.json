@@ -1,0 +1,54 @@
+{
+  "passed": true,
+  "elapsedMs": 30635,
+  "checks": [
+    "4場面×5〜8盤面、選定30例以上・勝率25〜75%、元JSONLの盤面・資源、追加は元の空きマスのみ、全カード測定とファイルhashを確認",
+    "4場面の本体floor/deepLevel・敵生成関数・敵数/後衛数、敵30例の再現性、接続選択と評価の独立seed、G/乱数の非汚染を確認",
+    "同一盤面比較は4場面×30例すべて差0、再現性一致、本体computeBattleと12戦の全イベント/最終状態一致、入力/定義/G/乱数は不変",
+    "祝福1〜5×4場面を各30例で再測定し保存結果と一致、本体の付与関数・同一seed再現・所持金/盤面の非汚染・二重付与防止・祝福ありの本体computeとの一致を確認",
+    "本文なしのハーピーは対照と差0、タイタニア/ジャック・オ・ランタンの名前由来の互換効果は対照側だけ除去して発動を検出",
+    "通常キャラ/合体エンチャントを4場面×2盤面で再測定し、接続先・配置・戦闘差・効果観測を含むJSON全項目が一致",
+    "CLIのoverrideで既存カードの999/999化・仮999/999キャラ・仮+99/+99エンチャントを実測し、すべて基準より平均勝率+10pt超、仮表記と本文解釈を確認",
+    "対象の全18JSのnode --check、既存run.js 5・selftest.jsが通過（既存REPORT.mdは変更しない）"
+  ],
+  "overrideResult": [
+    {
+      "name": "ギガンテス",
+      "meanGainWinPt": 44.00000000000001,
+      "temporary": false
+    },
+    {
+      "name": "仮・検査の巨人",
+      "meanGainWinPt": 44.00000000000001,
+      "temporary": true
+    },
+    {
+      "name": "仮・検査の大力",
+      "meanGainWinPt": 44.00000000000001,
+      "temporary": true
+    }
+  ],
+  "parityBattles": 12,
+  "samples": 30,
+  "sourceHashes": {
+    "js/battle/core.js": "d0a52438e3f15adbee81d6a6b2ca4365e60f73c4dd85cadd624d276d327e3489",
+    "js/battle/formation.js": "9262c9570ff8404b5e5158172c4196219d345ff72a6d5f89e0e58fac00dc4df4",
+    "js/engine/battle.js": "b168b276aa774f8aae248a0f39a4f7db21bca97c44af42caae520fb3aae1654d",
+    "js/engine/enemy.js": "cbf7a6edd4eec04d88bfa7f15363e0f5702df74a7f8d1b3a461e61f75b40a9ea",
+    "js/engine/main.js": "09cd12b7335dd7de96c5e57c35df3d8681052474b344df0288d9956ecf3091f7",
+    "js/engine/pool.js": "01d7e2438d183bd0c764fa8aadf78308bd9610532039b19da1a5558998d224f6",
+    "js/engine/reward.js": "5f2109175aea5b54faf92b9fc7bc2f4087ec2176dfa397d7b6fcc207bc0607ba",
+    "js/engine/map.js": "aff45f37704f9b964bf39424136f9590c7eddf7752c974c54df785a166f79cd3",
+    "js/engine/tower_boon.js": "5854305ba4439914bc7c002548462215ef6ca20baaf9917dc0ec964e0a6ccc21",
+    "js/save/run_save.js": "8b469068a1f7161fd0cf7a086095e981f97c90e4d1020ebe8ec6fb320363e8c0",
+    "js/data/loader.js": "361c6c35e378283cfde8252fe89c13fe05cffd4ecd4a4054b8679b3600174fb4",
+    "js/data/local_xlsx_data.js": "753edaedfd869adde6fa211704d6d0010c59ba4526e239bf1c986534a7e643f1"
+  },
+  "toolHashes": {
+    "fixed_engine.js": "76ce10d4efc9d028afb3b4eaeba0d68d0e173f7ac157977b4ea84dd44ae4d618",
+    "fixed_compare.js": "1abe7c4e1d5ddf100849fd1e8153848867c56b6380a329ab74f8367977c04fc1",
+    "fixed_worker.js": "5c17db5c633701a68149382e23e41ab09a663a2b058d1ba4248d94fcdfc68fc2",
+    "fixed_pool.js": "04cca4bf523aa86325770182780577f5d4d47d32fc251595a01c9457d23e1c27",
+    "fixed_boards.js": "8e4d55248b99258a4363f079dd0954e7a9eea5246b260d08859c775af9203b50"
+  }
+}

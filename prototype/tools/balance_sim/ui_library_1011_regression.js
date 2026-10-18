@@ -20,16 +20,22 @@ renderHandEditor=renderFieldEditor=renderRewCards=_syncRewardProductionUi=update
     initState();Object.assign(G,{phase:'reward',gold:100,rings:[]},flags);
     const item=h.copy(ITEM_POOL[0]);G.spellSlots=[item,null,null,null];
     _syncRewardProductionItems();const action=slots[0].querySelector('.item-shop-sell-action');
-    assert.ok(action,name+' 手持ちアイテムの売却UI');
-    const gain=goldIncomeAmount(_itemShopSellPrice(item));assert.equal(action.textContent,`+${gain}G`);
-    action.onclick({stopPropagation(){}});
-    assert.equal(G.spellSlots[0],null,name+' アイテムがなくなる');assert.equal(G.gold,100+gain,name+' 売価が入る');
+    // 2026-10-18：通常プレイではどの施設・デバッグでもアイテムを売れない（売却という機能が無い）。
+    if(true){
+      assert.equal(action,null,name+' アイテム売却UIなし');assert.equal(_sellHeldItem(0),false);
+      assert.equal(G.spellSlots[0],item);assert.equal(G.gold,100);
+    }else{
+      assert.ok(action,name+' 手持ちアイテムの売却UI');
+      const gain=goldIncomeAmount(_itemShopSellPrice(item));assert.equal(action.textContent,`+${gain}G`);
+      action.onclick({stopPropagation(){}});
+      assert.equal(G.spellSlots[0],null,name+' アイテムがなくなる');assert.equal(G.gold,100+gain,name+' 売価が入る');
+    }
     const card=makePanel(PANEL_POOL.find(c=>c.no==='C062').id);G.mainBoard[1]=card;
-    assert.ok(_boardCardSellEnabled(card),name+' カードも売却可能');
+    assert.equal(_boardCardSellEnabled(card),false,name+' カードの売却は廃止');
     const button=h.makeElement('button'),div=h.makeElement();div.querySelector=()=>button;
-    const cardGain=goldIncomeAmount(_shopCardSellGain(card)),before=G.gold;
+    button.classList.contains=c=>c==='shop-board-sell-action';const before=G.gold;
     _wireHeCardDiscard(div,card,G.mainBoard,'boardCards',1,false);button.onclick({stopPropagation(){}});
-    assert.equal(G.mainBoard[1],null,name+' カードがなくなる');assert.equal(G.gold,before+cardGain,name+' カードの売価が入る');checked++;
+    assert.equal(G.mainBoard[1],card,name+' カードが残る');assert.equal(G.gold,before,name+' カードの売価が入らない');checked++;
   }
   for(const flags of [{},{_debugMode:true,_renderingGameOverBoard:true},{_debugMode:true,_isWaveAltar:true}]) {
     initState();Object.assign(G,{phase:'reward'},flags);G.spellSlots=[h.copy(ITEM_POOL[0]),null,null,null];
@@ -45,7 +51,9 @@ renderHandEditor=renderFieldEditor=renderRewCards=_syncRewardProductionUi=update
   G._isLibrary=true;startLibraryBoardTutorial();config.onFinish();
   assert.equal(SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY),true,'最終手順完了でプロフィールへ記録');
   SaveProfile.resetCache();initState();G._isLibraryMenu=true;renderVillageScreen();
-  assert.equal(elements.get('library-merge-btn').style.display,'','ラン再初期化・プロフィール再読込後に解放');
+  assert.equal(elements.get('library-merge-btn').style.display,'none','合体停止中はプロフィールで完走しても非表示');
+  PANEL_MERGE_TRIAL.enabled=true;renderVillageScreen();
+  assert.equal(elements.get('library-merge-btn').style.display,'','スイッチを戻すと保存済みの完走記録で解放');
   G._debugMode=true;delete window._libraryDebugBoardTutorialCompleted;
   assert.equal(_libraryBoardTutorialCompleted(),false,'デバッグは通常プロフィールを無視');
   localStorage.clear();SaveProfile.resetCache();G._isLibrary=true;startLibraryBoardTutorial();config.onFinish();
@@ -62,5 +70,6 @@ renderHandEditor=renderFieldEditor=renderRewCards=_syncRewardProductionUi=update
   assert.ok(config.text('2','').includes(def.name),'シートの説明文の貸出名も追従');
   G.mainBoard[1]={...loans[0],_tripleMerged:true,name:def.name+'+'};assert.ok(_libraryBoardHasMergedTutorialCard());
   G.mainBoard[1].no='C063';assert.equal(_libraryBoardHasMergedTutorialCard(),false);def.name=old;checked++;
-  console.log(`2026-10-11 売却・図書館: ${checked}件OK（5売却経路、途中離脱、プロフィール・デバッグ、C062×5）`);
+  PANEL_MERGE_TRIAL.enabled=false;
+  console.log(`売却廃止・図書館: ${checked}件OK（全施設・デバッグでアイテム売却不可、合体停止と再有効化、プロフィール・C062×5）`);
 })().catch(e=>{console.error(e);process.exitCode=1;});

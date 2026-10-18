@@ -1,0 +1,12 @@
+{
+  "add": [
+    {"category":"エンチャント","name":"仮・血の盟約","desc":"死亡：血を2得る。","rarity":1,"grade":1,"directionCount":3},
+    {"category":"エンチャント","name":"仮・緑の加護","desc":"開戦：全ての緑の味方は熟練1を得る。","rarity":2,"grade":1,"directionCount":3},
+    {"category":"エンチャント","name":"仮・紫の加護","desc":"開戦：全ての紫の味方は熟練1を得る。","rarity":2,"grade":1,"directionCount":3},
+    {"category":"エンチャント","name":"仮・不屈の盾","desc":"死亡：ランダムな味方2体は結界1を得る。","rarity":2,"grade":1,"directionCount":3}
+  ],
+  "change": [
+    {"name":"コカトリス","desc":"2マナ毎：ランダムな敵に防戦を与える。"},
+    {"name":"スペクター","desc":"1マナ毎：全ての青の味方はATK+2を得る。"}
+  ]
+}

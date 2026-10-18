@@ -41,3 +41,7 @@ prototype/tools/action_banner_mock.jpg
 
 # webp から切り出した比較用の参照画像（tools/vfx_capture/extract_refs.py で作り直せる。41MB）。基準の reference.json は残す。
 prototype/tools/vfx_capture/refs/**/*.png
+
+# 周回・固定盤面の出力（大きく、作り直せる）。main には入れない（2026-10-18）
+prototype/tools/balance_sim/out/
+prototype/tools/balance_sim/out_*/

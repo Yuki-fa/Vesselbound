@@ -1,0 +1,79 @@
+{
+  "label": "B 有限の封印値を半分（切り上げ）",
+  "simulation": {},
+  "override": {
+    "change": [
+      {
+        "name": "グリムリーパー",
+        "keywords": [
+          "封印3",
+          "即死"
+        ],
+        "mergedKeywords": [
+          "封印3",
+          "即死"
+        ],
+        "mergedDesc": ""
+      },
+      {
+        "name": "ベヒーモス",
+        "keywords": [
+          "封印5"
+        ],
+        "mergedKeywords": [
+          "封印5"
+        ],
+        "mergedDesc": "解放：マナを8倍にする。"
+      },
+      {
+        "name": "アークデーモン",
+        "keywords": [
+          "封印6"
+        ],
+        "mergedKeywords": [
+          "封印6"
+        ],
+        "mergedDesc": "解放：全ての紫の味方は+1/+1を得る。このキャラクターに接続しているエンチャントの数の3倍繰り返す。"
+      },
+      {
+        "name": "オーバーロード",
+        "keywords": [
+          "封印4"
+        ],
+        "mergedKeywords": [
+          "封印4"
+        ],
+        "mergedDesc": "解放：このキャラクターのATKとHPを8倍にする。"
+      },
+      {
+        "name": "アビス・バロン",
+        "keywords": [
+          "封印8"
+        ],
+        "mergedKeywords": [
+          "封印8"
+        ],
+        "mergedDesc": "解放：ランダムな敵に封印∞を付与する。これを2回繰り返す。"
+      },
+      {
+        "name": "フィーンド",
+        "keywords": [
+          "封印5"
+        ],
+        "mergedKeywords": [
+          "封印5"
+        ],
+        "mergedDesc": "解放：ランダムな敵に9ダメージを与える。このキャラクターに接続しているエンチャントの数の3倍繰り返す。"
+      },
+      {
+        "name": "封印されしもの",
+        "keywords": [
+          "封印5"
+        ],
+        "mergedKeywords": [],
+        "mergedDesc": "解放：このキャラクターは+20/+20を得る。これを2回繰り返す。"
+      }
+    ],
+    "add": []
+  }
+}

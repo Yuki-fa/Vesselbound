@@ -1,0 +1,10 @@
+{
+  "label": "C2 Nマナ毎だけ前戦までのマナを持ち越す",
+  "simulation": {
+    "thresholdCarry": true
+  },
+  "override": {
+    "change": [],
+    "add": []
+  }
+}

@@ -110,6 +110,11 @@ async function collectionCase(visibleText){
   }
   openCollection();await new Promise(r=>setTimeout(r,600));
   const result=[];
+  const mergeEnabled=PANEL_MERGE_TRIAL.enabled;
+  _collectionRenderDetail();
+  if(getComputedStyle(document.getElementById('collection-merge')).display!=='none')throw Error('合体停止中に図鑑の合体ボタンが出る');
+  // 既存の合体済みカードの本文も引き続き検証するため、ここだけ復帰する。
+  PANEL_MERGE_TRIAL.enabled=true;
   for(const kind of ['character','enchant']){
     _collectionKind=kind;_collectionMerged=false;_collectionRender();
     const code=kind==='character'?'C093':'E052',cards=_collectionDefinitions(kind),index=cards.findIndex(p=>p.no===code);
@@ -125,7 +130,7 @@ async function collectionCase(visibleText){
       result.push({code,merged,expected,visible:visibleText(desc,kind==='character'?'熟練'+(merged?3:1):'戦闘修正の値'),text:desc.textContent});
     }
   }
-  closeCollection();return result;
+  PANEL_MERGE_TRIAL.enabled=mergeEnabled;closeCollection();return result;
 }
 const rows=[...sheetRows('card'),...sheetRows('enchant')].filter(r=>['C093','E039','E052'].includes(r['No.']));
 const makeBattle=(online,side,merged,grace)=>`return await (${battleCase.toString()})(${online},${JSON.stringify(side)},${merged},${grace},${JSON.stringify(rows)},${hoverPoint.toString()});`;

@@ -111,7 +111,7 @@ function _collectionDisplayCard(card){
     out._sheetEnemy=true;
     out._useEnemyVisualFrame=!out.bossOnly;
   }
-  if(!_collectionMerged||!['character','enchant'].includes(_collectionKind)) return out;
+  if(!panelMergeEnabled()||!_collectionMerged||!['character','enchant'].includes(_collectionKind)) return out;
   out._merged=true;
   out._tripleMerged=true;
   const baseName=String(out.name||'').replace(/\+$/,'');
@@ -323,7 +323,8 @@ function _collectionRenderDetail(){
   name.textContent='';stats.textContent='';desc.innerHTML='';
   const selectable=_collectionSelectableIndices(cards);
   prev.disabled=next.disabled=selectable.length<2;
-  merge.disabled=!card||!['character','enchant'].includes(_collectionKind);
+  merge.style.display=panelMergeEnabled()?'':'none';
+  merge.disabled=!panelMergeEnabled()||!card||!['character','enchant'].includes(_collectionKind);
   merge.classList.toggle('is-active',!!(_collectionMerged&&!merge.disabled));
   if(!card) return;
 
@@ -422,6 +423,7 @@ function _collectionStep(direction){
 }
 
 function _collectionToggleMerged(){
+  if(!panelMergeEnabled()) return;
   if(!['character','enchant'].includes(_collectionKind)||_collectionSelected<0) return;
   _collectionMerged=!_collectionMerged;
   // 拡大画像だけでなく、左の一覧カードも同じマージ枠へ更新する。

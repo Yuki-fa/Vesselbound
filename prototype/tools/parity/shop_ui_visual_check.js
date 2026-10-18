@@ -22,13 +22,19 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
       document.getElementById('scr-battle').style.setProperty('display','block','important');
       document.body.className='reward-screen-active debug-mode';
       G._isShop=true; G._debugMode=true; G.phase='reward';
-      G.spellSlots=[{no:'I002',name:'絆の巻物',rarity:1,desc:'同名のキャラクター2枚を選んでマージする。'},null,null,null];
+      G.spellSlots=[makeItem('盾の巻物'),null,null,null];_syncRewardProductionUi();
+      if(document.querySelector('.reward-prod-item .item-shop-sell-action'))throw new Error('交換店に道具売却UIが残る');
+      // 残す売却UIの寸法・ホバーは道具屋で引き続き検査する。
+      G._isItemShop=true;
+      // 2026-10-18：売却は無いので、残る価格枠（この来店で買ったアイテムの返品）で寸法を検査する。
+      {const bought=Object.assign(makeItem('絆の巻物'),{desc:'同名のキャラクター2枚を選んでマージする。'});bought._shopBuy={key:_shopPurchaseKey(),price:180,idx:0,card:clone(bought)};G.spellSlots=[bought,null,null,null];}
       renderHandEditor();
       _syncRewardProductionUi();
-      const sale=document.querySelector('#hand-slots .shop-board-sell-action');
-      const cost=document.querySelector('#hand-slots .shop-board-sell-value');
-      if(!sale||!cost) throw new Error('魔導板の売却UIが作られていない');
-      const card=sale.closest('.card');
+      if(document.querySelector('#hand-slots .shop-board-sell-action'))throw new Error('廃止したカード売却UIが残る');
+      const sale=document.querySelector('.reward-prod-item .item-shop-sell-action');
+      const cost=sale;
+      if(!sale)throw new Error('返品の価格枠が作られていない');
+      const card=document.querySelector('#hand-slots .card');
       const tip=document.getElementById('kw-tooltip');
       tip.style.display='block'; tip.style.left='100px'; tip.style.top='470px';
       tip.className='rarity-3';
@@ -86,8 +92,7 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
       document.body.classList.add('right-card-peek');
       sale.style.removeProperty('display');
       // getComputedStyle()は生きたオブジェクトなので、クラスを外す前に値を文字列で退避する。
-      const hiddenSaleCss=getComputedStyle(sale);
-      const hiddenSale={display:hiddenSaleCss.display,pointerEvents:hiddenSaleCss.pointerEvents};
+      const hiddenSale={present:!!document.querySelector('#hand-slots .shop-board-sell-action')};
       document.body.classList.remove('right-card-peek');
       const probeEnchant=mkCardEl({id:'probe-enchant',name:'毒牙',type:'panel',kind:'panel',panelScope:'unit',category:'強化',keywords:['毒牙'],adjacentKeywords:['毒牙'],desc:'攻撃時：毒牙を得る。',rarity:2},-1,'probe');
       const probeChar=mkCardEl({id:'probe-char',name:'赤の試験キャラ',type:'panel',kind:'panel',panelScope:'unit',category:'キャラクター',color:'赤',power:1,life:2,keywords:[],desc:''},-1,'probe');
@@ -117,7 +122,7 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
     if(!metrics.tipContentKept||!metrics.tipColorKept) throw new Error(`ホバー説明の内容または色がクリックで変わった: ${JSON.stringify(metrics)}`);
     if(!metrics.popupRightClick.closed||!metrics.popupRightClick.peek) throw new Error(`ポップアップ上の右クリックが共通切替になっていない: ${JSON.stringify(metrics.popupRightClick)}`);
     if(!metrics.enhancementKeywordPreview||!metrics.characterTitleIcon||metrics.debugRarityLabels<1||!metrics.debugHover.rarity||!metrics.debugHover.keyword) throw new Error(`強化カード／色アイコン／デバッグホバー表示が不足: ${JSON.stringify(metrics)}`);
-    if(metrics.hiddenSale.display!=='none'&&metrics.hiddenSale.pointerEvents!=='none') throw new Error(`カード非表示中も売却UIが反応する: ${JSON.stringify(metrics.hiddenSale)}`);
+    if(metrics.hiddenSale.present) throw new Error('カード非表示中に廃止した売却UIが残る');
     if(metrics.sale.cssW!=='101px'||metrics.sale.cssH!=='46px'||metrics.sale.top!==34) throw new Error(`売却価格ボタンの寸法または位置が不正: ${JSON.stringify(metrics)}`);
     if(metrics.cost.padL!==metrics.cost.padR) throw new Error(`販売価格テキストの左右余白が不均等: ${JSON.stringify(metrics.cost)}`);
     if(!/cost\.svg/.test(metrics.sale.frame)) throw new Error('売却価格ボタンがcost.svgではない');
@@ -131,7 +136,6 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
       ||Math.abs(metrics.action.gap-metrics.action.expectedGap)>.1
       ||Math.abs(metrics.action.leftDelta)>.1) throw new Error(`アイテム／指輪操作ボタンの寸法・素材・配置が不正: ${JSON.stringify(metrics.action)}`);
     if(metrics.cost.cssW!=='101px'||metrics.cost.cssH!=='46px') throw new Error(`cost.svg表示の寸法が101x46ではない: ${JSON.stringify(metrics)}`);
-    if(Number(metrics.cost.z)!==105) throw new Error(`価格表示の重なり順が不正: ${JSON.stringify(metrics.cost)}`);
     const disabledRect=await browser.eval(`
       _openRewardActionTooltip(document.querySelector('#hand-slots .card'),'絆の巻物','説明',
         [{label:'使う',disabled:true},{label:'捨てる'},{label:'やめる'}]);
@@ -145,8 +149,10 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
     await browser.eval(`_closeItemUseConfirm()`);
     await browser.call('Input.dispatchMouseEvent',{type:'mouseMoved',x:metrics.sale.x+metrics.sale.w/2,y:metrics.sale.y+metrics.sale.h/2});
     await sleep(180);
-    const hoverFilter=await browser.eval(`return (()=>{const b=document.querySelector('#hand-slots .shop-board-sell-action');const s=getComputedStyle(b);const p=getComputedStyle(b,'::after');return {filter:p.filter,opacity:p.opacity,backgroundColor:s.backgroundColor,backgroundImage:s.backgroundImage,color:s.color};})();`);
-    if(hoverFilter.backgroundColor!=='rgba(7, 27, 48, 0.8)'||!/cost\.svg/.test(hoverFilter.backgroundImage)||hoverFilter.color!=='rgb(240, 208, 128)'||Number(hoverFilter.opacity)!==0) throw new Error(`売却価格ボタンのホバー表示が不正: ${JSON.stringify(hoverFilter)}`);
+    const hoverFilter=await browser.eval(`return (()=>{const b=document.querySelector('.reward-prod-item .item-shop-sell-action');const s=getComputedStyle(b);const p=getComputedStyle(b,'::after');return {hovered:b.matches(':hover'),filter:p.filter,opacity:p.opacity,content:p.content,display:p.display,backgroundColor:s.backgroundColor,backgroundImage:s.backgroundImage,color:s.color};})();`);
+    // 道具の価格ボタンは content:none / display:none で外周発光を消す。
+    // 描画されない疑似要素にも旧ホバー規則の opacity:.84 は残るので、その値では判定しない。
+    if(!hoverFilter.hovered||hoverFilter.backgroundColor!=='rgba(7, 27, 48, 0.8)'||!/cost\.svg/.test(hoverFilter.backgroundImage)||hoverFilter.color!=='rgb(240, 208, 128)'||hoverFilter.content!=='none'||hoverFilter.display!=='none') throw new Error(`アイテム売却価格ボタンのホバー表示が不正: ${JSON.stringify(hoverFilter)}`);
     const shot=await browser.screenshot(OUT);
     const cancelMetrics=await browser.eval(`
       G._pendingItemUse={slotIdx:0,key:'shield_scroll',card:{name:'盾の巻物'},boardSnapshot:null};

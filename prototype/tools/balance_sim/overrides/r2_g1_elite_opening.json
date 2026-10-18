@@ -1,0 +1,11 @@
+{
+  "label": "G1 A+C1（エリート0.72・開戦マナ+2）",
+  "simulation": {
+    "eliteStatMultiplier": 0.72,
+    "openingMana": 2
+  },
+  "override": {
+    "change": [],
+    "add": []
+  }
+}

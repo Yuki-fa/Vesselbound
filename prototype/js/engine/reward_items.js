@@ -76,7 +76,7 @@ function _syncRewardProductionItems(){
           if(!card||!_isItemCard(card)||slot._rewardItem) return;
           // 道具屋の提示アイテムはドラッグで入れても購入扱い（クリック購入と同じくゴールドを徴収する）。
           // ただし自分の手持ちを商品枠へ置いたもの（売却待ち）を戻す場合は徴収しない。
-          const buyCost=((G._isItemShop||G._isPeddler)&&!card._shopSalePending)?Math.max(0,Number(card._buyPrice)||0):0;
+          const buyCost=(G._isItemShop&&!card._shopSalePending)?Math.max(0,Number(card._buyPrice)||0):0;
           if(buyCost>0&&(G.gold||0)<buyCost) return;
           e.preventDefault();
           _dragSrc=null;
@@ -97,7 +97,7 @@ function _syncRewardProductionItems(){
             _rewFreePickDone=true;
           }
           items[idx]=placed;
-          if(G._isItemShop||G._isPeddler||G._isLibrary) _rewCards[rewIdx]=null;
+          if(G._isItemShop||G._isLibrary) _rewCards[rewIdx]=null;
           else _rewCards.splice(rewIdx,1);
           if(typeof _removeDragGhost==='function') _removeDragGhost();
           if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
@@ -112,7 +112,9 @@ function _syncRewardProductionItems(){
     // 価格はアイテムなので全店共通で道具屋準拠（レアリティ×45）。
     slot.querySelector('.shop-board-sell-value')?.remove();
     // 2026-10-11: デバッグ編成もカードと同じ売却場所にする。通常の店の条件・売価は維持する。
-    if((G._isShop||G._isForge||(G._debugMode&&_boardCardSellEnabled(item)))&&item){
+    // 売却は無い（2026-10-18）。この来店で買ったアイテムの「返品」（買値で戻す取り消し）だけは残す。
+    const returnableHere=!!item&&typeof isShopReturnable==='function'&&isShopReturnable(item);
+    if(item&&(_cardSellable(item)||returnableHere)&&!_isCardExchangeShop()&&(G._isShop||G._isForge||(G._debugMode&&_boardCardSellEnabled(item)))){
       const price=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(item):0;
       const action=document.createElement('button');
       action.type='button';
@@ -141,9 +143,10 @@ function _syncRewardProductionItems(){
 }
 // 道具屋：手持ちアイテムを売却する（レアリティ×45ゴールド）。
 function _sellHeldItem(idx){
+  if(_isCardExchangeShop()) return false;
   const items=_ensureItemSlots();
   const card=items[idx];
-  if(!card) return;
+  if(!card||!_cardSellable(card)) return false;
   const base=typeof _itemShopSellPrice==='function'?_itemShopSellPrice(card):0;
   items[idx]=null;
   const gain=typeof onGoldGained==='function'?onGoldGained(base):(G.gold=(G.gold||0)+base,base);
@@ -388,6 +391,7 @@ function _isInVillageScene(){
 }
 
 function _canUseItemNow(card){
+  if(!panelMergeContentAvailable(card)) return false;
   const key=_itemEffectKey(card);
   const chars=_boardCharacterSlots();
   if(['shield_scroll','giant_scroll','inspire_flag'].includes(key)) return chars.length>0;
@@ -435,6 +439,7 @@ function _isSummonPowerSlot(slotIdx){
 function _isItemUseTargetSlot(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending) return true;
+  if(pending.key==='bond_scroll'&&!panelMergeEnabled()) return false;
   const boardList=typeof _mainBoardCards==='function'?_mainBoardCards():[];
   const card=boardList[slotIdx];
   if(!_isBoardCharacterCard(card)) return false;
@@ -602,6 +607,7 @@ function _syncItemUsePickingUi(){
   }
 }
 function _beginBoardItemUse(idx,card){
+  if(!panelMergeContentAvailable(card)) return false;
   const key=_itemEffectKey(card);
   const boardListNow=typeof _mainBoardCards==='function'?_mainBoardCards():[];
   G._pendingItemUse={slotIdx:idx,key,card:clone(card),step:0,
@@ -715,6 +721,7 @@ function _playItemUseVfx(key,slotIdx){
 function _handlePendingItemBoardTarget(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending||!Number.isInteger(slotIdx)) return false;
+  if(pending.key==='bond_scroll'&&!panelMergeEnabled()){_cancelPendingItemUse(true);return false;}
   const boardList=_mainBoardCards();
   const card=boardList[slotIdx];
   if(!_isBoardCharacterCard(card)){ ; return true; }
@@ -779,8 +786,23 @@ function _handlePendingItemBoardTarget(slotIdx){
     if(!first||first===card||card.name!==pending.firstName||card._merged||first._merged){
       ; return true;
     }
-    first.power=(Number(first.power)||0)+(Number(card.power)||0);
-    first.life=(Number(first.life)||0)+(Number(card.life)||0);
+    const bondBoon=coreMergeBoons([first,card]);
+    if(bondBoon){
+      // 祝福由来の基礎値と、アイテム等の個別補正を分けて最大の祝福を保持する。
+      const stats=[first,card].map(src=>{
+        const def=PANEL_POOL.find(p=>p.id===src.id)
+          ||ENEMY_POOL.find(p=>src._towerBoonBoss&&p.no===src.no)||src;
+        const ownMul=src.boon?src.boon.statMul:1;
+        return {power:Number(src.power||0)+Number(def.power||0)*(bondBoon.statMul-ownMul),
+          life:Number(src.life||0)+Number(def.life||0)*(bondBoon.statMul-ownMul)};
+      });
+      first.power=stats.reduce((n,s)=>n+s.power,0);
+      first.life=stats.reduce((n,s)=>n+s.life,0);
+      coreApplyCardBoon(first,bondBoon,{effectsOnly:true});
+    }else{
+      first.power=(Number(first.power)||0)+(Number(card.power)||0);
+      first.life=(Number(first.life)||0)+(Number(card.life)||0);
+    }
     first.manaOnAttack=(Number(first.manaOnAttack)||0)+(Number(card.manaOnAttack)||0);
     first.manaOnInjury=(Number(first.manaOnInjury)||0)+(Number(card.manaOnInjury)||0);
     first.manaOnDeath=(Number(first.manaOnDeath)||0)+(Number(card.manaOnDeath)||0);

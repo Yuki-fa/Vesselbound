@@ -1,0 +1,10 @@
+{
+  "label": "E 初回の祝福100G",
+  "simulation": {
+    "firstBoonPrice": 100
+  },
+  "override": {
+    "change": [],
+    "add": []
+  }
+}

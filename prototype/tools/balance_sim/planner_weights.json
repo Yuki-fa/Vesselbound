@@ -1,0 +1,68 @@
+{
+  "version": 2,
+  "status": "trained",
+  "selected": "wall_heavy",
+  "training": {
+    "seedStart": 1001,
+    "seedEnd": 1040,
+    "runs": 40,
+    "rungs": [
+      10,
+      20,
+      40
+    ],
+    "survivors": [
+      3,
+      2,
+      1
+    ],
+    "objective": "mean(reachedWave + reachedStage/100) + 2 * clearRate",
+    "candidateCount": 8,
+    "selectedMetrics": {
+      "id": "wall_heavy",
+      "rung": 3,
+      "seedStart": 1001,
+      "seedEnd": 1040,
+      "runs": 40,
+      "clears": 0,
+      "clearRate": 0,
+      "meanWave": 2.325,
+      "meanProgress": 2.3602500000000006,
+      "objective": 2.3602500000000006,
+      "next": 0.7,
+      "wall": 300,
+      "wallHp": 24,
+      "fit": 0.6,
+      "option": 1.2,
+      "focus": 0.5,
+      "prior": 0.3,
+      "distanceDecay": 0.5,
+      "wallProgress": 24,
+      "elapsedMs": 102989.929167,
+      "secondsPerRun": 7.954360000974999
+    }
+  },
+  "weights": {
+    "win": 240,
+    "emergencyWin": 400,
+    "hp": 40,
+    "damage": 4,
+    "fit": 0.6,
+    "option": 1.2,
+    "focus": 0.5,
+    "prior": 0.3,
+    "reserveWeight": 0.22,
+    "itemWeight": 0.35,
+    "acquireRate": 0.35,
+    "exchangeRate": 0.55,
+    "reachDiscount": 0.88,
+    "distanceDiscount": 0.97,
+    "preferenceMemory": 0.55,
+    "rerollGain": 0.8,
+    "next": 0.7,
+    "wall": 300,
+    "wallHp": 24,
+    "wallProgress": 24,
+    "distanceDecay": 0.5
+  }
+}

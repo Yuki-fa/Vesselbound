@@ -1,0 +1,3143 @@
+{
+  "schemaVersion": 1,
+  "options": {
+    "boards": "/Users/yuki/vb-worktrees/balance-bot/prototype/tools/balance_sim/fixed",
+    "out": "/Users/yuki/vb-worktrees/balance-bot/prototype/tools/balance_sim/fixed",
+    "samples": 30,
+    "searchSamples": 30,
+    "seed": 7411,
+    "cardSeed": 1701,
+    "workers": 4
+  },
+  "elapsedMs": 916535.06075,
+  "completed": 6100,
+  "forms": [
+    {
+      "key": "panel_gnome:base",
+      "baseId": "panel_gnome",
+      "name": "ノーム",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_gnome:merged",
+      "baseId": "panel_gnome",
+      "name": "ノーム+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_mata:base",
+      "baseId": "panel_mata",
+      "name": "マータ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_mata:merged",
+      "baseId": "panel_mata",
+      "name": "マータ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_golem:base",
+      "baseId": "panel_golem",
+      "name": "ゴーレム",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_golem:merged",
+      "baseId": "panel_golem",
+      "name": "ゴーレム+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_satyr:base",
+      "baseId": "panel_satyr",
+      "name": "サテュロス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_satyr:merged",
+      "baseId": "panel_satyr",
+      "name": "サテュロス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_dwarf:base",
+      "baseId": "panel_dwarf",
+      "name": "ドワーフ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_dwarf:merged",
+      "baseId": "panel_dwarf",
+      "name": "ドワーフ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_lamia:base",
+      "baseId": "panel_lamia",
+      "name": "ラミア",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_lamia:merged",
+      "baseId": "panel_lamia",
+      "name": "ラミア+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_kobold:base",
+      "baseId": "panel_kobold",
+      "name": "コボルド",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_kobold:merged",
+      "baseId": "panel_kobold",
+      "name": "コボルド+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_arachne:base",
+      "baseId": "panel_arachne",
+      "name": "アラクネ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_arachne:merged",
+      "baseId": "panel_arachne",
+      "name": "アラクネ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_minotaur:base",
+      "baseId": "panel_minotaur",
+      "name": "ミノタウロス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_minotaur:merged",
+      "baseId": "panel_minotaur",
+      "name": "ミノタウロス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 1,
+      "price": 560
+    },
+    {
+      "key": "panel_harpy:base",
+      "baseId": "panel_harpy",
+      "name": "ハーピー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_harpy:merged",
+      "baseId": "panel_harpy",
+      "name": "ハーピー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_siren:base",
+      "baseId": "panel_siren",
+      "name": "サイレン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_siren:merged",
+      "baseId": "panel_siren",
+      "name": "サイレン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_gigantes:base",
+      "baseId": "panel_gigantes",
+      "name": "ギガンテス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 4,
+      "price": 160
+    },
+    {
+      "key": "panel_gigantes:merged",
+      "baseId": "panel_gigantes",
+      "name": "ギガンテス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 4,
+      "price": 320
+    },
+    {
+      "key": "panel_formorian:base",
+      "baseId": "panel_formorian",
+      "name": "フォルモール",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_formorian:merged",
+      "baseId": "panel_formorian",
+      "name": "フォルモール+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_titan:base",
+      "baseId": "panel_titan",
+      "name": "タイタン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_titan:merged",
+      "baseId": "panel_titan",
+      "name": "タイタン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_ettin:base",
+      "baseId": "panel_ettin",
+      "name": "エティン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_ettin:merged",
+      "baseId": "panel_ettin",
+      "name": "エティン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sentinel:base",
+      "baseId": "panel_sentinel",
+      "name": "センチネル",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_sentinel:merged",
+      "baseId": "panel_sentinel",
+      "name": "センチネル+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_medusa:base",
+      "baseId": "panel_medusa",
+      "name": "メデューサ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_medusa:merged",
+      "baseId": "panel_medusa",
+      "name": "メデューサ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_cyclops:base",
+      "baseId": "panel_cyclops",
+      "name": "サイクロプス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_cyclops:merged",
+      "baseId": "panel_cyclops",
+      "name": "サイクロプス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 6,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_centaur:base",
+      "baseId": "panel_centaur",
+      "name": "ケンタウロス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_centaur:merged",
+      "baseId": "panel_centaur",
+      "name": "ケンタウロス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_hecatoncheir:base",
+      "baseId": "panel_hecatoncheir",
+      "name": "ヘカトンケイル",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_hecatoncheir:merged",
+      "baseId": "panel_hecatoncheir",
+      "name": "ヘカトンケイル+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_zombie:base",
+      "baseId": "panel_zombie",
+      "name": "ゾンビ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_zombie:merged",
+      "baseId": "panel_zombie",
+      "name": "ゾンビ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_mummy:base",
+      "baseId": "panel_mummy",
+      "name": "マミー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_mummy:merged",
+      "baseId": "panel_mummy",
+      "name": "マミー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_banshee:base",
+      "baseId": "panel_banshee",
+      "name": "バンシー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_banshee:merged",
+      "baseId": "panel_banshee",
+      "name": "バンシー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_wraith:base",
+      "baseId": "panel_wraith",
+      "name": "レイス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_wraith:merged",
+      "baseId": "panel_wraith",
+      "name": "レイス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_skeleton_king:base",
+      "baseId": "panel_skeleton_king",
+      "name": "スケルトンキング",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_skeleton_king:merged",
+      "baseId": "panel_skeleton_king",
+      "name": "スケルトンキング+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_spectre:base",
+      "baseId": "panel_spectre",
+      "name": "スペクター",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_spectre:merged",
+      "baseId": "panel_spectre",
+      "name": "スペクター+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_ghost:base",
+      "baseId": "panel_ghost",
+      "name": "ゴースト",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_ghost:merged",
+      "baseId": "panel_ghost",
+      "name": "ゴースト+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_phantom:base",
+      "baseId": "panel_phantom",
+      "name": "ファントム",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_phantom:merged",
+      "baseId": "panel_phantom",
+      "name": "ファントム+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_blue_shadow:base",
+      "baseId": "panel_blue_shadow",
+      "name": "シャドウ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_blue_shadow:merged",
+      "baseId": "panel_blue_shadow",
+      "name": "シャドウ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_nosferatu:base",
+      "baseId": "panel_nosferatu",
+      "name": "ノスフェラトゥ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 4,
+      "price": 560
+    },
+    {
+      "key": "panel_nosferatu:merged",
+      "baseId": "panel_nosferatu",
+      "name": "ノスフェラトゥ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_lemures:base",
+      "baseId": "panel_lemures",
+      "name": "レムレース",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_lemures:merged",
+      "baseId": "panel_lemures",
+      "name": "レムレース+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_vrykolakas:base",
+      "baseId": "panel_vrykolakas",
+      "name": "ヴリコラカス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_vrykolakas:merged",
+      "baseId": "panel_vrykolakas",
+      "name": "ヴリコラカス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_vampire_lord:base",
+      "baseId": "panel_vampire_lord",
+      "name": "ヴァンパイアロード",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_vampire_lord:merged",
+      "baseId": "panel_vampire_lord",
+      "name": "ヴァンパイアロード+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_eidolon:base",
+      "baseId": "panel_eidolon",
+      "name": "エイドロン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_eidolon:merged",
+      "baseId": "panel_eidolon",
+      "name": "エイドロン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_death_knight:base",
+      "baseId": "panel_death_knight",
+      "name": "デスナイト",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_death_knight:merged",
+      "baseId": "panel_death_knight",
+      "name": "デスナイト+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_revenant:base",
+      "baseId": "panel_revenant",
+      "name": "レヴナント",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_revenant:merged",
+      "baseId": "panel_revenant",
+      "name": "レヴナント+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_dullahan:base",
+      "baseId": "panel_dullahan",
+      "name": "デュラハン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_dullahan:merged",
+      "baseId": "panel_dullahan",
+      "name": "デュラハン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_bone_chariot:base",
+      "baseId": "panel_bone_chariot",
+      "name": "ボーンチャリオット",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_bone_chariot:merged",
+      "baseId": "panel_bone_chariot",
+      "name": "ボーンチャリオット+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_lich:base",
+      "baseId": "panel_lich",
+      "name": "リッチ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_lich:merged",
+      "baseId": "panel_lich",
+      "name": "リッチ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_grim_reaper:base",
+      "baseId": "panel_grim_reaper",
+      "name": "グリムリーパー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_grim_reaper:merged",
+      "baseId": "panel_grim_reaper",
+      "name": "グリムリーパー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 6,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_dire_wolf:base",
+      "baseId": "panel_dire_wolf",
+      "name": "ダイアウルフ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_dire_wolf:merged",
+      "baseId": "panel_dire_wolf",
+      "name": "ダイアウルフ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_sleep_sheep:base",
+      "baseId": "panel_sleep_sheep",
+      "name": "スリープシープ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_sleep_sheep:merged",
+      "baseId": "panel_sleep_sheep",
+      "name": "スリープシープ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_brownie:base",
+      "baseId": "panel_brownie",
+      "name": "ブラウニー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_brownie:merged",
+      "baseId": "panel_brownie",
+      "name": "ブラウニー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_elf:base",
+      "baseId": "panel_elf",
+      "name": "エルフ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_elf:merged",
+      "baseId": "panel_elf",
+      "name": "エルフ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_twin_devil:base",
+      "baseId": "panel_twin_devil",
+      "name": "ツインデビル",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_twin_devil:merged",
+      "baseId": "panel_twin_devil",
+      "name": "ツインデビル+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_archdemon:base",
+      "baseId": "panel_archdemon",
+      "name": "アークデーモン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_archdemon:merged",
+      "baseId": "panel_archdemon",
+      "name": "アークデーモン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_arassas:base",
+      "baseId": "panel_arassas",
+      "name": "アラッサス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_arassas:merged",
+      "baseId": "panel_arassas",
+      "name": "アラッサス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 6,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_slin:base",
+      "baseId": "panel_slin",
+      "name": "スリン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_slin:merged",
+      "baseId": "panel_slin",
+      "name": "スリン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 1,
+      "price": 560
+    },
+    {
+      "key": "panel_mitera:base",
+      "baseId": "panel_mitera",
+      "name": "ミテーラ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_mitera:merged",
+      "baseId": "panel_mitera",
+      "name": "ミテーラ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_jackalope:base",
+      "baseId": "panel_jackalope",
+      "name": "ジャッカロープ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_jackalope:merged",
+      "baseId": "panel_jackalope",
+      "name": "ジャッカロープ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_ymir:base",
+      "baseId": "panel_ymir",
+      "name": "ユミル",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_ymir:merged",
+      "baseId": "panel_ymir",
+      "name": "ユミル+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_mermaid:base",
+      "baseId": "panel_mermaid",
+      "name": "マーメイド",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_mermaid:merged",
+      "baseId": "panel_mermaid",
+      "name": "マーメイド+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_bandersnatch:base",
+      "baseId": "panel_bandersnatch",
+      "name": "バンダースナッチ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_bandersnatch:merged",
+      "baseId": "panel_bandersnatch",
+      "name": "バンダースナッチ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 6,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_hydra:base",
+      "baseId": "panel_hydra",
+      "name": "ハイドラ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_hydra:merged",
+      "baseId": "panel_hydra",
+      "name": "ハイドラ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_scylla:base",
+      "baseId": "panel_scylla",
+      "name": "スキュラ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_scylla:merged",
+      "baseId": "panel_scylla",
+      "name": "スキュラ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_naga:base",
+      "baseId": "panel_naga",
+      "name": "ナーガ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_naga:merged",
+      "baseId": "panel_naga",
+      "name": "ナーガ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_elven_mage:base",
+      "baseId": "panel_elven_mage",
+      "name": "エルヴンメイジ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_elven_mage:merged",
+      "baseId": "panel_elven_mage",
+      "name": "エルヴンメイジ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_titania:base",
+      "baseId": "panel_titania",
+      "name": "タイタニア",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_titania:merged",
+      "baseId": "panel_titania",
+      "name": "タイタニア+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_ketshi:base",
+      "baseId": "panel_ketshi",
+      "name": "ケットシー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_ketshi:merged",
+      "baseId": "panel_ketshi",
+      "name": "ケットシー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_carbuncle:base",
+      "baseId": "panel_carbuncle",
+      "name": "カーバンクル",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_carbuncle:merged",
+      "baseId": "panel_carbuncle",
+      "name": "カーバンクル+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_elemental:base",
+      "baseId": "panel_elemental",
+      "name": "エレメンタル",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_elemental:merged",
+      "baseId": "panel_elemental",
+      "name": "エレメンタル+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_counterattack_oath:base",
+      "baseId": "panel_counterattack_oath",
+      "name": "逆襲",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_counterattack_oath:merged",
+      "baseId": "panel_counterattack_oath",
+      "name": "逆襲+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_great_guard:base",
+      "baseId": "panel_great_guard",
+      "name": "大いなる守護",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_great_guard:merged",
+      "baseId": "panel_great_guard",
+      "name": "大いなる守護+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_inner_might:base",
+      "baseId": "panel_inner_might",
+      "name": "内なる大力",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_inner_might:merged",
+      "baseId": "panel_inner_might",
+      "name": "内なる大力+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_dark_ritual:base",
+      "baseId": "panel_dark_ritual",
+      "name": "闇の儀式",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_dark_ritual:merged",
+      "baseId": "panel_dark_ritual",
+      "name": "闇の儀式+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_persistent_flame:base",
+      "baseId": "panel_persistent_flame",
+      "name": "執念の炎",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_persistent_flame:merged",
+      "baseId": "panel_persistent_flame",
+      "name": "執念の炎+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_dark_flame:base",
+      "baseId": "panel_dark_flame",
+      "name": "闇の炎",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_dark_flame:merged",
+      "baseId": "panel_dark_flame",
+      "name": "闇の炎+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_poison_blade:base",
+      "baseId": "panel_poison_blade",
+      "name": "毒の刃",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_poison_blade:merged",
+      "baseId": "panel_poison_blade",
+      "name": "毒の刃+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_dragon_contract:base",
+      "baseId": "panel_dragon_contract",
+      "name": "竜の契約",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_dragon_contract:merged",
+      "baseId": "panel_dragon_contract",
+      "name": "竜の契約+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 1,
+      "price": 560
+    },
+    {
+      "key": "panel_imp:base",
+      "baseId": "panel_imp",
+      "name": "インプ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_imp:merged",
+      "baseId": "panel_imp",
+      "name": "インプ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_gremlin:base",
+      "baseId": "panel_gremlin",
+      "name": "グレムリン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_gremlin:merged",
+      "baseId": "panel_gremlin",
+      "name": "グレムリン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_incubus:base",
+      "baseId": "panel_incubus",
+      "name": "インキュバス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_incubus:merged",
+      "baseId": "panel_incubus",
+      "name": "インキュバス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_gargoyle:base",
+      "baseId": "panel_gargoyle",
+      "name": "ガーゴイル",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_gargoyle:merged",
+      "baseId": "panel_gargoyle",
+      "name": "ガーゴイル+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_hellhound:base",
+      "baseId": "panel_hellhound",
+      "name": "ヘルハウンド",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_hellhound:merged",
+      "baseId": "panel_hellhound",
+      "name": "ヘルハウンド+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_dark_one:base",
+      "baseId": "panel_dark_one",
+      "name": "ダークワン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_dark_one:merged",
+      "baseId": "panel_dark_one",
+      "name": "ダークワン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_familiar:base",
+      "baseId": "panel_familiar",
+      "name": "ファミリア",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_familiar:merged",
+      "baseId": "panel_familiar",
+      "name": "ファミリア+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_succubus:base",
+      "baseId": "panel_succubus",
+      "name": "サキュバス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 4,
+      "price": 560
+    },
+    {
+      "key": "panel_succubus:merged",
+      "baseId": "panel_succubus",
+      "name": "サキュバス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_hell_knight:base",
+      "baseId": "panel_hell_knight",
+      "name": "ヘルナイト",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_hell_knight:merged",
+      "baseId": "panel_hell_knight",
+      "name": "ヘルナイト+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_wendigo:base",
+      "baseId": "panel_wendigo",
+      "name": "ウェンディゴ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_wendigo:merged",
+      "baseId": "panel_wendigo",
+      "name": "ウェンディゴ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_void_walker:base",
+      "baseId": "panel_void_walker",
+      "name": "ヴォイド・ウォーカー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_void_walker:merged",
+      "baseId": "panel_void_walker",
+      "name": "ヴォイド・ウォーカー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_chaos_imp:base",
+      "baseId": "panel_chaos_imp",
+      "name": "カオス・インプ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_chaos_imp:merged",
+      "baseId": "panel_chaos_imp",
+      "name": "カオス・インプ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 3,
+      "price": 800
+    },
+    {
+      "key": "panel_lilith:base",
+      "baseId": "panel_lilith",
+      "name": "リリス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_lilith:merged",
+      "baseId": "panel_lilith",
+      "name": "リリス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_nightmare:base",
+      "baseId": "panel_nightmare",
+      "name": "ナイトメア",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_nightmare:merged",
+      "baseId": "panel_nightmare",
+      "name": "ナイトメア+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_behemoth:base",
+      "baseId": "panel_behemoth",
+      "name": "ベヒーモス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_behemoth:merged",
+      "baseId": "panel_behemoth",
+      "name": "ベヒーモス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_overlord:base",
+      "baseId": "panel_overlord",
+      "name": "オーバーロード",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_overlord:merged",
+      "baseId": "panel_overlord",
+      "name": "オーバーロード+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_abyss_baron:base",
+      "baseId": "panel_abyss_baron",
+      "name": "アビス・バロン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_abyss_baron:merged",
+      "baseId": "panel_abyss_baron",
+      "name": "アビス・バロン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 6,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_fiend:base",
+      "baseId": "panel_fiend",
+      "name": "フィーンド",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_fiend:merged",
+      "baseId": "panel_fiend",
+      "name": "フィーンド+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_fanatic:base",
+      "baseId": "panel_fanatic",
+      "name": "ファナティック",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_fanatic:merged",
+      "baseId": "panel_fanatic",
+      "name": "ファナティック+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_madness:base",
+      "baseId": "panel_madness",
+      "name": "狂気",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_madness:merged",
+      "baseId": "panel_madness",
+      "name": "狂気+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_wild_power:base",
+      "baseId": "panel_wild_power",
+      "name": "野生の力",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_wild_power:merged",
+      "baseId": "panel_wild_power",
+      "name": "野生の力+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_magic_circuit_a:base",
+      "baseId": "panel_magic_circuit_a",
+      "name": "魔導回路",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_magic_circuit_a:merged",
+      "baseId": "panel_magic_circuit_a",
+      "name": "魔導回路+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_healing_trait:base",
+      "baseId": "panel_healing_trait",
+      "name": "治癒能力",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_healing_trait:merged",
+      "baseId": "panel_healing_trait",
+      "name": "治癒能力+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_legacy:base",
+      "baseId": "panel_legacy",
+      "name": "遺産",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_legacy:merged",
+      "baseId": "panel_legacy",
+      "name": "遺産+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_origin_seed:base",
+      "baseId": "panel_origin_seed",
+      "name": "マナの種",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_origin_seed:merged",
+      "baseId": "panel_origin_seed",
+      "name": "マナの種+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 3,
+      "price": 800
+    },
+    {
+      "key": "panel_jade_vase:base",
+      "baseId": "panel_jade_vase",
+      "name": "翡翠の壺",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_golden_vase:base",
+      "baseId": "panel_golden_vase",
+      "name": "黄金の壺",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_magic_mirror:base",
+      "baseId": "panel_magic_mirror",
+      "name": "魔鏡",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_grace:base",
+      "baseId": "panel_grace",
+      "name": "恩寵",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_grace:merged",
+      "baseId": "panel_grace",
+      "name": "恩寵+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 3,
+      "price": 800
+    },
+    {
+      "key": "panel_copy:base",
+      "baseId": "panel_copy",
+      "name": "複製",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_copy:merged",
+      "baseId": "panel_copy",
+      "name": "複製+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 6,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_alchemy:base",
+      "baseId": "panel_alchemy",
+      "name": "錬成",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_alchemy:merged",
+      "baseId": "panel_alchemy",
+      "name": "錬成+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_rage:base",
+      "baseId": "panel_rage",
+      "name": "逆上",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_rage:merged",
+      "baseId": "panel_rage",
+      "name": "逆上+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_sword_skill:base",
+      "baseId": "panel_sword_skill",
+      "name": "剣技",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sword_skill:merged",
+      "baseId": "panel_sword_skill",
+      "name": "剣技+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_ferocious:base",
+      "baseId": "panel_ferocious",
+      "name": "獰猛",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_ferocious:merged",
+      "baseId": "panel_ferocious",
+      "name": "獰猛+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_grudge:base",
+      "baseId": "panel_grudge",
+      "name": "怨念",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_grudge:merged",
+      "baseId": "panel_grudge",
+      "name": "怨念+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_necromancy:base",
+      "baseId": "panel_necromancy",
+      "name": "屍術",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_necromancy:merged",
+      "baseId": "panel_necromancy",
+      "name": "屍術+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_double_attack:base",
+      "baseId": "panel_double_attack",
+      "name": "多段攻撃",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_double_attack:merged",
+      "baseId": "panel_double_attack",
+      "name": "多段攻撃+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_triway_attack:base",
+      "baseId": "panel_triway_attack",
+      "name": "範囲攻撃",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_triway_attack:merged",
+      "baseId": "panel_triway_attack",
+      "name": "範囲攻撃+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_evil_eye:base",
+      "baseId": "panel_evil_eye",
+      "name": "邪眼",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_evil_eye:merged",
+      "baseId": "panel_evil_eye",
+      "name": "邪眼+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 1,
+      "price": 560
+    },
+    {
+      "key": "panel_shield:base",
+      "baseId": "panel_shield",
+      "name": "死者の守護",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_shield:merged",
+      "baseId": "panel_shield",
+      "name": "死者の守護+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_bond:base",
+      "baseId": "panel_bond",
+      "name": "奇妙な絆",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_bond:merged",
+      "baseId": "panel_bond",
+      "name": "奇妙な絆+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_penitence:base",
+      "baseId": "panel_penitence",
+      "name": "懺悔",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_penitence:merged",
+      "baseId": "panel_penitence",
+      "name": "懺悔+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_activation:base",
+      "baseId": "panel_activation",
+      "name": "活性化",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_activation:merged",
+      "baseId": "panel_activation",
+      "name": "活性化+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_inheritance:base",
+      "baseId": "panel_inheritance",
+      "name": "継承",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_inheritance:merged",
+      "baseId": "panel_inheritance",
+      "name": "継承+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_roar:base",
+      "baseId": "panel_roar",
+      "name": "咆哮",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_roar:merged",
+      "baseId": "panel_roar",
+      "name": "咆哮+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_awe:base",
+      "baseId": "panel_awe",
+      "name": "威光",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_awe:merged",
+      "baseId": "panel_awe",
+      "name": "威光+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_C049:base",
+      "baseId": "panel_sheet_C049",
+      "name": "ドラゴネット",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C049:merged",
+      "baseId": "panel_sheet_C049",
+      "name": "ドラゴネット+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 2,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_C050:base",
+      "baseId": "panel_sheet_C050",
+      "name": "リザードマン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C050:merged",
+      "baseId": "panel_sheet_C050",
+      "name": "リザードマン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C051:base",
+      "baseId": "panel_sheet_C051",
+      "name": "コカトリス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_C051:merged",
+      "baseId": "panel_sheet_C051",
+      "name": "コカトリス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C052:base",
+      "baseId": "panel_sheet_C052",
+      "name": "ウォーグ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C052:merged",
+      "baseId": "panel_sheet_C052",
+      "name": "ウォーグ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_C054:base",
+      "baseId": "panel_sheet_C054",
+      "name": "ワーム",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 4,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_C054:merged",
+      "baseId": "panel_sheet_C054",
+      "name": "ワーム+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 4,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C058:base",
+      "baseId": "panel_sheet_C058",
+      "name": "ワイバーン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C058:merged",
+      "baseId": "panel_sheet_C058",
+      "name": "ワイバーン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C059:base",
+      "baseId": "panel_sheet_C059",
+      "name": "バジリスク",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C059:merged",
+      "baseId": "panel_sheet_C059",
+      "name": "バジリスク+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 3,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_C063:base",
+      "baseId": "panel_sheet_C063",
+      "name": "ジャック・オ・ランタン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C063:merged",
+      "baseId": "panel_sheet_C063",
+      "name": "ジャック・オ・ランタン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C064:base",
+      "baseId": "panel_sheet_C064",
+      "name": "シルフ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C064:merged",
+      "baseId": "panel_sheet_C064",
+      "name": "シルフ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C066:base",
+      "baseId": "panel_sheet_C066",
+      "name": "ウンディーネ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C066:merged",
+      "baseId": "panel_sheet_C066",
+      "name": "ウンディーネ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_C067:base",
+      "baseId": "panel_sheet_C067",
+      "name": "フロスト・スプライト",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C067:merged",
+      "baseId": "panel_sheet_C067",
+      "name": "フロスト・スプライト+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C068:base",
+      "baseId": "panel_sheet_C068",
+      "name": "レプラコーン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C068:merged",
+      "baseId": "panel_sheet_C068",
+      "name": "レプラコーン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 3,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_C069:base",
+      "baseId": "panel_sheet_C069",
+      "name": "メリュジーヌ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 4,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C069:merged",
+      "baseId": "panel_sheet_C069",
+      "name": "メリュジーヌ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_C070:base",
+      "baseId": "panel_sheet_C070",
+      "name": "リアナンシー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C070:merged",
+      "baseId": "panel_sheet_C070",
+      "name": "リアナンシー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C071:base",
+      "baseId": "panel_sheet_C071",
+      "name": "ニンフ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C071:merged",
+      "baseId": "panel_sheet_C071",
+      "name": "ニンフ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C072:base",
+      "baseId": "panel_sheet_C072",
+      "name": "シャナ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C072:merged",
+      "baseId": "panel_sheet_C072",
+      "name": "シャナ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C075:base",
+      "baseId": "panel_sheet_C075",
+      "name": "グリマルキン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C075:merged",
+      "baseId": "panel_sheet_C075",
+      "name": "グリマルキン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_C076:base",
+      "baseId": "panel_sheet_C076",
+      "name": "ペガサス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C076:merged",
+      "baseId": "panel_sheet_C076",
+      "name": "ペガサス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C078:base",
+      "baseId": "panel_sheet_C078",
+      "name": "ピクシー",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 5,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_C078:merged",
+      "baseId": "panel_sheet_C078",
+      "name": "ピクシー+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 6,
+      "grade": 4,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_C079:base",
+      "baseId": "panel_sheet_C079",
+      "name": "スプリガン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 3,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C079:merged",
+      "baseId": "panel_sheet_C079",
+      "name": "スプリガン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E029:base",
+      "baseId": "panel_sheet_E029",
+      "name": "死の体感",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_E029:merged",
+      "baseId": "panel_sheet_E029",
+      "name": "死の体感+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 3,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_E031:base",
+      "baseId": "panel_sheet_E031",
+      "name": "マナの生成",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E031:merged",
+      "baseId": "panel_sheet_E031",
+      "name": "マナの生成+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E036:base",
+      "baseId": "panel_sheet_E036",
+      "name": "扇動",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_E036:merged",
+      "baseId": "panel_sheet_E036",
+      "name": "扇動+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E043:base",
+      "baseId": "panel_sheet_E043",
+      "name": "マナの残滓",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_E043:merged",
+      "baseId": "panel_sheet_E043",
+      "name": "マナの残滓+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E052:base",
+      "baseId": "panel_sheet_E052",
+      "name": "熟練",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E052:merged",
+      "baseId": "panel_sheet_E052",
+      "name": "熟練+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_E053:base",
+      "baseId": "panel_sheet_E053",
+      "name": "遺志",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_E053:merged",
+      "baseId": "panel_sheet_E053",
+      "name": "遺志+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E054:base",
+      "baseId": "panel_sheet_E054",
+      "name": "共振",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E054:merged",
+      "baseId": "panel_sheet_E054",
+      "name": "共振+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E057:base",
+      "baseId": "panel_sheet_E057",
+      "name": "封印されしもの",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E057:merged",
+      "baseId": "panel_sheet_E057",
+      "name": "封印されしもの+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E058:base",
+      "baseId": "panel_sheet_E058",
+      "name": "炎の矢",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E058:merged",
+      "baseId": "panel_sheet_E058",
+      "name": "炎の矢+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 1,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_E059:base",
+      "baseId": "panel_sheet_E059",
+      "name": "禁断の力",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_E059:merged",
+      "baseId": "panel_sheet_E059",
+      "name": "禁断の力+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 3,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_E061:base",
+      "baseId": "panel_sheet_E061",
+      "name": "戦術",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_E061:merged",
+      "baseId": "panel_sheet_E061",
+      "name": "戦術+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E063:base",
+      "baseId": "panel_sheet_E063",
+      "name": "策士",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E063:merged",
+      "baseId": "panel_sheet_E063",
+      "name": "策士+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 1,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E065:base",
+      "baseId": "panel_sheet_E065",
+      "name": "献身",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_E065:merged",
+      "baseId": "panel_sheet_E065",
+      "name": "献身+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E067:base",
+      "baseId": "panel_sheet_E067",
+      "name": "援護射撃",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_E067:merged",
+      "baseId": "panel_sheet_E067",
+      "name": "援護射撃+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_E068:base",
+      "baseId": "panel_sheet_E068",
+      "name": "進軍の歌",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E068:merged",
+      "baseId": "panel_sheet_E068",
+      "name": "進軍の歌+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_E069:base",
+      "baseId": "panel_sheet_E069",
+      "name": "栄光の歌",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E069:merged",
+      "baseId": "panel_sheet_E069",
+      "name": "栄光の歌+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_E070:base",
+      "baseId": "panel_sheet_E070",
+      "name": "報復の歌",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E070:merged",
+      "baseId": "panel_sheet_E070",
+      "name": "報復の歌+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_E071:base",
+      "baseId": "panel_sheet_E071",
+      "name": "衝撃波",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_E071:merged",
+      "baseId": "panel_sheet_E071",
+      "name": "衝撃波+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_E072:base",
+      "baseId": "panel_sheet_E072",
+      "name": "血の結束",
+      "category": "エンチャント",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_E072:merged",
+      "baseId": "panel_sheet_E072",
+      "name": "血の結束+",
+      "category": "エンチャント",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    }
+  ],
+  "override": {
+    "change": [],
+    "add": []
+  },
+  "overrideNotes": [],
+  "boardFiles": [
+    {
+      "file": "boards_st2_normal.json",
+      "hash": "2e4ffe8a67c0803923a93f185c347453cd6f62b062af84f4acabdb69932efcbb",
+      "count": 5
+    },
+    {
+      "file": "boards_st2_elite.json",
+      "hash": "7f4c536b59c4aebba9265cd7738b29304771d3f3c5fddb71ec1f5c3f63c50e30",
+      "count": 5
+    },
+    {
+      "file": "boards_st3_normal.json",
+      "hash": "98a52b7bdaece2cd08ef02effb72dbc56919811de73ead3d60578c262277f195",
+      "count": 5
+    },
+    {
+      "file": "boards_st3_elite.json",
+      "hash": "993c3504317a396851aa3da20a72d46abf02a2b1afa1a167785d82bc9cd99bbc",
+      "count": 5
+    }
+  ],
+  "boardProvenance": {
+    "manifestHash": "a2388051d0b41b1a2020a9723ee645b3aebbf8cbc910d9bfc84cc7b7a6ae9b7f",
+    "selectionSourceHashes": {
+      "js/battle/core.js": "477bdd4879267c290d2e2c18f13ffd91c845201450cbedf9d37cb9f493b11bbb",
+      "js/battle/formation.js": "5da8bd0a37f9707253ef8710eee32343e3d9bd9e4b7d33c3659d0e021f72af5b",
+      "js/engine/battle.js": "b168b276aa774f8aae248a0f39a4f7db21bca97c44af42caae520fb3aae1654d",
+      "js/engine/enemy.js": "cbf7a6edd4eec04d88bfa7f15363e0f5702df74a7f8d1b3a461e61f75b40a9ea",
+      "js/engine/main.js": "09cd12b7335dd7de96c5e57c35df3d8681052474b344df0288d9956ecf3091f7",
+      "js/engine/pool.js": "f11d9b9bc6f9b28de7241e5849ac35ce327c55b492adfc3ed2ba5c71cc67d882",
+      "js/engine/reward.js": "d01aae8ff689fc6ab143346061b4e6c538c87604ba62c112d5d030fce7b3d2b0",
+      "js/engine/map.js": "37c8ccd765bd8d65890a06b4f48e451082c7f4ecfc754639389dfea790674101",
+      "js/save/run_save.js": "cdda2a9985aa5a7f2358464cd492e1c6df67db961e61a22da85e709e52b42978",
+      "js/data/loader.js": "361c6c35e378283cfde8252fe89c13fe05cffd4ecd4a4054b8679b3600174fb4",
+      "js/data/local_xlsx_data.js": "753edaedfd869adde6fa211704d6d0010c59ba4526e239bf1c986534a7e643f1"
+    }
+  },
+  "sourceHashes": {
+    "js/battle/core.js": "d0a52438e3f15adbee81d6a6b2ca4365e60f73c4dd85cadd624d276d327e3489",
+    "js/battle/formation.js": "9262c9570ff8404b5e5158172c4196219d345ff72a6d5f89e0e58fac00dc4df4",
+    "js/engine/battle.js": "b168b276aa774f8aae248a0f39a4f7db21bca97c44af42caae520fb3aae1654d",
+    "js/engine/enemy.js": "cbf7a6edd4eec04d88bfa7f15363e0f5702df74a7f8d1b3a461e61f75b40a9ea",
+    "js/engine/main.js": "09cd12b7335dd7de96c5e57c35df3d8681052474b344df0288d9956ecf3091f7",
+    "js/engine/pool.js": "01d7e2438d183bd0c764fa8aadf78308bd9610532039b19da1a5558998d224f6",
+    "js/engine/reward.js": "5f2109175aea5b54faf92b9fc7bc2f4087ec2176dfa397d7b6fcc207bc0607ba",
+    "js/engine/map.js": "aff45f37704f9b964bf39424136f9590c7eddf7752c974c54df785a166f79cd3",
+    "js/engine/tower_boon.js": "5854305ba4439914bc7c002548462215ef6ca20baaf9917dc0ec964e0a6ccc21",
+    "js/save/run_save.js": "8b469068a1f7161fd0cf7a086095e981f97c90e4d1020ebe8ec6fb320363e8c0",
+    "js/data/loader.js": "361c6c35e378283cfde8252fe89c13fe05cffd4ecd4a4054b8679b3600174fb4",
+    "js/data/local_xlsx_data.js": "753edaedfd869adde6fa211704d6d0010c59ba4526e239bf1c986534a7e643f1"
+  },
+  "toolHashes": {
+    "fixed_engine.js": "76ce10d4efc9d028afb3b4eaeba0d68d0e173f7ac157977b4ea84dd44ae4d618",
+    "fixed_compare.js": "1abe7c4e1d5ddf100849fd1e8153848867c56b6380a329ab74f8367977c04fc1",
+    "fixed_worker.js": "5c17db5c633701a68149382e23e41ab09a663a2b058d1ba4248d94fcdfc68fc2",
+    "fixed_pool.js": "04cca4bf523aa86325770182780577f5d4d47d32fc251595a01c9457d23e1c27",
+    "fixed_boards.js": "8e4d55248b99258a4363f079dd0954e7a9eea5246b260d08859c775af9203b50"
+  },
+  "samples": {
+    "selection": 30,
+    "evaluation": 30,
+    "independentPartitions": true
+  },
+  "rules": {
+    "weakCharacter": "出撃中キャラの本体ATK+HP最小、同点はマス番号。元キャラの向きを継承。",
+    "enchant": "空きマス全てと、隣接ATK+HP・レア度・マス番号で最弱の既存エンチャント1枚。実際の本体接続を列挙。提示時の向きを固定。",
+    "choice": "独立した接続選択サンプルで勝率→残HP→与ダメージを比較し、別の評価サンプルで差を測定。",
+    "forms": "シート基準の通常形（G1を含む全グレード）と本体の3枚合体。シートG2以上をG1へ改変しない。",
+    "damage": "コアdamageイベントの敵側amount合計（オーバーキルを含む）。",
+    "hp": "coreLivingUnitsが返す行動可能な生存味方のHP合計。封印中は除く。"
+  }
+}

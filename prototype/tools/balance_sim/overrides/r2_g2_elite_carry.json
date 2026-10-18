@@ -1,0 +1,11 @@
+{
+  "label": "G2 A+C2（エリート0.72・Nマナ毎の持ち越し）",
+  "simulation": {
+    "eliteStatMultiplier": 0.72,
+    "thresholdCarry": true
+  },
+  "override": {
+    "change": [],
+    "add": []
+  }
+}
