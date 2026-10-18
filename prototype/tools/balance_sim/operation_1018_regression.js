@@ -88,7 +88,10 @@ const def = no => PANEL_POOL.find(p => p.no === no);
         G.mainBoard[0] = makePanel(def('E003').id); G.mainBoard[1] = makePanel(def('C006').id);
         G.mainBoard[3] = {...makePanel(def('E003').id),_questOfferCard:true};
         const tiles = G.mainBoard.map((c, i) => tile(c, mapPanelPowerIdAt(i)));
-        document.querySelectorAll = selector => selector === '#hand-slots.board-slots > *' ? tiles
+        // 2026-10-19：unite画像も魔導板の直下にある。商品ドラッグ中に暗くしない。
+        const unite = tile(null); unite.classList.remove('board-empty'); unite.classList.add('panel-unite-link');
+        document.querySelectorAll = selector => selector === '#hand-slots.board-slots > *' ? [...tiles, unite]
+          : selector === '#hand-slots.board-slots > :not(.panel-unite-link)' ? tiles
           : selector === '#hand-slots.board-slots > .card' ? tiles.filter(e => e.classList.contains('card'))
           : selector.startsWith('.') ? tiles.filter(e => e.classList.contains(selector.slice(1))) : [];
         _rewCards = [makePanel(def('C001').id)]; _dragSrc = { arr: 'rew', idx: 0 };
@@ -101,6 +104,7 @@ const def = no => PANEL_POOL.find(p => p.no === no);
         assert.equal(tiles[2].classList.contains('shop-exchange-empty-dim'), true);
         assert.equal(tiles[3].classList.contains('shop-exchange-empty-dim'), true);
         assert.equal(tiles[3].classList.contains('shop-exchange-drop-hint'), false);
+        assert.equal(unite.classList.contains('shop-exchange-empty-dim'), false, 'unite画像は暗くしない');
         _clearDragZoneClass(); _dragSrc = null;
         assert.ok(tiles.every(e => !e.classList.contains('reward-special-drop-hint') && !e.classList.contains('shop-exchange-empty-dim')));
         G._isShop=false;_dragSrc={arr:'rew',idx:0};_setDragZoneClass('dragzone-reward-nonspell');

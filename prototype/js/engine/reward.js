@@ -234,7 +234,8 @@ function _syncExchangeShopDropHints(){
   if(!_isCardExchangeShop()||!_dragSrc) return false;
   const hint=(el,allowed)=>{if(allowed) el.classList.add('shop-exchange-drop-hint','drag-over');};
   if(_dragSrc.arr==='rew'){
-    document.querySelectorAll('#hand-slots.board-slots > *').forEach((el,idx)=>{
+    // unite画像（.panel-unite-link）も魔導板の直下に置かれるため除く。含めると空きマス扱いで暗くなっていた（2026-10-19 利用者指摘）。
+    document.querySelectorAll('#hand-slots.board-slots > :not(.panel-unite-link)').forEach((el,idx)=>{
       const allowed=canExchangeShopCardAt(_dragSrc.idx,idx);
       hint(el,allowed);
       el.classList.toggle('shop-exchange-empty-dim',!allowed);

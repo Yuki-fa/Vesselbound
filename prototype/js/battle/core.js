@@ -3951,7 +3951,8 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) {
       unit._currentAttackTarget = target;
-      coreApplyAttackEffects(unit, state, rng, emit, applyHit);
+      // 2026-10-19 利用者指定：ミノタウロスの効果による攻撃では「攻撃：」の効果（懺悔・竜の契約など）を発動しない。
+      // 発動させると懺悔の自傷が割り込み攻撃ごとに増え、1回の攻撃で20以上の自傷になっていた。
       emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: target.atk, immediate: true, reactionSourceId:unit.id });
       coreWithDamageKind(state, 'combat', () => {
         unit._coreAttackContact = true;
