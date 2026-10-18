@@ -254,5 +254,13 @@
   "source": "BROKEN - DESIGNED - WINDSHIELD Glass Stress and Pop-01.wav",
   "peak": 0.318812,
   "sha256": "c08ecdd10a0381b9065f65328c4f07b50a58c7393ab4f11428a16224b1d8a066"
+ },
+ "E071": {
+  "effect": "shockwave",
+  "candidate": null,
+  "file": "assets/sfx/E071.wav",
+  "source": "既存の採用音を加工",
+  "note": "途中の「チッ」を抑えるため単発の不連続をならし高音を下げた（2026-10-18）",
+  "sha256": "be2573100640ebb6a4bd8f7614dfa47bd17ca4f88ef9f94f1ccad9dae2753c53"
  }
 }
