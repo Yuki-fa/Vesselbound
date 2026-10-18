@@ -3,7 +3,8 @@ var VbFxDefs = (function () {
   'use strict';
   var effects = [], shapes = Object.create(null);
   var textures = ['glow', 'smoke', 'plasma', 'plasma-soft', 'stone', 'ring', 'magic-circle', 'skull'];
-  var sprites = ['appearance-atlas', 'impact-all'];
+  // 画像素材（webp）の貼り付けは廃止（2026-10-17）。sprite層・カードのart指定は使えない。
+  var sprites = [];
   var tags = ['shield', 'toxin', 'weakness', 'guts', 'revive'];
   function fail(at, message) { throw new TypeError('VFX ' + at + ': ' + message); }
   function object(v, at) {

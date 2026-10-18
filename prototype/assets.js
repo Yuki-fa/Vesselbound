@@ -380,6 +380,24 @@ const Assets = {
     K016: 'assets/sfx/K016.wav',
     K002: 'assets/sfx/K002.wav',
     I006: 'assets/sfx/I006.wav',
+    // 巻物・旗を魔導板のキャラクターに使った時（盾・幻視・巨大化・魔力の巻物、鼓舞の旗）。2026-10-17 利用者指定：SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03（LAB候補 scroll-shield-3）。
+    itemScroll: 'assets/sfx/item_scroll.wav',
+    shield_break: 'assets/sfx/shield_break.wav', // LAB採用（2026-10-18 shield-break 候補2）
+    R016: 'assets/sfx/R016.wav', // LAB採用（2026-10-18 intimidate-ring 候補2）
+    'map:resonance': 'assets/sfx/map_resonance.wav', // LAB採用（2026-10-18 map-resonance 候補1）
+    E032: 'assets/sfx/E032.wav', // LAB採用（2026-10-18 rage-shards 候補2）
+    R017: 'assets/sfx/R017.wav', // LAB採用（2026-10-18 undying-ring 候補3）
+    R013: 'assets/sfx/R013.wav', // LAB採用（2026-10-18 magic-ring-mana 候補2）
+    'map:duplicate': 'assets/sfx/map_duplicate.wav', // LAB採用（2026-10-18 map-duplicate 候補1）
+    E077: 'assets/sfx/E077.wav', // LAB採用（2026-10-18 suffering-brand 候補1）
+    R023: 'assets/sfx/R023.wav', // LAB採用（2026-10-18 storm-ring 候補1）
+    R020: 'assets/sfx/R020.wav', // LAB採用（2026-10-18 oni-ring 候補1）
+    C031: 'assets/sfx/C031.wav', // LAB採用（2026-10-18 soul-recall 候補1）
+    EN044: 'assets/sfx/EN044.wav', // LAB採用（2026-10-18 keyword-grant 候補1）
+    C093: 'assets/sfx/C093.wav', // LAB採用（2026-10-18 void-mastery 候補1）
+    R042: 'assets/sfx/R042.wav', // LAB採用（2026-10-18 curse-ring 候補1）
+    R041: 'assets/sfx/R041.wav', // LAB採用（2026-10-18 curse-ring 候補1）
+    E008: 'assets/sfx/E008.wav', // LAB採用（2026-10-18 dragon-pact 候補1）
     K018_gain: 'assets/sfx/K018_gain.wav',
     K020_gain: 'assets/sfx/K020_gain.wav',
 

@@ -93,7 +93,7 @@ const SFX_SETTINGS={
     K001:       {group:'combat', volume: .63, guardMs:80},  // 即死
     poison:     {group:'combat', volume: .48, guardMs:80},  // -4.7
     effectDamage:{group:'magic', volume: .78, guardMs:90},  // 効果ダメージ（旧 fire.wav）-8.8
-    C043:       {group:'magic',  volume: .58, guardMs:120}, // アラッサス（旧 super_magic.wav）-6.2
+    C043: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 flame-sweep 候補1）
     // 打撃音は 1<2<3 の強度差を残したまま、武器種をまたいだばらつきだけを揃える。
     sword1:     {group:'combat', volume: 1.00, guardMs:40}, // -15.0
     sword2:     {group:'combat', volume: .94, guardMs:40},  // -12.0
@@ -113,30 +113,47 @@ const SFX_SETTINGS={
     lifeLost:   {group:'ui',     volume: 1.00}, // -20.5
     K019:       {group:'magic',  volume: 0.40}, // 封印解放（旧S002）（実測-3.0dBFS）
     S001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音（Cast Small 02-01）
+    itemScroll: {group:'magic',volume:.70,maxPlayMs:0},
+    shield_break: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 shield-break 候補2）
+    R016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 intimidate-ring 候補2）
+    'map:resonance': {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 map-resonance 候補1）
+    E032: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 rage-shards 候補2）
+    R017: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 undying-ring 候補3）
+    R013: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 magic-ring-mana 候補2）
+    'map:duplicate': {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 map-duplicate 候補1）
+    E077: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 suffering-brand 候補1）
+    R023: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 storm-ring 候補1）
+    R020: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 oni-ring 候補1）
+    C031: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 soul-recall 候補1）
+    EN044: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 keyword-grant 候補1）
+    C093: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 void-mastery 候補1）
+    R042: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 curse-ring 候補1）
+    R041: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 curse-ring 候補1）
+    E008: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 dragon-pact 候補1） // 巻物・旗の使用（2026-10-17 利用者指定：MAGIC WHITE Cast Medium 03-03。候補はピーク-1dBFSに整えてある）
     S005:       {group:'magic',  volume: 1.00}, // 特殊演出：攻撃時のバフ効果（実測-11.2dBFS）
     S007:       {group:'magic',  volume: 0.63}, // 特殊演出（シート指定）（実測-7.0dBFS）
-    C008:       {group:'magic',  volume: 0.42}, // アラクネ（実測-3.5dBFS）
+    C008: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 arachne-ring 候補3）
     C011:       {group:'magic',  volume: 0.67}, // サイレン（実測-7.9dBFS）
-    C017:       {group:'magic',  volume: 0.56}, // メデューサ（実測-6.0dBFS）
-    C019:       {group:'magic',  volume: 1.00}, // ケンタウロス発射（実測-12.0dBFS）
-    C019_HIT:   {group:'magic',  volume: 0.43}, // ケンタウロス着弾（実測-3.7dBFS）
+    C017: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 medusa-gaze 候補3）
+    C019: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 centaur-missile 候補3）
+    C019_HIT: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 centaur-impact 候補3）
     K020: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     S004:       {group:'magic',  volume: 1.00}, // 特殊演出：マナ増加（実測-20.9dBFS）
     // シートの「VFX/SE」列に書ける番号は、ここにも必ず登録すること。
     // 登録が無いと playSfx() が鳴らず、絵だけ出て音が出ない。
     S003:       {group:'magic',  volume: 0.83}, // 特殊演出：金貨（旧C001）（実測-9.5dBFS）
-    S006:       {group:'magic',  volume: 0.53}, // 特殊演出：負傷効果（旧C003）（実測-5.4dBFS）
+    S006: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 injury-buff 候補1）
     S008:       {group:'magic',  volume: 0.89}, // 特殊演出：活性化（旧E045）（実測-10.0dBFS）
-    S009:       {group:'magic',  volume: 0.77}, // 特殊演出：バフ（常時）（実測-8.8dBFS）
+    S009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 aura-buff 候補3）
     // 攻撃範囲の音（K007〜K009）は3.7〜4.5秒ある。戦闘SEの共通上限（600ms）で止めると途中で切れるため、上限を外す。
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     // キャラクター固有ボイス（グループはuiのまま＝combatのmaxPlayMs打ち切りを受けない）
     C001:       {group:'ui',     volume: .97}, // -10.7
-    C002:       {group:'ui',     volume: .55}, // -5.8
+    C002: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 attack-recoil 候補2）
     C003:       {group:'ui',     volume: .73}, // -8.3
-    K024:       {group:'magic',  volume: 1.00}, // マナ効果（旧K023）（実測-17.3dBFS）
+    K024: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 mana-cue 候補1）
     // 強化カードの効果SE（カードNo.で引く）
     E045:       {group:'ui',     volume: 1.00},
     E058:       {group:'magic',  volume: 0.89}, // 炎の矢（発生元）（実測-10.0dBFS）
@@ -149,21 +166,21 @@ const SFX_SETTINGS={
     C060: {group:'magic',volume:.70,maxPlayMs:0},
     C064: {group:'magic',volume:.70,maxPlayMs:0},
     C071: {group:'magic',volume:.70,maxPlayMs:0},
-    C089: {group:'magic',volume:.70,maxPlayMs:0},
+    C089: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 familiar 候補3）
     C099: {group:'magic',volume:.70,maxPlayMs:0},
-    C029: {group:'magic',volume:.70,maxPlayMs:0},
-    C034: {group:'magic',volume:.70,maxPlayMs:0},
-    C082: {group:'magic',volume:.70,maxPlayMs:0},
+    C029: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 eidolon 候補1）
+    C034: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 eidolon 候補1）
+    C082: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 arch-demon 候補1）
     C083: {group:'magic',volume:.70,maxPlayMs:0},
     C095: {group:'magic',volume:.70,maxPlayMs:0},
     C097: {group:'magic',volume:.70,maxPlayMs:0},
-    C009: {group:'magic',volume:.70,maxPlayMs:0},
+    C009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 minotaur 候補2）
     C042: {group:'magic',volume:.70,maxPlayMs:0},
     C056: {group:'magic',volume:.70,maxPlayMs:0},
     C066: {group:'magic',volume:.70,maxPlayMs:0},
     C079: {group:'magic',volume:.70,maxPlayMs:0},
     C084: {group:'magic',volume:.70,maxPlayMs:0},
-    C094: {group:'magic',volume:.70,maxPlayMs:0},
+    C094: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 chaos-imp 候補2）
     // LABの採用音は同じ基準音量で鳴らす。
     E006: {group:'magic',volume:.70},
     C024: {group:'magic',volume:.70},
@@ -201,7 +218,7 @@ const SFX_SETTINGS={
     I006: {group:'magic',volume:.70},
     K018_gain: {group:'magic',volume:.70},
     K020_gain: {group:'magic',volume:.70},
-    K003:       {group:'combat',  volume: 0.47}, // 毒牙（毒のデバフを受けた瞬間）（実測-4.5dBFS）
+    K003: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 fang-poison 候補1）
     K017:       {group:'combat',  volume: 1.00}, // 毒（毒でダメージを受けた瞬間）（実測-19.5dBFS）
   },
 };

@@ -91,7 +91,7 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 <!-- SE1015_ROWS_END -->
 <!-- SE1017_ROWS_BEGIN -->
 | dragon-pact | [Fire Fireball Large 01.wav](#dragon-pact-1) · 1.096秒 / peak 0.229 | [Explosion Fireball Blast Fire 02.wav](#dragon-pact-2) · 1.950秒 / peak 0.254 | [SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-02.wav](#dragon-pact-3) · 1.565秒 / peak 0.450 |
-| rage-shards | [SORCERY - DESIGNED - MAGIC FIRE Cast Small-01.wav](#rage-shards-1) · 1.950秒 / peak 0.151 | [Impact Plastic Shards Hit Concrete 01.wav](#rage-shards-2) · 1.715秒 / peak 0.205 | [Crash Glass Shattering On Concrete 01.wav](#rage-shards-3) · 1.324秒 / peak 0.014 |
+| rage-shards | [SORCERY - DESIGNED - MAGIC FIRE Cast Small-01.wav](#rage-shards-1) · 1.950秒 / peak 0.151 | [Production Element Title Transition Whoosh Fire 01.wav](#rage-shards-2) · 1.950秒 / peak 0.450 | [Fire Fireplace Pops Crackle 01.wav](#rage-shards-3) · 1.950秒 / peak 0.450 |
 | storm-ring | [Weather Storm Lightning Bolt Crash Crack 01.wav](#storm-ring-1) · 1.950秒 / peak 0.216 | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large Fury-03.wav](#storm-ring-2) · 1.950秒 / peak 0.450 | [74 BOOM Thunder Havoc_A.wav](#storm-ring-3) · 1.950秒 / peak 0.515 |
 | scroll-shield | [SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 02-05.wav](#scroll-shield-1) · 1.950秒 / peak 0.450 | [Production Element Title Transition Bell Chime 02.wav](#scroll-shield-2) · 1.950秒 / peak 0.521 | [SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03.wav](#scroll-shield-3) · 1.950秒 / peak 0.450 |
 | ring-eye-red | [Production Element Title Transition Crystal Glow 01.wav](#ring-eye-red-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Cast Small 02-04.wav](#ring-eye-red-2) · 1.950秒 / peak 0.379 | [Production Element Title Transition Crystal Glow 10.wav](#ring-eye-red-3) · 1.950秒 / peak 0.120 |
@@ -107,6 +107,14 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 | hydra-reward | [SORCERY - DESIGNED - MAGIC WATER Cast Large-01.wav](#hydra-reward-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-04.wav](#hydra-reward-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ICE Cast Large Frost-01.wav](#hydra-reward-3) · 1.950秒 / peak 0.450 |
 | gold-loss | [Knocks On Plastic And Falling Coins.wav](#gold-loss-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC BLACK Whoosh Large-01.wav](#gold-loss-2) · 1.950秒 / peak 0.450 | [DRY ICE - Coin - Wobble, 1 Dime, Metallic, Buzz, Shake, Sputter, Vibrate, 01, D100.wav](#gold-loss-3) · 1.950秒 / peak 0.067 |
 | suffering-brand | [GOREStab_Knife Stabbing Body Bloody_Celine Woodburn_Gore Galore_08.wav](#suffering-brand-1) · 1.950秒 / peak 0.075 | [SORCERY - DESIGNED - MAGIC BLACK Summon Long-01.wav](#suffering-brand-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ACID Hit-04.wav](#suffering-brand-3) · 1.950秒 / peak 0.298 |
+| soul-recall | [Production Element Title Transition Ghostly 01.wav](#soul-recall-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Summon-02.wav](#soul-recall-2) · 1.950秒 / peak 0.450 | [Production Element Title Transition Bell Warble 01.wav](#soul-recall-3) · 1.950秒 / peak 0.034 |
+| undying-ring | [Production Element Title Transition Stab Dark Ghostly 01.wav](#undying-ring-1) · 1.950秒 / peak 0.450 | [GOREBone_Crushing Skull and bones_Celine Woodburn_Gore Galore_12.wav](#undying-ring-2) · 1.522秒 / peak 0.048 | [SORCERY - DESIGNED - MAGIC BLACK Summon Long-03.wav](#undying-ring-3) · 1.950秒 / peak 0.450 |
+| oni-ring | [SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-02.wav](#oni-ring-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-03.wav](#oni-ring-2) · 1.660秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-02.wav](#oni-ring-3) · 1.382秒 / peak 0.212 |
+| map-life | [RPG3_LightMagicEpic_HealingWing_P2.wav](#map-life-1) · 1.950秒 / peak 0.244 | [SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-04.wav](#map-life-2) · 1.950秒 / peak 0.450 | [Production Element Title Transition Bell Hit 02.wav](#map-life-3) · 1.950秒 / peak 0.174 |
+| map-resonance | [Production Element Title Transition Bell Hit 10.wav](#map-resonance-1) · 1.950秒 / peak 0.072 | [Musical Alien Bells 2.wav](#map-resonance-2) · 1.950秒 / peak 0.450 | [Production Element Title Transition Bell Hit 11.wav](#map-resonance-3) · 1.950秒 / peak 0.103 |
+| map-duplicate | [Production Element Title Transition Crystal Shatter 01.wav](#map-duplicate-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ICE Freeze Cast Large-01.wav](#map-duplicate-2) · 1.212秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-03.wav](#map-duplicate-3) · 1.950秒 / peak 0.450 |
+| intimidate-ring | [Production Element Title Transition Stab Dark Bell 01.wav](#intimidate-ring-1) · 1.610秒 / peak 0.450 | [AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav](#intimidate-ring-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ACID Cast Large 01-03.wav](#intimidate-ring-3) · 1.950秒 / peak 0.450 |
+| magic-ring-mana | [SORCERY - DESIGNED - MAGIC WATER Cast Large-02.wav](#magic-ring-mana-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ICE Freeze Cast Large-02.wav](#magic-ring-mana-2) · 1.373秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-03.wav](#magic-ring-mana-3) · 1.373秒 / peak 0.450 |
 <!-- SE1017_ROWS_END -->
 
 ヴリコラカスは復活開始時に `revive.wav`、ダイアウルフはウルフ登場開始時に `opening.wav` を追加再生する。候補3つとは別の既存SE。
@@ -1395,22 +1403,22 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 ### rage-shards-1 / SORCERY - DESIGNED - MAGIC FIRE Cast Small-01.wav
 
 - 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-01.wav`
-- 理由: 逆上：赤い破片が鋭く飛んで刺さる（短い火花・破片の当たり・砕ける音）
+- 理由: 逆上：傷から怒りの赤い破片が飛んで刺さる（小さな炎の魔法・炎をまとって飛ぶ風切り・火のはぜる音）
 - 原音 6.250秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.151秒 / 末尾フェード 400ms
 
 <a id="rage-shards-2"></a>
-### rage-shards-2 / Impact Plastic Shards Hit Concrete 01.wav
+### rage-shards-2 / Production Element Title Transition Whoosh Fire 01.wav
 
-- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/打撃・衝撃・ヒット音/Impact Plastic Shards Hit Concrete 01.wav`
-- 理由: 逆上：赤い破片が鋭く飛んで刺さる（短い火花・破片の当たり・砕ける音）
-- 原音 1.860秒 / 開始 0.145秒 / 出力 1.715秒 / peak 0.205秒 / 末尾フェード 30ms
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 01.wav`
+- 理由: 逆上：傷から怒りの赤い破片が飛んで刺さる（小さな炎の魔法・炎をまとって飛ぶ風切り・火のはぜる音）
+- 原音 4.458秒 / 開始 0.571秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
 
 <a id="rage-shards-3"></a>
-### rage-shards-3 / Crash Glass Shattering On Concrete 01.wav
+### rage-shards-3 / Fire Fireplace Pops Crackle 01.wav
 
-- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/衝突・破壊・クラッシュ音/Crash Glass Shattering On Concrete 01.wav`
-- 理由: 逆上：赤い破片が鋭く飛んで刺さる（短い火花・破片の当たり・砕ける音）
-- 原音 1.324秒 / 開始 0.000秒 / 出力 1.324秒 / peak 0.014秒 / 末尾フェード 30ms
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Fireplace Pops Crackle 01.wav`
+- 理由: 逆上：傷から怒りの赤い破片が飛んで刺さる（小さな炎の魔法・炎をまとって飛ぶ風切り・火のはぜる音）
+- 原音 90.104秒 / 開始 18.172秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
 
 <a id="storm-ring-1"></a>
 ### storm-ring-1 / Weather Storm Lightning Bolt Crash Crack 01.wav
@@ -1726,3 +1734,171 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 - 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Hit-04.wav`
 - 理由: 受難の刻印：刻印が割れて紅の呪いが味方へ飛び、痛みが刻まれる（刺す音・黒い召喚魔法・酸の命中）
 - 原音 3.580秒 / 開始 0.099秒 / 出力 1.950秒 / peak 0.298秒 / 末尾フェード 400ms
+
+<a id="soul-recall-1"></a>
+### soul-recall-1 / Production Element Title Transition Ghostly 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ghostly 01.wav`
+- 理由: レムレース：青白い魂が渦を巻いて集まり、死者を呼び戻す（霊的な響き・白い召喚魔法・揺らぐ鐘）
+- 原音 7.125秒 / 開始 1.898秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="soul-recall-2"></a>
+### soul-recall-2 / SORCERY - DESIGNED - MAGIC WHITE Summon-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Summon-02.wav`
+- 理由: レムレース：青白い魂が渦を巻いて集まり、死者を呼び戻す（霊的な響き・白い召喚魔法・揺らぐ鐘）
+- 原音 12.930秒 / 開始 1.420秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="soul-recall-3"></a>
+### soul-recall-3 / Production Element Title Transition Bell Warble 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Warble 01.wav`
+- 理由: レムレース：青白い魂が渦を巻いて集まり、死者を呼び戻す（霊的な響き・白い召喚魔法・揺らぐ鐘）
+- 原音 3.160秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.034秒 / 末尾フェード 400ms
+
+<a id="undying-ring-1"></a>
+### undying-ring-1 / Production Element Title Transition Stab Dark Ghostly 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Ghostly 01.wav`
+- 理由: 不死の指輪：死霊術の陣が開き、骨の光の柱が立つ（暗い霊的な一撃・骨のきしみ・黒い召喚魔法）
+- 原音 11.434秒 / 開始 2.298秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="undying-ring-2"></a>
+### undying-ring-2 / GOREBone_Crushing Skull and bones_Celine Woodburn_Gore Galore_12.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/A Sound Effect - Celine Woodburn Bonus Sounds/Gore Galore/GOREBone_Crushing Skull and bones_Celine Woodburn_Gore Galore_12.wav`
+- 理由: 不死の指輪：死霊術の陣が開き、骨の光の柱が立つ（暗い霊的な一撃・骨のきしみ・黒い召喚魔法）
+- 原音 1.589秒 / 開始 0.067秒 / 出力 1.522秒 / peak 0.048秒 / 末尾フェード 30ms
+
+<a id="undying-ring-3"></a>
+### undying-ring-3 / SORCERY - DESIGNED - MAGIC BLACK Summon Long-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Long-03.wav`
+- 理由: 不死の指輪：死霊術の陣が開き、骨の光の柱が立つ（暗い霊的な一撃・骨のきしみ・黒い召喚魔法）
+- 原音 20.890秒 / 開始 3.790秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="oni-ring-1"></a>
+### oni-ring-1 / SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-02.wav`
+- 理由: 鬼神の指輪：紅蓮の陣と炎の柱（炎の魔法・大きな炎の魔法・炎の弾き）
+- 原音 3.890秒 / 開始 1.189秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="oni-ring-2"></a>
+### oni-ring-2 / SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-03.wav`
+- 理由: 鬼神の指輪：紅蓮の陣と炎の柱（炎の魔法・大きな炎の魔法・炎の弾き）
+- 原音 3.000秒 / 開始 1.340秒 / 出力 1.660秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="oni-ring-3"></a>
+### oni-ring-3 / SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-02.wav`
+- 理由: 鬼神の指輪：紅蓮の陣と炎の柱（炎の魔法・大きな炎の魔法・炎の弾き）
+- 原音 1.400秒 / 開始 0.018秒 / 出力 1.382秒 / peak 0.212秒 / 末尾フェード 30ms
+
+<a id="map-life-1"></a>
+### map-life-1 / RPG3_LightMagicEpic_HealingWing_P2.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/WOW Sound - ASFX - RPG Magic 3 Freebies/RPG Magic SFX Pack 3 – Elemental/RPG3_LightMagicEpic_HealingWing_P2.wav`
+- 理由: 生命の力：緑の生命の光が2度脈打つ（癒やしの光・白い魔法・澄んだ鐘）
+- 原音 6.731秒 / 開始 0.035秒 / 出力 1.950秒 / peak 0.244秒 / 末尾フェード 400ms
+
+<a id="map-life-2"></a>
+### map-life-2 / SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-04.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-04.wav`
+- 理由: 生命の力：緑の生命の光が2度脈打つ（癒やしの光・白い魔法・澄んだ鐘）
+- 原音 6.440秒 / 開始 1.312秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="map-life-3"></a>
+### map-life-3 / Production Element Title Transition Bell Hit 02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Hit 02.wav`
+- 理由: 生命の力：緑の生命の光が2度脈打つ（癒やしの光・白い魔法・澄んだ鐘）
+- 原音 4.165秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.174秒 / 末尾フェード 400ms
+
+<a id="map-resonance-1"></a>
+### map-resonance-1 / Production Element Title Transition Bell Hit 10.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Hit 10.wav`
+- 理由: 共鳴の力：金の波紋が重なる（鐘の響き・重なる鈴・別の鐘の響き）
+- 原音 2.851秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.072秒 / 末尾フェード 400ms
+
+<a id="map-resonance-2"></a>
+### map-resonance-2 / Musical Alien Bells 2.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/Textures and Drones/Musical Alien Bells 2.wav`
+- 理由: 共鳴の力：金の波紋が重なる（鐘の響き・重なる鈴・別の鐘の響き）
+- 原音 50.107秒 / 開始 36.414秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="map-resonance-3"></a>
+### map-resonance-3 / Production Element Title Transition Bell Hit 11.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Hit 11.wav`
+- 理由: 共鳴の力：金の波紋が重なる（鐘の響き・重なる鈴・別の鐘の響き）
+- 原音 2.398秒 / 開始 0.003秒 / 出力 1.950秒 / peak 0.103秒 / 末尾フェード 400ms
+
+<a id="map-duplicate-1"></a>
+### map-duplicate-1 / Production Element Title Transition Crystal Shatter 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Crystal Shatter 01.wav`
+- 理由: 複製の力：鏡の光が走り、写しが生まれる（結晶の砕け・凍る結晶・白い魔法）
+- 原音 3.549秒 / 開始 0.512秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="map-duplicate-2"></a>
+### map-duplicate-2 / SORCERY - DESIGNED - MAGIC ICE Freeze Cast Large-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Freeze Cast Large-01.wav`
+- 理由: 複製の力：鏡の光が走り、写しが生まれる（結晶の砕け・凍る結晶・白い魔法）
+- 原音 5.400秒 / 開始 4.188秒 / 出力 1.212秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="map-duplicate-3"></a>
+### map-duplicate-3 / SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-03.wav`
+- 理由: 複製の力：鏡の光が走り、写しが生まれる（結晶の砕け・凍る結晶・白い魔法）
+- 原音 6.450秒 / 開始 3.745秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="intimidate-ring-1"></a>
+### intimidate-ring-1 / Production Element Title Transition Stab Dark Bell 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Bell 01.wav`
+- 理由: 威圧の指輪：暗い紅の重圧がのしかかる（暗い鐘の一撃・邪悪な気配・蝕む魔法）
+- 原音 3.935秒 / 開始 2.325秒 / 出力 1.610秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="intimidate-ring-2"></a>
+### intimidate-ring-2 / AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Ghostly Presences Vol. 1/AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav`
+- 理由: 威圧の指輪：暗い紅の重圧がのしかかる（暗い鐘の一撃・邪悪な気配・蝕む魔法）
+- 原音 180.027秒 / 開始 17.196秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="intimidate-ring-3"></a>
+### intimidate-ring-3 / SORCERY - DESIGNED - MAGIC ACID Cast Large 01-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-03.wav`
+- 理由: 威圧の指輪：暗い紅の重圧がのしかかる（暗い鐘の一撃・邪悪な気配・蝕む魔法）
+- 原音 3.510秒 / 開始 0.336秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="magic-ring-mana-1"></a>
+### magic-ring-mana-1 / SORCERY - DESIGNED - MAGIC WATER Cast Large-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Large-02.wav`
+- 理由: 魔力の指輪：蒼い魔力の結晶が弾ける（水の魔法・凍る結晶・小さな電撃）
+- 原音 6.030秒 / 開始 1.878秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="magic-ring-mana-2"></a>
+### magic-ring-mana-2 / SORCERY - DESIGNED - MAGIC ICE Freeze Cast Large-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Freeze Cast Large-02.wav`
+- 理由: 魔力の指輪：蒼い魔力の結晶が弾ける（水の魔法・凍る結晶・小さな電撃）
+- 原音 5.330秒 / 開始 3.957秒 / 出力 1.373秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="magic-ring-mana-3"></a>
+### magic-ring-mana-3 / SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-03.wav`
+- 理由: 魔力の指輪：蒼い魔力の結晶が弾ける（水の魔法・凍る結晶・小さな電撃）
+- 原音 4.500秒 / 開始 3.127秒 / 出力 1.373秒 / peak 0.450秒 / 末尾フェード 30ms

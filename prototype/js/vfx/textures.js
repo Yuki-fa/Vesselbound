@@ -104,6 +104,7 @@ var VbFxTextures = (function () {
     grad.addColorStop(Math.min(1,inner+soft),rgba(color,0));grad.addColorStop(1,rgba(color,0));g.fillStyle=grad;g.fillRect(0,0,size,size);
     spriteCache[key]=c;return c;
   }
-  var sprites = { 'appearance-atlas': {path:'vfx/appearance_sheet.webp',columns:34}, 'impact-all': {path:'vfx/K009.webp'} };
+  // 画像素材（webp）の貼り付けは廃止。登場演出（ダイアウルフ）と全体の衝撃（隕石の巻物）もコードで描く（2026-10-17 利用者指定）。
+  var sprites = {};
   return {get:get,surface:surface,sprites:sprites};
 })();

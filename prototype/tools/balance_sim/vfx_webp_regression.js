@@ -8,11 +8,19 @@ const read=file=>fs.readFileSync(path.join(ROOT,file),'utf8');
 const manifest=JSON.parse(read('tools/vfx_capture/webp_manifest.json'));
 async function run(){
   const {bundle}=validatedBundle(),effects=bundle.effects.filter(d=>manifest.effects.some(ref=>ref.name===d.name)),names=effects.map(d=>d.name);
-  assert.equal(bundle.effects.filter(d=>!d.sourceCode).length,50,'第1段の50種を保持');
+  // 第1段の50種は effects.js の定義そのもの（素材番号の無い効果は2026-10-17の新規制作でも増えるので数で見ない）。
+  const {literalDefinition}=require('../vfx_export');
+  const firstStage=new Set(literalDefinition(read('js/vfx/defs/effects.js'),'effects').effects.map(d=>d.name));
+  assert.equal(firstStage.size,50,'第1段の50種を保持');
+  assert.ok([...firstStage].every(name=>bundle.effects.some(d=>d.name===name)),'第1段の50種が書き出しに残る');
   assert.deepEqual(names,manifest.effects.map(d=>d.name),'参考一覧と書き出し定義の対応');
   assert.deepEqual(read('tools/vfx_capture/webp_targets.txt').trim().split(/\r?\n/),names,'撮影対象の順序');
   const assets=fs.readdirSync(path.join(ROOT,'assets/vfx')).filter(f=>f.endsWith('.webp')).map(f=>f.slice(0,-5)).sort();
-  assert.deepEqual([...new Set(manifest.effects.map(d=>d.asset).concat(manifest.excluded.map(d=>d.asset)))].sort(),assets,'全WebPを対象または除外理由に分類');
+  // 2026-10-17: 演出の webp は削除してよい（butterfly を除く）。残っている webp だけが分類済みであることを確かめる。
+  const classified=new Set(manifest.effects.map(d=>d.asset).concat(manifest.excluded.map(d=>d.asset)));
+  for(const asset of assets)assert.ok(classified.has(asset)||/^butterfly\d+$/.test(asset),'未分類のWebP: '+asset);
+  const runtime=read('js/vfx/textures.js')+read('js/vfx/schema.js')+read('assets.js');
+  assert.ok(!/vfx\/[^'"\s]+\.webp/.test(runtime),'実行時に演出のWebPを読み込まない');
   const game=read('assets.js')+read('js/engine/render.js')+read('js/engine/map.js')+read('js/engine/battle.js');
   for(const effect of effects){
     assert.ok(game.includes('vfx:'+effect.sourceCode+':'+effect.name),effect.name+' を実際の入口に登録');

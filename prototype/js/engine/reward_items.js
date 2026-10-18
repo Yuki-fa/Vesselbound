@@ -699,7 +699,8 @@ function handlePendingItemBoardTarget(slotIdx){
 }
 // 巻物などを魔導板のキャラクターに使った時の演出（2026-10-17 新規。見た目は js/vfx/defs/additions_1017.js）。
 // 効果の適用・保存には関わらない。素材が無い時・描画できない時は何もしない。
-const ITEM_USE_VFX={shield_scroll:'scroll-shield',vision_scroll:'scroll-revive',giant_scroll:'scroll-giant',mana_scroll:'scroll-mana',inspire_flag:'scroll-guts'};
+// 2026-10-18 利用者指定：盾の巻物と幻視の巻物の演出を入れ替える（盾＝光輪と光の柱、幻視＝結晶片の結界）。
+const ITEM_USE_VFX={shield_scroll:'scroll-revive',vision_scroll:'scroll-shield',giant_scroll:'scroll-giant',mana_scroll:'scroll-mana',inspire_flag:'scroll-guts'};
 function _playItemUseVfx(key,slotIdx){
   const name=ITEM_USE_VFX[key];
   if(!name||typeof VbFx==='undefined'||!VbFx.effects.some(d=>d.name===name)) return;
@@ -708,9 +709,8 @@ function _playItemUseVfx(key,slotIdx){
   if(!el||!el.isConnected) return;
   if(typeof _vfxClipLayer==='function') VbFx.settings.layer=_vfxClipLayer;
   VbFx.play(name,{source:el,targets:[el],speed:1,seed:53,dir:1}).catch(()=>{});
-  if(typeof playSfx==='function'&&typeof getEffectSfxKey==='function'){
-    const sfx=getEffectSfxKey(name);if(sfx) playSfx(sfx,{group:'magic',guardKey:`item-use:${name}`,guardMs:120});
-  }
+  // SEは5種で共通（2026-10-17 利用者指定）。以前は演出名からカード番号の音を引こうとして、常に無音だった。
+  if(typeof playSfx==='function') playSfx('itemScroll',{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
 }
 function _handlePendingItemBoardTarget(slotIdx){
   const pending=G._pendingItemUse;

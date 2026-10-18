@@ -152,7 +152,7 @@ SVGの `M/L/H/V/C/Q/Z`、vertices、ellipse、rectとその画面pxの補正、�
 手続き素材は `glow/smoke/plasma/plasma-soft/stone/ring/magic-circle/skull` の8種類。
 旧版と同じtexture生成器を共有し、type・色・variantでキャッシュする。
 magic-circleとskullも旧版の生成手順を共通生成器へ移した。効果ごとの描画コードにはしない。
-既存の `appearance-atlas → assets/vfx/appearance_sheet.webp`、`impact-all → assets/vfx/K009.webp` を資源表から解決する。
+画像素材（webp）の貼り付けは廃止した（2026-10-17）。sprite層・カードの `art` に指定できる素材は無い（資源表は空）。以前 `appearance-atlas`（ダイアウルフの登場）と `impact-all`（隕石の巻物の衝撃）で貼っていた部分もコードの層で描く。
 画像URL・Canvas命令・CSSの文字列を効果定義へ書かない。
 
 ## API・状態の契約

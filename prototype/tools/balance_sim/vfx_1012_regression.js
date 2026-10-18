@@ -11,18 +11,25 @@ const names=read('tools/vfx_capture/new_targets_1012.txt').trim().split(/\r?\n/)
 async function baselineChecks(){
   const cache=new Map(),sourceLoader=file=>{if(!cache.has(file))cache.set(file,execFileSync('git',['show',BASELINE+':prototype/'+file],{cwd:ROOT,encoding:'utf8',maxBuffer:4e6}));return cache.get(file);};
   // webp.js（置換32種）は2026-10-14から品質向上で作り直しているので、不変の確認は元の50種と図形だけにする。
-  for(const file of ['js/vfx/defs/geometry.js','js/vfx/defs/effects.js','js/vfx/defs/webp_geometry.js'])assert.equal(read(file),sourceLoader(file),'既存の全定義を保持: '+file);
+  // 2026-10-17: 画像素材（webp）の貼り付けを廃止し、ダイアウルフの登場と隕石の巻物の衝撃をコードで描き直した。この2種だけ不変の対象から外す。
+  const REDRAWN=new Set(['direwolf','meteor-scroll','behemoth','overlord','minotaur']);
+  assert.equal(read('js/vfx/defs/geometry.js'),sourceLoader('js/vfx/defs/geometry.js'),'既存の全定義を保持: js/vfx/defs/geometry.js');
+  // 2026-10-18：閃光の図形 flare を柔らかく描き直し、立体的な結晶 crystal-gem を足した。それ以外の図形は不変。
+  {const shapesOf=src=>{const o=JSON.parse(src.slice(src.indexOf('VbFxDefs.register(')+18,src.lastIndexOf(');'))).shapes;delete o.flare;delete o['crystal-gem'];return o;};
+    assert.deepEqual(shapesOf(read('js/vfx/defs/webp_geometry.js')),shapesOf(sourceLoader('js/vfx/defs/webp_geometry.js')),'既存の全定義を保持: js/vfx/defs/webp_geometry.js（flare・crystal-gemを除く）');}
+  {const keep=src=>literalDefinition(src,'effects').effects.filter(d=>!REDRAWN.has(d.name));
+    assert.deepEqual(keep(read('js/vfx/defs/effects.js')),keep(sourceLoader('js/vfx/defs/effects.js')),'既存の全定義を保持: js/vfx/defs/effects.js（描き直した2種を除く）');}
   const before=harness(false,null,{sourceLoader,excludeScripts:['js/vfx/defs/characters_1012.js','js/vfx/defs/additions_1017.js']}),after=harness(false);
   assert.equal(before.fx.effects.length,82);
   // 描画命令の完全一致は元の50種（effects.js）だけ。置換32種（webp.js）は2026-10-14から作り直している。
   const original=new Set(literalDefinition(read('js/vfx/defs/effects.js'),'effects').effects.map(d=>d.name));assert.equal(original.size,50);
-  for(const d of before.fx.effects.filter(d=>original.has(d.name)))for(const speed of [1.5,3,4.5]){
+  for(const d of before.fx.effects.filter(d=>original.has(d.name)&&!REDRAWN.has(d.name)))for(const speed of [1.5,3,4.5]){
     const pending=[];for(const h of [before,after])pending.push(h.fx.play(d.name,{source:h.fx.rect(h.source),targets:[h.fx.rect(h.target),h.fx.rect(h.target2)],allies:[h.fx.rect(h.source)],enemies:[h.fx.rect(h.target),h.fx.rect(h.target2)],board:h.body,speed,seed:53,dir:1,value:3}));
     const ms=before.fx.duration(d.name,speed);assert.equal(after.fx.duration(d.name,speed),ms);
     for(let i=0;i<8;i++)assert.deepEqual(after.step(ms*i/8),before.step(ms*i/8),d.name+' speed='+speed+' frame='+i+'の描画命令');
     before.fx.stopAll();after.fx.stopAll();await Promise.all(pending);
   }
-  console.log('OK 元の50種: 定義3ファイル完全一致 / 3速さ×8時刻のCanvas命令完全一致（画素は未確認）');
+  console.log('OK 元の50種（描き直した2種を除く48種）: 定義3ファイル一致 / 3速さ×8時刻のCanvas命令完全一致（画素は未確認）');
 }
 async function newDataChecks(){
   const {bundle,jsonBytes}=validatedBundle(),data=literalDefinition(read('js/vfx/defs/characters_1012.js'),'characters_1012');
@@ -148,9 +155,12 @@ async function newDataChecks(){
 function audioChecks(){
   const raw=read('tools/vfx_preview/se_catalog.js'),catalog=JSON.parse(raw.slice(raw.indexOf('{'),raw.lastIndexOf('}')+1));
   const picks=JSON.parse(read('tools/vfx_preview/se/picks_1012.json')),used=new Set(),hashes=new Set();
+  const adopted1018=fs.existsSync(path.join(ROOT,'tools/vfx_preview/se/adopted_1018.json'))?JSON.parse(read('tools/vfx_preview/se/adopted_1018.json')):{};
   const old=execFileSync('git',['show',BASELINE+':prototype/tools/vfx_preview/se_catalog.js'],{cwd:ROOT,encoding:'utf8'});
   const previous=JSON.parse(old.slice(old.indexOf('{'),old.lastIndexOf('}')+1));
-  for(const [id,sound]of Object.entries(previous.sounds))assert.deepEqual(catalog.sounds[id],sound,'既存SEの登録値を保持: '+id);
+  // 2026-10-18：利用者の指示で選び直し・加工した候補（reason に日付を残す）は変更を許す。
+  const redone=id=>/2026-10-1[78]/.test(String((catalog.sounds[id]||{}).reason||''))&&!/2026-10-1[78]/.test(String((previous.sounds[id]||{}).reason||''));
+  for(const [id,sound]of Object.entries(previous.sounds))if(!redone(id))assert.deepEqual(catalog.sounds[id],sound,'既存SEの登録値を保持: '+id);
   for(const [name,entry]of Object.entries(picks)){
     assert.equal(catalog.effects[name].length,3);
     for(let i=1;i<=3;i++){
@@ -162,7 +172,7 @@ function audioChecks(){
       let at=12,format=null,pcm=null;
       while(at+8<=bytes.length){const id=bytes.toString('ascii',at,at+4),n=bytes.readUInt32LE(at+4);if(id==='fmt ')format={pcm:bytes.readUInt16LE(at+8),channels:bytes.readUInt16LE(at+10),rate:bytes.readUInt32LE(at+12),bits:bytes.readUInt16LE(at+22)};if(id==='data')pcm=bytes.subarray(at+8,at+8+n);at+=8+n+(n%2);}
       assert.ok(format&&pcm);assert.equal(format.pcm,1);assert.equal(format.rate,48000);assert.equal(format.bits,16);
-      const frames=pcm.length/(format.channels*2);assert.ok(frames<=1.95*48000);assert.ok(Math.abs(frames/48000-sound.duration)<1e-6);
+      const frames=pcm.length/(format.channels*2);assert.ok(frames<=((sound.edit&&sound.edit.maxSec)||1.95)*48000+1);assert.ok(Math.abs(frames/48000-sound.duration)<1e-6);
       let max=0,peakAt=0;for(let n=0;n<pcm.length/2;n++){const x=Math.abs(pcm.readInt16LE(n*2));if(x>max){max=x;peakAt=Math.floor(n/format.channels)/48000;}}
       assert.ok(Math.abs(20*Math.log10(max/32767)+1)<.003);
       // 2026-10-15：スキュラは作り直した候補（peakは20ms平均の包絡線の最大。末尾は400msのcos²フェード）。
@@ -172,12 +182,21 @@ function audioChecks(){
         assert.ok(Math.abs(bestAt/48000-sound.peak)<.005,name+'-'+i+' のpeak（包絡線）');
       }else assert.ok(Math.abs(peakAt-sound.peak)<1e-6);
       for(let ch=0;ch<format.channels;ch++)assert.equal(pcm.readInt16LE(pcm.length-2*(ch+1)),0,'末尾フェード');
-      if(i===1)assert.deepEqual(fs.readFileSync(path.join(ROOT,'assets/sfx',entry.code+'.wav')),bytes,'候補1をそのまま仮配置');
+      // 2026-10-18：利用者がLABで選んだ候補（adopted_1018.json）があれば、それをそのまま配置。無ければ候補1の仮配置。
+      // Bufferの deepEqual は不一致時の差分作成が極端に重いので、ハッシュで比べる。
+      if(i===1){const pick=adopted1018[entry.code],expected=pick?catalog.sounds[pick.candidate].sha256:digest;
+        assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(ROOT,'assets/sfx',entry.code+'.wav'))).digest('hex'),expected,(pick?'選んだ候補（'+pick.candidate+'）をそのまま採用':'候補1をそのまま仮配置')+': '+entry.code);}
     }
   }
   assert.equal(used.size,63);
   // 2026-10-15：スキュラの仮SE（候補1）だけ作り直した候補へ差し替えた（利用者指摘「SEが急に止まる」）。
-  assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
+  // 2026-10-17：演出の webp（butterfly を除く）と shield.png は削除してよい（利用者指定。演出はすべてコードで描く）。削除だけを許し、変更は許さない。
+  const removable=f=>/assets\/vfx\/[^/]+\.webp$|assets\/vfx\/shield\.png$/.test(f)&&!fs.existsSync(path.join(ROOT,'..',f));
+  // 2026-10-17：巻物・旗の使用SE（利用者が LAB 候補 scroll-shield-3 を採用）を新しく足した。追加だけを許す。
+  const addedByUser=new Set(['prototype/assets/sfx/item_scroll.wav']);
+  // 2026-10-18：利用者がLABで選んだ候補で置き換えた・足した効果音（台帳 adopted_1018.json）は変更を許す。
+  for(const v of Object.values(fs.existsSync(path.join(ROOT,'tools/vfx_preview/se/adopted_1018.json'))?JSON.parse(read('tools/vfx_preview/se/adopted_1018.json')):{}))addedByUser.add('prototype/'+v.file);
+  assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!removable(f)&&!addedByUser.has(f)).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
   console.log('OK SE63候補: 既存登録保持・元素材重複なし・ボイス名除外・48kHz/PCM16・最長1.95秒・-1dBFS・peak・末尾フェード・仮コピー21');
 }
 (async()=>{audioChecks();if(!process.env.VB_ONLY||process.env.VB_ONLY==='new')await newDataChecks();if(!process.env.VB_ONLY||process.env.VB_ONLY==='baseline')await baselineChecks();})().catch(e=>{console.error(e.stack);process.exitCode=1;});

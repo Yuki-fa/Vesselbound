@@ -70,6 +70,8 @@ var VbFxLabUI = (function () {
   }
   init();
   return {select:function(effect){name=effect;renderEditor();},
+    // 2026-10-18 利用者指定：ゲームで使っていない（実経路にも編集中の割り振りにも無い）演出には一覧で印を出す。
+    unused:function(effect){return !(uses[effect]||[]).length&&!(((S.get().effects[effect]||{}).assign)||[]).length;},
     searchText:function(effect){return uses[effect].map(function(a){return a.id+' '+a.name;}).concat(((S.get().effects[effect]||{}).assign||[]).map(function(a){return a.id+' '+a.name;}));},
     current:function(effect){return M.clone(uses[effect]||[]);}};
 })();

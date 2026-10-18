@@ -136,6 +136,19 @@ function _presentLabManaAfter(plan,unit,side){
   let finish;plan.after=new Promise(resolve=>{finish=resolve;});
   const shown=playManaGainVfx(unit,side,{rect:plan.sourceRect,onDone:finish});if(!shown)finish();return !!shown;
 }
+// 陣の中央にカード1枚分の起点を作る（field）。大きさは陣のカードに合わせる（無い時は陣の高さから）。
+function _presentLabFieldOrigin(side) {
+  if (typeof document === 'undefined' || typeof VbFx === 'undefined') return null;
+  const field = document.getElementById(side === 'p2' ? 'f-enemy' : 'f-ally');
+  if (!field || !field.isConnected) return null;
+  const r = VbFx.rect(field); if (!(r.width > 0 && r.height > 0)) return null;
+  const slot = field.querySelector('.slot[data-unit-id]'), s = slot && slot.isConnected ? VbFx.rect(slot) : null;
+  const w = s && s.width > 0 ? s.width : Math.min(r.width, r.height * .6), h = s && s.height > 0 ? s.height : w * 1.5;
+  const left = r.left + (r.width - w) / 2, top = r.top + (r.height - h) / 2;
+  return { rect: { ...r, left, top, x: left, y: top, width: w, height: h, right: left + w, bottom: top + h, element: null } };
+}
+// 召喚の前に溜めを見せる演出。合図（impact）まで待ってから、既存の登場演出でカードを出す。
+const PRESENT_LAB_BEFORE_SUMMON = new Set(['C031','R017','R020','map:duplicate']);
 function _presentLabPlan(ev, events, index, api, context) {
   let source = _presentLabSource(ev);
   // マナ効果を直接発動するペガサスは、結果が別カードのmana_thresholdになる。
@@ -153,6 +166,13 @@ function _presentLabPlan(ev, events, index, api, context) {
     if(ev.effectSource===false||!(presentActionBannerEffectText(own,trigger)||presentActionBannerEffectText(own,'passive'))) code='';
   }
   if(source&&source.kind==='item'&&/^\d{1,3}$/.test(code)) code='I'+code.padStart(3,'0');
+  // 魔導板の力は番号を持たない。力のid（life・resonance）で引く（2026-10-17）。
+  if(source&&source.kind==='map'&&source.card&&source.card.id) code='map:'+source.card.id;
+  // 複製の力のコピー召喚は、発動元のキャラクターではなくマスの力の演出を出す（ツインデビルの本文のコピーとは分ける）。
+  if(ev.type==='summon'&&ev.unit&&ev.unit._openingDuplicate){
+    const original=api.findUnit(ev.side,ev.sourceId);
+    if(original&&original._mapPanelPower==='duplicate') code='map:duplicate';
+  }
   if (ev.blockedBy === 'great_shield') code = 'E062';
   if(!presentLabFx(code)) {
     if(ev.type==='keyword_effect'&&ev.effect==='weaken') code=getKeywordAssetKey('弱体');
@@ -187,7 +207,10 @@ function _presentLabPlan(ev, events, index, api, context) {
   if (spec[2] === 'pair') targets = [find(ev.attackerId),find(ev.targetId)].filter(Boolean);
   if (spec[2] === 'foes') targets = targets.filter(u=>api.units(ownerSide==='p2'?'p1':'p2').includes(u));
   targets = [...new Set(targets)];
-  const origin = spec[2] === 'dead' ? _presentLabOrigins.death.get(ownerSide) : spec[2] === 'lost' ? _presentLabOrigins.shield.get(ownerSide) : null;
+  // field：発動元のカードが盤面に無い効果（不死・鬼神・魔力の指輪）。その陣営の陣の中央を起点にする。
+  if (spec[2] === 'field') targets = [];
+  const origin = spec[2] === 'dead' ? _presentLabOrigins.death.get(ownerSide) : spec[2] === 'lost' ? _presentLabOrigins.shield.get(ownerSide)
+    : spec[2] === 'field' ? _presentLabFieldOrigin(ownerSide) : null;
   if (!owner && !origin && !targets.length) return null;
   if (spec[2] === 'morph') {
     targets = [...new Set(members.filter(e=>e.type==='transform').map(e=>find(e.unitId)).filter(Boolean))];
@@ -236,7 +259,10 @@ async function _presentLabFinish(plan) {
   for (const code of [getKeywordAssetKey('弱体'),getKeywordAssetKey('邪眼'),getKeywordAssetKey('結界','gain'),getKeywordAssetKey('復活','gain')]) {
     if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
     const units = [...new Set(plan.gains.filter(g=>g.code===code).map(g=>g.unit))];
-    if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0])});
+    // 弱体・邪眼の付与は見た目だけ続ける。音は元の固有演出のSEで足り、重ねると調和しない（2026-10-18 利用者指摘：グレムリン・ウンディーネ）。
+    // 結界・復活の獲得の音は残す（スプリガン等は獲得SEへつなげる）。
+    const silent = code===getKeywordAssetKey('弱体') || code===getKeywordAssetKey('邪眼');
+    if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0]),silent});
   }
   plan.gains.length=0;
   // 毒の付与も元の演出へ引き継ぐ。cloneイベントなので固有演出のclaimを受けない。
@@ -313,6 +339,11 @@ async function presentLabBeginEvent(ev, events, index, api) {
   // ピクシーの捕縛・移動はLAB自身が描く。従来の攻撃クローンを重ねず、接触で既存処理へ渡す。
   if(plan.code==='C078'&&ev.type==='attack') {
     const wait=plan.impact.get(String(ev.targetId));if(wait)await wait;
+  }
+  if (ev.type==='summon' && PRESENT_LAB_BEFORE_SUMMON.has(plan.code) && typeof VbFx!=='undefined' && VbFx.impactMs) {
+    const speed = typeof battleFxSpeed==='function' ? battleFxSpeed(plan.code) : 1;
+    const ms = Math.max(0, Number(VbFx.impactMs(plan.spec[0], speed)) || 0);
+    if (ms > 0) await new Promise(resolve => (typeof battlePresentationSetTimeout==='function' ? battlePresentationSetTimeout : setTimeout)(resolve, ms));
   }
   if (plan.code==='C041'&&ev.type!=='mana_threshold' || ev.type==='effect_flash') {
     await _presentLabFinish(plan); context.active = null;

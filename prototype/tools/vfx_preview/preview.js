@@ -468,6 +468,9 @@ var VbFxPreview = (function () {
       }
       b.querySelector('.number').textContent=String(i+1).padStart(2,'0');
       b.querySelector('.effect-caption').textContent=entry.meta.title+(entry.meta.missing?'（新規・見出し未設定）':'');
+      var unused=!!(window.VbFxLabUI&&VbFxLabUI.unused&&VbFxLabUI.unused(d.name));b.classList.toggle('unused',unused);
+      if(unused){var mark=b.querySelector('.effect-unused')||document.createElement('span');mark.className='effect-unused';mark.textContent='未使用';mark.title='ゲームで使っていない（割り振りなし）';b.querySelector('.effect-caption').after(mark);}
+      else{var old=b.querySelector('.effect-unused');if(old)old.remove();}
       b.querySelector('.effect-tags').textContent=entry.meta.tags.join(' / ');
       b.dataset.search=[d.name,entry.meta.title].concat(entry.meta.tags,window.VbFxLabUI?VbFxLabUI.searchText(d.name):[]).join(' ').toLowerCase();
       b.classList.toggle('selected',effect===d.name);b.setAttribute('aria-current',effect===d.name?'true':'false');

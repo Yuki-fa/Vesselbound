@@ -107,7 +107,8 @@ async function runCase(no,trigger,card=no) {
   }
   for(const call of calls.filter(c=>['weaken','atk-down','battle-summon','shield-gain','revive-gain'].includes(c.name)))
     assert.ok(!call.unfinished.includes(name),no+' 固有演出の完了後に汎用演出を続ける');
-  if(no==='shield_break') assert.ok(!sounds.some(c=>c.code===no),'結界消失はSEなし');
+  // 2026-10-18：結界消失は利用者が選んだSEを鳴らす。弱体・邪眼を元の効果に続けて付ける時は音を重ねない（元の固有演出のSEだけ）。
+  if(['K016','K002'].includes(no)) assert.ok(!sounds.some(c=>c.code===no),no+' 続けて付ける時はSEを重ねない');
   else assert.ok(sounds.some(c=>c.code===no),no+' SEが出る');
   const main=calls.filter(c=>c.name===name);
   // 戦闘中の召喚（S001）は2.5倍（2026-10-08 利用者指定）。他は標準の1.5。
@@ -223,7 +224,7 @@ async function extraChecks() {
   assert.equal(calls.filter(c=>c.name==='shield-break').length,1,'結界0になった時だけ消失を1回');
   assert.equal(legacy.filter(c=>c.opts?.keywordEffect==='結界').length,0,'旧K018の絵を重ねない');
   assert.equal(sounds.filter(c=>c.code===getKeywordEffectSfxKey('結界')).length,2,'防いだ瞬間のK018.wavは残す');
-  assert.ok(!sounds.some(c=>c.code==='shield_break'),'結界消失にはSE無し');
+  assert.ok(sounds.some(c=>c.code==='shield_break'),'結界消失にはSEを鳴らす（2026-10-18 利用者が選んだ候補2）');
   const revived=s.units.p1[1];revived.keywords=['復活'];revived.hp=0;
   const reviveEvents=[];coreTryRevive(revived,s,e=>reviveEvents.push(e));
   await _flushCorePveHitEvents(s,reviveEvents,new Set([...s.units.p1,...s.units.p2]));
@@ -270,6 +271,8 @@ async function extraChecks() {
   for(const name of ['shield-state','poison-state','weaken-state','guts-state','revive-state']) assert.equal(VbFx.duration(name,1.5),VbFx.duration(name,4.5),name+'の周期は速度に依存しない');
   const adopted=fs.readFileSync(path.join(ROOT,'tools/vfx_preview/se/ADOPTED.md'),'utf8');
   for(const line of adopted.split('\n')){const cells=line.split('|').map(v=>v.trim());if(!/^[A-Z]+\d{3}(?:_gain)?$/.test(cells[1]||''))continue;
+    // 2026-10-18：LAB演出の対応表に無い既存の入口（効果番号の音・キーワードの音）は、登録とファイルの存在だけ確かめる。
+    if(!presentLabFx(cells[1])&&Assets.sfx[cells[1]]){assert.ok(fs.existsSync(path.join(ROOT,Assets.sfx[cells[1]])),'採用SEのファイル '+cells[1]);continue;}
     const spec=presentLabFx(cells[1]);assert.ok(spec,'採用SEの登録 '+cells[1]);assert.equal(spec[0],cells[2]);assert.equal(spec[1],Number(cells[5]));assert.ok(fs.existsSync(path.join(ROOT,Assets.sfx[cells[1]])),'採用SEのファイル '+cells[1]);}
   sounds.length=0;_battleFxSound('C024',1.5,VbFx.duration('banshee',1.5),false);await Promise.resolve();
   const sound=sounds.at(-1).opts,hit=VbFx.impactMs('banshee',1.5),duration=VbFx.duration('banshee',1.5);

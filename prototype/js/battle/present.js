@@ -1797,33 +1797,37 @@ const PRESENT_LAB_FX = {
   C092:['wendigo',.9,'foes'], C096:['nightmare',.9,'self'], C098:['baron',.9,'self'],
   C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
   // 2026-10-15 アラクネの熱波（ゲームのC008.wavのピーク0.38秒）
-  C008:['arachne-ring',.38,'friends'],
+  C008:['arachne-ring',0.171354,'friends'],
   // 2026-10-17 未設定だった演出（Claude直接）。SEは候補を聴き比べてから付ける（それまで無音＝null）。
-  E008:['dragon-pact',null,'foe'], E032:['rage-shards',null,'foe'], R023:['storm-ring',null,'foes'],
+  E008:['dragon-pact',0.228604,'foe'], E032:['rage-shards',0.450021,'foe'], R023:['storm-ring',0.215771,'foes'],
   // 指輪の開戦効果・封印されしもの（2026-10-17。それまで何も出ていなかった）。
-  R001:['ring-eye-red',null,'friends'], R002:['ring-eye-blue',null,'friends'], R003:['ring-eye-green',null,'friends'],
-  R004:['ring-eye-yellow',null,'friends'], R005:['ring-eye-purple',null,'friends'], R032:['ring-eye-rainbow',null,'friends'],
+  // 瞳の指輪（R001〜R005・R032）は常時効果なので戦闘中は発動しない扱いにし、演出は外した（2026-10-18 利用者指定。定義 ring-eye-* は別で使う）。
   R019:['paladin-ring',null,'friends'], R031:['speed-ring',null,'friend'], R015:['toughness-ring',null,'friends'],
-  R041:['curse-ring',null,'foes'], R042:['curse-ring',null,'foes'], E057:['sealed-power',null,'self'],
-  C093:['void-mastery',null,'friends'],
+  R041:['curse-ring',0.45,'foes'], R042:['curse-ring',0.45,'foes'], E057:['sealed-power',null,'self'],
+  C093:['void-mastery',0.45,'friends'],
   // 敵の開戦効果（2026-10-17。何も出ていなかった）：全員へのキーワード付与・ライフを1にする。
-  EN044:['keyword-grant',null,'friends'], EN075_1:['fate-sever',null,'self'],
+  EN044:['keyword-grant',0.45,'friends'], EN075_1:['fate-sever',null,'self'],
   // 第3弾（2026-10-17。何も出ていなかった）：苦行の指輪・錬成・ハイドラ・苦悶の刻印・受難の刻印。
   R012:['penance-ring',null,'friends'], E030:['alchemy',null,'self'], C055:['hydra-reward',null,'self'],
-  E078:['gold-loss',null,'self'], E077:['suffering-brand',null,'dead'],
+  E078:['gold-loss',null,'self'], E077:['suffering-brand',0.074896,'dead'],
+  // 第4弾（2026-10-17。汎用の演出で代わりに出していた）：レムレースの呼び戻し・召喚の指輪・魔導板の力・威圧／魔力の指輪。
+  // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
+  C031:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
+  R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.45,'foes'],
+  'map:life':['map-life',null,'friends'], 'map:resonance':['map-resonance',0.072292,'friends'], 'map:duplicate':['map-duplicate',0.45,'self'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
   [getKeywordAssetKey('結界','gain')]:['shield-gain',.22,'target'], [getKeywordAssetKey('復活','gain')]:['revive-gain',.24,'target'],
-  shield_break:['shield-break',null,'target'],
+  shield_break:['shield-break',0.318812,'target'],
   // 2026-10-12 利用者指定：候補1の仮SE。peakは切り出し後の測定値で後述の音声台帳と揃える。
   C004:['satyr',0.625708,'self'],C020:['hecatoncheir',0.655729,'self'],C021:['zombie',0.263917,'self'],
-  C060:['behemoth',0.48,'self'],C064:['sylph',0.284083,'self'],C071:['nymph',0.736167,'colors'],C089:['familiar',0.1255,'foe'],
-  C099:['fiend',0.833771,'foe'],C029:['phantom',0.262229,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
-  C082:['arch-demon',0.48,'purple'],C083:['gremlin',0.017667,'foes'],C095:['lilith',0.384333,'sequence'],
-  C097:['overlord',0.48,'self'],C009:['minotaur',0.122354,'reaction'],C042:['sleep-sheep',0.433979,'self'],
+  C060:['behemoth',0.48,'self'],C064:['sylph',0.284083,'self'],C071:['nymph',0.736167,'colors'],C089:['familiar',0.867437,'foe'],
+  C099:['fiend',0.833771,'foe'],C029:['phantom',0.218375,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
+  C082:['arch-demon',0.774937,'purple'],C083:['gremlin',0.017667,'foes'],C095:['lilith',0.384333,'sequence'],
+  C097:['overlord',0.48,'self'],C009:['minotaur',0.2575,'reaction'],C042:['sleep-sheep',0.433979,'self'],
   C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.48,'friend'],
-  C084:['incubus',0.270292,'victim'],C094:['chaos-imp',0.672208,'retrigger'],
+  C084:['incubus',0.270292,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
 };
 const PRESENT_LAB_1012_CODES=new Set(['C004','C020','C021','C060','C064','C071','C089','C099','C029','C034','C082','C083','C095','C097','C009','C042','C056','C066','C079','C084','C094']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
@@ -1900,9 +1904,9 @@ function presentCharacterHitVfxMs(code) {
 // ゲームの効果音（assets/sfx）の一番大きい所の時刻（秒、ファイル先頭から。実測）。
 // 固有VFXと一緒に鳴らす時、このピークをVFXの山場（定義の impact）へ合わせる。LABも同じ表を使う。
 const PRESENT_SFX_PEAK_SEC = {
-  C002: .533, C008: .380, C009: .122, C011: .195, C017: .403, C019: .272, C019_HIT: .351, C043: 1.456,
-  C090: .130, S005: .511, S006: .563, S007: .397, S009: .515,
-  [getKeywordAssetKey('毒牙')]: .552, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: .384,
+  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: .195, C017: 0.45, C019: 0.45, C019_HIT: 0.196729, C043: 0.45,
+  C090: .130, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
+  [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
 };
 function presentSfxPeakSec(key) {
   const n = Number(PRESENT_SFX_PEAK_SEC[String(key || '')]);
