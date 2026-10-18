@@ -247,9 +247,9 @@ async function testRunLevelDisplay(api){
       assert.ok(clonePane);assert.deepEqual(metrics(clonePane.children[0].children[1]),before);assert.deepEqual(G.mainBoard,raw);
       assert.deepEqual(metrics(mkCardEl(G.mainBoard[1],0,'reward')),metrics(mkCardEl(runLevelDisplayCard(G.mainBoard[1]),0,'reward')));
     });
-    await check('自分が受けるダメージ（懺悔）は効果威力レベルで表示も変えない（コアと一致）',()=>{
+    await check('懺悔の自傷も効果威力レベルで表示と戦闘が同じ値になる（本文へ書き込んだ数値をコアが読む）',()=>{
       const boon=coreApplyCardRunLevels({id:'p',name:'懺悔',desc:''},{stats:1,familiars:1,modifiers:1,damage:3}).boon;
-      assert.equal(coreBoonText('攻撃：このキャラクターは1ダメージを2回受ける。',boon),'攻撃：このキャラクターは1ダメージを2回受ける。');
+      assert.equal(coreBoonText('攻撃：このキャラクターは1ダメージを2回受ける。',boon),'攻撃：このキャラクターは3ダメージを2回受ける。');
       assert.equal(coreBoonText('攻撃：ランダムな敵に4ダメージを与える。',boon),'攻撃：ランダムな敵に12ダメージを与える。');
     });
   }finally{document.createElement=previous.create;document.getElementById=previous.get;SaveProfile.collectionState=previous.collectionState;}

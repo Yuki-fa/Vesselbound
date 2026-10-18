@@ -80,7 +80,11 @@ for (const side of ['p1', 'p2']) {
     for (const [atk, hp, a, h] of [[11, 9, 5, 4], [1, 1, 0, 1]]) {
       const t = harness(side, [unit('rounding', { atk, hp, maxHp: hp, keywords: ['復活'] })]);
       t.subject.hp = 0; core.coreTryRevive(t.subject, t.state, t.emit);
-      assert.deepEqual([t.subject.atk, t.subject.hp, t.subject.maxHp], [a, h, h]);
+      const revived = t.events.find(e => e.type === 'revive');
+      assert.deepEqual([revived.atk, revived.hp, revived.maxHp], [a, h, h]);
+      // 2026-10-19：丸め・下限の計算は維持し、再構築の最終ATKが0なら直後に逃走する。
+      assert.deepEqual([t.subject.atk, t.subject.hp, t.subject.maxHp], [a, a === 0 ? 0 : h, h]);
+      assert.equal(t.events.some(e => e.type === 'fled' && e.unitId === t.subject.id), a === 0);
     }
   });
   check(`${side}：戦闘デバフを捨て、接続した常時+3/+2を半減後へ1回だけ適用`, () => {

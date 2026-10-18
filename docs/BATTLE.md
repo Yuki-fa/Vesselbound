@@ -224,6 +224,9 @@ node prototype/tools/balance_sim/offline_online_regression.js
   引数は `(source, target, amount, counter, skipSourceEffects, skipTough, options)`。
   4引数で受けて捨てると、`coreHitAll()` が指示する `deferTriggers` / `collect` が PvE だけ無効になり、
   1体ずつ即誘発になってオンラインと結果が食い違う。**引数を削らないこと。**
+- **ATKが0になった体は、ATKを変える効果1回の解決が終わった直後に割り込んで逃走する**（2026-10-19 利用者指定。以前は手番の解決が全部終わってからまとめて判定していた）。
+  切れ目は「同時対象全員への能力変化」「奪取と獲得」「ATKへの1ヒット」の完了直後（`core.js: coreSweepAtkZeroFlee(state, emit, 対象)`）。入れ替え・復活・召喚時の再構築は最終値で判定し、一時的な0では逃がさない。
+  逃走した体は以後の攻撃・効果の対象にならず、反撃・死亡効果・復活も起きない。最後の敵が途中で逃げたら全滅と同じく戦闘が終わる。手番の終わりの判定は保険として残す（検査 `tools/balance_sim/atk_zero_flee_1019_regression.js`）。
 - **ミノタウロス**（`負傷：効果ダメージを受けた場合、ランダムな敵に攻撃する。`）は
   戦闘ダメージ（攻撃・反撃）では発動しない。判定は誘発時に控えた `damageKind`
   （`coreResolveHit` が `collect` へ積む時の種別）で行う。誘発をまとめて解決する時点では

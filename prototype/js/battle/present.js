@@ -565,10 +565,16 @@ function presentPrepareInterruptedAttacks(events) {
         if (ev.type === 'damage' && ev.side !== attack.side && attack.targetId == null) attack.targetId = ev.unitId;
       }
     }
-    const interrupted = !gutsAfterCurse && attack && attack.hasEffects && String(ev.unitId) === attack.actorId
-      && (ev.type === 'death' || ev.type === 'curse_death' || ev.type === 'fled');
+    // 効果中に対象が逃走した場合も、消える前に踏み込みを戻す。
+    // 後続の接触はコアが選び直した対象へ向かう。逃走後の体へ表示専用attackを残さない。
+    const targetFled = attack && ev.type === 'fled' && String(ev.unitId) === String(attack.targetId);
+    const interrupted = !gutsAfterCurse && attack && attack.hasEffects && (targetFled
+      || String(ev.unitId) === attack.actorId && (ev.type === 'death' || ev.type === 'curse_death' || ev.type === 'fled'));
     if (interrupted && (attack.targetId != null || ev.sourceId != null)) {
-      out.push({ type: 'attack', side: attack.side, attackerId: attack.actorId,
+      // 同時逃走の途中へ挟まず、連続するfledの先頭より前へ置く。
+      let before = out.length;
+      if (ev.type === 'fled') while (before > 0 && out[before - 1].type === 'fled') before--;
+      out.splice(before, 0, { type: 'attack', side: attack.side, attackerId: attack.actorId,
         targetId: attack.targetId == null ? ev.sourceId : attack.targetId,
         damage: 0, counterDamage: 0, attackVisual: true, effectOnly: true });
       completed.add(attack.actorId);

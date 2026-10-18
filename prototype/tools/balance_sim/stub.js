@@ -7,6 +7,7 @@ function makeElement(tag = 'div') {
     parentNode:null, innerHTML:'', textContent:'', value:'', disabled:false, checked:false, hidden:false,
     offsetWidth:0, offsetHeight:0,
     appendChild(c){if(c){this.children.push(c);c.parentNode=this;}return c;}, removeChild:noop, remove:noop,
+    insertBefore(c,ref){if(c){const i=this.children.indexOf(ref);if(i>=0)this.children.splice(i,0,c);else this.children.push(c);c.parentNode=this;}return c;},
     prepend:noop, replaceChildren:noop, setAttribute(k,v){this[k]=String(v);}, getAttribute(k){return this[k]??null;},
     removeAttribute:noop, addEventListener:noop, removeEventListener:noop, dispatchEvent:noop,
     querySelector:()=>null, querySelectorAll:()=>[], closest:()=>null,

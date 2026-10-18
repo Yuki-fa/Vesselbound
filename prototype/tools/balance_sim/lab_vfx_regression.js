@@ -663,6 +663,9 @@ function new1012CoreBaselineChecks(){
 }
 (async()=>{
   await loadGameData();
+  // 2026-10-19：ATK0の逃走が効果の途中に割り込むようになり、開戦の-1/-1（ウェンディゴ等）でも逃走演出が出る。
+  // この検査は requestAnimationFrame を発火させないため、逃走演出（描画1コマ待ち）だけは即時に終える。
+  global.playFledVfx=async()=>{};
   if(!process.env.VB_ONLY||process.env.VB_ONLY==='bugs')await battleBugChecks();
   if(!process.env.VB_ONLY||process.env.VB_ONLY==='shield')await shieldBreakChecks();
   assetChecks();

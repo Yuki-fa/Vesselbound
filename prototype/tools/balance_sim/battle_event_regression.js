@@ -984,8 +984,8 @@ function main() {
     /const targetResult = applyHit\(attacker, victim, damage, false, false, false, hitOpts\);/,
     '攻撃と反撃を1発ずつ誘発まで解決している');
   assert.match(read('js/battle/core.js'),
-    /if \(allowCounter && !\(attackerFirst && targetResult\.died\)\) \{\n\s*applyHit\(victim, attacker, counter, true, false, false, hitOpts\);/,
-    '反撃が誘発を先に起こしている');
+    /if \(allowCounter && !victim\._fled && !\(attackerFirst && targetResult\.died\)\) \{\n\s*applyHit\(victim, attacker, counter, true, false, false, hitOpts\);/,
+    '逃走した体が反撃するか、反撃が誘発を先に起こしている');
   // 固有SEもVFXと同じ規則で選ぶ。カード自身の効果文がダメージに触れていない場合は
   // 鳴らさない（ノームに闇の炎を付けた死亡ダメージでノームのSEが鳴っていた）。
   // 2026-10-15：固有SEは被弾位置の固有VFXと同時に鳴らす（effectSfx）。後でまとめて鳴らすのは数値を別経路で出した時だけ。
