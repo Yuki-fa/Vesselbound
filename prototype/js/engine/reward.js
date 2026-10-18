@@ -227,6 +227,7 @@ function _exchangeShopOfferDropAllowedAt(offerIdx){
 function _clearExchangeShopDropHints(){
   document.querySelectorAll('.shop-exchange-drop-hint').forEach(el=>el.classList.remove('shop-exchange-drop-hint','drag-over'));
   document.querySelectorAll('.shop-exchange-empty-dim').forEach(el=>el.classList.remove('shop-exchange-empty-dim'));
+  document.querySelectorAll('.shop-exchange-offer-dim').forEach(el=>el.classList.remove('shop-exchange-offer-dim'));
 }
 function _syncExchangeShopDropHints(){
   _clearExchangeShopDropHints();
@@ -239,7 +240,14 @@ function _syncExchangeShopDropHints(){
       el.classList.toggle('shop-exchange-empty-dim',!allowed);
     });
   }else if(_dragSrc.arr==='boardCards'){
-    document.querySelectorAll('#reward-offer-row > .rew-card[data-merge-rew-idx]').forEach(el=>hint(el,_exchangeShopOfferDropAllowedAt(Number(el.dataset.mergeRewIdx))));
+    // 交換できない依頼カード（拒否済みの魔族の魂など）を持った時は、商品を暗くして交換できないことを示す（2026-10-19 利用者指定）。
+    const held=_getPartyBoardUnit()?.boardCards?.[_dragSrc.idx];
+    const blocked=typeof questShopExchangeState==='function'&&questShopExchangeState(held)==='blocked';
+    document.querySelectorAll('#reward-offer-row > .rew-card[data-merge-rew-idx]').forEach(el=>{
+      const allowed=_exchangeShopOfferDropAllowedAt(Number(el.dataset.mergeRewIdx));
+      hint(el,allowed);
+      el.classList.toggle('shop-exchange-offer-dim',blocked&&!allowed);
+    });
   }else return false;
   return true;
 }
@@ -4661,8 +4669,6 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(arrName==='boardCards'&&_isPanelCharacter&&_deployNum<0&&!_hasMapDeployPower) div.classList.add('invalid-battle-position');
       const _isEnchantPanelForClass=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&['強化','エンチャント'].includes(String(card.category||''));
       if(_isEnchantPanelForClass) div.classList.add('enchantment-card');
-      if(arrName==='boardCards'&&_isCardExchangeShop()&&typeof questShopExchangeAlwaysDimmed==='function'
-        &&questShopExchangeAlwaysDimmed(card)) div.classList.add('shop-exchange-card-dim');
       const _gradeEl='';
       const _costOwner=arrName==='boardCards'?_getPartyBoardUnit():null;
       const _costEnh=_costOwner&&typeof _collectAdjacentEnhancements==='function'?_collectAdjacentEnhancements(_costOwner,i):null;

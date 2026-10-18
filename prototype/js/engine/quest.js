@@ -1282,10 +1282,6 @@ function questTryBlockedCardExchange(card){
   if(typeof renderRewCards==='function') renderRewCards();
   return true;
 }
-function questShopExchangeAlwaysDimmed(card){
-  return Object.values(QUEST_CONFIG).some(c=>c.shopExchange&&String(c.requiredCardNo||'').toUpperCase()===_qCardNo(card))
-    &&questShopExchangeState(card)==='blocked';
-}
 function questCanReturnOfferCard(card){
   const context=_qFormationContext;
   return !!(card&&card._questOfferCard&&context&&context.mode==='accept'
