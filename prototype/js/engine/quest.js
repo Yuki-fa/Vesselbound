@@ -70,6 +70,7 @@ const QUEST_CONFIG={
 QUEST_CONFIG.Q001={requiredCardNo:'E075',portraitB:QUEST_CONFIG.Q002.portraitB,completeAt:'town',completeWave:2,
   offerTitleKey:'「酒場の報酬枠」見出し3',acceptButtonKey:'「受領」ボタン',
   retainedCard:true,lockedTownWave:1,debugWave:1,offlineOnly:true,
+  shopExchange:{refuseTownWave:1,unlockWave:2,refusalColumn:'特殊台詞A1'},
   enemyReplacement:{enemyNo:'EN026',arrivalWave:2},townArrival:{dialogueOnly:true,withoutB:true}};
 // 人命救助（2026-10-11）：護衛依頼（Q003）と同じく必須カード（預言者"ディナ"）を召喚マスへ置いて塔まで連れて行く。
 // 「_2」の台詞3で報酬（概要の「300G獲得」）。ディナの立ち絵は木箱輸送と共通。
@@ -1248,6 +1249,43 @@ function _qLockedTownCardConfig(card){
     &&Number(cfg.lockedTownWave)===Number(G._wave)&&String(cfg.requiredCardNo).toUpperCase()===_qCardNo(card))||null;
 }
 function questCardRemovalLocked(card){ return !!_qLockedTownCardConfig(card); }
+// 依頼に由来するカードは交換に使わない。受託中かどうかや、カード名には依存しない。
+// 所持を条件にする依頼だけ、設定された到着地点から通常のカードとして扱う。
+function questShopExchangeState(card){
+  if(!card||!G||G._onlineMode) return 'allow';
+  const no=_qCardNo(card),configs=Object.values(QUEST_CONFIG);
+  const cfg=configs.find(c=>String(c.requiredCardNo||'').toUpperCase()===no);
+  if(cfg&&cfg.shopExchange){
+    const rule=cfg.shopExchange,wave=Number(G._wave)||1;
+    const entry=_qAllEntries().find(e=>_qConfig(e)===cfg);
+    const reached=!!(entry&&entry.status==='completed')||wave>rule.unlockWave
+      ||wave===rule.unlockWave&&(G._waveVillage&&!G._isWaveAltar
+        ||typeof waveStageIsAfterCity==='function'&&waveStageIsAfterCity(wave,G._waveStage));
+    if(reached) return 'allow';
+    const key=`quest-card-exchange:${no}`;
+    return !G._isPeddler&&G._waveVillage&&!G._isWaveAltar&&wave===rule.refuseTownWave
+      &&!(G._facilityTalkSeen||{})[key]?'refuse':'blocked';
+  }
+  return card._questOfferCard||card._questTransportId||/^BC\d+/.test(no)||cfg
+    ||configs.some(c=>c.rewardMix&&String(c.rewardMix.cardNo||'').toUpperCase()===no)
+    ||typeof coreUnitHasKeyword==='function'&&(coreUnitHasKeyword(card,'帰滅')||coreUnitHasKeyword(card,'荷物'))
+    ?'blocked':'allow';
+}
+function questTryBlockedCardExchange(card){
+  if(questShopExchangeState(card)!=='refuse') return false;
+  const cfg=Object.values(QUEST_CONFIG).find(c=>String(c.requiredCardNo||'').toUpperCase()===_qCardNo(card));
+  G._facilityTalkSeen=G._facilityTalkSeen||{};
+  G._facilityTalkSeen[`quest-card-exchange:${_qCardNo(card)}`]=true;
+  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpointFacilityTalk(false);
+  if(typeof showVillageShopSpecialDialogue==='function') void showVillageShopSpecialDialogue(cfg.shopExchange.refusalColumn);
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if(typeof renderRewCards==='function') renderRewCards();
+  return true;
+}
+function questShopExchangeAlwaysDimmed(card){
+  return Object.values(QUEST_CONFIG).some(c=>c.shopExchange&&String(c.requiredCardNo||'').toUpperCase()===_qCardNo(card))
+    &&questShopExchangeState(card)==='blocked';
+}
 function questCanReturnOfferCard(card){
   const context=_qFormationContext;
   return !!(card&&card._questOfferCard&&context&&context.mode==='accept'

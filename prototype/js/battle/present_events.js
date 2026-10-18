@@ -34,7 +34,7 @@ let _presentLabContacts = new WeakMap();
 let _presentContactHits = new WeakSet();
 let _presentDamageImpacts = new WeakSet();
 let _presentLabOrigins = {death:new Map(),shield:new Map()};
-function presentLabEventHandled(ev) { return !!(ev && _presentLabClaims.has(ev)); }
+function presentLabEventHandled(ev) { const plan=ev&&_presentLabClaims.get(ev); return !!(plan&&!plan.hitReactions?.has(ev)); }
 function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C078'); }
 function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
 // 2026-10-11: 予測や接触からの固定遅延を使わず、確定ダメージを表示する瞬間に共通の振動を始める。
@@ -123,7 +123,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   }
   const plan={code,spec:presentLabFx(code),owner,targets,members,value,colors,sourceRect,contactEvent,
     side:owner.side==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
-  members.forEach(e=>_presentLabClaims.set(e,plan));return plan;
+  members.forEach(e=>_presentLabClaims.set(e,plan));_presentLabClaimHitReactions(plan,events);return plan;
 }
 function presentLabManaGainVfx(ev,unit,side){
   const plan=_presentLabClaims.get(ev);
@@ -223,7 +223,25 @@ function _presentLabPlan(ev, events, index, api, context) {
   const plan = {code,spec,owner,targets,members,sourceRect:sourceRect && (spec[2]==='dead'?{...sourceRect,element:null}:sourceRect),
     side:ownerSide==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
   members.forEach(e=>{ if (e.type!=='death' && e.type!=='revive') _presentLabClaims.set(e,plan); });
+  _presentLabClaimHitReactions(plan,events);
   return plan;
+}
+function _presentLabClaimHitReactions(plan,events){
+  // 命中に付随する毒・邪眼・衝撃は固有効果の終了後へ貯めない。
+  // ダメージの直後にコアが出した同じ命中のイベントだけを、その着弾へ結び付ける。
+  plan.hitReactions=new Set();plan.hitGains=[];
+  for(const hit of plan.members.filter(e=>e.type==='damage')){
+    for(let i=events.indexOf(hit)+1;i<events.length;i++){
+      const next=events[i];
+      if(!next||['mana_threshold','effect_flash','attack','turn_begin','death'].includes(next.type)) break;
+      if(next.type==='damage'){if(plan.members.includes(next)) continue;break;}
+      const reaction=next.type==='keyword_effect'&&['poison','evil_eye','weaken'].includes(next.effect)
+        ||next.type==='stat_change'&&next.reason==='evil_eye';
+      if(reaction&&next.unitId===hit.unitId&&next.side===hit.side&&next.sourceId===hit.sourceId){
+        plan.hitReactions.add(next);_presentLabClaims.set(next,plan);
+      }
+    }
+  }
 }
 function _presentLabStart(plan) {
   if (!plan || plan.started || typeof playBattleLabFx !== 'function') return;
@@ -254,6 +272,7 @@ async function _presentLabFinish(plan) {
   if (!plan) return;
   if (plan.done) await plan.done;
   if(plan.after)await plan.after;
+  if(plan.hitGains)await Promise.all(plan.hitGains);
   if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
   // 結界・復活の獲得は、元の効果が消えてから同じ波で続ける。
   for (const code of [getKeywordAssetKey('弱体'),getKeywordAssetKey('邪眼'),getKeywordAssetKey('結界','gain'),getKeywordAssetKey('復活','gain')]) {
@@ -389,7 +408,8 @@ async function presentLabEndEvent(ev, events, index, api) {
     if(ev.type==='shield_set'&&Number(ev.amount)>0&&events[index-1]?.type==='revive'&&events[index-1].unitId===ev.unitId) gains.push(getKeywordAssetKey('結界','gain'));
     if (ev.type==='keyword_effect' && ev.effect==='keyword_gain' && ev.keyword==='復活') gains.push(getKeywordAssetKey('復活','gain'));
     for (const code of gains) {
-      if (plan) plan.gains.push({code,unit});
+      if (plan&&plan.hitReactions?.has(ev)) plan.hitGains.push(playBattleLabFx(code,unit,[unit],{side:ev.side==='p2'?'enemy':'ally',silent:true}));
+      else if (plan) plan.gains.push({code,unit});
       else {
         if(typeof api.finishEffect==='function') await api.finishEffect();
         context.active={done:playBattleLabFx(code,unit,[unit],{side:ev.side==='p2'?'enemy':'ally'}),gains:[]};
@@ -467,12 +487,14 @@ async function presentDamageEvent(ev, api) {
     && typeof playProjectileEffectVfx === 'function')
     ? (code => (presentIsProjectileEffect(code) ? code : ''))(String(_enchantPresentationNo(ev.fxEffect) || ''))
     : '';
-  const projectileCode = fxProjectileCode || ((!shownElsewhere && amount > 0 && vfxSource
+  const thresholdProjectileCode = !labHandled&&!shownElsewhere&&amount>0&&source
+    &&typeof presentIsProjectileEffect==='function'&&presentIsProjectileEffect(ev.effectNo)?String(ev.effectNo):'';
+  const projectileCode = thresholdProjectileCode || fxProjectileCode || ((!shownElsewhere && amount > 0 && vfxSource
     && typeof _effectPresentationCode === 'function' && typeof presentIsProjectileEffect === 'function'
     && typeof playProjectileEffectVfx === 'function')
     ? (presentIsProjectileEffect(_effectPresentationCode(vfxSource)) ? String(_effectPresentationCode(vfxSource)) : '')
     : '');
-  const projectileSource = fxProjectileCode ? source : vfxSource;
+  const projectileSource = thresholdProjectileCode || fxProjectileCode ? source : vfxSource;
   if (projectileCode) {
     const srcSide = projectileSource.side === 'p2' ? 'enemy' : 'ally';
     if (typeof getEffectSfxKey === 'function' && typeof playSfx === 'function') {
@@ -482,14 +504,18 @@ async function presentDamageEvent(ev, api) {
     // 攻撃者のモーションを再開する前に着弾・HP反映まで完了させる。
     // 投げっぱなしにすると、ケンタウロスの攻撃効果だけが敵への着弾前に
     // 通常攻撃へ進み、2つのダメージ表示が重なる。
-    await Promise.resolve(playProjectileEffectVfx(projectileSource, srcSide, target, fxSide, projectileCode, {
+    let damageShown;
+    const impact=new Promise(resolve=>{damageShown=resolve;});
+    const flight=Promise.resolve(playProjectileEffectVfx(projectileSource, srcSide, target, fxSide, projectileCode, {
       amount,
       onImpact: () => {
         presentDamageImpact(ev);
         if (damagesHp && typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
         if (damagesHp && typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
       },
+      onDamageShown:damageShown,
     })).catch(err => console.error('[projectile damage vfx]', err));
+    await Promise.race([impact,flight]);
     return true;
   }
   // 数値を出す瞬間に、画面に出すHPもここまで進める。
@@ -1052,7 +1078,7 @@ async function presentReviveEvent(ev, api) {
 // 区切りの単位は両方で同じでなければならない。
 //   gate     … 効果ごと（`presentManaEffectKey`）。マナ効果VFXを出す回の判定
 //   waveGate … 発動回ごと（`presentManaWaveKey`）。同時に見せる1回の判定
-// api: findUnit(side,id) / gate / waveGate / waveEvents(ev) / effectDamage(ev) /
+// api: findUnit(side,id) / gate / waveGate / waveEvents(ev) /
 //      playCue(units[{unit,isEnemySide,targets}], { repeat, effectNo })
 async function presentManaThresholdEvent(ev, api) {
   if (!ev || !api) return false;
@@ -1062,6 +1088,9 @@ async function presentManaThresholdEvent(ev, api) {
   if (source) {
     presentQueueEffectFlash({ unit: source, side: ev.side === 'p2' ? 'enemy' : 'ally', color: 'green', count: 1 });
   }
+  // 飛び道具はdamageイベントで一発ずつ着弾まで待つ。その直後の数値・キーワードを
+  // 処理し終えてから次へ進むため、同じwaveの将来の矢をここで先に飛ばさない。
+  if(typeof presentIsProjectileEffect==='function'&&presentIsProjectileEffect(ev.effectNo)) return true;
   // 同じ発動回の2体目以降は、1体目の演出でまとめて見せている。ここでは待たない。
   if (api.waveGate && typeof presentManaWaveKey === 'function'
     && !api.waveGate.shouldPlay(presentManaWaveKey(ev))) return true;
@@ -1071,26 +1100,13 @@ async function presentManaThresholdEvent(ev, api) {
   const repeat = !!(api.gate && !api.gate.shouldPlay(effectKey));
   // 同じ瞬間に発動する全員。先読みできない場合はこのイベントだけ。
   const wave = typeof api.waveEvents === 'function' ? (api.waveEvents(ev) || [ev]) : [ev];
-  // **同じ体は1つにまとめる。** VFXは1体につき1つだが、**対象は足し合わせる。**
-  // 同じカードを複数枚持つと、同じ発動回に同じキャラクターの発動が並ぶ
-  // （炎の矢×2）。ここで2件目を捨てていた頃は、
-  // **矢が1本しか飛ばないのにダメージだけ2体に入っていた。**
+  // 同じ体のマナ効果の合図は1つにまとめる。ダメージは後続イベントが個別に見せる。
   const byUnit = new Map();
   wave.forEach(e => {
     const key = `${e.side}:${e.unitId}`;
     const unit = api.findUnit(e.side, e.unitId);
     if (!unit) return;
     if (!byUnit.has(key)) byUnit.set(key, { unit, isEnemySide: e.side === 'p2', targets: [] });
-    const entry = byUnit.get(key);
-    // 発生元から対象へ飛ぶ効果（炎の矢）用。その効果が起こしたダメージ＝対象。
-    // 対象ごとに「着弾したら数値を出す」ので、ダメージイベントも一緒に持たせる。
-    (typeof api.effectDamage === 'function' ? (api.effectDamage(e) || []) : []).forEach(d => {
-      const target = api.findUnit(d.side, d.unitId);
-      if (!target || entry.targets.some(t => t.ev === d)) return;
-      entry.targets.push({ unit: target, isEnemySide: d.side === 'p2', ev: d,
-        // 着弾の瞬間に見せるキーワード演出（毒牙など）。矢ごとに1回出す。
-        keywordEvents: typeof api.effectKeywords === 'function' ? (api.effectKeywords(d) || []) : [] });
-    });
   });
   const units = [...byUnit.values()];
   if (!units.length && source) units.push({ unit: source, isEnemySide: ev.side === 'p2', targets: [] });

@@ -193,6 +193,9 @@ function runTrigger(unit,trigger,side='p1'){
   });
   check('エルムの依頼カードは売却できず、交換・放棄・合体にも出せない',()=>{
     const entry=accept(),soul=G.mainBoard[0],gold=G.gold;G._isShop=true;
+    const specialDialogue=showVillageShopSpecialDialogue;let refusals=0;
+    showVillageShopSpecialDialogue=async column=>{assert.equal(column,'特殊台詞A1');refusals++;};
+    try{
     for(const item of [false,true]){
       G._isItemShop=item;assert.equal(_boardCardSellEnabled(soul),false);assert.equal(isShopReturnable(soul),false);
       _rewCards=[makePanel('ノーム'),makePanel('ラミア'),makePanel('ゴーレム')];
@@ -205,6 +208,8 @@ function runTrigger(unit,trigger,side='p1'){
     const board=_getPartyBoardUnit();board.boardCards[2]=makeSoul();board.boardCards[3]=makeSoul();
     assert.equal(_tryTripleMergeOnBoard(board,3),null);
     G.spells=[soul];discardHeCard('spells',0);assert.equal(G.spells[0],soul);
+    assert.equal(refusals,1,'エルムの交換は一度だけ拒否台詞を出す');
+    }finally{showVillageShopSpecialDialogue=specialDialogue;}
   });
   check('エルム以外の店で交換・報酬への放棄・合成素材化により所持から消えた場合だけ終了する',()=>{
     const entry=accept();G._wave=2;G._waveVillage=true;G._isShop=true;G._isItemShop=false;

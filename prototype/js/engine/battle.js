@@ -410,40 +410,6 @@ function _playManaEffectPulse(list,effectNo){
     if(v) _manaEffectVfx.push(v);
   });
 }
-// 発生元から対象へ飛ぶ効果（炎の矢）の1回ぶん。**発射は少しずつずらす。**
-// 着弾した矢から順に、着弾VFX・着弾SE・ダメージ数値を出す
-// （数値は発射順ではなく**その矢が消えた時刻**に出る）。
-// 見せ方は playProjectileEffectVfx（render.js）が唯一の実装。
-async function _playManaEffectProjectiles(list,effectNo,opt){
-  const stagger=(typeof PRESENT_PROJECTILE_STAGGER_MS==='number'&&PRESENT_PROJECTILE_STAGGER_MS)||90;
-  const sfxKey=(typeof getEffectSfxKey==='function'&&getEffectSfxKey(effectNo))||'';
-  const shots=[];
-  list.forEach(({unit,isEnemySide,targets})=>{
-    (targets||[]).forEach(t=>shots.push({from:unit,fromSide:isEnemySide?'enemy':'ally',
-      to:t.unit,toSide:t.isEnemySide?'enemy':'ally',ev:t.ev,keywordEvents:t.keywordEvents||[]}));
-  });
-  if(!shots.length){ _playManaEffectPulse(list,effectNo); return; }
-  await Promise.all(shots.map(async (shot,i)=>{
-    if(i) await new Promise(resolve=>battlePresentationSetTimeout(resolve,stagger*i));
-    // 発射のSEは矢ごとに1本（発射がずれるので重ならない）。
-    if(sfxKey&&typeof playSfx==='function') playSfx(sfxKey,{group:'magic',guardKey:`mana-effect:${uid()}`,guardMs:0});
-    // ダメージ数値はこの矢の着弾で出すので、通常のダメージ演出には出させない。
-    if(opt&&typeof opt.markShown==='function') opt.markShown(shot.ev);
-    // 毒牙などのキーワード演出も、この矢の着弾で1回ずつ出す。
-    // イベント順のまま出すと、矢が飛んでいる間にまとめて出てしまい
-    // 「何発撃っても演出は1回」に見える。
-    (shot.keywordEvents||[]).forEach(kw=>{ if(opt&&typeof opt.markKeywordShown==='function') opt.markKeywordShown(kw); });
-    await playProjectileEffectVfx(shot.from,shot.fromSide,shot.to,shot.toSide,effectNo,{
-      amount:Math.max(0,Number(shot.ev&&shot.ev.amount)||0),
-      onImpact:()=>{
-        if(opt&&typeof opt.onImpact==='function') opt.onImpact(shot.to,shot.ev);
-        (shot.keywordEvents||[]).forEach(kw=>{
-          if(opt&&typeof opt.playKeyword==='function') opt.playKeyword(kw);
-        });
-      },
-    });
-  }));
-}
 // units：同じ瞬間に同じ効果が発動する全員（[{unit,isEnemySide}]）。
 // **1体ずつ順に見せない。** 順に見せると「片方が先に強くなる」ように見える。
 // opt.repeat：同じ効果の2回目以降の発動。**間引かず高速で繰り返す。**
@@ -460,8 +426,6 @@ async function _playManaEffectCue(units,opt){
   // 区切り（今どの効果を出しているか）に使い、素材の番号とは分けて持つ。
   const fxCode=typeof _effectFxCodeByNo==='function'?_effectFxCodeByNo(effectNo):effectNo;
   const gap=(typeof PRESENT_MANA_RUN_GAP_MS==='number'&&PRESENT_MANA_RUN_GAP_MS)||150;
-  // 発生元から対象へ飛ぶ効果は、飛ばして着弾まで見せる（発射はずらす）。
-  const projectile=typeof presentIsProjectileEffect==='function'&&presentIsProjectileEffect(effectNo);
   // **別の効果の演出が出ている間は、VFXもSEも始めない。**
   // 繰り返し（repeat）の経路でもここを通すこと。通していなかった頃は、
   // 活性化の演出が出ている最中に炎の矢の演出が重なった。
@@ -469,8 +433,7 @@ async function _playManaEffectCue(units,opt){
   if(repeat){
     _manaEffectCurrentCode=effectNo;
     _recordBattleTrace('mana_effect_pulse',{unitId:list[0].unit.id,effectNo,人数:list.length});
-    if(projectile) await _playManaEffectProjectiles(list,fxCode,opt);
-    else _playManaEffectPulse(list,fxCode);
+    _playManaEffectPulse(list,fxCode);
     await new Promise(resolve=>battlePresentationSetTimeout(resolve,gap));
     return;
   }
@@ -487,7 +450,6 @@ async function _playManaEffectCue(units,opt){
   // 逆再生開始で効果固有の演出へ引き継ぐ（1回目の発動ぶん）。
   let pulsed=false;
   let pulsedAt=0;
-  let projectileDone=null;
   // 合図（既存素材）を出した位置。**効果固有のVFXも同じ位置から出す。**
   // ここで揃えないと、合図は動いた位置・固有VFXは盤面の定位置、とズレる
   // （固有VFXは合図の逆再生開始後に出るので、その頃には複製カードが消えている）。
@@ -496,8 +458,7 @@ async function _playManaEffectCue(units,opt){
     if(pulsed) return; pulsed=true;
     pulsedAt=(typeof performance!=='undefined'?performance.now():Date.now());
     const pulseList=cueTargets&&cueTargets.length?cueTargets:list;
-    if(projectile) projectileDone=_playManaEffectProjectiles(pulseList,fxCode,opt);
-    else _playManaEffectPulse(pulseList,fxCode);
+    _playManaEffectPulse(pulseList,fxCode);
   };
   // 開戦直後・召喚直後はrenderAll()とレイアウト確定が別フレームになる。
   // ここでnullのまま返すと、VFXなしでマナ効果だけが先に解決されるため、
@@ -556,8 +517,6 @@ async function _playManaEffectCue(units,opt){
   // 素材の読み込み失敗などでコールバックが届かない場合だけ安全弁を使う。
   await Promise.race([reverseStart,new Promise(resolve=>battlePresentationSetTimeout(resolve,MANA_CUE_VFX_MS))]);
   startPulse();
-  // 飛ばす効果は着弾まで待つ（着弾でダメージ数値を出すため）。
-  if(projectileDone) await projectileDone;
   // 1回目の効果演出にも次の発動までの間隔を取る。取らないと2回目が同じ瞬間に重なる。
   // **間隔は「1回目を出した時刻」から測る。** マナ効果VFXの逆再生開始を待つ間に
   // 時間が経っていると、ここから改めて待つと1回目と2回目の間だけ不自然に空く。
@@ -2346,7 +2305,8 @@ async function startBattle(){
   // （ニンフの「開戦：Xマナを得る」など）でSEが鳴らない。
   _shownManaForSfx=carryBattle?Math.max(0,Number(G.mana)||0):0;
   [...(G.allies||[]),...(G.enemies||[])].forEach(u=>{ if(u){
-    delete u._deathProcessed; delete u._manaFireCount;
+    delete u._deathProcessed;
+    if(!carryBattle||!(G.allies||[]).includes(u)) delete u._manaFireCount;
     delete u._coreDeathTriggered; delete u._coreDeathEffectsTriggered;
     delete u._coreDeathObserved;
     if(!carryBattle) delete u._wardCharges;
@@ -2378,8 +2338,10 @@ async function startBattle(){
   G._enemyBlood=0;
   initializeBattlePresentationState();
   G._battleVictoryPending=false;
-  // コアの現在の到達回数カウンタを戦闘単位でリセットする。
-  [...(G.allies||[]),...(G.enemies||[])].forEach(u=>{ if(u) delete u._manaFireCounts; });
+  // 継戦の味方は発動済み回数も引き継ぐ。消すと前戦で得たマナの効果が開幕に再発動する。
+  [...(G.allies||[]),...(G.enemies||[])].forEach(u=>{
+    if(u&&(!carryBattle||!(G.allies||[]).includes(u))) delete u._manaFireCounts;
+  });
   G._battleEndEffectsApplied=false;
   G._necromancerRingUsed=false;
   G._revivalRingUsed=false;
@@ -2740,6 +2702,16 @@ async function battlePhase(){
   if(_battleRunStale(_runId)){ G._battlePhaseRunning=false; document.body.classList.remove('battle-turn-active'); return; }
   if(G._testBattleAbort){ _exitTestBattle(); return; }
   if(guard>=_turnLimit){
+  }
+  // 保存なしの闘技場でも、コアの両者防戦・ターン上限の決着を同じ出口へ渡す。
+  if(typeof arenaIsActive==='function'&&arenaIsActive()
+    &&(runner.result&&runner.result.outcome==='draw'||guard>=_turnLimit)){
+    const result=runner.finish();
+    if(result.outcome==='draw'){
+      G._battleDraw=true;
+      await finishBattleAsVictory('Draw');
+      return;
+    }
   }
   renderAll();
   _checkBattleOver();
@@ -3210,7 +3182,7 @@ async function finishBattleAsVictory(reason){
     document.body.classList.add('battle-victory-pending');
     document.body.classList.remove('battle-turn-active');
     updateHUD();
-    if(reason==='Draw'||G._battleDraw) void arenaHandleBattleDefeat();
+    if(reason==='Draw'||G._battleDraw) void arenaHandleBattleDraw();
     else void arenaHandleBattleVictory();
     return;
   }
@@ -4362,7 +4334,7 @@ function _collectAdjacentEnhancements(unit, slotIdx){
         no:String(panel.fxCode||panel.no||panel.artCode||'').toUpperCase(),
         // order：シートの「マナ順位」。落とすと発動順が指定どおりにならない。
         order:Number(panel.manaOrder),
-        desc:String(panel._manaThresholdDesc||panel.desc||'').replace(/^\d+マナ(?:毎)?[:：]\s*/,'')});
+        desc:coreCardManaThresholdDesc(panel)});
     }
     if(panel._resonanceEffectName && panel._resonanceEffectName!==panel.name){
       enh.effectNames.push(panel._resonanceEffectName);
@@ -4722,7 +4694,7 @@ function _panelSummonSpec(panel){
       manaOnDeath:openingSpec&&openingSpec.manaOnDeath||panel.manaOnDeath||0,
       manaCost:Number(openingSpec&&openingSpec.manaCost||panel.manaCost||panel.costMana||(manaLine&&manaLine[1])||0),
       manaRepeat:!!(openingSpec&&openingSpec.manaRepeat)||!!panel.manaRepeat||!!(manaLine&&manaLine[2]),
-      manaThresholdDesc:String(openingSpec&&(openingSpec.manaThresholdDesc||openingSpec._manaThresholdDesc)||(manaLine&&manaLine[3])||''),
+      manaThresholdDesc:coreCardManaThresholdDesc(panel)||String(openingSpec&&(openingSpec.manaThresholdDesc||openingSpec._manaThresholdDesc)||''),
       manaThresholdNo:String(openingSpec&&(openingSpec.manaThresholdNo||openingSpec._manaThresholdNo)||panel.fxCode||panel.no||panel.artCode||''),
       fxCode:String(panel.fxCode||''),
       manaThresholdOrder:(openingSpec&&(openingSpec.manaThresholdOrder??openingSpec._manaThresholdOrder))??panel.manaOrder,

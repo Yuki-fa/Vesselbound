@@ -1497,15 +1497,19 @@ const WAVE=1;
     }
     await b.until(`!G._isTavern&&${notFading}`,30000);
     await enterShop(b);
+    // 2026-10-18：エルムでは1度だけ交換を試みられ、店Bの拒否台詞を出して交換しない。以後そのランでは交換できない（暗くなる）。
     const protectedSoul=await b.run(`(()=>{
       const idx=G.mainBoard.findIndex(c=>_qCardNo(c)==='E075'),gold=G.gold,card=G.mainBoard[idx];
-      const allowed=canExchangeShopCardAt(0,idx),exchanged=exchangeShopCard(0,idx);
+      const first=questShopExchangeState(card),exchanged=exchangeShopCard(0,idx);
       return {button:!!document.querySelector('#hand-slots [data-board-idx="'+idx+'"] .shop-board-sell-action'),
-        allowed,exchanged,kept:G.mainBoard[idx]===card,goldKept:G.gold===gold,status:G.questProgress.Q001.status};
+        first,exchanged,kept:G.mainBoard[idx]===card,goldKept:G.gold===gold,status:G.questProgress.Q001.status,
+        after:questShopExchangeState(card),allowedAfter:canExchangeShopCardAt(0,idx)};
     })()`);
-    ok('Q001エルム魔導店：売却UIがなく、保護された魔族の魂を交換でも手放せない',
-      !protectedSoul.button&&!protectedSoul.allowed&&!protectedSoul.exchanged&&protectedSoul.kept
-      &&protectedSoul.goldKept&&protectedSoul.status==='accepted',protectedSoul);
+    ok('Q001エルム魔導店：売却UIがなく、魔族の魂は1度だけ拒否台詞を出して交換せず、以後は交換できない',
+      !protectedSoul.button&&protectedSoul.first==='refuse'&&!protectedSoul.exchanged&&protectedSoul.kept
+      &&protectedSoul.goldKept&&protectedSoul.status==='accepted'&&protectedSoul.after==='blocked'&&!protectedSoul.allowedAfter,protectedSoul);
+    await b.until('!!document.getElementById("tavern-dialogue-layer")||!G._villageFacilityBusy',8000).catch(()=>{});
+    if(await b.run(`return !!document.getElementById("tavern-dialogue-layer");`)){await clickDialogue(b);await b.until('!G._villageFacilityBusy&&!document.getElementById("tavern-dialogue-layer")',15000);}
     await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
     await b.until(`!G._isShop&&${notFading}`,30000);await enterShop(b);
     ok('Q001エルム魔導店：同じランで再入店しても売却ボタンを復活させない',await b.run(`return (G.mainBoard||[]).filter(c=>_qCardNo(c)==='E075').every(c=>!_boardCardSellEnabled(c));`));
@@ -1869,7 +1873,10 @@ const WAVE=1;
     const s=await newPage();
     await acceptedRun(s);await openWave(s,WAVE);await enterShop(s);await sleep(300);
     const result=await s.run(`(()=>{
-      const unit=_getPartyBoardUnit(),slot=unit.boardCards.findIndex(c=>c&&!_cardIsEngraved(c)&&_rewardAreaAcceptsCard(c));
+      // 2026-10-18：依頼カード（ファラ等）は商品と交換できないので、交換に使う普通のカードを1枚置いてから確かめる。
+      const unit=_getPartyBoardUnit(),allowCard=c=>c&&!_cardIsEngraved(c)&&_rewardAreaAcceptsCard(c)&&(typeof questShopExchangeState!=='function'||questShopExchangeState(c)==='allow');
+      if(!unit.boardCards.some(allowCard)){const at=unit.boardCards.findIndex((c,i)=>!c&&_canCardUseBoardSlot(makePanel(PANEL_POOL.find(x=>x.name==='ノーム').id),i,unit));unit.boardCards[at]=makePanel(PANEL_POOL.find(x=>x.name==='ノーム').id);G._partyBoardUnit=null;}
+      const slot=_getPartyBoardUnit().boardCards.findIndex(allowCard);
       if(slot<0)throw new Error('交換できる自前のカードがない');
       const original=clone(unit.boardCards[slot]),product=makePanel(PANEL_POOL.find(c=>c.name==='ゴーレム').id),gold=G.gold;
       _rewCards=[product,makePanel(PANEL_POOL.find(c=>c.name==='ノーム').id),makePanel(PANEL_POOL.find(c=>c.name==='ラミア').id)];
