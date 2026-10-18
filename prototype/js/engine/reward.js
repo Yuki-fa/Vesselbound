@@ -3421,7 +3421,7 @@ function _panelEyeRingPreviewBonus(card,unit,idx){
   return bonus;
 }
 function _panelCharacterPreviewStats(unit,idx,card){
-  card=runLevelBattleCard(card);
+  card=runLevelDisplayCard(card,unit);
   const base={
     atk:Number(card?.power??card?.atk??0),
     hp:Number(card?.life??card?.hp??1)

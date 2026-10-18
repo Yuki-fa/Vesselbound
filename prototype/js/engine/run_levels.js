@@ -11,7 +11,17 @@ function runLevelState(){ return G.runLevels || (G.runLevels=runLevelInitialStat
 function runLevelBattleValues(){
   return coreNormalizeRunLevels(G._onlineMode?null:runLevelState().values);
 }
-function runLevelBattleCard(card){ return coreApplyCardRunLevels(card,runLevelBattleValues()); }
+function runLevelBattleCard(card,options){ return coreApplyCardRunLevels(card,runLevelBattleValues(),options); }
+// 表示する場所ではなく所有側で決める。敵枠を使う味方（取得したボス・奪った体）も自軍。
+function runLevelDisplayValues(card,owner){
+  const enemy=c=>c&&(c.side==='p2'||c._sheetEnemy||(G.enemies||[]).includes(c));
+  return enemy(owner)||enemy(card)?coreNormalizeRunLevels():runLevelBattleValues();
+}
+function runLevelDisplayCard(card,owner){
+  if(!card) return card;
+  if(!['キャラクター','強化','エンチャント'].includes(String(card.category||''))) return card;
+  return coreApplyCardRunLevels(card,runLevelDisplayValues(card,owner));
+}
 function runLevelCoreFields(){
   const values=runLevelBattleValues();
   return Object.values(values).some(n=>n>1)?{runLevels:{p1:values}}:{};
@@ -46,6 +56,9 @@ function runLevelRollReward(stage, before, options){
 function runLevelRewardActive(){ return !!(!G._onlineMode&&G.runLevels&&G.runLevels.reward&&G.runLevels.reward.active); }
 function runLevelOpenVictoryReward(type, intro){
   if(G._onlineMode||G._testBattleMode||G._libraryTestBattleMode||G._arenaActive||!['elite','boss'].includes(type)) return false;
+  // 最終決戦の2連戦（エピトメ戦・伏せられたラスボス戦）ではレベル報酬を出さない（2026-10-19 利用者指定）。
+  if(typeof isEpitomeVictoryBattle==='function'&&isEpitomeVictoryBattle()) return false;
+  if(typeof isFinalBossBattleNow==='function'&&isFinalBossBattleNow()) return false;
   const state=runLevelState(),key=`${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}:${type}`;
   if(state.lastBattleKey===key) return runLevelRewardActive();
   state.lastBattleKey=key;

@@ -205,6 +205,14 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
       const money=G.gold;assert.equal(towerBoonChoose('stats'),false);assert.equal(G.gold,money);
     });
   }finally{_storeRewardStartSnapshot=store;}
+  check('最終決戦の2連戦（エピトメ戦・ラスボス戦）ではレベル報酬を出さない（2026-10-19）',()=>{
+    for(const stage of [4,5]){
+      fresh();G._wave=5;G._waveStage=stage;G._waveBattleType='boss';G.phase=null;
+      const before=clone(G.runLevels);
+      assert.equal(runLevelOpenVictoryReward('boss',false),false,'stage'+stage);
+      assert.deepEqual(G.runLevels,before);
+    }
+  });
   console.log('レベル1018c：完了（ブラウザの見た目は未確認）');
 }
 if(require.main===module)initialize().then(testRunLevels).catch(e=>{console.error(e.stack||e);process.exitCode=1;});
