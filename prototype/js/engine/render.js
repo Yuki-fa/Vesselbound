@@ -3047,6 +3047,11 @@ function _getAttackTargetRect(slot){
 // 元のスロット要素をそのまま複製すると、CSS変数・固定px指定（ATK/HP・枠）が
 // 親の縮尺から外れて崩れるため、実測値を1つずつ写している。
 // fromEl … 見た目の元にするスロット要素／fr … 置きたい位置と大きさ（ビューポート座標）
+// 攻撃モーションの複製カードのATK/HP表示を、別の要素（今の表示を持つ複製・スロット）へ揃える。
+function _syncMotionCloneStats(clone, latest){
+  const from=latest&&latest.querySelector('.slot-stats'),to=clone&&clone.querySelector('.slot-stats');
+  if(from&&to&&from.innerHTML!==to.innerHTML) to.innerHTML=from.innerHTML;
+}
 function _buildMotionCardClone(fromEl, fr){
   const clone=fromEl.cloneNode(true);
   // 召喚の後半などが先に終了しても、複製へ写した透明度・scaleを残さない。
@@ -3625,6 +3630,9 @@ function _playAttackMotionCore(attacker,target,isEnemySide,onImpactPause,options
     if(suspendedOwner&&suspendedOwner.clone.isConnected){
       // 止めていた本来の一撃へ戻す。実枠は隠したまま（本来の一撃の後始末で戻す）。
       _attackMotionOwners.set(motionKey,suspendedOwner);
+      // 本来の一撃の複製は止めた時点のATK/HPのままなので、割り込み中に変わった今の表示へ合わせてから見せる。
+      // 合わせないと、ミノタウロス＋懺悔でHPが「56→57→55」のように増えたり減ったりして見えた（2026-10-19 利用者指摘）。
+      _syncMotionCloneStats(suspendedOwner.clone,clone);
       suspendedOwner.clone.style.removeProperty('opacity');
       return;
     }

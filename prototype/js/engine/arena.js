@@ -383,6 +383,8 @@ async function arenaHandleBattleDraw(){
 }
 
 function _arenaPrepareReception(){
+  // 勝利時は効果名の表示を「進む」まで残す仕様だが、闘技場は「進む」を通らず受付へ戻るため、ここで消す（2026-10-19 利用者指摘）。
+  if(typeof actionBannerClear==='function') actionBannerClear();
   _arenaRestoreEntrySnapshot();
   G._arenaActive=false;
   G._waveVillage=true;
