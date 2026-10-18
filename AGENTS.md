@@ -124,7 +124,7 @@ OK／キャンセルの確認窓は game_confirm.js の showGameConfirm（見た
 次の街のクエストは quest.js の _qPickForWave で選ぶ（前の街と同じ「分類」を続けない）。
 依頼カード枠には最初から置かれていたカード以外を置けない（questRewardSlotAcceptsCard）。
 魔導店と敗北時の行商人は交換だけの店（2026-10-17 利用者指定、2026-10-18 正規機能として main に統合）：通常の報酬と同じ出現率で3枚を並べ、魔導板のカードとの入れ替えだけを行う（reward.js の exchangeShopCard。回数・種類の制限なし、ゴールドは動かない。商品側・魔導板側のどちらから重ねても入れ替え）。**売却という機能は無い**：通常プレイではカードもアイテムも売れない（`CARD_TRADING_RULES`・`_cardSellable`。オンライン対戦だけ従来どおり）。魔導店でのカード購入も無い（道具屋のアイテム購入は残す）。同名3枚の合体は一旦停止（pool.js `PANEL_MERGE_TRIAL.enabled`）。
-祝福の座は廃止（2026-10-18）。代わりにラン単位の4つのレベル（戦闘力・眷属・戦闘修正・効果威力、初期値1）を run_levels.js の G.runLevels に持ち、エリート・ボス勝利後のレベル報酬で上げる。数値への適用はコア（core.js の coreApplyCardRunLevels）だけで行い、全部1なら従来と完全一致・オンラインでは常に1。店（魔導店・道具屋・鍛冶屋）とレベル報酬の再抽選は再抽選権を優先し、無ければ100G（map.js の SHOP_REROLL_COST）。詳細は docs/GAME_SYSTEMS.md。
+祝福の座は廃止（2026-10-18）。代わりにラン単位の4つのレベル（戦闘力・眷属・戦闘修正・効果威力、初期値1）を run_levels.js の G.runLevels に持ち、エリート・ボス勝利後のレベル報酬で上げる。数値への適用はコア（core.js の coreApplyCardRunLevels）だけで行い、全部1なら従来と完全一致・オンラインでは常に1。店（魔導店・道具屋・鍛冶屋）・レベル報酬・通常の戦闘報酬の再抽選は再抽選権を優先し、無ければ100G（map.js の SHOP_REROLL_COST）。詳細は docs/GAME_SYSTEMS.md。
 塔の祭壇で指輪を取得するまで出発・戦闘開始はできない（map.js の ringExchangeDepartureBlocked。差し出すカードが足りない時だけ進める）。
 帰滅（召喚マスにしか置けない・HP永続・復活なしの死亡／逃走で消滅）はキーワードで判定し、判定はコア（coreKiemetsuExitReason）。カード名や効果文で判定しない。
 衰弱死（-X/-X・毒でHPが0）は死亡として扱う。コアが death（statChange付き）を出し、死亡効果・観測・復活も通常どおり。消え方だけ青い波打ち＋WASTED（docs/HISTORY.md）。

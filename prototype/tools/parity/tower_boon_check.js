@@ -195,7 +195,7 @@ function simulate(c, options = {}) {
     const received = receiver(coreUnitSnapshot(state.units.p1[0]), 'p1');
     assert.deepEqual(JSON.parse(JSON.stringify(received.boon)), bonus);
   });
-  check('再抽選：持ち越し、未取得枠だけを抽選、残数0の拒否、再抽選後も現在の祝福', () => {
+  check('再抽選：持ち越し、未取得枠だけを抽選、権利0は100G、再抽選後も現在の祝福', () => {
     fresh(); G.phase = 'reward'; G.towerBoons.counts = { stats: 1, damage: 1, rerolls: 2 };
     assert.equal(towerBoonRerollVisible(), true);
     towerBoonGrantRewardRerolls(); towerBoonGrantRewardRerolls();
@@ -214,9 +214,15 @@ function simulate(c, options = {}) {
           assert.equal(c.boon.statMul, 3); assert.equal(c.boon.dmgMul, 3);
         });
       }
-      const last = clone(_rewCards); assert.equal(towerBoonRerollRewards(), false); assert.deepEqual(_rewCards, last);
+      G.gold = 99; const last = clone(_rewCards); assert.equal(towerBoonRerollRewards(), false); assert.deepEqual(_rewCards, last);
+      // 2026-10-19：権利が無ければ100Gで引き直せる（通常の戦闘報酬もPvEでは常にボタンを出す）。
+      G.towerBoons.counts.rerolls = 0; assert.equal(towerBoonRerollVisible(), true);
+      assert.deepEqual(towerBoonRerollButtonState(), { visible: true, label: '再抽選（100G）', disabled: true });
+      G.gold = 150; assert.equal(towerBoonRerollButtonState().disabled, false);
+      assert.equal(towerBoonRerollRewards(), true); assert.equal(G.gold, 50); assert.equal(G.towerBoons.rerolls, 0);
+      assert.equal(_rewCards[1], owned, '取得済み・持ち込みの枠は変えない');
     } finally { renderRewCards = render; }
-    G.towerBoons.counts.rerolls = 0; assert.equal(towerBoonRerollVisible(), false);
+    _rewCards = []; assert.equal(towerBoonRerollVisible(), false, '報酬カードが無ければ出さない');
   });
   check('祝福の座の廃止：通常プレイでは購入できず、ゴールド・状態を変えない',()=>{
     fresh();G.gold=10000;const state=clone(towerBoonState());
