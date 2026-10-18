@@ -126,6 +126,8 @@ function buildBoardFormation(board, opts) {
         : null;
       if (!unit) continue;
       if(panel.boon) unit.boon={...panel.boon};
+      // 復活の半減基準は接続強化・常時修正を得る前のカード本体（祝福込み）。
+      if (typeof coreStampUnitBaseStats === 'function') coreStampUnitBaseStats(unit);
       if((panel.boon||contributingPanels.some(entry=>(entry.panel||entry).boon))
         &&typeof _panelSummonDisplayBoardCards==='function'){
         unit.boardCards=_panelSummonDisplayBoardCards(panel,contributingPanels);

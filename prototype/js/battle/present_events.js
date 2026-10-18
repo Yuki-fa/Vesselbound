@@ -855,6 +855,7 @@ function presentFlushEffectFlashes() {
 function presentResetEffectFlashes() {
   presentResetLabEvents();
   if (typeof stopBattleLabFx === 'function') stopBattleLabFx();
+  if (typeof resumeBattleLabStates === 'function') resumeBattleLabStates();
   if (typeof actionBannerClear === 'function') actionBannerClear();
   // 状態異常の継続VFXも一緒に片付ける（戦闘の切れ目で呼ばれる）。
   if (typeof stopAllKeywordEffectVfx === 'function') stopAllKeywordEffectVfx();

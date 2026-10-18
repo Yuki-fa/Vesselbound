@@ -5,6 +5,8 @@ const _battleFxLastRects = new Map();
 const _battleFxTimers = new Set();
 const _battleFxVoices = new Set();
 let _battleFxFrame = 0, _battleFxGeneration = 0, _battleFxSequence = 0;
+let _battleFxStatesSuspended = false;
+function resumeBattleLabStates() { _battleFxStatesSuspended = false; }
 function _battleFxKey(unit) { return String(unit && unit.id || ''); }
 function _battleFxSide(unit) { return unit && unit.side === 'p2' || (G.enemies || []).includes(unit) ? 'enemy' : 'ally'; }
 function battleFxSpeed(code) { return (typeof presentLabSpeed === 'function' ? presentLabSpeed(code) : PRESENT_LAB_SPEED) * (typeof getBattlePresentationSpeedScale === 'function' ? getBattlePresentationSpeedScale() : 1); }
@@ -134,7 +136,7 @@ function battleFxStopUnitStates(unit) {
 function battleFxStoredStateValues(unit) { const entry = _battleFxStates.get(_battleFxKey(unit)); return entry ? entry.values : null; }
 function battleFxStateValues(unit) { return battleFxStoredStateValues(unit)||_battleFxValues(unit); }
 function battleFxSyncUnit(unit, side, slot) {
-  if (!unit || !slot || typeof VbFx === 'undefined') return;
+  if (_battleFxStatesSuspended || !unit || !slot || typeof VbFx === 'undefined') return;
   if (unit._deathFxReady || unit._deathFxStarted || unit._deathFxDone) { battleFxStopUnitStates(unit); return; }
   const key = _battleFxKey(unit);
   let entry = _battleFxStates.get(key);
@@ -152,11 +154,11 @@ function _battleFxCardShown(element) {
 }
 function _battleFxFollowStates() {
   _battleFxFrame = 0;
+  if (_battleFxStatesSuspended) return;
   const screen = document.getElementById('scr-battle');
   if (!screen || !screen.classList.contains('active')) { stopBattleLabFx(); return; }
   void 0;
   // 終戦後も、残っている状態の表示は消さない（2026-10-07 利用者指定）。戦闘画面を離れる・次の戦闘の頭で片付ける。
-  const ended=!['player','enemy','battle'].includes(G.phase)||G._battleVictoryPending;
   VbFx.settings.layer = _battleFxLayer;
   // 2026-10-14 処理落ち対策：先に全部の位置・見た目を読み、その後でまとめて再生・停止する（読む→書く→読むの繰り返しでレイアウトを何度も計算させない）。
   const reads = [];
@@ -187,6 +189,8 @@ function _battleFxFollowStates() {
 function stopBattleLabFx(options) {
   // keepStates：終戦で単発の演出だけ止め、状態のループ表示は残す。
   const keepStates = !!(options && options.keepStates);
+  // 結果／次画面への暗転後は、同じ戦闘画面の再描画でループを作り直さない。
+  if (options && options.suspendStates) _battleFxStatesSuspended = true;
   _battleFxGeneration++;
   if (!keepStates && _battleFxFrame) { cancelAnimationFrame(_battleFxFrame); _battleFxFrame = 0; }
   if (typeof VbFx !== 'undefined') VbFx.stopAll(keepStates ? {keepLoops:true} : undefined);

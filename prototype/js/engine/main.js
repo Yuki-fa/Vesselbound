@@ -403,7 +403,7 @@ window.addEventListener('resize',()=>{
 function _starterCardCandidates(category){
   const cats=Array.isArray(category)?category:[category];
   return (typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]).filter(p=>{
-    if(!p||!p.id||p.initial!==true||p.removed) return false;
+    if(!p||!p.id||p.initial!==true||p.removed||Number(p.rarity)!==1) return false;
     if(typeof _isImplementedPoolCard==='function'&&!_isImplementedPoolCard(p)) return false;
     if(p._sheetSeen===false||p._implemented===false) return false;
     if(String(p.category||'')==='キャラクター'){
@@ -413,113 +413,60 @@ function _starterCardCandidates(category){
     return cats.includes(String(p.category||''));
   });
 }
-function _takeStarterPanel(category){
-  const pool=_starterCardCandidates(category).filter(p=>typeof panelSaleStockCount!=='function'||panelSaleStockCount(p)>0);
-  const def=pool.length?randFrom(pool):randFrom(_starterCardCandidates(category));
-  if(!def||typeof makePanel!=='function') return null;
-  if(typeof consumePanelSaleStock==='function') consumePanelSaleStock(def);
-  return makePanel(def.id);
-}
 function _pickStarterPanelDef(category){
   const pool=_starterCardCandidates(category).filter(p=>typeof panelSaleStockCount!=='function'||panelSaleStockCount(p)>0);
   return pool.length?randFrom(pool):randFrom(_starterCardCandidates(category));
-}
-function _makeStarterPanelFromDef(def,consume){
-  if(!def||typeof makePanel!=='function') return null;
-  if(consume&&typeof consumePanelSaleStock==='function') consumePanelSaleStock(def);
-  return makePanel(def.id);
 }
 function _giveInitialRandomBoardCards(){
   if(!Array.isArray(G.mainBoard)) return;
   const cols=typeof MAIN_BOARD_COLS!=='undefined'?MAIN_BOARD_COLS:5;
   const deploySlots=(typeof MAIN_BOARD_FRONT_SLOTS!=='undefined'?MAIN_BOARD_FRONT_SLOTS:[1,3])
     .filter(i=>i>=0&&i<G.mainBoard.length);
-  const deploySlotSet=new Set(deploySlots);
-  // 初期キャラクターは前衛の出撃パネル（MAIN_BOARD_FRONT_SLOTS）のいずれかに配置する。
-  // 従来は固定でスロット7（非出撃スロット）に置いていたため、開始時から出撃不可の見た目になっていた。
-  const charSlot=deploySlots.length?randFrom(deploySlots):7;
   const opposite={up:'down',right:'left',down:'up',left:'right'};
-  const dirs=['up','right','down','left'];
   const step=(idx,dir)=>{
     const x=idx%cols, y=Math.floor(idx/cols);
     if(dir==='up') return y>0?idx-cols:null;
-    if(dir==='down') return y<Math.floor((G.mainBoard.length-1)/cols)?idx+cols:null;
+    if(dir==='down') return idx+cols<G.mainBoard.length?idx+cols:null;
     if(dir==='left') return x>0?idx-1:null;
     if(dir==='right') return x<cols-1?idx+1:null;
     return null;
   };
-  const starterPaths=[];
-  dirs.forEach(charDir=>{
-    const midSlot=step(charSlot,charDir);
-    if(midSlot==null||deploySlotSet.has(midSlot)) return;
-    dirs.forEach(midDir=>{
-      if(midDir===opposite[charDir]) return;
-      const endSlot=step(midSlot,midDir);
-      if(endSlot==null||endSlot===charSlot||deploySlotSet.has(endSlot)) return;
-      starterPaths.push({charDir,midDir,midSlot,endSlot});
-    });
-  });
+  const signature=card=>[...(card.directions||[])].sort().join(',');
   let picked=null;
+  // 向きは makePanel が生成したまま。合わなければ別候補・別の召喚マスで試す。
   for(let attempt=0;attempt<240&&!picked;attempt++){
     const charDef=_pickStarterPanelDef('キャラクター');
-    const midDef=_pickStarterPanelDef(['エンチャント','強化']);
-    const charCard=_makeStarterPanelFromDef(charDef,false);
-    const midCard=_makeStarterPanelFromDef(midDef,false);
-    if(!charCard||!midCard) continue;
-    const paths=starterPaths.filter(p=>
-      (charCard.directions||[]).includes(p.charDir)&&
-      (midCard.directions||[]).includes(opposite[p.charDir])
-    );
-    if(!paths.length) continue;
-    picked={path:randFrom(paths),defs:[charDef,midDef],cards:[charCard,midCard]};
-  }
-  if(picked){
-    picked.defs.forEach(def=>{ if(def&&typeof consumePanelSaleStock==='function') consumePanelSaleStock(def); });
-    const [charCard,midCard]=picked.cards;
-    G.mainBoard[charSlot]=charCard;
-    G.mainBoard[picked.path.midSlot]=midCard;
-  } else {
-    const charCard=_takeStarterPanel('キャラクター');
-    if(charCard) G.mainBoard[charSlot]=charCard;
-    // フォールバックでも強化カードは1枚だけ、必ずキャラクターに接続する。
-    if(charCard){
-      let placed=false;
-      for(const charDir of dirs){
-        const midSlot=step(charSlot,charDir);
-        if(midSlot==null||deploySlotSet.has(midSlot)||G.mainBoard[midSlot]) continue;
-        for(let attempt=0;attempt<60&&!placed;attempt++){
-          const def=_pickStarterPanelDef(['エンチャント','強化']);
-          const card=_makeStarterPanelFromDef(def,false);
-          if(!card) continue;
-          if((charCard.directions||[]).includes(charDir)&&(card.directions||[]).includes(opposite[charDir])){
-            if(typeof consumePanelSaleStock==='function') consumePanelSaleStock(def);
-            G.mainBoard[midSlot]=card;
-            placed=true;
-          }
-        }
-        if(placed) break;
+    const charCard=charDef&&makePanel(charDef.id);
+    if(!charCard) continue;
+    const firstSlot=randFrom(deploySlots);
+    for(const charSlot of [firstSlot,...deploySlots.filter(i=>i!==firstSlot)]){
+      const neighbors=(charCard.directions||[]).map(dir=>({dir,slot:step(charSlot,dir)}))
+        .filter(p=>p.slot!=null&&!deploySlots.includes(p.slot)&&!G.mainBoard[p.slot]);
+      if(neighbors.length<2) continue;
+      const candidates=[];
+      for(let n=0;n<24;n++){
+        const def=_pickStarterPanelDef(['エンチャント','強化']);
+        const card=def&&makePanel(def.id);
+        if(card) candidates.push({def,card});
       }
-      if(!placed){
-        const charDir=dirs.find(d=>{
-          const slot=step(charSlot,d);
-          return slot!=null&&!deploySlotSet.has(slot)&&!G.mainBoard[slot]&&(charCard.directions||[]).includes(d);
-        });
-        if(charDir){
-          const slot=step(charSlot,charDir);
-          const card=_takeStarterPanel(['エンチャント','強化']);
-          if(card){
-            card.directions=Array.from(new Set([opposite[charDir],...(card.directions||[])]));
-            G.mainBoard[slot]=card;
-          }
+      const placements=[];
+      for(const first of neighbors) for(const second of neighbors){
+        if(first.slot===second.slot) continue;
+        for(const a of candidates) for(const b of candidates){
+          if(a===b||signature(a.card)===signature(b.card)) continue;
+          if(!(a.card.directions||[]).includes(opposite[first.dir])||!(b.card.directions||[]).includes(opposite[second.dir])) continue;
+          if(a.def.id===b.def.id&&typeof panelSaleStockCount==='function'&&panelSaleStockCount(a.def)<2) continue;
+          placements.push([{def:charDef,card:charCard,slot:charSlot},{...a,slot:first.slot},{...b,slot:second.slot}]);
         }
       }
+      if(placements.length){ picked=randFrom(placements); break; }
     }
   }
-  if(!G.mainBoard[charSlot]){
-    const fallbackSlot=deploySlots.find(i=>i>=0&&i<G.mainBoard.length&&!G.mainBoard[i]);
-    const fallbackChar=_takeStarterPanel('キャラクター');
-    if(fallbackChar&&fallbackSlot!=null) G.mainBoard[fallbackSlot]=fallbackChar;
-  }
+  if(!picked) throw new Error('接続条件を満たす初期カード3枚を選べませんでした。');
+  picked.forEach(({def,card,slot})=>{
+    if(typeof consumePanelSaleStock==='function') consumePanelSaleStock(def);
+    G.mainBoard[slot]=card;
+  });
   if(typeof _getPartyBoardUnit==='function'&&typeof _syncUnitPanelEffectsAfterMove==='function'){
     _syncUnitPanelEffectsAfterMove(_getPartyBoardUnit());
   }
@@ -2030,6 +1977,8 @@ function continueAfterBattleVictory(silent){
   if(panel) panel.style.pointerEvents='none';
   const cutin=document.getElementById('battle-start-intro');
   if(cutin) cutin.remove();
+  if(typeof stopBattleLabFx==='function') stopBattleLabFx({suspendStates:true});
+  if(typeof stopAllKeywordEffectVfx==='function') stopAllKeywordEffectVfx();
   const fade=document.getElementById('battle-transition-fade');
   if(fade) fade.classList.add('is-visible');
   // 図書館の試験戦闘は図書館のBGMを鳴らしたまま編成画面へ戻す。

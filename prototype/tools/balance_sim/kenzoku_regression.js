@@ -259,10 +259,11 @@ function runCoreChecks() {
     const h = harness('p1', [plain('ring-reviver')], { rings: { p1: [ring('復活の指輪'), ring('光の指輪'), ring('召喚師の指輪')] } });
     const child = core.coreSummonUnit(h.state, 'p1', { name: '検査体', atk: 10, hp: 20 }, h.emit);
     internal.coreAddSummonBuff(h.state, 'p1', 1, 2, h.emit);
-    const held = [child.atk, child.maxHp];
+    const expected = [Math.floor(child._baseAtk / 2) + 1 + ringBuff()[0],
+      Math.max(1, Math.floor(child._baseMaxHp / 2)) + 2 + ringBuff()[1]];
     internal.coreSilenceUnit(child); child.hp = 0;
     assert.equal(core.coreTryRevive(child, h.state, h.emit), 'revival_ring');
-    assert.deepEqual([child.atk, child.hp, child.shield], [...held, 1], '指輪復活で常時修正が二重加算された／光の結界を失った');
+    assert.deepEqual([child.atk, child.hp, child.shield], [...expected, 1], '指輪復活は本体の半分＋常時修正1回／光の結界');
     assert.equal(isKenzoku(child), true, '復活の指輪で眷属が消える');
     internal.coreUnsilenceUnit(child);
     assert.equal(isKenzoku(child), true, '沈黙解除で眷属が消える');
@@ -281,13 +282,13 @@ function runCoreChecks() {
       plain('initial-ring-revival', { atk: 12, hp: 20, maxHp: 20, keywords: ['復活'] })],
     { rings: { p1: [ring('復活の指輪'), ring('光の指輪'), ring('召喚師の指輪')] } });
     const child = core.coreSummonUnit(h.state, 'p1', { name: '指輪の復活検査体', atk: 10, hp: 20, maxHp: 20 }, h.emit);
-    const before = [child.atk, child.maxHp];
+    const base = [Math.floor(child._baseAtk / 2), Math.max(1, Math.floor(child._baseMaxHp / 2))];
     child.hp = 0;
     assert.equal(core.coreTryRevive(child, h.state, h.emit), 'revival_ring');
     const spec = buffSpec('ナーガ', merged);
     const bonus = spec.atk * spec.scale;
-    assert.deepEqual([child.atk, child.hp, child.shield], [before[0] + bonus, before[1] + bonus, 1],
-      '指輪復活へナーガが発動しない／常時修正が二重加算された');
+    assert.deepEqual([child.atk, child.hp, child.shield], [base[0] + bonus + ringBuff()[0], base[1] + bonus + ringBuff()[1], 1],
+      '指輪復活の半減後にナーガ・召喚師を1回ずつ適用し、光の結界も戻す');
     assert.equal(isKenzoku(child), true);
     const initial = h.state.units.p1.find(unit => unit.id === 'initial-ring-revival');
     initial.hp = 0;

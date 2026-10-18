@@ -218,6 +218,24 @@ async function extraChecks() {
   stopBattleLabFx();assert.equal(_battleFxStates.size,0,'戦闘終了で全状態を破棄');
   console.log('OK 状態ループの開始・更新・移動・個別停止・全停止');
 
+  // PvE・オンラインは同じ結果暗転と「進む」の入口を通る。
+  for(const exit of ['result','continue']){
+    presentResetEffectFlashes();setup(s);
+    battleFxAdvanceStates(u,{poison:3,weaken:2});_battleFxFollowStates();
+    assert.ok(calls.some(c=>c.name==='poison-state')&&_battleFxStates.size>0,'暗転前は状態ループを表示');
+    if(exit==='result')_showBattleEndFade();
+    else{G._battleProceedAction=()=>{};G._battleProceedBusy=false;continueAfterBattleVictory(true);}
+    assert.equal(_battleFxStates.size,0,exit+' 暗転開始で状態を全破棄');
+    const count=calls.length;
+    battleFxSyncUnit(u,'ally',slots.get(u.id));_battleFxFollowStates();
+    assert.equal(calls.length,count,exit+' 暗転中・暗転後の再描画でループを再開しない');
+    presentResetEffectFlashes();battleFxSyncUnit(u,'ally',slots.get(u.id));
+    assert.ok(_battleFxStates.size>0,'次の戦闘開始で状態表示を再び許可');
+    await Promise.resolve();await Promise.resolve();
+  }
+  presentResetEffectFlashes();
+  console.log('OK 共通の結果暗転／進む：状態停止・再描画で復帰しない・次戦で再開');
+
   setup(s);u.shield=2;battleFxAdvanceStates(u,{shield:2});
   const shieldEvents=[{type:'shield_lost',side:'p1',unitId:u.id,shield:1},{type:'shield_lost',side:'p1',unitId:u.id,shield:0}];
   await _flushCorePveHitEvents(s,shieldEvents,new Set([...s.units.p1,...s.units.p2]));
@@ -618,6 +636,12 @@ function new1012CoreBaselineChecks(){
   const clean=(value)=>JSON.parse(JSON.stringify(value,(key,v)=>['_coreOpeningEffectsState','retriggerSourceId','retriggerTargetId','retriggerKey','colorSources','reactionSourceId','victimId','victimSide'].includes(key)?undefined:v));
   for(const [no,trigger]of Object.entries(vbLabVfx1012Cases)){
     const initial=fixture(no),results=[];
+    // 1018：復活基準は本体の _base* を優先する。旧コアにも同じ入力契約を渡す。
+    // 値を比較から除外せず、旧コアが読む base* へも同じ値を載せる。
+    for(const u of [...initial.units.p1,...initial.units.p2].filter(Boolean)){
+      if(u._baseAtk!=null)u.baseAtk=u._baseAtk;
+      if(u._baseMaxHp!=null)u.baseMaxHp=u._baseMaxHp;
+    }
     for(const api of [global,ctx]){
       const state=api.createBattleState({sides:{p1:{units:clone(initial.units.p1)},p2:{units:clone(initial.units.p2)}},resources:clone(initial.resources),blood:clone(initial.blood),summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
       const events=[],emit=e=>events.push(e),rng=api.createSeededRng(no==='C020'?7:53),u=state.units.p1[0];u._sealed=false;u._currentAttackTarget=state.units.p2[0];
