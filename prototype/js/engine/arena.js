@@ -371,6 +371,17 @@ async function arenaHandleBattleDefeat(){
   finish();
 }
 
+// 引き分けは今回の戦いを勝利数へ含め、その直後に「やめる」を選んだ扱い。
+async function arenaHandleBattleDraw(){
+  if(!arenaIsActive()||G._arenaOutcomePending) return;
+  G._arenaOutcomePending=true;
+  const round=Math.max(1,Math.min(ARENA_ROUND_COUNT,Number(G._arenaRound)||1));
+  G._arenaWins=round;
+  _arenaHideDebugButtons();
+  if(typeof _waitForPendingVfx==='function') await _waitForPendingVfx();
+  await _arenaFinish('win',round);
+}
+
 function _arenaPrepareReception(){
   _arenaRestoreEntrySnapshot();
   G._arenaActive=false;

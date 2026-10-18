@@ -268,6 +268,17 @@ function coreBoonNamedValue(unit, name, value, kind) {
     : (unit && unit.boardCards || []).find(card => card && coreEffectKey(card.name) === key);
   return holder ? coreBoonDynamicValue(holder, holder.desc, value, kind) : value;
 }
+// 同名の強化を複数接続しても、祝福はそのカード個体だけのもの。
+// 旧入力（接続カードの写しなし）と祝福なしの計算・回数は従来のまま保つ。
+function coreBoonEffectDamageValues(unit, name, baseValue, valueForCard) {
+  const count=coreEffectRepeatCount(unit,name),key=coreEffectKey(name);
+  const cards=coreEffectKey(unit&&unit.name)===key?[unit]
+    :(unit&&unit.boardCards||[]).filter(c=>c&&coreEffectKey(c.name)===key);
+  if(!cards.some(c=>Number(c.boon&&c.boon.dmgMul)>1)) return Array(count).fill(baseValue);
+  const copies=cards.flatMap(c=>Array((c._tripleMerged&&!c._mergedFormApplied?2:1)
+    +Math.max(0,Number(c._effectRepeatBonus||c.effectRepeatBonus)||0)+coreTextRepeatCount(c.desc)-1).fill(c));
+  return Array.from({length:count},(_,i)=>valueForCard(copies[i]||cards[0]));
+}
 function coreBoonEnemyManaPassiveValue(unit,state){
   const match=coreUnitEffectText(unit).match(/このキャラクターは\+X\/\+Xを得る。Xは敵が持つマナの(\d+)倍に等しい/);
   if(!match) return null;
@@ -2536,12 +2547,16 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
     }
     // 「死亡：〜」をそのまま効果文として持たせる。**中身は解釈しない**
     // （死亡効果の解決は coreApplyDeathEffects が本文から読む唯一の実装）。
-    const songDeath = songText.match(/このキャラクターが召喚したキャラクターは「(死亡：[^」]+)」を得る/);
-    if (songDeath) {
+    const songPattern=/このキャラクターが召喚したキャラクターは「(死亡：[^」]+)」を得る/;
+    const songDeaths=coreTriggerEffectEntries(sourceUnit,'常時',songPattern);
+    // 祝福の異なる接続カードを先頭の文で上書きしない。祝福なしの付与回数は維持する。
+    const blessedSong=songDeaths.some(m=>Number(coreBoonForEffect(sourceUnit,m)?.dmgMul)>1);
+    const deathTexts=blessedSong?songDeaths.map(m=>m[1]):[songText.match(songPattern)?.[1]].filter(Boolean);
+    for (const deathText of deathTexts) {
       const texts = (child.effectData && child.effectData.effectTexts) || [];
-      child.effectData = { ...(child.effectData || {}), effectTexts: [...texts, songDeath[1]] };
+      child.effectData = { ...(child.effectData || {}), effectTexts: [...texts, deathText] };
       emit({ type: 'keyword_effect', effect: 'effect_gain', side, unitId: child.id,
-        text: songDeath[1], reason: 'revenge_song' });
+        text: deathText, reason: 'revenge_song' });
     }
   }
   if (!child._openingDuplicate) {
@@ -3585,9 +3600,11 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     if (boss) coreSummonUnit(state, unit.side, { name: boss.name, color: boss.color, boss: true }, emit, unit.id,/ランダムなボスを召喚する/);
   }
   queueDamage((emit, allies, foes) => {
-    for (let textRun = 0; textRun < coreEffectRepeatCount(damageDefinition, '竜の契約'); textRun++) {
-      // ダメージ量は本文から読む（基本5／合体10）。
-      const pact = coreEffectNumbers(damageDefinition, '攻撃', /ランダムな敵に(\d+)ダメージを与える/, [5])[0];
+    const pactBase=coreEffectNumbers(damageDefinition, '攻撃', /ランダムな敵に(\d+)ダメージを与える/, [5])[0];
+    const pactValues=coreBoonEffectDamageValues(damageDefinition,'竜の契約',pactBase,
+      card=>coreEffectNumbers(card,'攻撃',/ランダムな敵に(\d+)ダメージを与える/,[pactBase])[0]);
+    for (const pact of pactValues) {
+      // ダメージ量はそのカードの本文から読む。
       const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
       // 演出だけに使う効果名（竜の契約の火球＝E008）。結果は変わらない。
       if (target) applyHit(unit, target, pact, false, false, false, { ...coreEnhancementHitOpt(), fxEffect: '竜の契約' });
@@ -3834,7 +3851,9 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   // 3枚合体は coreEffectCount が枚数2として返すのでループ回数で効く。
   // **ここで値まで倍にしないこと**（本体カードの3枚合体で逆上の値まで2倍になっていた）。
   const rageDamage = coreEffectNumbers(unit, '負傷', /ランダムな敵に(\d+)ダメージを与える/, [4])[0];
-  for (let i = 0; i < coreEffectRepeatCount(unit, '逆上'); i++) {
+  const rageValues=coreBoonEffectDamageValues(unit,'逆上',rageDamage,
+    card=>coreEffectNumbers(card,'負傷',/ランダムな敵に(\d+)ダメージを与える/,[rageDamage])[0]);
+  for (const rageDamage of rageValues) {
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     // 演出だけに使う効果名（逆上の破片＝E032）。結果は変わらない。
     if (target) applyHit(unit, target, rageDamage, false, false, false, { ...coreEnhancementHitOpt(), fxEffect: '逆上' });
@@ -4332,7 +4351,9 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   };
   const sufferingCount = coreEffectRepeatCount(unit, '受難の刻印');
   if (sufferingCount > 0) {
-    const amount = coreBoonNamedValue(unit, '受難の刻印', coreEngravingStageValue(unit, '受難の刻印', state), 'damage') * sufferingCount;
+    const base=coreEngravingStageValue(unit, '受難の刻印', state);
+    const amount=coreBoonEffectDamageValues(unit,'受難の刻印',base,
+      card=>coreBoonDynamicValue(card,card.desc,base,'damage')).reduce((sum,value)=>sum+value,0);
     for (let i = 0; i < repeats; i++) {
       coreHitAll(state, rng, emit, applyHit, unit,
         allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), amount,
@@ -4357,7 +4378,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   const flameCopies = coreEffectRepeatCount(unit, '闇の炎');
   if (flameCopies) {
     const flame = coreEffectNumbers(unit, '死亡', /^死亡\s*[：:]\s*全ての敵(?:キャラクター)?に(\d+)ダメージを(?:(\d+)回)?与える/, [1, 1]);
-    const parsedCopies = areaEffects.filter(m => Number(m[1]) === flame[0] && Number(m[2] || 1) === Number(flame[1] || 1)).length;
+    const parsedCopies = areaEffects.length; // 祝福で量が違っても、解析済みのカードを補完し直さない。
     for (let i = parsedCopies; i < flameCopies; i++) areaEffects.push(['', String(flame[0]), String(flame[1] || 1)]);
   }
   for (const area of areaEffects) {
@@ -4460,10 +4481,15 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   // 怨念：ATKに対する倍率は本文から読む（合体後はATKの2倍）。
   const grudgeMul = Math.max(1,
     coreEffectNumbers(unit, '死亡', /XはこのキャラクターのATKの(\d+)倍に等しい/, [1])[0]);
-  for (let i = 0; i < repeats * coreEffectRepeatCount(unit, '怨念'); i++) {
+  const grudgeBase=coreBoonNamedValue(unit,'怨念',Math.max(0,Number(unit.atk)||0)*grudgeMul,'damage');
+  const grudgeValues=coreBoonEffectDamageValues(unit,'怨念',grudgeBase,card=>{
+    const mul=coreEffectNumbers(card,'死亡',/XはこのキャラクターのATKの(\d+)倍に等しい/,[1])[0];
+    return coreBoonDynamicValue(card,card.desc,Math.max(0,Number(unit.atk)||0)*mul,'damage');
+  });
+  for (let i = 0; i < repeats * grudgeValues.length; i++) {
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (!target) break;
-    applyHit(unit, target, coreBoonNamedValue(unit, '怨念', Math.max(0, Number(unit.atk) || 0) * grudgeMul, 'damage'), false, false, false, coreEnhancementHitOpt());
+    applyHit(unit, target, grudgeValues[i%grudgeValues.length], false, false, false, coreEnhancementHitOpt());
   }
   // レイス：発動回数は本文から読む（合体後は2回）。
   const wraith = Math.max(1, coreEffectNumbers(unit, '死亡', /ランダムな味方の負傷効果を(\d+)回発動する/, [1])[0]);
@@ -4610,8 +4636,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   if (deathGold && !coreResourceTriggerValue(unit, '死亡', 'gold', unit.goldOnDeath)) coreGainResource(state, unit.side, 'gold', Number(deathGold[1]) * repeats, unit, emit, 'death_text_gold');
   // 死亡：ランダムな敵（N体）にMダメージを与える（報復の歌が付与する死亡効果など）。
   // **Xを使う形（ATK・血に等しい）は下の専用分岐が受ける。** ここは固定値だけ。
-  const deathFixedDamage = coreTriggerMatch(deathTexts, /^ランダムな敵(?:(\d+)体)?に(\d+)ダメージを与える/);
-  for (let textRun = 0; textRun < coreMatchRepeatCount(deathFixedDamage); textRun++) if (deathFixedDamage) {
+  for (const deathFixedDamage of coreTriggerEffectEntries(unit,'死亡',/^ランダムな敵(?:(\d+)体)?に(\d+)ダメージを与える/)) {
     const count = Math.max(1, Number(deathFixedDamage[1]) || 1);
     const amount = Math.max(1, Number(deathFixedDamage[2]) || 1);
     for (let i = 0; i < repeats * count; i++) {
@@ -5265,6 +5290,13 @@ function coreRestoreDeferredState(state, snapshot) {
 // 接頭辞の書き方（毎の有無・全角半角コロン）はカードによって揺れる。
 function coreManaThresholdDescFromText(text) {
   return String(text || '').replace(/^\s*\d+マナ(?:毎)?\s*[:：]\s*/, '').trim();
+}
+function coreCardManaThresholdDesc(card){
+  const text=String(card&&card.desc||'');
+  // 派生フィールドより、祝福を確定したカード本文を優先する。
+  // 古い保存や効果差し替えで派生値だけが古くても、表示と実ダメージを一致させる。
+  return /^\s*\d+マナ(?:毎)?\s*[:：]/.test(text)?coreManaThresholdDescFromText(text)
+    :String(card&&(card.manaThresholdDesc||card._manaThresholdDesc)||'');
 }
 
 // マナ効果。攻撃効果の中から誘発した場合（ペガサス・マナ生成→炎の矢など）は、
@@ -6489,6 +6521,7 @@ if (typeof window !== 'undefined') {
   window.coreExtraTriggerTimes = coreExtraTriggerTimes;
   window.coreApplyMapPanelOpeningEffects = coreApplyMapPanelOpeningEffects;
   window.coreApplyManaThresholdEffects = coreApplyManaThresholdEffects;
+  window.coreCardManaThresholdDesc = coreCardManaThresholdDesc;
   window.coreApplyDeathEffects = coreApplyDeathEffects;
   window.coreApplyDeathObservers = coreApplyDeathObservers;
   window.coreApplyAttackObservers = coreApplyAttackObservers;
@@ -6551,6 +6584,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreApplyOpeningEffects,
     coreApplyMapPanelOpeningEffects,
     coreApplyManaThresholdEffects,
+    coreCardManaThresholdDesc,
     coreApplyDeathEffects,
     coreApplyDeathObservers, coreApplyAttackObservers, coreApplyAttackRing,
     coreApplyShieldLostEffects,

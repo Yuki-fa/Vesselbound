@@ -212,7 +212,11 @@ function canExchangeShopCardAt(offerIdx,boardIdx){
   if(!board||!Number.isInteger(boardIdx)||boardIdx<0||boardIdx>=board.length) return false;
   const incoming=_rewCards[offerIdx],outgoing=board[boardIdx];
   if(!incoming||!outgoing||_isSpellCard(incoming)||_isSpellCard(outgoing)) return false;
-  if(!_libraryTutorialAllowsMove(incoming,boardIdx)||!_rewardAreaAcceptsCard(outgoing)) return false;
+  const exchangeState=typeof questShopExchangeState==='function'?questShopExchangeState(outgoing):'allow';
+  if(exchangeState==='blocked'||typeof questShopExchangeState==='function'&&questShopExchangeState(incoming)!=='allow') return false;
+  // 町での依頼品の持ち出し制限は上の交換専用判定へ集約。依頼枠・刻印の制限は保つ。
+  if(!_libraryTutorialAllowsMove(incoming,boardIdx)||_cardIsEngraved(outgoing)
+    ||typeof questRewardSlotAcceptsCard==='function'&&!questRewardSlotAcceptsCard(outgoing)) return false;
   if(!_canCardUseBoardSlot(incoming,boardIdx,unit)) return false;
   const next=board.slice();next[boardIdx]=incoming;
   return _canApplyBoardChange(unit,next);
@@ -229,34 +233,28 @@ function _syncExchangeShopDropHints(){
   if(!_isCardExchangeShop()||!_dragSrc) return false;
   const hint=(el,allowed)=>{if(allowed) el.classList.add('shop-exchange-drop-hint','drag-over');};
   if(_dragSrc.arr==='rew'){
-    const board=(_getPartyBoardUnit()||{}).boardCards||[];
     document.querySelectorAll('#hand-slots.board-slots > *').forEach((el,idx)=>{
-      hint(el,canExchangeShopCardAt(_dragSrc.idx,idx));
-      el.classList.toggle('shop-exchange-empty-dim',!board[idx]);
+      const allowed=canExchangeShopCardAt(_dragSrc.idx,idx);
+      hint(el,allowed);
+      el.classList.toggle('shop-exchange-empty-dim',!allowed);
     });
   }else if(_dragSrc.arr==='boardCards'){
     document.querySelectorAll('#reward-offer-row > .rew-card[data-merge-rew-idx]').forEach(el=>hint(el,_exchangeShopOfferDropAllowedAt(Number(el.dataset.mergeRewIdx))));
   }else return false;
   return true;
 }
-function _syncRewardSpecialDropHints(){
-  const card=_dragSrc&&_dragSrc.arr==='rew'?_dragSrcCard():null;
-  const active=!!(card&&!_isItemCard(card)&&!_isSpellCard(card));
-  document.querySelectorAll('#hand-slots.board-slots > .card').forEach(el=>{
-    el.classList.toggle('reward-special-drop-hint',active&&!!el.dataset.mapBoard&&!el.classList.contains('dragging'));
-  });
-  return active;
-}
 // ドラッグ・クリック指定・周回ボットで共用する、ゴールドを動かさない1対1の交換。
 function exchangeShopCard(offerIdx,boardIdx){
   if(!canExchangeShopCardAt(offerIdx,boardIdx)) return false;
   const unit=_getPartyBoardUnit(),incoming=_rewCards[offerIdx],outgoing=unit.boardCards[boardIdx];
+  if(typeof questTryBlockedCardExchange==='function'&&questTryBlockedCardExchange(outgoing)) return false;
   unit.boardCards[boardIdx]=_exchangeShopCardCopy(incoming);
   _rewCards[offerIdx]=_exchangeShopCardCopy(outgoing);
   _syncUnitPanelEffectsAfterMove(unit);
   if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
   if(typeof markCardAcquired==='function') markCardAcquired(incoming);
   _persistCurrentShopStock();
+  if(typeof questCheckRetainedCards==='function') questCheckRetainedCards();
   if(typeof playSfx==='function') playSfx('fit',{group:'reward'});
   renderRewCards();renderHandEditor();renderFieldEditor();renderMoveSlotsInEnemy();
   return true;
@@ -2733,11 +2731,9 @@ function _setDragZoneClass(cls){
   }
   _syncRewardProductionUi();
   _syncExchangeShopDropHints();
-  _syncRewardSpecialDropHints();
 }
 function _clearDragZoneClass(){
   _clearExchangeShopDropHints();
-  document.querySelectorAll('.reward-special-drop-hint').forEach(el=>el.classList.remove('reward-special-drop-hint'));
   _setInvalidBoardOverlayDragDimming(false);
   document.body.classList.remove(..._DRAG_ZONE_CLASSES);
   _clearDragZoneRaise();
@@ -4633,6 +4629,8 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(arrName==='boardCards'&&_isPanelCharacter&&_deployNum<0&&!_hasMapDeployPower) div.classList.add('invalid-battle-position');
       const _isEnchantPanelForClass=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&['強化','エンチャント'].includes(String(card.category||''));
       if(_isEnchantPanelForClass) div.classList.add('enchantment-card');
+      if(arrName==='boardCards'&&_isCardExchangeShop()&&typeof questShopExchangeAlwaysDimmed==='function'
+        &&questShopExchangeAlwaysDimmed(card)) div.classList.add('shop-exchange-card-dim');
       const _gradeEl='';
       const _costOwner=arrName==='boardCards'?_getPartyBoardUnit():null;
       const _costEnh=_costOwner&&typeof _collectAdjacentEnhancements==='function'?_collectAdjacentEnhancements(_costOwner,i):null;
@@ -4914,7 +4912,6 @@ function _dragSrcCard(){
 }
 function _syncNpcDropHints(){
   const exchanging=_syncExchangeShopDropHints();
-  const rewardDragging=_syncRewardSpecialDropHints();
   const card=_dragSrcCard();
   const on=!_isCardExchangeShop()&&_cardRequiresDeployableSlot(card);
   const srcIdx=on&&_dragSrc.arr==='boardCards'?_dragSrc.idx:-1;
@@ -4927,7 +4924,7 @@ function _syncNpcDropHints(){
     el.classList.toggle('npc-drop-hint',allowed&&(_boardDropAllowedAt(i)||danger));
     el.classList.toggle('npc-drop-danger',!!danger);
   });
-  return on||exchanging||rewardDragging;
+  return on||exchanging;
 }
 let _npcDropHintFrame=0;
 function _clearNpcDropHints(){

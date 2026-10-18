@@ -2061,7 +2061,11 @@ async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
     if(typeof opt.onImpact==='function') await opt.onImpact();
     if(!hitSfxStarted) startHitSfx(0);
     if(typeof playHitVfx==='function'){
-      await playHitVfx(toSide,to,Math.max(0,Number(opt.amount)||0),{effectHitCode:code,keywordSfx:false});
+      const shown=playHitVfx(toSide,to,Math.max(0,Number(opt.amount)||0),{effectHitCode:code,keywordSfx:false});
+      if(typeof opt.onDamageShown==='function') opt.onDamageShown();
+      await shown;
+    }else if(typeof opt.onDamageShown==='function'){
+      opt.onDamageShown();
     }
   };
   const url=typeof getEffectVfxPath==='function'?getEffectVfxPath(code):'';
@@ -2072,7 +2076,7 @@ async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
     ?((typeof _captureUnitEffectRect==='function'?_captureUnitEffectRect(from,fromSide):null)||rectOf(from,fromSide))
     :null;
   const toRect=to?rectOf(to,toSide):null;
-  if(!url||!fromRect||!toRect){ impact(); return; }
+  if(!url||!fromRect||!toRect){ await impact(); return; }
   const flightMs=Number(opt.flightMs)||((typeof PRESENT_PROJECTILE_FLIGHT_MS==='number'?PRESENT_PROJECTILE_FLIGHT_MS:420));
   startHitSfx(flightMs);
   await playCurvedMissile({

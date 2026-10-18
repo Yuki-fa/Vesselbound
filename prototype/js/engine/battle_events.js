@@ -141,8 +141,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 逃走した敵の撃破報酬を払った体（束の2件目以降がループへ戻ってきても二重に払わない）。
   const fledGoldPaid=new Set();
   const sweepShownEvents=new Set();
-  // 矢の着弾で出したキーワード演出（毒牙など）。イベント順では出し直さない。
-  const keywordShownEvents=new Set();
   // 虹の瞳の指輪の実効値だけを表示側へ渡す。
   // 戦闘修正死の印は death.statChange から共通の presentDeathBatch() が渡す。
   (events||[]).forEach(e=>{
@@ -440,8 +438,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         coreApplyPermanentDamageEvent(state.units,e,{updateRecords:false});
         _persistPermanentEffectDamageOrWarn(_getPartyBoardUnit(),e);
       }
-      // 矢の着弾で出し済みなら、ここでは出さない（二重に出る）。
-      if(keywordShownEvents.has(e)) continue;
       // 状態異常を受けた瞬間の見せ方は present_events.js が唯一の実装（オンラインと同じ）。
       // PvEはコアと同じ実体を共有しているので、ここでは見た目だけを出す（状態は触らない）。
       presentKeywordEffectEvent(e,{
@@ -586,33 +582,16 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     if(e.type==='mana_threshold'){
       _recordBattleTrace('mana_state_restore_start',{unitId:e.unitId});
       // 間引きの規則は present_events.js が唯一の実装（オンラインと同じ）。
-      // PvEはここで待たない（効果の解決はVFXの逆再生開始に合わせて別途行う）。
       await presentManaThresholdEvent(e,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
         gate:manaCueGate,
         waveGate:manaWaveGate,
         // 同じ瞬間に同じ効果が発動する全員を先読みする（判定は present.js）。
         waveEvents:ev=>presentManaWaveEvents(eventList,Math.max(0,eventList.indexOf(ev))),
-        // 飛ばす効果（炎の矢）用。その効果が起こしたダメージ＝対象（判定は present.js）。
-        effectDamage:ev=>presentEffectDamageEvents(eventList,Math.max(0,eventList.indexOf(ev))),
-        // 着弾の瞬間に見せるキーワード演出（毒牙など。判定は present.js）。
-        effectKeywords:dmg=>(typeof presentEffectKeywordEvents==='function'
-          ?presentEffectKeywordEvents(eventList,dmg):[]),
         // **1件ずつ待つ。** 投げっぱなしにすると、直前の効果のVFXが出ている最中に
         // 次の効果が始まり、別々の効果が同時に見える（サテュロスのマナ発生と
         // マータの活性化が重なっていた）。
-        playCue:(cueUnits,cueOpt)=>_playManaEffectCue(cueUnits,{...cueOpt,
-          // 着弾で数値を出すので、通常のダメージ演出には出させない（薙ぎ払いと同じ印）。
-          markShown:dmg=>{ if(dmg) sweepShownEvents.add(dmg); },
-          // キーワード演出も着弾で出すので、イベント順では出させない。
-          markKeywordShown:kw=>{ if(kw) keywordShownEvents.add(kw); },
-          playKeyword:kw=>{ if(kw) presentKeywordEffectEvent(kw,{
-            findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)) }); },
-          onImpact:(target,dmg)=>{
-            if(target&&dmg&&typeof presentAdvanceShown==='function') presentAdvanceShown(target,{hp:dmg.hpAfter});
-            if(target&&typeof updateUnitDamageUi==='function') updateUnitDamageUi(target,target.side==='p2'?'enemy':'ally');
-          },
-        }),
+        playCue:(cueUnits,cueOpt)=>_playManaEffectCue(cueUnits,cueOpt),
       });
       // deferredBefore/deferredAfter は表示の時系列を説明するイベント情報であり、
       // PvEの実計算stateを戻してはいけない。コアは遅延中も最終状態まで計算済みなので、

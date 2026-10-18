@@ -73,7 +73,7 @@ const def = no => PANEL_POOL.find(p => p.no === no);
       assert.deepEqual([subject.atk, subject.hp], [15 + enchant.adjacentAtkBonus, 15 + enchant.adjacentHpBonus]);
     }
   });
-  check('報酬ドラッグ：特殊マス上のカードだけ強調し、交換店の空きマス暗転は終了時に解除', () => {
+  check('商品ドラッグ：特殊マスだけの追加発光なし、空きマスの暗転は終了時に解除', () => {
     const select = document.querySelectorAll;
     const tile = (card, power) => {
       const e = makeElement(); const classes = new Set(card ? ['card'] : ['board-empty']);
@@ -84,20 +84,28 @@ const def = no => PANEL_POOL.find(p => p.no === no);
     };
     try {
       for (const peddler of [false, true]) {
-        initState(); G._isShop = true; G._isPeddler = peddler;
+        initState(); G.phase='reward'; G._isShop = true; G._isPeddler = peddler;
         G.mainBoard[0] = makePanel(def('E003').id); G.mainBoard[1] = makePanel(def('C006').id);
+        G.mainBoard[3] = {...makePanel(def('E003').id),_questOfferCard:true};
         const tiles = G.mainBoard.map((c, i) => tile(c, mapPanelPowerIdAt(i)));
         document.querySelectorAll = selector => selector === '#hand-slots.board-slots > *' ? tiles
           : selector === '#hand-slots.board-slots > .card' ? tiles.filter(e => e.classList.contains('card'))
           : selector.startsWith('.') ? tiles.filter(e => e.classList.contains(selector.slice(1))) : [];
-        _rewCards = [makePanel(def('E002').id)]; _dragSrc = { arr: 'rew', idx: 0 };
+        _rewCards = [makePanel(def('C001').id)]; _dragSrc = { arr: 'rew', idx: 0 };
         _setDragZoneClass('dragzone-reward-nonspell');
         assert.equal(tiles[0].classList.contains('reward-special-drop-hint'), false);
-        assert.equal(tiles[1].classList.contains('reward-special-drop-hint'), true);
+        assert.equal(tiles[1].classList.contains('reward-special-drop-hint'), false);
+        assert.equal(tiles[0].classList.contains('shop-exchange-drop-hint'), true);
+        assert.equal(tiles[1].classList.contains('shop-exchange-drop-hint'), true);
         assert.equal(tiles[1].classList.contains('shop-exchange-empty-dim'), false);
         assert.equal(tiles[2].classList.contains('shop-exchange-empty-dim'), true);
+        assert.equal(tiles[3].classList.contains('shop-exchange-empty-dim'), true);
+        assert.equal(tiles[3].classList.contains('shop-exchange-drop-hint'), false);
         _clearDragZoneClass(); _dragSrc = null;
         assert.ok(tiles.every(e => !e.classList.contains('reward-special-drop-hint') && !e.classList.contains('shop-exchange-empty-dim')));
+        G._isShop=false;_dragSrc={arr:'rew',idx:0};_setDragZoneClass('dragzone-reward-nonspell');
+        assert.ok(tiles.every(e=>!e.classList.contains('reward-special-drop-hint')&&!e.classList.contains('shop-exchange-drop-hint')));
+        _clearDragZoneClass();_dragSrc=null;
       }
     } finally { document.querySelectorAll = select; }
   });

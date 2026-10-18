@@ -209,45 +209,6 @@
       if (v) _manaEffectVfx.push(v);
     });
   }
-  // 発生元から対象へ飛ぶ効果（炎の矢）の1回ぶん。**発射は少しずつずらす。**
-  // 着弾した矢から順に、着弾VFX・着弾SE・ダメージ数値を出す（PvEと同じ規則）。
-  async function _playManaEffectProjectiles(list, effectNo, opt) {
-    const stagger = (typeof PRESENT_PROJECTILE_STAGGER_MS === 'number' && PRESENT_PROJECTILE_STAGGER_MS) || 90;
-    const sfxKey = (typeof getEffectSfxKey === 'function' && getEffectSfxKey(effectNo)) || '';
-    const shots = [];
-    list.forEach(({ unit, isEnemySide, targets }) => {
-      (targets || []).forEach(t => shots.push({
-        from: unit, fromSide: isEnemySide ? 'enemy' : 'ally',
-        to: t.unit, toSide: t.isEnemySide ? 'enemy' : 'ally', ev: t.ev,
-        keywordEvents: t.keywordEvents || [],
-      }));
-    });
-    if (!shots.length) { _playManaEffectPulse(list, effectNo); return; }
-    await Promise.all(shots.map(async (shot, i) => {
-      if (i) await _sleep(stagger * i);
-      if (sfxKey && typeof playSfx === 'function') {
-        playSfx(sfxKey, { group: 'magic', guardKey: `mana-effect:${typeof uid === 'function' ? uid() : Math.random()}`, guardMs: 0 });
-      }
-      if (opt && typeof opt.markShown === 'function') opt.markShown(shot.ev);
-      // 毒牙などのキーワード演出も、この矢の着弾で1回ずつ出す（PvEと同じ規則）。
-      (shot.keywordEvents || []).forEach(kw => {
-        if (opt && typeof opt.markKeywordShown === 'function') opt.markKeywordShown(kw);
-      });
-      await playProjectileEffectVfx(shot.from, shot.fromSide, shot.to, shot.toSide, effectNo, {
-        amount: Math.max(0, Number(shot.ev && shot.ev.amount) || 0),
-        onImpact: () => {
-          if (opt && typeof opt.onImpact === 'function') opt.onImpact(shot.to, shot.ev);
-          (shot.keywordEvents || []).forEach(kw => {
-            if (opt && typeof opt.playKeyword === 'function') opt.playKeyword(kw);
-          });
-        },
-      });
-    }));
-  }
-  // units：同じ瞬間に同じ効果が発動する全員（[{unit,isEnemySide}]）。**1体ずつ順に見せない。**
-  // opt.repeat：同じ効果の2回目以降。**間引かず高速で繰り返す。**
-  // マナ効果VFX（既存素材）とSE（既存素材）はその効果につき最初の1回だけ。その逆再生開始から先は
-  // 効果固有のVFXを処理が終わるまで出し続け、SEを発動回数ぶん鳴らす（PvEと同じ規則）。
   async function _awaitManaReverseStart(units, opt) {
     const list = (Array.isArray(units) ? units : []).filter(x => x && x.unit);
     if (!list.length) return;
@@ -256,14 +217,11 @@
     // **素材はシートの「VFX/SE」列で引く**（PvEと同じ）。effectNo は演出の区切り用。
     const fxCode = typeof _effectFxCodeByNo === 'function' ? _effectFxCodeByNo(effectNo) : effectNo;
     const gap = _manaRunGap();
-    // 発生元から対象へ飛ぶ効果は、飛ばして着弾まで見せる（発射はずらす）。
-    const projectile = typeof presentIsProjectileEffect === 'function' && presentIsProjectileEffect(effectNo);
     // **別の効果の演出が出ている間は、VFXもSEも始めない**（PvEと同じ）。
     if (_manaEffectRunning() && _manaEffectCurrentCode !== effectNo) await _endManaEffectRun();
     if (repeat) {
       _manaEffectCurrentCode = effectNo;
-      if (projectile) await _playManaEffectProjectiles(list, fxCode, opt);
-      else _playManaEffectPulse(list, fxCode);
+      _playManaEffectPulse(list, fxCode);
       await _sleep(gap);
       return;
     }
@@ -277,15 +235,13 @@
     }
     let pulsed = false;
     let pulsedAt = 0;
-    let projectileDone = null;
     // 合図（既存素材）を出した位置。**効果固有のVFXも同じ位置から出す**（PvEと同じ）。
     let cueTargets = null;
     const startPulse = () => {
       if (pulsed) return; pulsed = true;
       pulsedAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       const pulseList = cueTargets && cueTargets.length ? cueTargets : list;
-      if (projectile) projectileDone = _playManaEffectProjectiles(pulseList, fxCode, opt);
-      else _playManaEffectPulse(pulseList, fxCode);
+      _playManaEffectPulse(pulseList, fxCode);
     };
     if (typeof _captureUnitDamageRect !== 'function' || typeof playHitVfxAtRect !== 'function') {
       await _sleep(200);
@@ -322,8 +278,6 @@
         })).catch(() => onReverse())));
       await Promise.race([reverse, _sleep(vfxMs)]);
       startPulse();
-      // 飛ばす効果は着弾まで待つ（着弾でダメージ数値を出すため）。
-      if (projectileDone) await projectileDone;
       // **間隔は「1回目を出した時刻」から測る**（PvEと同じ）。
       const sincePulse = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - pulsedAt;
       await _sleep(Math.max(0, gap - (pulsedAt ? sincePulse : 0)));
@@ -498,8 +452,6 @@
   // 接触の瞬間に出す攻撃範囲の演出（貫通・三方向攻撃・全体攻撃）。
   // コアは attack_contact_vfx を attack より前に出す。ここで持っておき、
   // 攻撃モーションが対象へ接触した瞬間（onContact）に鳴らす。**PvEと同じ規則。**
-  // 矢の着弾で出したキーワード演出（毒牙など）。イベント順では出し直さない。
-  const _keywordShownEvents = new Set();
   let _pendingContactVfx = null;
   // 貫通だけは「絵が通り過ぎた瞬間」に数値を出す（PvEと同じ規則）。
   const _contactHolds = new Map();
@@ -866,8 +818,7 @@
           else if (!(u.keywords || []).includes(ev.keyword)) u.keywords = [...(u.keywords || []), ev.keyword];
         }
         // 見せ方は present_events.js が唯一の実装（PvEと同じ）。状態の反映は上で済ませている。
-        // 矢の着弾で出し済みなら、ここでは出さない（二重に出る）。
-        if (!_keywordShownEvents.has(ev)) presentKeywordEffectEvent(ev, { findUnit: (side, id) => _find(side, id) });
+        presentKeywordEffectEvent(ev, { findUnit: (side, id) => _find(side, id) });
         _render();
         break;
       }
@@ -891,27 +842,7 @@
             const from = Number(ctx && ctx.eventIndex);
             return presentManaWaveEvents(evs, Number.isInteger(from) ? from : evs.indexOf(e0));
           },
-          // 飛ばす効果（炎の矢）用。その効果が起こしたダメージ＝対象（判定は present.js）。
-          effectDamage: e0 => {
-            const evs = (ctx && ctx.events) || [];
-            const from = Number(ctx && ctx.eventIndex);
-            return presentEffectDamageEvents(evs, Number.isInteger(from) ? from : evs.indexOf(e0));
-          },
-          // 着弾の瞬間に見せるキーワード演出（毒牙など。判定は present.js）。
-          effectKeywords: dmg => (typeof presentEffectKeywordEvents === 'function'
-            ? presentEffectKeywordEvents((ctx && ctx.events) || [], dmg) : []),
-          playCue: (cueUnits, cueOpt) => _awaitManaReverseStart(cueUnits, {
-            ...cueOpt,
-            markShown: dmg => { if (dmg && ctx.visualizedDamageEvents) ctx.visualizedDamageEvents.add(dmg); },
-            markKeywordShown: kw => { if (kw) _keywordShownEvents.add(kw); },
-            playKeyword: kw => { if (kw) presentKeywordEffectEvent(kw, { findUnit: (side, id) => _find(side, id) }); },
-            onImpact: (target, dmg) => {
-              if (target && dmg) target.hp = Math.max(0, Number(dmg.hpAfter) || 0);
-              if (target && typeof updateUnitDamageUi === 'function') {
-                updateUnitDamageUi(target, target.side === 'p2' ? 'enemy' : 'ally');
-              }
-            },
-          }),
+          playCue: (cueUnits, cueOpt) => _awaitManaReverseStart(cueUnits, cueOpt),
         });
         _render();
         break;

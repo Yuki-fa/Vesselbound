@@ -1208,7 +1208,7 @@ function main() {
     '連続召喚で前の詰め移動がDOM再構築により中断される');
   // マナ効果は**1件ずつ待って**見せる。投げっぱなしにすると、直前の効果のVFXが
   // 出ている最中に次の効果が始まり、別々の効果が同時に見える。
-  assert.match(currentBattle, /playCue:\(cueUnits,cueOpt\)=>_playManaEffectCue\(cueUnits,\{\.\.\.cueOpt,/,
+  assert.match(currentBattle, /playCue:\(cueUnits,cueOpt\)=>_playManaEffectCue\(cueUnits,cueOpt\)/,
     'PvEのマナ効果演出を1件ずつ待っていない（別の効果と同時に見える）');
   assert.doesNotMatch(currentBattle, /void _playManaEffectCue\(/,
     'マナ効果演出を投げっぱなしで再生している（前の演出の途中で次が始まる）');
@@ -1256,15 +1256,18 @@ function main() {
   // 止め忘れると次の手番や報酬画面までループし続ける。
   assert.match(read('js/engine/render.js'), /^function playEffectVfxOnUnit\(/m,
     'render.jsに効果そのもののVFXを出す実装が無い');
-  // 発生元から対象へ飛ぶ効果（炎の矢）。**着弾でダメージ数値を出す**ので、
-  // 通常のダメージ演出には出させない印（markShown）を必ず付ける。
+  // 飛び道具は共通damage再生だけが担当する。着弾で数値を出してから次のイベントへ進む。
   assert.match(read('js/engine/render.js'), /^async function playProjectileEffectVfx\(/m,
     'render.jsに「発生元から対象へ飛ぶ効果VFX」の実装が無い');
   ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
     const src = name==='js/engine/battle.js'?currentBattle:read(name);
-    assert.match(src, /_playManaEffectProjectiles\(/, `${name}が飛ばす効果を再生していない`);
-    assert.match(src, /markShown\(shot\.ev\)/, `${name}が着弾で出す数値を通常経路から外していない`);
+    assert.doesNotMatch(src, /_playManaEffectProjectiles\(/, `${name}に矢の先行一括再生が残っている`);
   });
+  const sharedHits=read('js/battle/present_events.js');
+  assert.match(sharedHits,/presentIsProjectileEffect\(ev.effectNo\)/,'炎の矢を共通damage再生から飛ばしていない');
+  assert.match(sharedHits,/onDamageShown:damageShown/,'着弾の数値完了を待っていない');
+  assert.match(sharedHits,/await Promise\.race\(\[impact,flight\]\)/,'着弾前に付随イベントへ進んでいる');
+  assert.match(read('js/engine/render.js'),/const shown=playHitVfx[\s\S]{0,200}opt\.onDamageShown\(\)/,'数値を出す前に着弾完了を通知している');
   // マナ効果VFX・SEはひと続きにつき1回。そのあとは効果固有のVFX/SEを発動回数ぶん。
   ['js/engine/battle.js', 'js/online/board.js'].forEach(name => {
     const src = name==='js/engine/battle.js'?currentBattle:read(name);
@@ -1687,7 +1690,7 @@ function main() {
     'オンライン死亡後にFLIP詰め処理を実行していない');
   assert.doesNotMatch(currentBattle, /if\(typeof presentIsPlaying==='function'&&presentIsPlaying\(\)\) return;\n  if\(!G\._battleMotionDepth&&G\._pendingBattleCompact\)/,
     'モーション終了時の保留分を再生中に流せないままになっている');
-  assert.match(board, /playCue: \(cueUnits, cueOpt\) => _awaitManaReverseStart\(cueUnits, \{/,
+  assert.match(board, /playCue: \(cueUnits, cueOpt\) => _awaitManaReverseStart\(cueUnits, cueOpt\)/,
     'オンラインのマナ閾値効果がVFX逆再生開始を待っていない');
   assert.match(board, /async function _awaitManaReverseStart\(units, opt\)/,
     'オンラインのマナ閾値VFX境界処理がない');
