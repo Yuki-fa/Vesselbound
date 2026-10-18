@@ -987,12 +987,12 @@ function coreApplyFormationPassives(units) {
   return { count, applied };
 }
 
-// 復活の基準値。開戦前の baseAtk/baseMaxHp を優先し、未指定なら現在値から作る。
+// 復活の基準値。編成時に保存したカード本体（祝福込み）の値を優先する。
 // PvEの盤面にも同じ式を適用するため、基準値の作成はここへ集約する。
 function coreUnitBaseStats(raw) {
   return {
-    atk: Math.max(0, Number(raw && (raw.baseAtk ?? raw.atk)) || 0),
-    maxHp: Math.max(1, Number(raw && (raw.baseMaxHp ?? raw.maxHp ?? raw.hp)) || 1),
+    atk: Math.max(0, Number(raw && (raw._baseAtk ?? raw.baseAtk ?? raw.atk)) || 0),
+    maxHp: Math.max(1, Number(raw && (raw._baseMaxHp ?? raw.baseMaxHp ?? raw.maxHp ?? raw.hp)) || 1),
   };
 }
 
@@ -1348,6 +1348,19 @@ function coreLaneAttackCandidates(units, lane, isEnemySide) {
 function corePickAttacker(units, laneState, isEnemySide) {
   const list = units || [];
   const cand = lane => coreLaneAttackCandidates(list, lane, isEnemySide);
+  // 復活は通常の前衛／後衛の巡回を動かさず、次の自陣営手番へ割り込む。
+  if (laneState.reviveNext && laneState.reviveNext.length) {
+    const eligible = new Set([...cand('front'), ...cand('rear')].map(i => list[i].id));
+    const pending = laneState.reviveNext.filter(entry => eligible.has(entry.id));
+    laneState.reviveNext = pending;
+    if (pending.length) {
+      const wave = pending[0].wave;
+      const next = pending.filter(entry => entry.wave === wave)
+        .sort((a, b) => a.column - b.column || a.rear - b.rear)[0];
+      laneState.reviveNext = pending.filter(entry => entry !== next);
+      return list.find(unit => unit && unit.id === next.id);
+    }
+  }
   const current = cand(laneState.lane).filter(i => !laneState.attacked.has(list[i].id));
   if (current.length) return list[current[0]];
   const otherLane = laneState.lane === 'front' ? 'rear' : 'front';
@@ -1363,6 +1376,19 @@ function corePickAttacker(units, laneState, isEnemySide) {
     return list[resetCurrent[0]];
   }
   return null;
+}
+
+// 同じダメージの束で戻る体は、各レーンの左から。同列なら前衛を先にする。
+// IDと位置だけを保持し、死亡・逃走した体は次の選出時に捨てる。
+function coreQueueRevivedAttacker(unit, state) {
+  const lane = state.lane && state.lane[unit.side];
+  if (!lane) return;
+  const list = (state.units[unit.side] || []).filter(Boolean);
+  const rear = unit.lane === 'rear' ? 1 : 0;
+  const column = list.filter(other => (other.lane === 'rear' ? 1 : 0) === rear).indexOf(unit);
+  const wave = `${state.turn || 0}:${state._coreDamageBatch || ''}`;
+  lane.reviveNext = (lane.reviveNext || []).filter(entry => entry.id !== unit.id);
+  lane.reviveNext.push({ id: unit.id, wave, column, rear });
 }
 
 // ダメージ適用。結果の量と死亡を返す。イベントは emit で外へ流す。
@@ -1489,7 +1515,7 @@ function coreWithStatDeathResolution(state, rng, emit, applyHit, runEffect) {
     coreTriggerDeath(unit, state, trackedEmit);
     coreApplyDeathEffects(unit, state, rng, trackedEmit, applyHit);
     coreApplyDeathObservers(unit, state, rng, trackedEmit, applyHit);
-    coreTryRevive(unit, state, trackedEmit);
+    coreTryRevive(unit, state, trackedEmit, rng, applyHit);
   });
   return value;
 }
@@ -1899,7 +1925,7 @@ function coreApplyHitTriggers(state, source, target, result, before, counter, rn
       if (keywordResult && keywordResult.cursed && source.hp <= 0) {
         coreTriggerDeath(source, state, emit);
         coreApplyDeathEffects(source, state, rng, emit, applyHit);
-        coreTryRevive(source, state, emit);
+        coreTryRevive(source, state, emit, rng, applyHit);
       }
     }
     if (target.hp > 0) {
@@ -1913,7 +1939,7 @@ function coreApplyHitTriggers(state, source, target, result, before, counter, rn
         coreTriggerDeath(target, state, emit);
         coreApplyDeathEffects(target, state, rng, emit, applyHit);
         coreApplyDeathObservers(target, state, rng, emit, applyHit);
-        coreTryRevive(target, state, emit);
+        coreTryRevive(target, state, emit, rng, applyHit);
       }
     }
   }
@@ -1927,7 +1953,7 @@ function coreApplyHitTriggers(state, source, target, result, before, counter, rn
       coreTriggerDeath(target, state, emit);
       coreApplyDeathEffects(target, state, rng, emit, applyHit);
       coreApplyDeathObservers(target, state, rng, emit, applyHit);
-      coreTryRevive(target, state, emit);
+      coreTryRevive(target, state, emit, rng, applyHit);
     }
   }
 }
@@ -1938,7 +1964,7 @@ function coreTryGuts(unit, state, emit) {
   if (!unit || unit.hp > 0 || unit._starterRegenUsed) return false;
   // **coreTryRevive と同じ優先順で判定する。** ここで先に呼ぶと、復活や復活の指輪を
   // 「根性のつもり」で使い切ってしまう。
-  if (unit.side === 'p1' && !state._revivalRingUsed && coreRingCount(state, 'p1', '復活の指輪') > 0) return false;
+  if (coreRevivalRingAvailable(unit, state)) return false;
   const keyword = coreUnitKeywords(unit).find(x => x === '復活' || x === '根性');
   if (keyword !== '根性') return false;
   return coreTryRevive(unit, state, emit) === '根性';
@@ -2229,7 +2255,7 @@ function coreStealUnit(state, stolen, toSide, emit, sourceId, opts) {
   const at = from.indexOf(stolen);
   if (at >= 0) from.splice(at, 1);
   if (restoreHp) {
-    stolen.hp = Math.max(1, Number(stolen.maxHp) || 1);
+    coreResetRevivalStats(stolen);
     // 倒れた体を仲間にする場合は、死亡の印を落として普通に戦えるようにする。
     delete stolen._coreDeathTriggered;
     delete stolen._coreDeathEffectsTriggered;
@@ -2242,6 +2268,12 @@ function coreStealUnit(state, stolen, toSide, emit, sourceId, opts) {
   stolen._useEnemyVisualFrame = true;
   // 位置の決定は召喚と同じ規則（前衛の右端）。
   coreInsertSummonedUnit(to, stolen, null, frontSlots);
+  if (restoreHp) {
+    coreApplyRevivalSelfPassives(state, stolen, emit);
+    coreApplySummonEyeRings(state, stolen, emit, null, null);
+    coreApplyKenzokuBonuses(state, stolen, emit, null, null);
+    coreQueueRevivedAttacker(stolen, state);
+  }
   if (typeof emit === 'function') emit({ type: 'unit_stolen', side: fromSide, unitId: stolen.id,
     sourceId: sourceId || null, toSide, unit: coreUnitSnapshot(stolen) });
   return true;
@@ -2368,7 +2400,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
   const source = { ...def, ...spec,
     atk: spec && spec.atk != null ? spec.atk : (def.power ?? def.atk),
     hp: spec && spec.hp != null ? spec.hp : (def.life ?? def.hp),
-    maxHp: spec && spec.maxHp != null ? spec.maxHp : (def.life ?? def.maxHp ?? def.hp),
+    maxHp: spec && spec.maxHp != null ? spec.maxHp : (spec && spec.hp != null ? spec.hp : (def.life ?? def.maxHp ?? def.hp)),
     desc: spec && spec.desc ? spec.desc : (def.desc || ''),
     keywords: spec && Array.isArray(spec.keywords) && spec.keywords.length ? spec.keywords : (def.keywords || []),
     effectData: { ...(def.effectData || {}), ...(spec && spec.effectData || {}) },
@@ -2378,7 +2410,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
   const summonBoon = spec && spec._summonBoon || (summonEffect && coreBoonForEffect(sourceUnit, summonEffect));
   // 敵側の戦闘中召喚は、通常モードと同じく召喚元の現在戦力の80%にする。
   // 召喚元をIDで解決できない指輪由来などは、明示された値をそのまま使う。
-  if (side === 'p2' && sourceUnit && !sourceUnit.boon && !summonBoon) {
+  if (side === 'p2' && sourceUnit && !sourceUnit.boon && !summonBoon && !(spec && spec._revivedFromDead)) {
     const enemyStats = coreEnemySummonStats(sourceUnit);
     source.atk = enemyStats.atk;
     source.hp = enemyStats.hp;
@@ -2402,6 +2434,8 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
   state._summonSeq = summonSeq;
   const child = createCoreUnit({
     id: summonId,
+    ...(source._baseAtk != null ? { _baseAtk: source._baseAtk } : {}),
+    ...(source._baseMaxHp != null ? { _baseMaxHp: source._baseMaxHp } : {}),
     // 色は戦闘データとして保持するが、表示名には付けない（「青スケルトン」ではなく「スケルトン」）。
     name: String(source.name || '').replace(/^[赤青緑黄紫黒]/, ''), atk: Number(source.atk) || 0, hp: Number(source.hp) || 1, maxHp: Number(source.maxHp) || 1,
     color: source.color || '', lane: source.lane || 'front', race: source.race || '', keywords: source.keywords || [],
@@ -2520,6 +2554,10 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
   coreInsertSummonedUnit(list, child, spec, frontSlots);
   // 召喚でヴォイド・ウォーカー自身が現れることもあるので、盤面全体を作り直す。
   coreRefreshVoidWalkerBonus(state);
+  if (spec && spec._revivedFromDead) {
+    coreApplyRevivalSelfPassives(state, child, emit);
+    coreQueueRevivedAttacker(child, state);
+  }
   state._summonCount[side] = nextSummonCount;
   coreApplyWargThreshold(state, side, emit);
   emit({ type: 'summon', side, sourceId, placement: spec && spec.placement || '',
@@ -2686,8 +2724,8 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
 // early（色の瞳・虹の瞳）と late（強靭・威圧・聖騎士）に分けてあるのは、
 // 開戦時の適用順（early → 苦行 → late → 神速）をそのまま保つため。
 const CORE_COLOR_EYE_RINGS = { '赤い瞳の指輪': '赤', '青い瞳の指輪': '青', '緑の瞳の指輪': '緑', '黄の瞳の指輪': '黄', '紫の瞳の指輪': '紫' };
-// 戦闘中の新規召喚と、基礎能力へ戻る眷属のキーワード復活へ常時修正を適用する。
-// 値を保持するコピー・指輪復活・根性は呼ばず、既に乗っている分を重ねない。
+// 戦闘中の新規召喚と、基礎能力へ戻る復活へ常時修正を適用する。
+// 値を保持するコピー・根性は呼ばず、既に乗っている分を重ねない。
 function coreApplySummonEyeRings(state, unit, emit, sourceUnit, sourceId) {
   const side = unit.side;
   const addStats = (amount, reason, rainbowBonus) => {
@@ -4381,8 +4419,9 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
         const maxHp = merged ? Math.max(1, Math.floor(baseMaxHp)) : Math.max(1, Math.floor(baseMaxHp / 2));
         // 死亡時のスナップショットから、戦闘開始時から持っていた効果状態だけを
         // 引き継ぐ。毒・弱体・結界・死亡印などの現在状態は明示的に捨てる。
-        coreSummonUnit(state, unit.side, {
+        coreWithStatDeathResolution(state, rng, emit, applyHit, trackedEmit => coreSummonUnit(state, unit.side, {
           name: dead.name, atk, hp: maxHp, maxHp, color: dead.color, race: dead.race,
+          _baseAtk: baseAtk, _baseMaxHp: baseMaxHp, _revivedFromDead: true,
           no: dead.no || dead.artCode, art: dead.art, sfxType: dead.sfxType,
           desc: dead.desc, keywords: dead.keywords || [], effectData: dead.effectData || {},
           ...(dead.boon?{boon:{...dead.boon}}:{}),
@@ -4401,7 +4440,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
           // 敵の体を味方化した場合など、元の表示枠をスナップショットから維持する。
           // **相手陣営で倒れた体を呼び戻した時は必ず敵枠**（緑などの召喚枠にしない。2026-09-16 利用者確認済みの規則）。
           _useEnemyVisualFrame: !!dead._useEnemyVisualFrame || (dead.side != null && dead.side !== unit.side),
-        }, emit, unit.id,/この戦闘で死亡したランダムなキャラクター/);
+        }, trackedEmit, unit.id,/この戦闘で死亡したランダムなキャラクター/));
       }
     }
   }
@@ -4481,7 +4520,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       coreTriggerDeath(target, state, emit);
       coreApplyDeathEffects(target, state, rng, emit, applyHit);
       coreApplyDeathObservers(target, state, rng, emit, applyHit);
-      coreTryRevive(target, state, emit);
+      coreTryRevive(target, state, emit, rng, applyHit);
     }
   }
   // 旧本文の時だけ。**`deathTexts` はこの下で宣言されるので触らない**（TDZ）。
@@ -4629,7 +4668,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       coreTriggerDeath(target, state, emit);
       coreApplyDeathEffects(target, state, rng, emit, applyHit);
       coreApplyDeathObservers(target, state, rng, emit, applyHit);
-      coreTryRevive(target, state, emit);
+      coreTryRevive(target, state, emit, rng, applyHit);
     }
   }
   // ボーンチャリオットの効果文には、付与する効果として
@@ -4894,60 +4933,109 @@ function coreApplyRingManaEffects(state, rng, emit, applyHit) {
     emit({ type: 'ring_effect', ring: '嵐の指輪', side: 'p1', amount });
   }
 }
-function coreTryRevive(unit, state, emit) {
+function coreRevivalRingAvailable(unit, state) {
+  const used = unit.side === 'p2' ? state._revivalRingUsedP2 : state._revivalRingUsed;
+  return !used && coreRingCount(state, unit.side, '復活の指輪') > 0;
+}
+function coreFateEngravingPenalty(unit, state) {
+  const count = coreEffectCount(unit, '宿業の刻印');
+  return count ? -coreBoonNamedValue(unit, '宿業の刻印', -coreEngravingStageValue(unit, '宿業の刻印', state), 'mod') * count : 0;
+}
+function coreResetRevivalStats(unit) {
+  const base = coreUnitBaseStats(unit);
+  unit.atk = Math.max(0, Math.floor(base.atk / 2));
+  unit.maxHp = Math.max(1, Math.floor(base.maxHp / 2));
+  unit.hp = unit.maxHp;
+}
+// 戦闘中に得た修正を持ち越さず、今も持つ常時効果だけを半減後へ掛け直す。
+function coreApplyRevivalSelfPassives(state, unit, emit) {
+  if (coreUnitIsSilenced(unit)) return;
+  const add = (atk, hp, modify = true) => {
+    if (modify) { atk = coreStatBonus(unit, atk, unit); hp = coreStatBonus(unit, hp, unit); }
+    if (!atk && !hp) return;
+    unit.atk = Math.max(0, unit.atk + atk);
+    unit.maxHp = Math.max(0, unit.maxHp + hp); unit.hp = Math.max(0, unit.hp + hp);
+    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk, hp, reason: 'revive_passive' });
+  };
+  coreTriggerEffectEntries(unit, '常時', /^(?:このキャラクターは)?([+-]\d+)\/([+-]\d+)を得る/)
+    .forEach(m => add(Number(m[1]), Number(m[2])));
+  coreTriggerEffectEntries(unit, '常時', /^(?:このキャラクターは)?(ATK|HP)([+-]\d+)を得る/)
+    .forEach(m => add(m[1] === 'ATK' ? Number(m[2]) : 0, m[1] === 'HP' ? Number(m[2]) : 0));
+  coreTriggerEffectEntries(unit, '常時', /^このキャラクターは\+X\/\+Xを得る。Xは敵が持つマナの(\d+)倍に等しい/)
+    .forEach(m => {
+      const foe = unit.side === 'p1' ? 'p2' : 'p1';
+      const mana = Number(state.resources && state.resources[foe] && state.resources[foe].mana) || 0;
+      const value = coreBoonDynamicValue(unit, m, mana * Number(m[1]), 'mod');
+      unit._genericEnemyManaBuff = value;
+      add(value, value);
+    });
+  const fatePenalty = coreFateEngravingPenalty(unit, state);
+  if (fatePenalty) add(-fatePenalty, -fatePenalty, false);
+  const texts = unit._adjacentPanelEffectTexts && unit._adjacentPanelEffectTexts.length
+    ? unit._adjacentPanelEffectTexts : unit.effectData && unit.effectData.effectTexts || [];
+  const strategy = coreKeywordCountBuff(coreUnitKeywords(unit), texts.map(desc => ({ desc })));
+  if (strategy) add(strategy, strategy);
+  const spec = coreFormationPassiveSpec(unit);
+  if (spec) {
+    const count = (state.units[unit.side] || []).filter(u => u && u.hp > 0 && coreFormationPassiveSpec(u)).length;
+    const value = coreBoonDynamicValue(unit, /Xはこの効果を持つ味方の数/, count * spec.multiplier, 'mod');
+    add(value, value);
+  }
+}
+function coreTryRevive(unit, state, emit, rng, applyHit) {
   // ウォーグは「効果1回」で数える。この効果で複数召喚されても発動は1回。
   coreBeginSummonBatch(state);
   try {
   if (!unit || unit.hp > 0 || unit._starterRegenUsed) return false;
-  const ring = unit.side === 'p1' && !state._revivalRingUsed && coreRingCount(state, 'p1', '復活の指輪') > 0;
+  const ring = coreRevivalRingAvailable(unit, state);
   const keyword = coreUnitKeywords(unit).find(x => x === '復活' || x === '根性');
   if (!ring && !keyword) return false;
   unit._starterRegenUsed = true;
   if (ring) {
-    state._revivalRingUsed = true;
-    unit.hp = Math.max(1, Number(unit.maxHp) || 1);
+    if (unit.side === 'p2') state._revivalRingUsedP2 = true;
+    else state._revivalRingUsed = true;
     unit.lane = 'front';
-  } else if (keyword === '復活') {
-    // **元いた場所へ戻す。** 以前は前衛へ移していたため、後衛にいたキャラが
-    // 復活すると前へ出てきていた。lane を触らなければ、体は死亡時のまま
-    // 配列の同じ位置・同じレーンに残っているので元の場所に出る。
-    const baseAtk = Number.isFinite(Number(unit._baseAtk)) ? Number(unit._baseAtk) : Number(unit.atk) || 0;
-    const baseMaxHp = Number.isFinite(Number(unit._baseMaxHp)) ? Number(unit._baseMaxHp) : Number(unit.maxHp) || 1;
-    unit.atk = Math.max(0, Math.floor(baseAtk / 2));
-    unit.maxHp = Math.max(1, Math.floor(baseMaxHp / 2));
-    unit.hp = unit.maxHp;
+  }
+  if (ring || keyword === '復活') {
+    // キーワード復活は元のレーン、指輪復活は従来どおり前衛へ戻す。
+    coreResetRevivalStats(unit);
   } else {
     unit.hp = 1;
   }
   unit.keywords = (unit.keywords || []).filter(x => x !== keyword);
   // 死亡からの復活（キーワード復活・復活の指輪）を数える。手番途中の死亡の判定に使う（根性は死亡ではない）。
-  if (ring || keyword === '復活') unit._coreReviveCount = (Number(unit._coreReviveCount) || 0) + 1;
+  if (ring || keyword === '復活') {
+    unit._coreReviveCount = (Number(unit._coreReviveCount) || 0) + 1;
+    coreQueueRevivedAttacker(unit, state);
+  }
   // 配置・恒久強化の保存先判定に使う旧来の印は維持する。眷属の判定とは独立。
   if (!ring && keyword === '復活') unit._summonedInBattle = true;
   // 復活・根性では出自を変えない。初期配置に新規付与せず、元の眷属は保持する。
   emit({ type: 'revive', side: unit.side, unitId: unit.id, hp: unit.hp, maxHp: unit.maxHp, atk: unit.atk,
     keywords: coreUnitSnapshot(unit).keywords, reason: ring ? 'revival_ring' : keyword });
-  // **復活（再召喚）・復活の指輪では、キーワードの結界を付け直す。** 開戦時にしか付けていなかったため、
-  // 結界持ちが復活しても結界が無かった（利用者報告）。根性は死亡ではないので、残っている結界をそのまま使う。
-  if (ring || keyword === '復活') {
-    const reviveShield = coreUnitShieldValue(unit);
-    unit.shield = reviveShield;
-    if (reviveShield > 0) emit({ type: 'shield_set', side: unit.side, unitId: unit.id, amount: reviveShield });
-    // 召喚されたスケルトン等は復活で能力値を作り直す。眷属への常時指輪修正も
-    // 戻す（初期盤面の復活の既存規則や、値を保持する指輪復活は変更しない）。
-    if (!ring && coreUnitHasKeyword(unit, '眷属')) coreApplySummonEyeRings(state, unit, emit, null, null);
-    // 元眷属の復活もナーガの対象。ただし新規召喚ではないので履歴を増やさない。
-    coreApplyKenzokuScalingBuffs(unit, emit, null, null,
-      (state.units[unit.side] || []).filter(other => other && other !== unit && other.hp > 0),
-      (state._summonCount || {})[unit.side] || 0);
-    // キーワード復活は基礎能力へ戻るので眷属の常時修正も貼り直す。
-    // 指輪復活は能力値を保持するため、結界だけを貼り直し、二重加算しない。
-    coreApplyKenzokuBonuses(state, unit, emit, null, null, { stats: !ring });
-  }
-  // 復活後は次の死亡を新しい1回として扱う。
+  // 復活後の常時修正でHP0になった場合も、新しい衰弱死として解決できるよう先に外す。
   delete unit._coreDeathTriggered;
   delete unit._coreDeathEffectsTriggered;
   delete unit._coreDeathObserved;
+  // **復活（再召喚）・復活の指輪では、キーワードの結界を付け直す。** 開戦時にしか付けていなかったため、
+  // 結界持ちが復活しても結界が無かった（利用者報告）。根性は死亡ではないので、残っている結界をそのまま使う。
+  if (ring || keyword === '復活') {
+    const applyPassives = trackedEmit => {
+      const reviveShield = coreUnitShieldValue(unit);
+      unit.shield = reviveShield;
+      if (reviveShield > 0) trackedEmit({ type: 'shield_set', side: unit.side, unitId: unit.id, amount: reviveShield });
+      // 初期配置・眷属・指輪復活とも、半分の本体へ常時指輪を掛け直す。
+      coreApplyRevivalSelfPassives(state, unit, trackedEmit);
+      coreApplySummonEyeRings(state, unit, trackedEmit, null, null);
+      // 元眷属の復活もナーガの対象。ただし新規召喚ではないので履歴を増やさない。
+      coreApplyKenzokuScalingBuffs(unit, trackedEmit, null, null,
+        (state.units[unit.side] || []).filter(other => other && other !== unit && other.hp > 0),
+        (state._summonCount || {})[unit.side] || 0);
+      coreApplyKenzokuBonuses(state, unit, trackedEmit, null, null);
+    };
+    if (rng) coreWithStatDeathResolution(state, rng, emit, applyHit, applyPassives);
+    else applyPassives(emit);
+  }
   // **どの手段で生き残ったかを返す**（呼び出し側は真偽値としても使える）。
   // 根性だけは「死亡ではない」ため、呼び出し側が負傷効果へ振り分ける。
   return ring ? 'revival_ring' : keyword;
@@ -5763,7 +5851,7 @@ function coreBattleStepInner(ctx) {
       coreTriggerDeath(attacker, state, emit);
       coreApplyDeathEffects(attacker, state, rng, emit, applyHit);
       coreApplyDeathObservers(attacker, state, rng, emit, applyHit);
-      coreTryRevive(attacker, state, emit);
+      coreTryRevive(attacker, state, emit, rng, applyHit);
       result = decided();
       side = foeSide;
       return { side, result, stop: false };
@@ -5859,7 +5947,7 @@ function coreBattleStepInner(ctx) {
       coreTriggerDeath(attacker, state, emit);
       coreApplyDeathEffects(attacker, state, rng, emit, applyHit);
       coreApplyDeathObservers(attacker, state, rng, emit, applyHit);
-      coreTryRevive(attacker, state, emit);
+      coreTryRevive(attacker, state, emit, rng, applyHit);
       result = decided();
       side = foeSide;
       return { side, result, stop: false };
@@ -6129,7 +6217,7 @@ function coreApplyEngravingOpening(state, rng, emit, applyHit) {
     allUnits.forEach(unit => {
       const count = coreEffectCount(unit, '宿業の刻印');
       if (count <= 0 || unit.hp <= 0 || coreIsSealed(unit) || coreUnitIsSilenced(unit)) return;
-      const amount = -coreBoonNamedValue(unit, '宿業の刻印', -coreEngravingStageValue(unit, '宿業の刻印', state), 'mod') * count;
+      const amount = coreFateEngravingPenalty(unit, state);
       const beforeAtk = Math.max(0, Number(unit.atk) || 0);
       const beforeHp = Math.max(0, Number(unit.hp) || 0);
       const beforeMaxHp = Math.max(0, Number(unit.maxHp) || beforeHp);

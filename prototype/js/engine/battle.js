@@ -1176,6 +1176,8 @@ function _battleCutinHost(){
 }
 
 function _showBattleEndFade(){
+  if(typeof stopBattleLabFx==='function') stopBattleLabFx({suspendStates:true});
+  if(typeof stopAllKeywordEffectVfx==='function') stopAllKeywordEffectVfx();
   const el=document.getElementById('battle-end-fade');
   if(!el) return;
   el.style.display='block';

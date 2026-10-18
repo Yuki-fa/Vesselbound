@@ -222,17 +222,30 @@ function _exchangeShopOfferDropAllowedAt(offerIdx){
 }
 function _clearExchangeShopDropHints(){
   document.querySelectorAll('.shop-exchange-drop-hint').forEach(el=>el.classList.remove('shop-exchange-drop-hint','drag-over'));
+  document.querySelectorAll('.shop-exchange-empty-dim').forEach(el=>el.classList.remove('shop-exchange-empty-dim'));
 }
 function _syncExchangeShopDropHints(){
   _clearExchangeShopDropHints();
   if(!_isCardExchangeShop()||!_dragSrc) return false;
   const hint=(el,allowed)=>{if(allowed) el.classList.add('shop-exchange-drop-hint','drag-over');};
   if(_dragSrc.arr==='rew'){
-    document.querySelectorAll('#hand-slots.board-slots > *').forEach((el,idx)=>hint(el,canExchangeShopCardAt(_dragSrc.idx,idx)));
+    const board=(_getPartyBoardUnit()||{}).boardCards||[];
+    document.querySelectorAll('#hand-slots.board-slots > *').forEach((el,idx)=>{
+      hint(el,canExchangeShopCardAt(_dragSrc.idx,idx));
+      el.classList.toggle('shop-exchange-empty-dim',!board[idx]);
+    });
   }else if(_dragSrc.arr==='boardCards'){
     document.querySelectorAll('#reward-offer-row > .rew-card[data-merge-rew-idx]').forEach(el=>hint(el,_exchangeShopOfferDropAllowedAt(Number(el.dataset.mergeRewIdx))));
   }else return false;
   return true;
+}
+function _syncRewardSpecialDropHints(){
+  const card=_dragSrc&&_dragSrc.arr==='rew'?_dragSrcCard():null;
+  const active=!!(card&&!_isItemCard(card)&&!_isSpellCard(card));
+  document.querySelectorAll('#hand-slots.board-slots > .card').forEach(el=>{
+    el.classList.toggle('reward-special-drop-hint',active&&!!el.dataset.mapBoard&&!el.classList.contains('dragging'));
+  });
+  return active;
 }
 // ドラッグ・クリック指定・周回ボットで共用する、ゴールドを動かさない1対1の交換。
 function exchangeShopCard(offerIdx,boardIdx){
@@ -2720,9 +2733,11 @@ function _setDragZoneClass(cls){
   }
   _syncRewardProductionUi();
   _syncExchangeShopDropHints();
+  _syncRewardSpecialDropHints();
 }
 function _clearDragZoneClass(){
   _clearExchangeShopDropHints();
+  document.querySelectorAll('.reward-special-drop-hint').forEach(el=>el.classList.remove('reward-special-drop-hint'));
   _setInvalidBoardOverlayDragDimming(false);
   document.body.classList.remove(..._DRAG_ZONE_CLASSES);
   _clearDragZoneRaise();
@@ -4899,6 +4914,7 @@ function _dragSrcCard(){
 }
 function _syncNpcDropHints(){
   const exchanging=_syncExchangeShopDropHints();
+  const rewardDragging=_syncRewardSpecialDropHints();
   const card=_dragSrcCard();
   const on=!_isCardExchangeShop()&&_cardRequiresDeployableSlot(card);
   const srcIdx=on&&_dragSrc.arr==='boardCards'?_dragSrc.idx:-1;
@@ -4911,7 +4927,7 @@ function _syncNpcDropHints(){
     el.classList.toggle('npc-drop-hint',allowed&&(_boardDropAllowedAt(i)||danger));
     el.classList.toggle('npc-drop-danger',!!danger);
   });
-  return on||exchanging;
+  return on||exchanging||rewardDragging;
 }
 let _npcDropHintFrame=0;
 function _clearNpcDropHints(){

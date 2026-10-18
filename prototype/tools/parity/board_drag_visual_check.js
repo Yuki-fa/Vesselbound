@@ -235,10 +235,8 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       dragEnd(rewardCard);
       _removeDragGhost(); _clearDragZoneClass();
 
-      // 購入不可カードの暗転は、カード購入を維持する行商人で検査する。
-      // 交換専用の魔導店は所持金不足による cant を作らない。
-      G._isShop=true; G._isPeddler=true; G._isRewardTown=true; G._freeRewardPanelMode=false; G.gold=0;
-      document.body.classList.add('peddler-screen-active');
+      // 購入不可カードの暗転は、カード購入が残るオンライン対戦の店で検査する（2026-10-18：通常プレイの魔導店・行商人は交換だけ）。
+      G._isShop=true; G._onlineMode=true; G._isRewardTown=true; G._freeRewardPanelMode=false; G.gold=0;
       const darkEnchant={...prepare(enchantDef),_buyPrice:999999,directions:['up','right']};
       const darkCharacter={...prepare(characterDef),_buyPrice:999999,directions:['up','right','down','left']};
       _rewCards=[darkEnchant,darkCharacter];
@@ -246,7 +244,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
       const darkRewardCard=document.querySelector('.rew-card.cant');
       const darkRewardCharacter=document.querySelectorAll('.rew-card.cant')[1];
-      if(!darkRewardCard||!darkRewardCharacter) throw new Error('行商人のゴールド不足の強化・キャラクターカードが描画されていない');
+      if(!darkRewardCard||!darkRewardCharacter) throw new Error('ゴールド不足の強化・キャラクターカードが描画されていない');
       const darkReward={
         className:darkRewardCard?.className||'',
         card:style(darkRewardCard),
@@ -303,7 +301,7 @@ const near=(a,b,eps=.25)=>Math.abs(Number(a)-Number(b))<=eps;
       return true;
     `);
     const hoverTargets=await browser.eval(`
-      G._isShop=false; G._isPeddler=false; G._isRewardTown=false; G._freeRewardPanelMode=true;
+      G._isShop=false; G._isPeddler=false; G._onlineMode=false; G._isRewardTown=false; G._freeRewardPanelMode=true;
       document.body.classList.remove('peddler-screen-active');
       const hoverDef=PANEL_POOL.find(c=>c.panelScope==='unit'&&['強化','エンチャント'].includes(String(c.category||'')));
       _rewCards=[_preparePanelCard(hoverDef)];

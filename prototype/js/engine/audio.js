@@ -182,7 +182,7 @@ const SFX_SETTINGS={
     C084: {group:'magic',volume:.70,maxPlayMs:0},
     C094: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 chaos-imp 候補2）
     // LABの採用音は同じ基準音量で鳴らす。
-    E006: {group:'magic',volume:.70},
+    E006: {group:'magic',volume:.70,replaceAtVoiceLimit:true}, // 死亡音などで24本埋まっても闇の炎を捨てない
     C024: {group:'magic',volume:.70},
     E035: {group:'magic',volume:.70},
     C039: {group:'magic',volume:.70},
@@ -231,6 +231,7 @@ let _sfxActiveVoices=0;
 const _sfxPlayingByKey=Object.create(null);
 // 鍵ごとに今鳴っている声の解放関数（古い順）。同じ音の本数上限に達した時、いちばん古い声を止めて新しい声に譲る。
 const _sfxReleasersByKey=Object.create(null);
+const _sfxActiveVoiceReleases=new Set();
 // BGMはWeb Audio API（decodeAudioData + AudioBufferSourceNode）で鳴らす。
 // 状態は「いま鳴っている1本（_bgmVoice）」と「その鍵」だけ。
 let _bgmVoice=null;
@@ -335,6 +336,7 @@ function _freeSfxVoice(key,a){
 // BGMは対象外（別経路で管理している）。
 function stopAllSfx(){
   if(typeof document==='undefined') return;
+  _sfxActiveVoiceReleases.forEach(release=>release());
   document.querySelectorAll('audio[data-sfx-voice]').forEach(a=>{
     try{ a.pause(); a.currentTime=0; }catch(e){}
   });
@@ -408,7 +410,14 @@ function playSfx(key,opts={}){
   const guardKey=opts.guardKey||`${groupName}:${key}`;
   const now=performance.now();
   if(now-(_sfxLastPlayed[guardKey]||0)<guardMs) return false;
-  if(_sfxActiveVoices>=SFX_SETTINGS.maxVoices) return false;
+  if(_sfxActiveVoices>=SFX_SETTINGS.maxVoices){
+    // 闇の炎は死亡・反撃の音が重なった瞬間に呼ばれる。上限で無音にせず、
+    // 最も古い声を1本終了して譲る（総発音数・設定音量は増やさない）。
+    if(!(opts.replaceAtVoiceLimit??soundCfg.replaceAtVoiceLimit)) return false;
+    const oldest=_sfxActiveVoiceReleases.values().next().value;
+    if(oldest) oldest();
+    if(_sfxActiveVoices>=SFX_SETTINGS.maxVoices) return false;
+  }
   // **同じ音を同時に何本も重ねない。** 同じ波形が重なると振幅がそのまま足し算に
   // なり、1本では割れない音でも簡単に振り切れる（矢を4本同時に撃つ等）。
   // guardMs=0 で意図的に連射している呼び出しがあるので、ここは本数で止める。
@@ -445,6 +454,7 @@ function playSfx(key,opts={}){
   const release=()=>{
     if(released) return;
     released=true;
+    _sfxActiveVoiceReleases.delete(release);
     if(envelopeTimer!=null) clearInterval(envelopeTimer);
     finishVoice();
     { const list=_sfxReleasersByKey[key]; if(list){ const i=list.indexOf(release); if(i>=0) list.splice(i,1); } }
@@ -454,6 +464,7 @@ function playSfx(key,opts={}){
     _freeSfxVoice(key,a);
   };
   (_sfxReleasersByKey[key]||(_sfxReleasersByKey[key]=[])).push(release);
+  _sfxActiveVoiceReleases.add(release);
   a.addEventListener('ended',release,{once:true});
   a.addEventListener('error',release,{once:true});
   const maxPlayMs=opts.maxPlayMs??soundCfg.maxPlayMs??groupCfg.maxPlayMs;
