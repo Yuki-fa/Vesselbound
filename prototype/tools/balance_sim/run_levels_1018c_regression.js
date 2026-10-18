@@ -161,7 +161,7 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
     const legacy=clone(save);delete legacy.state.player.runLevels;SaveRun.restoreRunState(legacy);assert.deepEqual(G.runLevels,runLevelInitialState());
   });
   fresh();
-  check('レベル再抽選：権利1、元の上昇・下降を取り消して別候補、カード枠・ゴールドは変えない',()=>{
+  check('レベル再抽選：権利を優先（ゴールドは変えない）、権利が無ければ100G、元の上昇・下降を取り消して別候補',()=>{
     G._wave=2;G.runLevels.values={stats:2,familiars:3,modifiers:2,damage:2};
     const before=clone(G.runLevels.values),random=rand;let r;
     try{rand=()=>.52;r=runLevelRollReward(2,before);}finally{rand=random;}
@@ -171,8 +171,14 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
     assert.equal(runLevelRerollReward(),true);assert.notEqual(G.runLevels.reward.id,r.id);
     assert.deepEqual(G.runLevels.reward.before,before);assert.equal(towerBoonState().rerolls,0);assert.equal(G.gold,money);assert.deepEqual(_rewCards,cards);
     assert.equal(G.runLevels.seq,2);assert.equal(Object.values(G.runLevels.counts).reduce((a,b)=>a+b,0),2);
-    const values=clone(G.runLevels.values);assert.equal(runLevelRerollReward(),false);assert.deepEqual(G.runLevels.values,values);
-    const save=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(save);assert.deepEqual(G.runLevels.values,values);assert.equal(towerBoonState().rerolls,0);
+    G.gold=99;const values=clone(G.runLevels.values);assert.equal(runLevelRerollReward(),false);assert.deepEqual(G.runLevels.values,values);
+    assert.deepEqual(towerBoonRerollButtonState(),{visible:true,label:'再抽選（100G）',disabled:true});
+    // 2026-10-19：権利が無ければ100Gで引き直せる（権利は優先して使う）。
+    G.gold=150;assert.equal(towerBoonRerollButtonState().disabled,false);
+    assert.equal(runLevelRerollReward(),true);assert.equal(G.gold,50);assert.equal(towerBoonState().rerolls,0);
+    assert.deepEqual(G.runLevels.reward.before,before);assert.equal(G.runLevels.seq,3);
+    const paid=clone(G.runLevels.values);
+    const save=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(save);assert.deepEqual(G.runLevels.values,paid);assert.equal(towerBoonState().rerolls,0);assert.equal(G.gold,50);
   });
   const store=_storeRewardStartSnapshot;
   try{

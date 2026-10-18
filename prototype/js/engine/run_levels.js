@@ -65,14 +65,20 @@ function runLevelContinueReward(){
   runLevelState().reward.active=false;
   return finishWaveBattleVictory(false);
 }
+// 2026-10-19：店と同じく、再抽選権を優先して使い、無ければ100Gで引き直せる（利用者指定）。
+function runLevelCanReroll(){
+  return runLevelRewardActive()&&towerBoonCanReroll()
+    &&(towerBoonState().rerolls>0||Number(G.gold)>=SHOP_REROLL_COST);
+}
 function runLevelRerollReward(){
   const state=runLevelState(),rights=towerBoonState();
-  if(!runLevelRewardActive()||!towerBoonCanReroll()||rights.rerolls<=0) return false;
-  rights.rerolls--;rights.rerollSeq++;
+  if(!runLevelCanReroll()) return false;
+  if(rights.rerolls>0){rights.rerolls--;rights.rerollSeq++;}
+  else if(spendEventGold(SHOP_REROLL_COST)!==SHOP_REROLL_COST) return false;
   // 前の上昇・下降を取り消し、同じ報酬前のレベルから置き換える。提示履歴は戻さない。
   runLevelRollReward(Number(G._wave)||1,state.reward.before);
   _storeRewardStartSnapshot();
-  renderRewCards();renderHandEditor();renderFieldEditor();renderMoveSlotsInEnemy();
+  renderRewCards();renderHandEditor();renderFieldEditor();renderMoveSlotsInEnemy();updateHUD();
   if(typeof SaveRun!=='undefined') SaveRun.checkpoint('reward');
   return true;
 }

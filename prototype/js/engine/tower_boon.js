@@ -143,11 +143,11 @@ function towerBoonRerollRewards() {
   return true;
 }
 function towerBoonRerollButtonState(){
-  const shop=shopRerollKind(),rights=towerBoonState().rerolls;
-  return {visible:towerBoonRerollVisible(),label:shop&&!rights?`再抽選（${SHOP_REROLL_COST}G）`
+  const shop=shopRerollKind(),level=!shop&&runLevelRewardActive(),rights=towerBoonState().rerolls;
+  return {visible:towerBoonRerollVisible(),label:(shop||level)&&!rights?`再抽選（${SHOP_REROLL_COST}G）`
     :TOWER_BOON_CONFIG.text.reroll.replace('{count}',rights),
-    disabled:shop?!shopCanReroll():!towerBoonCanReroll()||rights<=0
-      ||(!runLevelRewardActive()&&!_rewCards.some(c=>c&&c._isOriginalReward))};
+    disabled:shop?!shopCanReroll():level?!runLevelCanReroll():!towerBoonCanReroll()||rights<=0
+      ||!_rewCards.some(c=>c&&c._isOriginalReward)};
 }
 function towerBoonSyncRerollButton() {
   let button = document.getElementById('tower-boon-reroll-btn');
