@@ -34,7 +34,7 @@ const BYPASSES = [
   '行商人は本体の判定・イベント・品揃えを使用し、会話を即時完了。クエストも会話のonLine/onDoneを実行して本体から受領・達成。初回ホーム・酒場は本体に報酬処理がないため配布を追加しない。',
   'SaveRun.begin 後に種・乱数状態・runId を固定。ラン抽選は本体 SaveRun.random／鍵付き乱数を使用。Math.random（uid・非ラン抽選）と Date.now も周回内で固定。所要時間は別メタデータ。SaveRun.enabled の公開入口は既存loadと同じくfalseで保存再生を開始しない。',
   '指輪の取得は _syncRewardProductionRings が登録する本物の drop ハンドラを空DOM上で実行。還魂の枚数・取得済み処理を複製しない。',
-  '祝福の座は本体openTowerBoonSeat／towerBoonChoose／towerBoonRerollRewardsを使用。scr-village・戻るボタンの空DOMと、選択肢/再抽選ボタンの描画無処理だけを追加。ボス撃破の本体記録関数をコア結果へ呼ぶ。lookaheadの予測だけ固定比較と同じ表示フレーム省略computeを使い、実戦computeBattleは本体のまま。',
+  '祝福の座は廃止。レベル報酬は本体runLevelOpenVictoryRewardを使い、引き直さず受領。店は本体shopRerollOffersで資金に余裕がある時だけ再抽選。再抽選ボタンの描画は無処理。ボス撃破の本体記録関数をコア結果へ呼ぶ。lookaheadの予測だけ固定比較と同じ表示フレーム省略computeを使い、実戦computeBattleは本体のまま。',
   '宿屋の会話選択は _qStartDialogue の受け口で支払可能な最大回復を選ぶ。支払・回復・利用済みは本体 _runVillageInnDialogue。',
 ];
 
@@ -53,7 +53,7 @@ const NOOPS = [
   '_qCustomizeTavernVillage','_qShowTavernResponsePortraits','_qMovePresentationHost',
   'defeatPeddlerApplySaleScene','applyScreenAssetBackground','_setOverrideBackground',
   'markCardAcquired','markCardSeen',
-  'renderTowerBoonChoices','towerBoonSyncRerollButton',
+  'towerBoonSyncRerollButton',
 ];
 
 function install() {

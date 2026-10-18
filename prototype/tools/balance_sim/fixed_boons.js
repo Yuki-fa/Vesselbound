@@ -6,8 +6,8 @@ const mean=xs=>xs.reduce((s,x)=>s+x,0)/xs.length;
 async function blessBoard(board,id){
   return engine.isolated(()=>{
     G.towerBoons=towerBoonInitialState();
-    const money=G.gold;G.gold=towerBoonChoicePrice(id);
-    assert.equal(towerBoonChoose(id),true);G.gold=money;
+    // 旧祝福の互換性を測る固定実験。廃止した購入経路は呼ばない。
+    G.towerBoons.counts[id]=1;
     for(const card of G.mainBoard)if(card)towerBoonBlessGeneratedCard(card);
     return engine.copy(G);
   },{state:board.state,seed:engine.hash(`fixed-boon:${board.id}:${id}`)});
@@ -42,7 +42,7 @@ async function main(args=process.argv.slice(2)){
   const rows=(await runJobs(jobs,{workers:o.workers,label:'固定盤面の祝福比較'})).flat(),summaries=aggregate(rows),ids=TOWER_BOON_CONFIG.blessings.filter(b=>b.field).map(b=>b.id);
   const values=Object.fromEntries(ids.map(id=>[id,mean(summaries.filter(r=>r.id===id).map(r=>r.meanGainWinPt))]));
   const result={schemaVersion:1,options:o,elapsedMs:performance.now()-start,config:engine.copy(TOWER_BOON_CONFIG),sourceHashes:engine.sourceHashes(),boardFiles,scriptHash:engine.sha(fs.readFileSync(__filename,'utf8')),summaries,values,
-    method:'標準盤面の全キャラクター・エンチャントへ1回分。複製Gで本体towerBoonChooseを実行しtowerBoonBlessGeneratedCardを各個体に使用。盤面・所持金・アイテム・指輪は固定し購入費は差し引かない。既存の合体・永久強化後の個体へ付与し、取得からの履歴は再実行しない。敵/戦闘seedは基準と共通。6・7は周回で測る。'};
+    method:'標準盤面の全キャラクター・エンチャントへ1回分。複製Gで旧祝福の個体をtowerBoonBlessGeneratedCardで作成。購入経路は廃止済み。盤面・所持金・アイテム・指輪は固定し購入費は差し引かない。既存の合体・永久強化後の個体へ付与し、取得からの履歴は再実行しない。敵/戦闘seedは基準と共通。6・7は周回で測る。'};
   fs.mkdirSync(o.out,{recursive:true});fs.writeFileSync(path.join(o.out,'boon_comparisons.jsonl'),rows.map(r=>JSON.stringify(r)).join('\n')+'\n');fs.writeFileSync(path.join(o.out,'boon_values.json'),JSON.stringify(result,null,2)+'\n');
   csv(path.join(o.out,'boons.csv'),summaries);csv(path.join(o.out,'boon_boards.csv'),rows.map(({cards,...r})=>({...r,baseWins:r.baseWins.join('|'),wins:r.wins.join('|'),hpDeltas:r.hpDeltas.join('|'),damageDeltas:r.damageDeltas.join('|'),bonus:JSON.stringify(r.bonus)})));
   console.log(`祝福比較完了 ${(result.elapsedMs/1000).toFixed(2)}秒 ${JSON.stringify(values)}`);return result;

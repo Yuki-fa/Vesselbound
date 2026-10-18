@@ -5176,6 +5176,7 @@ function _stageEngravingDescription(card,desc){
 }
 function _rawSubstitutedDesc(card){
   if(!card) return '';
+  if(card.type==='panel'&&card._mainBoardSlot==null) card=runLevelBattleCard(card);
   const g=card.grade||1;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
   const ownName=String(card.name||'').trim();

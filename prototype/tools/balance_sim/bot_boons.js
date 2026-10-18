@@ -1,47 +1,23 @@
 'use strict';
-const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-const {placement,score}=require('./policies'),lookahead=require('./lookahead'),{nextBattle}=require('./bot_sandbox');
-const SETTINGS={
-  greedy:{priority:['stats','damage','rerolls','modifiers','familiars','bosses','mana'],reserve:80,maxPerVisit:2},
-  color:{priority:['stats','modifiers','bosses','damage','familiars','rerolls','mana'],reserve:80,maxPerVisit:2},
-  enchant:{priority:['damage','modifiers','rerolls','familiars','stats','mana','bosses'],reserve:80,maxPerVisit:2},
-  mana:{priority:['mana','familiars','bosses','stats','modifiers','damage','rerolls'],reserve:80,maxPerVisit:2},
-  lookahead:{reserve:80,maxPerVisit:2},
-  planner:{reserve:80,maxPerVisit:2},
-};
-const LIMITS={weakGain:12,maxRerollsPerReward:3,bossValueFactor:.25,rerollValueFactor:.5};
-let measured;
-function measuredValues(){
-  if(measured)return measured;
-  const file=path.join(__dirname,'fixed/boon_values.json'),data=JSON.parse(fs.readFileSync(file,'utf8'));
-  for(const relative of ['js/battle/core.js','js/battle/formation.js','js/engine/tower_boon.js']){
-    const hash=crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'../..',relative))).digest('hex');
-    if(hash!==data.sourceHashes[relative])throw Error('祝福の固定評価が本体の版と異なる。fixed_boons.jsを先に実行する: '+relative);
-  }
-  measured={values:data.values,sourceHashes:data.sourceHashes,boardFiles:data.boardFiles};return measured;
+const {placement,score}=require('./policies'),lookahead=require('./lookahead');
+const SETTINGS=Object.fromEntries(['greedy','color','enchant','mana','lookahead','planner'].map(policy=>
+  [policy,{reserve:300,maxShopRerolls:1,rerollLevels:false}]));
+const LIMITS={weakGain:12,maxRerollsPerReward:3};
+// レベル報酬は引き直さず受け取る。既存の権利はカード報酬と店に温存する。
+function acceptLevelReward(policy,record){
+  if(!runLevelRewardActive()) return false;
+  const reward=runLevelState().reward;
+  record({type:'level_reward',id:reward.id,lowered:reward.lowered,before:clone(reward.before),after:clone(reward.after),rerolled:false});
+  return true;
 }
-function value(policy,id){
-  const state=towerBoonState(),count=state.counts[id]||0,setting=SETTINGS[policy];
-  if(policy!=='lookahead')return (setting.priority.length-setting.priority.indexOf(id))/(1+count);
-  const values=measuredValues().values,best=Math.max(0,...Object.values(values));
-  const v=id==='bosses'?(state.defeatedBosses.length?best*LIMITS.bossValueFactor:0):id==='rerolls'?best*LIMITS.rerollValueFactor:Math.max(0,values[id]||0);
-  return v/(1+count);
-}
-async function visit(policy,record,ctx={color:'',policy}){
-  const setting=SETTINGS[policy];openTowerBoonSeat();
-  const choices=_towerBoonChoices.slice();
-  const prices=Object.fromEntries(choices.map(id=>[id,towerBoonChoicePrice(id)]));
-  record({type:'boon_visit',choices,prices,gold:G.gold,reserve:setting.reserve,nextPrice:Math.min(...Object.values(prices))});
-  if(!nextBattle())return;
-  for(let i=0;i<setting.maxPerVisit;i++){
-    const state=towerBoonState(),affordable=choices.filter(id=>G.gold-towerBoonChoicePrice(id)>=setting.reserve);
-    if(!affordable.length)break;
-    const chosen=policy==='planner'?await lookahead.chooseBoon(ctx,affordable):null;
-    const ranked=policy==='planner'?[]:affordable.map(id=>({id,value:value(policy,id)})).sort((a,b)=>b.value-a.value||a.id.localeCompare(b.id));
-    const best=policy==='planner'?(chosen?.action?{id:chosen.action.boon,value:chosen.value.total-chosen.baseline.total}:null):ranked[0];if(!best||best.value<=0)break;
-    const gold=G.gold,price=towerBoonChoicePrice(best.id);if(!towerBoonChoose(best.id))throw Error('本体の祝福購入が実行できない');
-    record({type:'boon_purchase',id:best.id,choices,price,purchaseNumber:state.purchases,goldBefore:gold,goldAfter:G.gold,reserve:setting.reserve,value:best.value,counts:{...state.counts},...(policy==='planner'?{forecast:chosen.value,baseline:chosen.baseline,horizonDecision:chosen.horizonDecision}: {})});
-  }
+function rerollShop(policy,record){
+  const setting=SETTINGS[policy];
+  if(!shopCanReroll()||(!towerBoonState().rerolls&&G.gold<SHOP_REROLL_COST+setting.reserve))return false;
+  const gold=G.gold,rights=towerBoonState().rerolls,kind=shopRerollKind();
+  if(!shopRerollOffers())throw Error('条件を満たした店の再抽選を実行できない');
+  record({type:'shop_reroll',kind,goldBefore:gold,goldAfter:G.gold,remainingBefore:rights,
+    remainingAfter:towerBoonState().rerolls,reserve:setting.reserve});
+  return true;
 }
 async function quality(policy,ctx){
   if(['lookahead','planner'].includes(policy)){
@@ -57,7 +33,7 @@ async function quality(policy,ctx){
 }
 async function rerollIfWeak(policy,ctx,{record,recordOffers}){
   for(let i=0;i<LIMITS.maxRerollsPerReward;i++){
-    if(!towerBoonCanReroll()||towerBoonState().rerolls<=0||!_rewCards.some(c=>c?._isOriginalReward))break;
+    if(runLevelRewardActive()||shopRerollKind()||!towerBoonCanReroll()||towerBoonState().rerolls<=0||!_rewCards.some(c=>c?._isOriginalReward))break;
     const q=await quality(policy,ctx);if(!q.weak)break;
     const before=_rewCards.filter(Boolean).map(c=>c.name),balance=towerBoonState().rerolls;
     recordOffers(_rewCards,'reward:reroll_before');
@@ -65,4 +41,4 @@ async function rerollIfWeak(policy,ctx,{record,recordOffers}){
     record({type:'boon_reroll',before,after:_rewCards.filter(Boolean).map(c=>c.name),remainingBefore:balance,remainingAfter:towerBoonState().rerolls,quality:q});
   }
 }
-module.exports={SETTINGS,LIMITS,measuredValues,value,visit,quality,rerollIfWeak};
+module.exports={SETTINGS,LIMITS,acceptLevelReward,rerollShop,quality,rerollIfWeak};

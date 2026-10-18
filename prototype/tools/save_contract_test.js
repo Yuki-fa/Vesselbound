@@ -117,17 +117,17 @@ const {launch}=require('./parity/headless');
         &&isShopReturnable(G.spellSlots[itemSlot]));
       SaveRun.restoreRunState(townStart);showScreen('battle');G._isVillageMenu=false;G._waveVillage=false;
       G._peddlerStock=_buildDefeatPeddlerStock();goToReward({noNewRewards:true,peddler:true});
-      const peddlerIdx=_rewCards.findIndex(c=>c&&c.panelScope==='unit'&&!_cardIsEngraved(c)),peddlerCard=_rewCards[peddlerIdx];
-      const peddlerSlot=G.mainBoard.findIndex((c,i)=>!c&&_canCardUseBoardSlot(peddlerCard,i,_getPartyBoardUnit()));
-      check('行商人の購入対象と空きマスがある',peddlerIdx>=0&&peddlerSlot>=0&&peddlerCard._buyPrice>0);
-      G.gold=0;const peddlerStock=SaveRun.copy(_rewCards),peddlerBoard=SaveRun.copy(G.mainBoard);
-      takeRewCard(peddlerIdx,peddlerSlot);
-      check('行商人はゴールド不足なら購入しない',G.gold===0&&!G._pendingPanelPlacement
-        &&sameSaved(_rewCards,peddlerStock)&&sameSaved(G.mainBoard,peddlerBoard));
-      G.gold=peddlerCard._buyPrice+100;takeRewCard(peddlerIdx,peddlerSlot);
-      check('行商人のカード購入でacquired・支払・在庫・配置を更新',
-        SaveProfile.load().cards[SaveProfile.identity(peddlerCard).id]?.acquired&&G.gold===100&&_rewCards[peddlerIdx]===null
-        &&SaveProfile.identity(G.mainBoard[peddlerSlot])?.id===SaveProfile.identity(peddlerCard).id);
+      // 2026-10-18：敗北時の行商人も魔導店と同じ交換だけの店（購入は無い）。取得記録は交換で付く。
+      const peddlerPair=_rewCards.flatMap((offer,shopIdx)=>G.mainBoard.map((held,boardIdx)=>({offer,held,shopIdx,boardIdx})))
+        .find(p=>p.offer&&p.held&&SaveProfile.identity(p.offer)?.id!==SaveProfile.identity(p.held)?.id&&canExchangeShopCardAt(p.shopIdx,p.boardIdx));
+      check('行商人は価格なしの商品を並べ、交換できる既存カードがある',!!peddlerPair&&_rewCards.filter(Boolean).every(c=>!('_buyPrice' in c)));
+      const peddlerCount=G.mainBoard.filter(Boolean).length;G.gold=0;
+      const peddlerDone=takeRewCard(peddlerPair.shopIdx,peddlerPair.boardIdx);
+      await new Promise(r=>setTimeout(r,80));
+      check('行商人の交換でacquired・入れ替え・ゴールドと盤面枚数を維持',peddlerDone===true
+        &&SaveProfile.load().cards[SaveProfile.identity(peddlerPair.offer).id]?.acquired
+        &&SaveProfile.identity(G.mainBoard[peddlerPair.boardIdx])?.id===SaveProfile.identity(peddlerPair.offer).id
+        &&G.gold===0&&G.mainBoard.filter(Boolean).length===peddlerCount);
       SaveRun.restoreRunState(townStart);
       openMapVillage({restoreCheckpoint:true});const current=loadRun();
       SaveRun.restoreRunState(current);G._waveVillage=false;G._isWaveAltar=false;G._isVillageMenu=false;G._isShop=false;G._isForge=false;G._isItemShop=false;G._isRingExchange=false;G.phase=null;G._waveRewardCount=3;

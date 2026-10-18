@@ -1,6 +1,6 @@
 /* 第2段：WebPは色・形・動きの参考だけ。描画は汎用部品の宣言データ。
  * SEは変更しない。実ゲームの尺・合図は共通入口の値をdurationMsへ渡す。
- * 着地の金輪は560msから薄れ始め、980msで消す。
+ * 着地の砂煙は560msから薄れ始め、980msで消す（2026-10-19 砂煙主体・カード幅に作り直し）。
  * 2026-10-12 ゲーム内の旧／新比較：新32種の描画面・濃さを調整（尺・命中・SEは入口のまま）。
  * 2026-10-12 第2回：範囲内17種を維持。15種の光の濃さ・層順・広がりを調整。
  * 2026-10-12 第3回：範囲内29種を維持。波の面を0.90倍、魔導板の緑/青の濃さを0.82/0.65倍へ。
@@ -16850,7 +16850,7 @@ VbFxDefs.register({
     },
     {
       "name": "opening-sigil",
-      "label": "着地の金輪 · appearance",
+      "label": "着地の砂煙 · appearance",
       "sourceCode": "appearance_sheet",
       "ms": 1470,
       "color": "#c9b67a",
@@ -16876,8 +16876,362 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "type": "glow",
-          "color": "#4a3a20",
+          "color": "#8a7350",
           "texture": "smoke",
+          "variant": 0,
+          "offset": [
+            0,
+            0.27
+          ],
+          "aspect": [
+            2.1,
+            0.8
+          ],
+          "time": [
+            0.4,
+            1
+          ],
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.06,
+                  0.85
+                ],
+                [
+                  0.3,
+                  0.62
+                ],
+                [
+                  0.75,
+                  0.18
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.06
+                ],
+                [
+                  1,
+                  0.14
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 2
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0.35
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#5c4a33",
+          "texture": "smoke",
+          "variant": 2,
+          "offset": [
+            0,
+            0.295
+          ],
+          "aspect": [
+            2.5,
+            0.65
+          ],
+          "time": [
+            0.4,
+            1
+          ],
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.08,
+                  0.6
+                ],
+                [
+                  0.35,
+                  0.4
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.05
+                ],
+                [
+                  1,
+                  0.115
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 2
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  -0.3
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "ballistic",
+          "count": 7,
+          "emission": "rect",
+          "offset": [
+            -0.05,
+            0.28
+          ],
+          "extent": [
+            0.05,
+            0.015
+          ],
+          "direction": [
+            3.12,
+            3.55
+          ],
+          "directionSpace": "absolute",
+          "speed": [
+            0.28,
+            0.5
+          ],
+          "drag": 3.2,
+          "gravity": [
+            0,
+            -0.05
+          ],
+          "lifeMs": [
+            480,
+            760
+          ],
+          "delayMs": [
+            0,
+            60
+          ],
+          "sizeRange": [
+            0.06,
+            0.095
+          ],
+          "sizeEnd": 2,
+          "particleRotation": [
+            0,
+            6.28
+          ],
+          "spin": [
+            -1.2,
+            1.2
+          ],
+          "texture": "smoke",
+          "color": "#957b54",
+          "time": [
+            0.4,
+            1
+          ],
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.1,
+                  0.8
+                ],
+                [
+                  0.45,
+                  0.5
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 7,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "ballistic",
+          "count": 7,
+          "emission": "rect",
+          "offset": [
+            0.05,
+            0.28
+          ],
+          "extent": [
+            0.05,
+            0.015
+          ],
+          "direction": [
+            -0.41,
+            0.02
+          ],
+          "directionSpace": "absolute",
+          "speed": [
+            0.28,
+            0.5
+          ],
+          "drag": 3.2,
+          "gravity": [
+            0,
+            -0.05
+          ],
+          "lifeMs": [
+            480,
+            760
+          ],
+          "delayMs": [
+            0,
+            60
+          ],
+          "sizeRange": [
+            0.06,
+            0.095
+          ],
+          "sizeEnd": 2,
+          "particleRotation": [
+            0,
+            6.28
+          ],
+          "spin": [
+            -1.2,
+            1.2
+          ],
+          "texture": "smoke",
+          "color": "#957b54",
+          "time": [
+            0.4,
+            1
+          ],
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.1,
+                  0.8
+                ],
+                [
+                  0.45,
+                  0.5
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 13,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "ballistic",
+          "count": 9,
+          "emission": "rect",
+          "offset": [
+            0,
+            0.25
+          ],
+          "extent": [
+            0.17,
+            0.03
+          ],
+          "direction": [
+            -2.2,
+            -0.95
+          ],
+          "directionSpace": "absolute",
+          "speed": [
+            0.08,
+            0.16
+          ],
+          "drag": 1.4,
+          "gravity": [
+            0,
+            -0.03
+          ],
+          "lifeMs": [
+            600,
+            900
+          ],
+          "delayMs": [
+            30,
+            120
+          ],
+          "sizeRange": [
+            0.05,
+            0.085
+          ],
+          "sizeEnd": 1.8,
+          "particleRotation": [
+            0,
+            6.28
+          ],
+          "texture": "smoke",
+          "color": "#a48a62",
           "time": [
             0.4,
             1
@@ -16894,8 +17248,8 @@ VbFxDefs.register({
                   0.5
                 ],
                 [
-                  0.6,
-                  0.3
+                  0.5,
+                  0.34
                 ],
                 [
                   1,
@@ -16903,53 +17257,62 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
-            },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.35
-                ],
-                [
-                  1,
-                  0.95
-                ]
-              ],
-              "interpolation": "ease-out"
-            },
-            "rotation": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  1,
-                  0.6
-                ]
-              ],
-              "interpolation": "linear"
             }
           }
         },
         {
           "anchor": "source",
           "basis": "unit",
-          "seedOffset": 0,
+          "seedOffset": 21,
           "intrinsicAlpha": true,
-          "type": "ring",
-          "geometry": "superellipse",
-          "radius": 1,
-          "pad": 0.03,
-          "color": "#ffd870",
-          "width": 4,
-          "widthSpace": "pixel",
-          "noise": 0,
-          "strokeProfile": "halo",
-          "core": 0.6,
+          "type": "particles",
+          "motion": "ballistic",
+          "count": 12,
+          "emission": "rect",
+          "offset": [
+            0,
+            0.29
+          ],
+          "extent": [
+            0.12,
+            0.01
+          ],
+          "direction": [
+            -2.75,
+            -0.4
+          ],
+          "directionSpace": "absolute",
+          "speed": [
+            0.35,
+            0.75
+          ],
+          "drag": 1.6,
+          "gravity": [
+            0,
+            1.6
+          ],
+          "lifeMs": [
+            320,
+            560
+          ],
+          "delayMs": [
+            0,
+            50
+          ],
+          "sizeRange": [
+            0.004,
+            0.0075
+          ],
+          "particleRotation": [
+            0,
+            6.28
+          ],
+          "shape": "rough-polygon",
+          "color": "#9c8458",
+          "blend": "normal",
           "time": [
             0.4,
-            0.85
+            1
           ],
           "curves": {
             "alpha": {
@@ -16959,40 +17322,11 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.08,
-                  1
+                  0.06,
+                  0.9
                 ],
                 [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "power-out",
-              "exponent": 1.3
-            }
-          }
-        },
-        {
-          "anchor": "source",
-          "basis": "unit",
-          "seedOffset": 0,
-          "intrinsicAlpha": true,
-          "type": "ring",
-          "color": "#ffe6a0",
-          "width": 1,
-          "widthSpace": "pixel",
-          "noise": 0.05,
-          "strokeProfile": "halo",
-          "core": 0.25,
-          "time": [
-            0.4,
-            0.85
-          ],
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
+                  0.6,
                   0.7
                 ],
                 [
@@ -17000,34 +17334,7 @@ VbFxDefs.register({
                   0
                 ]
               ],
-              "interpolation": "power-out",
-              "exponent": 1.4
-            },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.3
-                ],
-                [
-                  1,
-                  1.0
-                ]
-              ],
-              "interpolation": "ease-out"
-            },
-            "width": {
-              "keys": [
-                [
-                  0,
-                  14
-                ],
-                [
-                  1,
-                  3
-                ]
-              ],
-              "interpolation": "linear"
+              "interpolation": "smooth"
             }
           }
         },
@@ -17037,30 +17344,38 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "type": "glow",
-          "blend": "normal",
+          "offset": [
+            0,
+            0.3
+          ],
+          "aspect": [
+            3.2,
+            0.32
+          ],
+          "blend": "add",
           "time": [
             0.4,
-            0.8
+            0.72
           ],
           "stops": [
             [
               0,
-              "#fffbe8",
-              0.85
+              "#fff4cc",
+              0.95
             ],
             [
-              0.3,
-              "#ffd870",
+              0.35,
+              "#ffd27a",
               0.55
             ],
             [
               0.7,
-              "#8a6a20",
-              0.15
+              "#a87a2c",
+              0.18
             ],
             [
               1,
-              "#3a2a08",
+              "#5a3c10",
               0
             ]
           ],
@@ -17072,7 +17387,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.1,
+                  0.06,
                   1
                 ],
                 [
@@ -17081,76 +17396,21 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "power-out",
-              "exponent": 1.3
+              "exponent": 1.6
             },
             "radius": {
               "keys": [
                 [
                   0,
-                  0.25
+                  0.03
                 ],
                 [
                   1,
-                  0.75
+                  0.075
                 ]
               ],
-              "interpolation": "ease-out"
-            }
-          }
-        },
-        {
-          "anchor": "source",
-          "basis": "unit",
-          "seedOffset": 0,
-          "intrinsicAlpha": true,
-          "type": "particles",
-          "motion": "ballistic",
-          "emit": "burst",
-          "count": 14,
-          "sizeRange": [
-            0.03,
-            0.06
-          ],
-          "speed": [
-            0.5,
-            1.1
-          ],
-          "drag": 2.0,
-          "gravity": [
-            0,
-            0.7
-          ],
-          "lifeMs": [
-            350,
-            650
-          ],
-          "delayMs": [
-            0,
-            40
-          ],
-          "texture": "plasma",
-          "color": "#ffd060",
-          "emissionArc": [
-            3.3,
-            6.1
-          ],
-          "time": [
-            0.4,
-            1
-          ],
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  1
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "linear"
+              "interpolation": "power-out",
+              "exponent": 2
             }
           }
         },
@@ -17162,7 +17422,7 @@ VbFxDefs.register({
           "type": "card",
           "time": [
             0.4,
-            0.8
+            0.7
           ],
           "holdEnd": true,
           "filterOrder": [
@@ -17173,7 +17433,7 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  1.4
+                  1.22
                 ],
                 [
                   1,

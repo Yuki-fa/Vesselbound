@@ -790,6 +790,7 @@ function _startWaveBattle(stage){
   startBattle();
 }
 function _startWaveFlowNext(){
+  if(runLevelRewardActive()) return runLevelContinueReward();
   if(!guardRingExchangeDeparture()) return false;
   // オンラインの編成マスで敗れたクエスト戦は、サーバーへ準備完了を送る前に
   // 同じ対象戦を再開する。送信してしまうとraw stageが進み、受託済みQ004の
@@ -871,6 +872,7 @@ function finishWaveBattleVictory(showVictoryIntro){
   const type=G._waveBattleType;
   const stage=Number(G._waveStage)||1;
   const wave=Math.max(1,Number(G._wave)||1);
+  if(runLevelOpenVictoryReward(type,showVictoryIntro)) return true;
   const runTransition=fn=>{
     if(!showVictoryIntro){ fn(); return; }
     showVictoryOverlay(()=>{

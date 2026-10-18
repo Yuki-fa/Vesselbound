@@ -5,8 +5,6 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
-const os=require('node:os');
-const {spawnSync}=require('node:child_process');
 const {initialize,simulateRun}=require('./run_bot');
 const lookahead=require('./lookahead');
 const sandbox=require('./bot_sandbox');
@@ -141,48 +139,37 @@ async function main(args=process.argv.slice(2)) {
       });
     }finally{Object.assign(planner.LIMITS,limits);}
   }
-  if(baseline.meta.towerBoon){
-    check('塔の祝福：全データ・全方針の提示・祝福別価格・支払・残すGが本体どおり',()=>{
-      for(const data of datasets)assert.equal(data.meta.towerBoon.priceBasis,'perBlessing');
-      for(const data of datasets)for(const policy of new Set(data.rows.map(r=>r.policy))){
-        const runs=data.rows.filter(r=>r.policy===policy),visits=runs.flatMap(r=>r.actions.filter(a=>a.type==='boon_visit')),buys=runs.flatMap(r=>r.actions.filter(a=>a.type==='boon_purchase'));
-        if(data.meta.towerBoon.mode==='on'){assert.ok(visits.length,policy);assert.ok(buys.length,policy);}
-        for(const row of runs){
-          const seats=row.actions.filter(a=>a.type==='boon_visit'),purchases=row.actions.filter(a=>a.type==='boon_purchase');
-          assert.equal(seats.length,row.towerBoons.visits);assert.equal(purchases.length,row.towerBoons.purchases);
-          assert.equal(row.actions.filter(a=>a.type==='facility'&&a.key==='towerBoon').length,seats.length);
-          for(const seat of seats){assert.equal(seat.choices.length,TOWER_BOON_CONFIG.choiceCount);assert.equal(new Set(seat.choices).size,TOWER_BOON_CONFIG.choiceCount);assert.ok(row.route.some(n=>n.type==='altar'&&n.wave===seat.wave&&n.stage===seat.stage));}
-          const counts={};let number=0;
-          for(const a of row.actions){
-            if(a.type==='boon_visit'){
-              assert.deepEqual(a.prices,Object.fromEntries(a.choices.map(id=>[id,towerBoonPrice(counts[id])])));
-              assert.equal(a.nextPrice,Math.min(...Object.values(a.prices)));
-            }else if(a.type==='boon_purchase'){
-              assert.equal(a.purchaseNumber,++number);assert.ok(a.choices.includes(a.id));assert.equal(a.price,towerBoonPrice(counts[a.id]));assert.equal(a.goldBefore-a.goldAfter,a.price);assert.ok(a.goldAfter>=a.reserve);
-              counts[a.id]=(counts[a.id]||0)+1;assert.deepEqual(a.counts,counts);
-            }
-          }
-          for(const b of TOWER_BOON_CONFIG.blessings)assert.equal(row.towerBoons.counts[b.id]||0,purchases.filter(p=>p.id===b.id).length);
+  if(baseline.meta.runLevels){
+    check('全周回：祝福購入なし、レベル候補・連続禁止・上下と提示履歴が本体どおり',()=>{
+      for(const data of datasets)for(const row of data.rows){
+        assert.ok(!row.actions.some(a=>['boon_visit','boon_purchase'].includes(a.type)));
+        assert.equal(row.towerBoons.purchases,0);assert.equal(row.towerBoons.visits,0);
+        let values=coreNormalizeRunLevels(),previous=null;const counts={};
+        const levels=row.actions.filter(a=>a.type==='level_reward');
+        for(const a of levels){
+          assert.deepEqual(a.before,values);assert.notEqual(a.id,previous);previous=a.id;
+          const [kind,amount]=a.id.split(':');assert.ok(Object.keys(values).includes(kind));
+          assert.ok(Number(amount)===1||(a.wave>=2&&Number(amount)===2));
+          values[kind]+=Number(amount);
+          if(a.lowered){assert.notEqual(a.lowered,kind);assert.ok(values[a.lowered]>=2);values[a.lowered]--;}
+          assert.deepEqual(a.after,values);assert.equal(a.rerolled,false);counts[a.id]=(counts[a.id]||0)+1;
+        }
+        assert.deepEqual(row.runLevels.values,values);assert.deepEqual(row.runLevels.counts,counts);assert.equal(row.runLevels.seq,levels.length);
+      }
+    });
+    check('店の再抽選：1来店1回、権利優先／100G、支払い後300G以上、行商人では使わない',()=>{
+      for(const data of datasets)for(const row of data.rows){
+        const seen=new Set();
+        for(const a of row.actions.filter(a=>a.type==='shop_reroll')){
+          const key=`${a.wave}:${a.stage}:${a.kind}`;assert.ok(!seen.has(key));seen.add(key);
+          assert.ok(['shop','item','forge'].includes(a.kind));
+          if(a.remainingBefore>0){assert.equal(a.remainingAfter,a.remainingBefore-1);assert.equal(a.goldAfter,a.goldBefore);}
+          else{assert.equal(a.goldBefore-a.goldAfter,100);assert.ok(a.goldAfter>=a.reserve);}
         }
       }
     });
-    check('祝福7：実周回で再抽選を使用し、本体の消費回数と記録が一致',()=>{
-      const rerolls=baseline.rows.flatMap(r=>r.actions.filter(a=>a.type==='boon_reroll'));
-      if(baseline.meta.towerBoon.mode==='on')assert.ok(rerolls.length>0,'自然周回で再抽選がない');
-      for(const row of baseline.rows)assert.equal(row.towerBoons.rerollSeq,row.actions.filter(a=>a.type==='boon_reroll').length);
-      for(const a of rerolls){assert.equal(a.remainingBefore-a.remainingAfter,1);assert.ok(a.remainingAfter>=0);assert.ok(a.quality.weak);}
-    });
-    check('祝福6：本体で撃破ボスを記録し、報酬/行商人の提示に出現',()=>{
-      const buyers=baseline.rows.filter(r=>r.towerBoons.counts.bosses);
-      if(baseline.meta.towerBoon.mode==='on')assert.ok(buyers.length>0,'自然周回で祝福6の購入がない');
-      if(baseline.meta.towerBoon.mode==='on')assert.ok(buyers.some(r=>r.offers.some(o=>o.card.towerBoonBoss)),'撃破ボスが提示されない');
-      else assert.equal(buyers.length,0);
-      for(const r of buyers)for(const o of r.offers.filter(o=>o.card.towerBoonBoss))assert.ok(r.towerBoons.defeatedBosses.some(b=>b.name===o.card.name));
-    });
     const shopProbe=await require('./boon_shop_probe').probe();
-    fs.writeFileSync(path.join(path.dirname(baseline.file),'boon_shop_probe.json'),JSON.stringify(shopProbe,null,2)+'\n');
-    check(`祝福6の魔導店経路：${shopProbe.samples}店舗の生成${shopProbe.generated}枚・最終提示${shopProbe.offered}枚を照合`,()=>{assert.ok(shopProbe.generated>0);assert.equal(shopProbe.offered,shopProbe.generated);});
-    if(shopProbe.knownIssue)knownIssues.push(shopProbe.knownIssue);
+    check('旧祝福6：購入せず旧保存を再現し、撃破ボスが魔導店の最終提示へ残る',()=>{assert.ok(shopProbe.generated>0);assert.equal(shopProbe.offered,shopProbe.generated);});
   }
   if(baseline.meta.botVersion>=2) {
     check('指定方針の規定周回数（第2段はlookaheadとplannerを各200周）',()=>{
@@ -267,37 +254,17 @@ async function main(args=process.argv.slice(2)) {
       replayChecks.push({dataset:path.dirname(data.file),policy,seed:selected.seed});
     }
   }
-  if(baseline.meta.towerBoon){
-    const candidate=baseline.rows.find(r=>r.actions.some(a=>a.type==='boon_purchase'))||baseline.rows.find(r=>r.route.some(n=>n.type==='altar'));
-    assert.ok(candidate,'off検査用の塔到達seedがある');
+  if(baseline.meta.runLevels){
+    const candidate=baseline.rows.find(r=>r.actions.some(a=>a.type==='level_reward'));
+    assert.ok(candidate,'レベル報酬のあるseed');
     const off=await simulateRun({seed:candidate.seed,policy:candidate.policy,storyCycle:candidate.storyCycle,towerBoon:'off'}),again=await simulateRun({seed:candidate.seed,policy:candidate.policy,storyCycle:candidate.storyCycle,towerBoon:'off'});
-    check('--tower-boon off：同じseedで再現し、訪問・購入・再抽選・祝福カードが全てない',()=>{
-      assert.deepEqual(off,again);assert.equal(off.towerBoons.visits,0);assert.equal(off.towerBoons.purchases,0);assert.equal(off.towerBoons.rerollSeq,0);assert.ok(!off.actions.some(a=>/^boon_/.test(a.type)));assert.ok(!off.offers.some(o=>o.card.boon||o.card.towerBoonBoss));
+    check('旧CLIのoffは再現可能、廃止した施設を復活させず、通常のレベル報酬は得る',()=>{
+      assert.deepEqual(off,again);assert.equal(off.towerBoons.visits,0);assert.equal(off.towerBoons.purchases,0);
+      assert.ok(off.actions.some(a=>a.type==='level_reward'));assert.ok(!off.actions.some(a=>['boon_visit','boon_purchase'].includes(a.type)));
     });
-    const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'vb-boon-off-'));
-    try{
-      const result=spawnSync(process.execPath,[path.join(__dirname,'run_bot.js'),'--runs','2','--policy',candidate.policy,'--seed',String(candidate.seed),'--workers','2','--tower-boon','off','--out',temporary],{encoding:'utf8',maxBuffer:2*1024*1024});
-      check('--tower-boon offのCLIと並列子プロセスでも施設を使用しない',()=>{assert.equal(result.status,0,result.stderr);const data=readInput(temporary);assert.equal(data.meta.options.towerBoon,'off');for(const row of data.rows){assert.equal(row.towerBoons.visits,0);assert.equal(row.towerBoons.purchases,0);assert.equal(row.towerBoons.rerollSeq,0);}assert.deepEqual(data.rows[0],off);});
-    }finally{fs.rmSync(temporary,{recursive:true,force:true});}
-    const beforeFile=path.join(__dirname,'out_before_shop_exchange/meta.json');
-    if(fs.existsSync(beforeFile))check('変更前の戦闘コア・出撃生成・内蔵シートを保持（編成の出発可否だけ更新）',()=>{
-      const old=JSON.parse(fs.readFileSync(beforeFile,'utf8'));
-      for(const name of ['js/battle/core.js','js/data/local_xlsx_data.js'])assert.equal(baseline.meta.sourceHashes[name],old.sourceHashes[name],name);
-      // 更新前のbuildBoardFormation本体のSHA256。出発ボタンの判定変更は戦闘入力を変えない。
-      const builder=source('js/battle/formation.js').match(/^function buildBoardFormation\([^\n]*\) \{[\s\S]*?^\}/m)[0];
-      assert.equal(crypto.createHash('sha256').update(builder).digest('hex'),'d6fa0fd2601f411af2bbc34d3d8660d607f606abee1b3827c7e759fc879ed71f');
-    });
-    api.cycle=1;api.seed=993;api.resetRun();initState();SaveRun.begin();G.gold=10000;G._waveLife=3;G.life=3;G._wave=1;G._waveStage=_waveRouteForWave(1).indexOf('altar')+1;G._isWaveAltar=true;
-    _giveInitialRandomBoardCards();
-    const prior=JSON.stringify(G.mainBoard),seatActions=[];
-    await boons.visit('greedy',a=>seatActions.push(a));
-    check('十分な資金の制御例：本体の3択から訪問上限2回を祝福別価格で購入',()=>{assert.equal(seatActions.filter(a=>a.type==='boon_visit').length,1);assert.equal(seatActions.filter(a=>a.type==='boon_purchase').length,2);assert.equal(towerBoonState().purchases,2);for(const a of seatActions.filter(a=>a.type==='boon_purchase'))assert.equal(a.goldBefore-a.goldAfter,towerBoonPrice(a.counts[a.id]-1));});
-    for(let i=0;i<2;i++){const money=G.gold,price=towerBoonChoicePrice('rerolls');assert.equal(towerBoonChoose('rerolls'),true);assert.equal(money-G.gold,price);}
-    check('祝福購入は既存盤面に遡及しない',()=>assert.equal(JSON.stringify(G.mainBoard),prior));
-    openMapVillage({tower:true});G._waveStage=2;G.phase=null;G._isWaveAltar=false;G._isVillageMenu=false;goToReward({checkpoint:true});
-    const count=towerBoonState().rerolls,actions=[],limit=boons.LIMITS.weakGain;boons.LIMITS.weakGain=Infinity;
-    try{await boons.rerollIfWeak('greedy',{color:''},{record:a=>actions.push(a),recordOffers:()=>{}});}finally{boons.LIMITS.weakGain=limit;}
-    check('再抽選の受け口：本体の権利付与・提示更新・1回消費・元報酬フラグを使う',()=>{assert.ok(count>0);assert.equal(actions.length,count-towerBoonState().rerolls);assert.ok(actions.length>0);assert.ok(_rewCards.filter(Boolean).every(c=>c._isOriginalReward));});
+    await require('./debug_cards_1018c_regression').testDebugCards(api);
+    await require('./shop_reroll_1018c_regression').testShopReroll(api,check);
+    await require('./run_levels_1018c_regression').testRunLevels(api,check);
   }
   check('異なるseedで結果が変わる',()=>assert.notDeepEqual(baseline.rows[0],baseline.rows.find(r=>r.seed!==baseline.rows[0].seed)));
   check('集計の提示・採用・保持率が有効な範囲',()=>{

@@ -486,7 +486,6 @@ const VILLAGE_FACILITY_DEFS={
   '祭壇':     {key:'ringExchange'},
   '踊り場':   {key:'landing'},
   '五聖の座': {key:'landing'},
-  [TOWER_BOON_CONFIG.name]: {key:TOWER_BOON_CONFIG.key},
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導店／魔道店、旧称ショップ）を吸収した候補名を返す。
 function villageFacilityNameVariants(name){
@@ -519,7 +518,6 @@ const VILLAGE_FACILITY_FALLBACK_DESC={
 // 施設ボタンの表示名は「テキストメッセージ」シートの「街「◯◯」ボタン」行から引く。
 // シートに行が無ければ地域情報シートの施設名をそのまま出す。
 function villageFacilityLabelText(name){
-  if(name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.name;
   const variants=villageFacilityNameVariants(name);
   const prefixes=(G&&G._isWaveAltar)?['塔','街']:['街','塔'];
   for(const pre of prefixes){
@@ -539,7 +537,6 @@ function _villageLifeFull(){
   return life>=max;
 }
 function villageFacilityDescText(name){
-  if(name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.description;
   const variants=villageFacilityNameVariants(name);
   if(variants.includes('五聖の座')&&(!_fiveSaintsUnlocked()
     ||(typeof fiveSaintsCurrentTowerResolved==='function'&&fiveSaintsCurrentTowerResolved()))){
@@ -640,7 +637,6 @@ const TOWER_FACILITY_POS={
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋）を吸収して個別配置を引く。
 function _villageFacilityFixedPos(name){
-  if(G&&G._isWaveAltar&&name===TOWER_BOON_CONFIG.name) return TOWER_BOON_CONFIG.position;
   const wave=Math.max(0,Number(G&&G._wave)||0);
   const table=(G&&G._isWaveAltar)?TOWER_FACILITY_POS:(VILLAGE_FACILITY_POS_BY_WAVE[wave]||null);
   const variants=villageFacilityNameVariants(name);
@@ -675,8 +671,6 @@ function villageFacilityList(){
   const raw=(G&&G._isWaveAltar)?(info&&info.towerFacilities):(info&&info.townFacilities);
   const names=String(raw||'').split(/[、,／\/]/).map(s=>s.trim()).filter(Boolean);
   if(!names.length&&G&&G._isWaveAltar) names.push('祭壇');
-  // 試験施設だけコードで末尾へ追加。五聖の座の解放・周回判定を共有しない。
-  if(G&&G._isWaveAltar) names.push(TOWER_BOON_CONFIG.name);
   return (names.length?names:['ショップ']).filter(name=>{
     const def=VILLAGE_FACILITY_DEFS[name]||null;
     // 1周目は塔の「五聖の座」自体を描画しない。
@@ -917,7 +911,7 @@ async function _onVillageFacility(fac){
       return;
     }finally{ if(isCurrent()) G._villageFacilityBusy=false; }
   }
-  if(['ringExchange','library','landing',TOWER_BOON_CONFIG.key].includes(fac.key)){
+  if(['ringExchange','library','landing'].includes(fac.key)){
     return fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
   }
   return _enterVillageFacilityNow(fac);
@@ -953,7 +947,6 @@ function _revealFacilityUi(){
   window.setTimeout(()=>{ try{ cover.remove(); }catch(_e){} },FACILITY_UI_FADE_MS+120);
 }
 function _enterVillageFacilityNow(fac){
-  if(fac.key===TOWER_BOON_CONFIG.key){ openTowerBoonSeat(); return; }
   if(fac.key==='shop'||fac.key==='forge'||fac.key==='item'){
     // 施設は既存の編成画面（#scr-battle上の報酬UI）をそのまま使う。
     // 左上のラベルは「編成」ではなくシートに書かれた施設名にする。
@@ -1416,8 +1409,7 @@ function renderVillageScreen(){
   if(departReset) departReset.style.display='';
   const info=regionInfoForWave(G&&G._wave);
   // 五聖の座の中は、左上に塔の名前ではなく「五聖の座」見出しを出す（2026-10-01 利用者指摘）。
-  const name=G&&G._isTowerBoon?TOWER_BOON_CONFIG.name
-    :(G&&G._isFiveSaints&&typeof fiveSaintsRewardTitle==='function')
+  const name=(G&&G._isFiveSaints&&typeof fiveSaintsRewardTitle==='function')
     ?String(fiveSaintsRewardTitle()||'五聖の座')
     :(G&&G._isWaveAltar)
     ?String((info&&info.towerName)||'塔')
@@ -1469,7 +1461,7 @@ function renderVillageScreen(){
   const depart=document.getElementById('village-depart-btn');
   if(depart){
     depart.onclick=villageDepart;
-    syncRingExchangeDepartureButton(depart,!G._isTowerBoon&&!G._isFiveSaints&&!G._isTavern&&!G._isLibraryMenu);
+    syncRingExchangeDepartureButton(depart,!G._isFiveSaints&&!G._isTavern&&!G._isLibraryMenu);
     // 酒場では同じボタンの文字を「店を出る」に書き換える（quest.js _qCustomizeTavernVillage）。
     // 街・塔の画面では必ず「出発する」に戻す（酒場の後の塔で「店を出る」のままだった。2026-09-25 利用者指摘）。
     const departLabel=textMessage('「出発する」ボタン','出発する');
@@ -1598,9 +1590,6 @@ async function _playVillageEnterIntro(build,beforeReveal){
 // 施設から「店を出る」で戻る場合はfalse（演出なしで即表示）。
 // options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
-  G._isTowerBoon=false;
-  document.body.classList.remove('tower-boon-active');
-  document.getElementById('tower-boon-choices')?.remove();
   G._savePresentation=false;
   _clearShopPortrait();
   // 店で「別れる」を選んだ直後など、致死クエスト会話が必要でも、
@@ -2889,14 +2878,18 @@ function _ensureWaveShopStock(){
   G._waveShopStock[waveKey]=clone(stock);
   return clone(stock);
 }
-function _ensureWaveItemShopStock(){
-  const waveKey=_waveFacilityCacheKey();
-  if(G._waveItemShopStock&&Array.isArray(G._waveItemShopStock[waveKey])) return clone(G._waveItemShopStock[waveKey]);
+function _drawItemShopStock(){
   // **店の在庫であることを明示する。** 在庫は店へ入る前に作られるので、
   // G._isItemShop などの画面フラグはまだ立っていない。
   const stock=(typeof drawItems==='function'?drawItems(3,undefined,{forShop:true}):[]).filter(Boolean);
   stock.forEach(it=>{it._buyPrice=_shopBuyPriceWithRings(_itemShopBuyPrice(it));});
   while(stock.length<3) stock.push(null);
+  return stock;
+}
+function _ensureWaveItemShopStock(){
+  const waveKey=_waveFacilityCacheKey();
+  if(G._waveItemShopStock&&Array.isArray(G._waveItemShopStock[waveKey])) return clone(G._waveItemShopStock[waveKey]);
+  const stock=_drawItemShopStock();
   G._waveItemShopStock=G._waveItemShopStock||{};
   G._waveItemShopStock[waveKey]=clone(stock);
   return clone(stock);
@@ -2908,6 +2901,37 @@ function _ensureWaveForgeOffers(){
   G._waveForgeOffers=G._waveForgeOffers||{};
   G._waveForgeOffers[waveKey]=clone(offers);
   return clone(offers);
+}
+const SHOP_REROLL_COST=100;
+function shopRerollKind(){
+  if(G._onlineMode||G.phase!=='reward'||G._isPeddler) return '';
+  return G._isForge?'forge':G._isItemShop?'item':G._isShop?'shop':'';
+}
+function shopCanReroll(){
+  return !!shopRerollKind()&&towerBoonCanReroll()
+    &&(towerBoonState().rerolls>0||Number(G.gold)>=SHOP_REROLL_COST);
+}
+function shopRerollOffers(){
+  if(!shopCanReroll()) return false;
+  const kind=shopRerollKind(),rights=towerBoonState();
+  if(rights.rerolls>0){rights.rerolls--;rights.rerollSeq++;}
+  else if(spendEventGold(SHOP_REROLL_COST)!==SHOP_REROLL_COST) return false;
+  G._shopRerollSeq=(Number(G._shopRerollSeq)||0)+1;
+  const waveKey=Number(G._facilityCacheKey)||_waveFacilityCacheKey();
+  const key=`shop-reroll:${waveKey}:${kind}:${G._shopRerollSeq}`;
+  if(kind==='shop'){
+    _rewCards.filter(c=>c&&!c._towerBoonBoss).forEach(returnPanelToSalePool);
+    _rewCards=_drawExchangeShopStock(key);
+  }else if(kind==='item') _rewCards=runWithKeyedRandom(key,_drawItemShopStock);
+  else G._mapForgeOffers=runWithKeyedRandom(key,_pickMapForgeOffers);
+  _syncWaveFacilityCache();
+  // 元に戻すで支払い・在庫だけを巻き戻し、引き直しを無料化しない。
+  // 施設を出る際の保存判定は、入店時との差分を別に保持する。
+  const changed=_facilityCommitStateChanged();
+  _storeRewardStartSnapshot();
+  if(changed&&G._rewardStartSnapshot) G._rewardStartSnapshot.facilityRerolled=true;
+  renderRewCards();renderHandEditor();renderFieldEditor();renderMoveSlotsInEnemy();updateHUD();
+  return true;
 }
 function _ensureWaveRingExchange(){
   const waveKey=_waveFacilityCacheKey();
@@ -3075,6 +3099,8 @@ function mapForgePrice(power){
   return favor&&favor.discount>0?Math.round(base*(1-favor.discount)):base;
 }
 function renderMapForgeOffers(){
+  towerBoonSyncRerollButton();
+  requestAnimationFrame(towerBoonSyncRerollButton);
   const section=document.getElementById('reward-offer-section');
   const row=document.getElementById('reward-offer-row');
   if(!section||!row) return;

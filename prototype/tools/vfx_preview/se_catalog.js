@@ -845,7 +845,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 200,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "（2026-10-18 結界の接触音と同じ高さへ約2半音上げた）",
       "edit": {
@@ -901,8 +901,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.625708,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "魔法陣の軽い湧き出し。候補1は形の発生を強調",
       "sha256": "9fecb5bfe5a0f688de6cfe9dab53581140fb2fd29fe3531eb34d8f71540650de"
     },
@@ -949,8 +949,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.655729,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "被弾後の短い小魔法。候補1は形の発生を強調",
       "sha256": "623df500c440a077188fd6e37ede23a8907a6a7b86478347adb8f0d92e2450ec"
     },
@@ -997,8 +997,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.263917,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "声を使わない魂の浮上。候補1は形の発生を強調",
       "sha256": "3ee8574e7a95c1ca258ce19d8a238a2f4e87aa4e89f00aca2a1cc50a07c980bf"
     },
@@ -1093,8 +1093,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.284083,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "軽い旋風と風切り。候補1は形の発生を強調",
       "sha256": "dc00c5c84c2a3a4bf7a8ef95ec872ef077094a7d3003e8cbab05e2cd2cfd17cd"
     },
@@ -1221,7 +1221,7 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.867437,
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "血の吸い上げと魔力への転換。候補3は余韻の違いを比較",
       "sha256": "81fc69931774c58fef63518a4bf489a1a20db9a20d0957939642e00dd2745028"
@@ -1237,8 +1237,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.833771,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "黒紫の弾の短い射出。候補1は形の発生を強調",
       "sha256": "6f040512f93a93802f86465faa8b3671307f6fa4d0d269be8964cc6a6df30b62"
     },
@@ -1333,8 +1333,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.218375,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "眷属の霊火を再点火する波。候補1は形の発生を強調",
       "sha256": "7db091584d1390ef8a4323f65eb46ea2c97bb16cd66e6891684a92974833819a"
     },
@@ -1383,7 +1383,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 800,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "紫の接続線を伝わる脈動。候補1は形の発生を強調（2026-10-18 途切れる感じがしたので長めに切り、末尾を0.8秒で消した）",
       "edit": {
@@ -1483,8 +1483,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.384333,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "花弁紋章の生成と小さな膨張。候補1は形の発生を強調",
       "sha256": "7aff08df08dfcc9b508a1c1cb0bf897307fd38ef076bb28bf093ad57725a0eb7"
     },
@@ -1595,7 +1595,7 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.2575,
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "赤い怒りの閃光と割り込み突進。候補2は質感の違いを比較",
       "sha256": "e57d5195505855a24abff7533db51a25c956f1eff398adf3c23d2ac328ead6e4"
@@ -1923,7 +1923,7 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.923583,
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "歪んだ稲妻と開戦効果の再点火。候補2は質感の違いを比較",
       "sha256": "f5650a3113ce015155f1bfcbe3fec823c4d39d6bd6446e01eebd3b0e655e4331"
@@ -1957,7 +1957,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "薙ぎ払う炎の帯：鞭のような火炎・火炎放射の持続音・バーナーの噴射",
       "sha256": "390b323fb304a90a16bb01249530de84d47d36443c377730aa2bbc65933aecfc"
@@ -2011,7 +2011,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "小さな魔法陣が開いて弾ける：澄んだ詠唱の発光",
       "sha256": "c9461ca0ca3975e8ec6370e7e0f41b519e2e42bf8ae0310783e5cb6accce33a7"
@@ -2083,7 +2083,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "打撃を受け止める：盾・鎧の重い衝撃と赤い魔力の弾き",
       "sha256": "f4376316a75504902b6418e999645219125c173a811bbe3310946377a7135d48"
@@ -2119,7 +2119,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "炎が内へ締まって熱い核になる",
       "sha256": "606a517a965e651de0d37d24dd66df29d45278f2e5d0be311bd248a63a49f567"
@@ -2317,7 +2317,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "魔眼の放電と石化のひび割れ",
       "sha256": "e76b2fa408cb66d3181fda7165995476e183d6ca375e4eb5d2bcfdb666f3785a"
@@ -2397,7 +2397,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 900,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "毒の付与：酸の詠唱・泡立つ毒（2026-10-18 最後が急に切れたので長めに切り、末尾を0.9秒で消した）",
       "edit": {
@@ -2545,7 +2545,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "魔法の矢の発射：矢が飛ぶ風切り・弓の弦・青い魔力",
       "sha256": "eda7561fc0013ac399fb7e8ca51508abb229bc03a5890aef132570c2fe74a3f3"
@@ -2599,7 +2599,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "青い魔力の着弾",
       "sha256": "d060f446bfb28efb96ac71ed7a8a50951cf98ddaeb74d395ace725025bb10f26"
@@ -2707,7 +2707,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "翠の風が渦を巻く常時の強化",
       "sha256": "2600bf76e518849f5adc879b078c24fb94abdf284e419442507e29712095a250"
@@ -2761,7 +2761,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "味方全体への熱波：大きな火炎の詠唱・炎の召喚・火球の爆風",
       "sha256": "96a599f623adce5dc10f5e0655bc5d3486d728a118fb4ad9e945be74787e0abe"
@@ -2779,7 +2779,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "竜の契約：火球が尾を引いて飛び、着弾で炎が爆ぜる（炎の塊・爆発・鞭打つ炎）",
       "sha256": "aefcd16b1cabbd933b5416353fcc5f11e136954ef1215db6e97b6f7cec0b7c12"
@@ -2857,7 +2857,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 900,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "逆上：傷から怒りの赤い破片が飛んで刺さる（小さな炎の魔法・炎をまとって飛ぶ風切り・火のはぜる音）（2026-10-18 末尾が切れて聞こえたので長めに切り、末尾を0.9秒で消した）",
       "edit": {
@@ -2897,7 +2897,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "嵐の指輪：暗雲から敵全体へ雷が2度落ちる（落雷・激しい電撃・雷鳴）",
       "sha256": "e3d0017a3c0776917538d095e9b49c0781927eb40a453f2747de0b82e13ad91b"
@@ -3188,7 +3188,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "呪い・憎悪の指輪：敵に黒紫の呪いの紋がまとわりつく（呪詛・呪いの効果音・不気味な結晶）",
       "sha256": "acdf6b9a07029908a0760cd0bb9f52449e8243a9ee4b6b2cbf2d4ea340956ca5"
@@ -3304,7 +3304,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "ヴォイド・ウォーカー：虚空の渦から紫の稲妻が走り熟練の紋が刻まれる（黒い魔法・小さな電撃・不気味な結晶）",
       "sha256": "854ee4c7dc8a384cb4c4e4f9a8f0b06d0b1e8536910a74596121c2cd1faaa9e9"
@@ -3358,7 +3358,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "シンドリ等：金の紋の輪が味方へ縮み、刃のような金の縁が刻まれる（白い召喚魔法・澄んだ金属の響き・白い弾き）",
       "sha256": "5ad7522be83f2f66e771bf95c0d3fc1bcb1b610614bbfa21190abf0e9d3683a0"
@@ -3700,7 +3700,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "受難の刻印：刻印が割れて紅の呪いが味方へ飛び、痛みが刻まれる（刺す音・黒い召喚魔法・酸の命中）",
       "sha256": "335de286e8f74ba0051362c48eb4ba68db2934a01d528bb3ac8a5a69f1e7000f"
@@ -3754,7 +3754,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "レムレース：青白い魂が渦を巻いて集まり、死者を呼び戻す（霊的な響き・白い召喚魔法・揺らぐ鐘）",
       "sha256": "50451e283aa5e560e774510234e57eedf01f069d9011eed89a4e66173eb256ff"
@@ -3844,7 +3844,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "不死の指輪：死霊術の陣が開き、骨の光の柱が立つ（暗い霊的な一撃・骨のきしみ・黒い召喚魔法）",
       "sha256": "4674acb8da6e9a6b9182185b38da2caa2d8a670514a5498d63bec00b980fb4ef"
@@ -3862,7 +3862,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "鬼神の指輪：紅蓮の陣と炎の柱（炎の魔法・大きな炎の魔法・炎の弾き）",
       "sha256": "8520fb1f88672089e9df3d9e2ad4a9686022d104f2046499237d5b3987342063"
@@ -3970,7 +3970,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "共鳴の力：金の波紋が重なる（鐘の響き・重なる鈴・別の鐘の響き）（2026-10-18 高音を約-7dB下げた）",
       "edit": {
@@ -4029,7 +4029,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "複製の力：鏡の光が走り、写しが生まれる（結晶の砕け・凍る結晶・白い魔法）",
       "sha256": "5d3a8bdb8c9ac2c8c36232fd9c4c8b624ab96544599543d5194b733d308c0c57"
@@ -4101,7 +4101,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "威圧の指輪：暗い紅の重圧がのしかかる（暗い鐘の一撃・邪悪な気配・蝕む魔法）",
       "sha256": "7af058b816c5f22c7c776d839d739ff41c4a1a8326343ad0aba08c176cf1a8d5"
@@ -4155,7 +4155,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "魔力の指輪：蒼い魔力の結晶が弾ける（水の魔法・凍る結晶・小さな電撃）",
       "sha256": "155ffe49ae810afc39011399c5b00254a83560ef67453732ad9ed29839c2cb52"

@@ -164,8 +164,7 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
     if(tower)await api.arrival.tower();else await api.arrival.town();
     await api.drain();
     if(G.gold!==arrivalGold)row.actions.push({type:'quest_reward',gold:G.gold-arrivalGold,wave:G._wave,stage:G._waveStage});
-    for(const key of ['home','tavern','inn','shop','item','forge','ringExchange','towerBoon']) {
-      if(key==='towerBoon'&&towerBoon==='off')continue;
+    for(const key of ['home','tavern','inn','shop','item','forge','ringExchange']) {
       const fac=facs.find(f=>f.key===key);
       if(!fac||_villageFacilityDisabled(fac)) continue;
       row.actions.push({type:'facility',key,wave:G._wave,stage:G._waveStage});
@@ -188,23 +187,26 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
             }
           }
         }
-      } else if(key==='towerBoon') {
-        await boons.visit(policy,a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage}),ctx);
-        refresh('boon');
       } else if(key==='inn') {
         const talk=_facilityGreetingEntry(fac);
         if(talk) await _runVillageInnDialogue(talk);
       } else if(key==='shop'||key==='item') {
         if(key==='shop') openMapShop();else openMapItemShop();
         if(key==='shop')await exchangeCards();else await takeCards(key,{shop:true});
+        if(boons.rerollShop(policy,a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage}))){
+          if(key==='shop')await exchangeCards('shop:reroll');else await takeCards('item:reroll',{shop:true});
+        }
         await useItems();
         _syncWaveFacilityCache();
       } else if(key==='forge') {
         openMapForge();
+        for(let attempt=0;attempt<=boons.SETTINGS[policy].maxShopRerolls;attempt++){
         const offers=(G._mapForgeOffers||[]).filter(Boolean).sort((a,b)=>
           (b.id==='summon'?10:0)-(a.id==='summon'?10:0));
         for(const power of offers) if(mapForgePrice(power)<=G.gold && _mapForgeCandidateSlots(power).length) {
           if(await applyPendingMapForgePower(power)) row.actions.push({type:'forge',power:power.id,wave:G._wave,stage:G._waveStage});
+        }
+          if(attempt===boons.SETTINGS[policy].maxShopRerolls||!boons.rerollShop(policy,a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage})))break;
         }
         _syncWaveFacilityCache();
       } else if(key==='ringExchange') {
@@ -286,7 +288,8 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
         await facilityTurn();
       } else {
         // 5枚提示から1枚だけ選び、編成を整えて次の戦闘へ。
-        if(G._isPeddler){row.actions.push({type:'peddler',wave:G._wave,stage:G._waveStage,stock:_rewCards.map(cardInfo)});await exchangeCards('peddler');}
+        if(runLevelRewardActive()){boons.acceptLevelReward(policy,a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage}));}
+        else if(G._isPeddler){row.actions.push({type:'peddler',wave:G._wave,stage:G._waveStage,stock:_rewCards.map(cardInfo)});await exchangeCards('peddler');}
         else if(!G._battleDefeatHandled){
           if(towerBoon==='on')await boons.rerollIfWeak(policy,ctx,{record:a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage}),recordOffers});
           await takeCards('reward');
@@ -309,7 +312,7 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
     row.deathBattle=!row.clear?row.battles.at(-1)||null:null;
     row.color=ctx.color;
     row.lookahead={...lookahead.stats};row.questProgress=clone(G.questProgress);
-    row.towerBoons=clone(towerBoonState());
+    row.towerBoons=clone(towerBoonState());row.runLevels=clone(runLevelState());
     row.synergy=planner.describe();
     if(policy==='planner'){row.planner=planner.end(ctx);if(plannerStage==='r2')row.horizon=horizon.end();}
     const unique=new Map();for(const c of row.combos) unique.set(`${c.enchant}\0${c.body}`,c);
@@ -380,9 +383,9 @@ async function main(args=process.argv.slice(2)) {
   } finally {fs.closeSync(fd);}
   const elapsedMs=wall.now()-start;
   const files=['js/engine/main.js','js/engine/map.js','js/engine/pool.js','js/engine/enemy.js','js/engine/reward.js',
-    'js/engine/reward_items.js','js/engine/render.js','js/engine/battle.js','js/engine/tower_boon.js','js/engine/peddler.js','js/battle/core.js','js/battle/formation.js','js/save/run_save.js','js/data/local_xlsx_data.js'];
-  const meta={schemaVersion:SCHEMA_VERSION,botVersion:9,trial:{panelMerge:PANEL_MERGE_TRIAL.enabled,exchangeItemSale:false},policyCounts:counts,policyElapsedMs:policyElapsed,lookahead:{...lookahead.DEFAULTS},planner:planner.weights(opts.plannerStage,opts.plannerWeightsFile?JSON.parse(fs.readFileSync(opts.plannerWeightsFile,'utf8')).weights:undefined),horizon:horizon.LIMITS,options:{...opts,overrideFile:opts.overrideFile?path.basename(opts.overrideFile):null},
-    towerBoon:{mode:opts.towerBoon,priceBasis:'perBlessing',settings:boons.SETTINGS,limits:boons.LIMITS,config:clone(TOWER_BOON_CONFIG),lookaheadValues:opts.towerBoon==='on'?boons.measuredValues():null},
+    'js/engine/reward_items.js','js/engine/render.js','js/engine/battle.js','js/engine/tower_boon.js','js/engine/run_levels.js','js/engine/peddler.js','js/battle/core.js','js/battle/formation.js','js/save/run_save.js','js/data/local_xlsx_data.js'];
+  const meta={schemaVersion:SCHEMA_VERSION,botVersion:10,trial:{panelMerge:PANEL_MERGE_TRIAL.enabled,exchangeItemSale:false},policyCounts:counts,policyElapsedMs:policyElapsed,lookahead:{...lookahead.DEFAULTS},planner:planner.weights(opts.plannerStage,opts.plannerWeightsFile?JSON.parse(fs.readFileSync(opts.plannerWeightsFile,'utf8')).weights:undefined),horizon:horizon.LIMITS,options:{...opts,overrideFile:opts.overrideFile?path.basename(opts.overrideFile):null},
+    runLevels:{config:clone(RUN_LEVEL_CONFIG),settings:boons.SETTINGS,limits:boons.LIMITS,shopRerollCost:SHOP_REROLL_COST},
     completed,elapsedMs,msPerRun:elapsedMs/completed,policies:Object.fromEntries(names.map(n=>[n,policies[n].description])),
     catalog:cards,override:override,overrideNotes:notes,bypasses:BYPASSES,noopFunctions:NOOPS,
     unsupported:['初回ストーリーのホーム・酒場は本体にカード配布なし（通常クエストはstory-cycle 2で受託）','追撃戦・専用出発イベント型クエストはAIが選ばない','闘技場','五聖の座の刻印と隠しステージ5',

@@ -50,32 +50,23 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | K018_gain | shield-gain | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Deflect Spell-01.wav | 1.2秒 | 0.22 |
 | K020_gain | revive-gain | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Chime 01.wav | 0.999秒 | 0.24 |
 
-## 2026-10-12追加：仮（候補1・利用者未選択）
+## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 
-以下の21行は正式採用ではなく、候補1をゲーム確認用に新規配置したもの。原音・既存assetsは変更していない。聴感未確認。
+10/12に仮配置した候補1のうち利用者がOKとしたもの（サテュロス・ヘカトンケイル・ゾンビ・シルフ・フィーンド・リリス）と、2026-10-18に利用者がLABで選んだ候補（台帳 adopted_1018.json）。ゲームの assets/sfx に配置済み。
 
 | 番号 | 演出 | 元の素材 | 長さ | peak |
 |---|---|---|---|---|
 | C004 | satyr | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav | 1.950000秒 | 0.625708 |
 | C020 | hecatoncheir | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-02.wav | 1.950000秒 | 0.655729 |
 | C021 | zombie | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav | 1.950000秒 | 0.263917 |
-| C060 | behemoth | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav | 1.950000秒 | 0.480000 |
 | C064 | sylph | Adobe/UI・電子音・マルチメディア系/Multimedia Internet CD-Rom Flash Whoosh Short 01.wav | 0.877062秒 | 0.284083 |
-| C071 | nymph | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav | 1.950000秒 | 0.736167 |
 | C089 | familiar | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-01.wav | 1.95秒 | 0.867437 |
 | C099 | fiend | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav | 1.950000秒 | 0.833771 |
 | C029 | phantom | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav | 1.95秒 | 0.218375 |
 | C034 | eidolon | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav | 1.95秒 | 0.218375 |
 | C082 | arch-demon | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav | 2.6秒 | 0.774937 |
-| C083 | gremlin | Adobe/工業・工場・機械系/Industry Metal Clink Gear Fast 06.wav | 0.317458秒 | 0.017667 |
 | C095 | lilith | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-04.wav | 1.950000秒 | 0.384333 |
-| C097 | overlord | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav | 1.950000秒 | 0.480000 |
 | C009 | minotaur | Adobe/火・炎・爆発/Fire Fireball Large 02.wav | 1.06917秒 | 0.2575 |
-| C042 | sleep-sheep | The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-02.wav | 1.950000秒 | 0.433979 |
-| C056 | scylla | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav | 1.950000秒 | 0.450000 |
-| C066 | undine | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav | 1.950000秒 | 0.169250 |
-| C079 | spriggan | Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Wood Tree Branches Breaking And Crunching 01.wav | 1.950000秒 | 0.480000 |
-| C084 | incubus | The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 02-01.wav | 1.950000秒 | 0.270292 |
 | C094 | chaos-imp | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-03.wav | 1.95秒 | 0.923583 |
 | E008 | dragon-pact | Adobe/火・炎・爆発/Fire Fireball Large 01.wav | 1.09638秒 | 0.228604 |
 | R041 | curse-ring | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-03.wav | 1.95秒 | 0.45 |
@@ -103,5 +94,21 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | map:resonance | map-resonance | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Hit 10.wav | 1.95秒 | 0.072292 |
 | R016 | intimidate-ring | Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Ghostly Presences Vol. 1/AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav | 1.95秒 | 0.45 |
 | shield_break | shield-break | The Vault/Broken/Sounds/分割/BROKEN - DESIGNED - WINDSHIELD Glass Stress and Pop-01.wav | 1.2秒 | 0.318812 |
+
+## 2026-10-12追加：仮（候補1・利用者未選択）
+
+以下は正式採用ではなく、候補1をゲーム確認用に新規配置したまま利用者の選択が無いもの。原音・既存assetsは変更していない。
+
+| 番号 | 演出 | 元の素材 | 長さ | peak |
+|---|---|---|---|---|
+| C060 | behemoth | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav | 1.950000秒 | 0.480000 |
+| C071 | nymph | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav | 1.950000秒 | 0.736167 |
+| C083 | gremlin | Adobe/工業・工場・機械系/Industry Metal Clink Gear Fast 06.wav | 0.317458秒 | 0.017667 |
+| C097 | overlord | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav | 1.950000秒 | 0.480000 |
+| C042 | sleep-sheep | The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-02.wav | 1.950000秒 | 0.433979 |
+| C056 | scylla | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav | 1.950000秒 | 0.450000 |
+| C066 | undine | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav | 1.950000秒 | 0.169250 |
+| C079 | spriggan | Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Wood Tree Branches Breaking And Crunching 01.wav | 1.950000秒 | 0.480000 |
+| C084 | incubus | The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 02-01.wav | 1.950000秒 | 0.270292 |
 
 2026-10-15：C056（スキュラ）は「SEが急に止まる」との指摘で候補を作り直し、新しい候補1を仮に配置（末尾400msのcos²フェード）。

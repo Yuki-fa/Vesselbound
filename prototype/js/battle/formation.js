@@ -69,6 +69,11 @@ function formationAssignSlot(occupied, preferredSlot, from, to) {
 //   ここは意図的な差分なので、変える場合はAGENTS.mdの登録表を更新すること。
 function buildBoardFormation(board, opts) {
   const options = opts || {};
+  const originalBoard = board;
+  const levels = options.levels || (typeof runLevelBattleValues === 'function' ? runLevelBattleValues() : null);
+  if (board && Object.values(coreNormalizeRunLevels(levels)).some(n => n > 1)) {
+    board = { ...board, boardCards: (board.boardCards || []).map(card => coreApplyCardRunLevels(card, levels)) };
+  }
   const persistEternal = !!options.persistEternal;
   const stageNumber = Math.max(1, Math.floor(Number(options.stageNumber)
     || Number(typeof G !== 'undefined' && G && G._wave) || 1));
@@ -96,6 +101,13 @@ function buildBoardFormation(board, opts) {
         panel.power = nextPower; panel.life = nextLife;
         if (panel.atk != null) panel.atk = panel.power;
         if (panel.hp != null) panel.hp = panel.life;
+        const original = originalBoard && originalBoard.boardCards[idx];
+        if (original && original !== panel) {
+          original.power = (Number(original.power ?? original.atk) || 0) + 1;
+          original.life = (Number(original.life ?? original.hp) || 1) + 1;
+          if (original.atk != null) original.atk = original.power;
+          if (original.hp != null) original.hp = original.life;
+        }
       } else {
         sourcePanel = { ...panel, power: nextPower, life: nextLife };
         if (panel.atk != null) sourcePanel.atk = nextPower;
@@ -126,6 +138,7 @@ function buildBoardFormation(board, opts) {
         : null;
       if (!unit) continue;
       if(panel.boon) unit.boon={...panel.boon};
+      if(panel._runLevelsApplied) unit._runLevelsApplied={...panel._runLevelsApplied};
       // 復活の半減基準は接続強化・常時修正を得る前のカード本体（祝福込み）。
       if (typeof coreStampUnitBaseStats === 'function') coreStampUnitBaseStats(unit);
       if((panel.boon||contributingPanels.some(entry=>(entry.panel||entry).boon))
@@ -211,12 +224,13 @@ function boardHasDeployableCharacter(board) {
 
 // 戦闘終了時の「永久に+X/+Y」の保存先。PvE／オンラインの受け口はこの共通関数を
 // 呼び、魔導板上のキャラクターカードへ同じ規則で累積する。
-function persistBoardCharacterStats(board, slotIdx, atk, hp) {
+function persistBoardCharacterStats(board, slotIdx, atk, hp, levels) {
   const cards = board && Array.isArray(board.boardCards) ? board.boardCards : [];
   const card = cards[Number(slotIdx)];
   if (!card || String(card.category || '') !== 'キャラクター') return false;
-  const da = Number(atk) || 0;
-  const dh = Number(hp) || 0;
+  const multiplier = coreNormalizeRunLevels(levels).stats;
+  const da = (Number(atk) || 0) / multiplier;
+  const dh = (Number(hp) || 0) / multiplier;
   if (!da && !dh) return false;
   if (da) {
     card.power = Math.max(0, (Number(card.power ?? card.atk) || 0) + da);
@@ -237,7 +251,8 @@ function persistBoardEffectDamage(board, event) {
   if (!event || !Number.isInteger(event.boardSlot) || event.boardSlot < 0 || !Number.isFinite(Number(event.damage))) return false;
   const card = cards[event.boardSlot];
   if (!card || String(card.id) !== String(event.effectCardId) || !corePermanentDamageSpec(card.desc)) return false;
-  card._permanentEffectDamage = corePermanentDamageValue({ ...card, _permanentEffectDamage: event.damage });
+  const damage = event.baseDamage != null && !card._runLevelsApplied ? event.baseDamage : event.damage;
+  card._permanentEffectDamage = corePermanentDamageValue({ ...card, _permanentEffectDamage: damage });
   return true;
 }
 

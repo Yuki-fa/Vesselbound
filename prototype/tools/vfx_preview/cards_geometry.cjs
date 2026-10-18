@@ -34,7 +34,8 @@ function gameGeometry(root) {
     statAtkLeft: value(':root', '--unit-stat-atk-left'), statHpRight: value(':root', '--unit-stat-hp-right'),
     statBottom: value(':root', '--unit-stat-bottom'), statWidth: px(':root', '--unit-stat-w'),
     statFontSize: px('html body .slot.unit-card .slot-stats', 'font-size'),
-    shieldBlend: value('html body .slot.unit-card .unit-portrait .unit-shield-layer', 'mix-blend-mode'),
+    // 2026-10-18：結界の画像レイヤー（shield.png）は廃止。CSSから消えていれば通常合成として扱う。
+    shieldBlend: (() => { try { return value('html body .slot.unit-card .unit-portrait .unit-shield-layer', 'mix-blend-mode'); } catch (e) { return 'normal'; } })(),
   };
   const constants = fs.readFileSync(path.join(root, 'js/engine/constants.js'), 'utf8');
   result.frontSlots = Number(constants.match(/const ENEMY_FRONT_SLOTS\s*=\s*(\d+)/)[1]);

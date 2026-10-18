@@ -80,7 +80,7 @@ var VbFxPreviewCatalog = {
   "death-buff": {"source": "C041", "mode": "self", "sourceCode": "S007", "note": "青緑の環と青の破片。死亡効果のオーラを冷たい色で見分ける。", "notice": "第2段 · 元の番号 S007 · 基準尺 700ms。画像は方向性の参考。"},
   "mana-buff": {"source": "C041", "mode": "self", "sourceCode": "S008", "note": "緑の環と丸い光。マナ効果のオーラを薄い緑の二重輪で表す。", "notice": "第2段 · 元の番号 S008 · 基準尺 700ms。画像は方向性の参考。"},
   "aura-buff": {"source": "C041", "mode": "self", "sourceCode": "S009", "note": "淡い青緑の環と三角片。常時バフの静かなオーラとして繰り返し再生する。", "notice": "第2段 · 元の番号 S009 · 基準尺 700ms。画像は方向性の参考。"},
-  "opening-sigil": {"source": "C041", "mode": "self", "sourceCode": "appearance_sheet", "note": "着地の小さな金の輪と薄い煙。396msから現れ、560msから薄れ、980msで消す。", "notice": "第2段 · 元の番号 appearance_sheet · 基準尺 980ms。画像は方向性の参考。", "motion": "opening"},
+  "opening-sigil": {"source": "C041", "mode": "self", "sourceCode": "appearance_sheet", "note": "着地の足元に舞う砂煙（左右へ転がる塊・昇る土埃・跳ねる砂粒）と一瞬の平たい金の閃き。カード幅に収める。396msから現れ、560msから薄れ、980msで消す。", "notice": "第2段 · 元の番号 appearance_sheet · 基準尺 980ms。画像は方向性の参考。", "motion": "opening"},
   "board-summon": {"source": "C041", "mode": "self", "sourceCode": "board_change1", "note": "緑の薄い輪と少数の粒。500msでカードを差し替え、1200msで消す。", "notice": "第2段 · 元の番号 board_change1 · 基準尺 1200ms。画像は方向性の参考。", "motion": "board"},
   "board-enchant": {"source": "C041", "mode": "self", "sourceCode": "board_change2", "note": "青の薄い輪と少数の粒。召喚と同じ尺・密度にして強化の色だけを見分ける。", "notice": "第2段 · 元の番号 board_change2 · 基準尺 1200ms。画像は方向性の参考。", "motion": "board"},
   // 2026-10-12: 新21キャラ。サンプル回数はプレビュー専用。
