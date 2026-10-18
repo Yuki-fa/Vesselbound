@@ -4278,7 +4278,7 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
       result.push({panel:next,idx:nIdx});
     });
   }
-  return result.map(entry=>({...entry,panel:runLevelBattleCard(entry.panel)}));
+  return result.map(entry=>({...entry,panel:runLevelDisplayCard(entry.panel,unit)}));
 }
 
 function _collectAdjacentEnhancements(unit, slotIdx){
@@ -4570,6 +4570,7 @@ function _makePanelSummonUnit(spec, keywords){
   const mergedKeywords=[...(spec.keywords||[]),...(keywords||[])];
   return {
     id:uid(),
+    ...(spec._runLevelsApplied?{boon:{...spec.boon},_runLevelsApplied:{...spec._runLevelsApplied}}:{}),
     name:spec.name||'召喚',
     icon:spec.icon||'',
     race:spec.race||'召喚',
@@ -4644,6 +4645,7 @@ function _placeTerrainNpcAt(slotIdx, spec){
   while(G.allies.length<max) G.allies.push(null);
   if(G.allies[slotIdx]&&G.allies[slotIdx].hp>0&&!G.allies[slotIdx]._isObject&&!G.allies[slotIdx]._isSoul) return null;
   const unit=_makePanelSummonUnit(spec,[]);
+  Object.assign(unit,coreApplyUnitRunLevels(unit,runLevelBattleValues()));
   unit._terrainNpc=true;
   unit._battleSlot=slotIdx;
   // lane は配置後の配列添字から再計算しない。地形側が指定した体の属性を使う。
@@ -4678,9 +4680,9 @@ function _applyTerrainReinforcements(){
   }
 }
 
-function _panelSummonSpec(panel){
+function _panelSummonSpec(panel,options){
   if(!panel) return null;
-  panel=runLevelBattleCard(panel);
+  panel=runLevelBattleCard(panel,options);
   const openingSpec=panel.summonOnBattleStart&&typeof panel.summonOnBattleStart==='object'
     ?panel.summonOnBattleStart:null;
   if(_isCharacterPanel(panel)||openingSpec){
@@ -4688,6 +4690,7 @@ function _panelSummonSpec(panel){
     const manaLine=desc.match(/(?:^|\n)\s*(\d+)マナ(毎)?[：:]\s*([^\n]*)/);
     return {
       ...(openingSpec||{}),
+      ...(panel._runLevelsApplied?{boon:{...panel.boon},_runLevelsApplied:{...panel._runLevelsApplied}}:{}),
       name:openingSpec&&openingSpec.name||panel.name,
       atk:Number(openingSpec?.atk??panel.power??panel.atk??0),
       hp:Number(openingSpec?.hp??panel.life??panel.hp??1),
@@ -4759,14 +4762,15 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
   const ownedIdx=eq.findIndex(p=>p&&String(p.category||'')==='キャラクター'&&p.name===baseName);
   if(ownedIdx>=0){
     const panel=eq[ownedIdx];
-    const spec=typeof _panelSummonSpec==='function'?_panelSummonSpec(panel):null;
+    const spec=typeof _panelSummonSpec==='function'?_panelSummonSpec(panel,{effectsOnly:true}):null;
     if(spec){
       const enh=typeof _collectAdjacentEnhancements==='function'?_collectAdjacentEnhancements(board,ownedIdx):{atk:0,hp:0,keywords:[]};
       const contributingPanels=typeof _collectEnhancementPanelsForSlot==='function'?_collectEnhancementPanelsForSlot(board,ownedIdx):[];
       // enh.keywordsは直後のapplyAdjacentPanelEnhancements()側で付与するため、ここでは渡さない
       // （両方に渡すと同じキーワードが二重に加算され、逆襲・闇の儀式等のカウント依存効果が
       // 意図した回数より多く発動してしまう）
-    const summoned=_makePanelSummonUnit({...spec,name:baseName,panelName:panel.name},[]);
+      const summonSpec=coreApplySummonRunLevels({...spec,name:baseName,panelName:panel.name},runLevelBattleValues(),null,false);
+      const summoned=_makePanelSummonUnit(summonSpec,[]);
       _applyAdjacentPanelEnhancements(summoned,enh);
       summoned._mainBoardSlot=ownedIdx;
       // 寄与している強化パネルの効果全文（キーワード以外）も戦闘中の説明文に表示されるよう、
@@ -4798,7 +4802,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
     const cb=G&&G.panelColorPermanentBuffs&&G.panelColorPermanentBuffs[key];
     if(cb){ finalAtk+=Number(cb.atk||0); finalHp+=Number(cb.hp||0); }
   }
-  const unit=_makePanelSummonUnit({
+  const unit=_makePanelSummonUnit(coreApplySummonRunLevels({
     name:baseName,
     atk:finalAtk,
     hp:finalHp,
@@ -4808,7 +4812,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
     keywords:basePanel&&basePanel.keywords||[],
     art:basePanel&&typeof getPanelArtPath==='function'?getPanelArtPath(basePanel):(basePanel&&basePanel.art)||'',
     no:(basePanel&&(basePanel.no||basePanel.artCode||basePanel._artCode))||''
-  },[]);
+  },isEnemySide?null:runLevelBattleValues(),null,false),[]);
   const placedIdx=_summonMidBattleAllyFront(unit,isEnemySide,placement);
   // 召喚は前衛の右端にだけ出す。前衛が満杯なら成立させない（後衛へ逃がさない）。
   const rearIdx=placedIdx;

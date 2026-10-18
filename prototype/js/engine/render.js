@@ -763,9 +763,9 @@ function _formatTitleOnlyHtml(desc){
 function _previewRarityLine(card){
   return '';
 }
-function _plainEffectTextForPreview(card){
+function _plainEffectTextForPreview(card,owner){
   if(!card) return '';
-  const raw=(typeof _rawSubstitutedDesc==='function'?_rawSubstitutedDesc(card):String(card.desc||card.effectText||card.effect||''));
+  const raw=(typeof _rawSubstitutedDesc==='function'?_rawSubstitutedDesc(card,owner):String(card.desc||card.effectText||card.effect||''));
   return _stripOwnNameFromEffectText(String(raw||'').replace(/<[^>]*>/g,''),card.name);
 }
 // マナは色を持たない単一プールのため、常に同じアイコンを返す
@@ -4047,10 +4047,11 @@ function _enchantKeywordDesc(k){
   // キーワードシートにない強化カード名や内部判定名は、キーワードとして表示しない。
   return '';
 }
-function _enchantEffectTextForPanel(p){
+function _enchantEffectTextForPanel(p,owner){
   if(!p) return '';
-  if(p.boon&&String(p.desc||'').trim()) return _plainEffectTextForPreview(p)||'';
-  if(corePermanentDamageSpec(p.desc)) return _plainEffectTextForPreview(p)||'';
+  p=runLevelDisplayCard(p,owner);
+  if(p.boon&&String(p.desc||'').trim()) return _plainEffectTextForPreview(p,owner)||'';
+  if(corePermanentDamageSpec(p.desc)) return _plainEffectTextForPreview(p,owner)||'';
   if(p.name==='封印されしもの'){
     return _stripOwnNameFromEffectText(p.desc||p.effectText||p.effect||'','封印されしもの')
       .replace(/^封印\d+\s*/,'').trim();
@@ -4065,7 +4066,7 @@ function _enchantEffectTextForPanel(p){
   // キーワード説明だけへ畳むと、接続先キャラクターのプレビューから固有効果が消える。
   if(Array.isArray(p.adjacentKeywords)&&p.adjacentKeywords.includes('刻印')
     &&_STAGE_ENGRAVING_NAMES.has(String(p.name||'').trim())){
-    return _plainEffectTextForPreview(p)||'';
+    return _plainEffectTextForPreview(p,owner)||'';
   }
   if(Array.isArray(p.adjacentKeywords)&&p.adjacentKeywords.length){
     // 付与するキーワードが全て単純キーワード（_ENCHANT_KEYWORD_ONLY）の場合は、
@@ -4073,7 +4074,7 @@ function _enchantEffectTextForPanel(p){
     if(p.adjacentKeywords.every(k=>_ENCHANT_KEYWORD_ONLY.has(String(k||'').trim()))) return '';
     return p.adjacentKeywords.map(_enchantKeywordDesc).filter(Boolean).join('\n');
   }
-  return _plainEffectTextForPreview(p)||'';
+  return _plainEffectTextForPreview(p,owner)||'';
 }
 // unitに現在効果を及ぼしている強化(エンチャント)パネルの一覧と、その全文効果テキストを返す（カード名は含めない）
 // slotIdx：効果を受ける側のスロット番号（キャラクター本体は0、他の枠に召喚キャラクターパネルが
@@ -4098,13 +4099,13 @@ function _enchantmentEffectsList(unit,slotIdx){
     let text;
     if(p.name==='封印されしもの'){
       // 封印1はキーワード欄に残しつつ、接続先には解放効果も表示する。
-      text=_enchantEffectTextForPanel(p);
+      text=_enchantEffectTextForPanel(p,unit);
     } else if(rawKws.length&&baseKws.every(k=>_ENCHANT_KEYWORD_ONLY.has(k))){
       // 単純キーワード（生命吸収・二段攻撃・毒牙2等、数値の有無を問わない）は、キャラクター側の
       // 太字キーワード欄に既に表示されるため、効果文としては重複表示しない
       text='';
     } else {
-      text=_enchantEffectTextForPanel(p);
+      text=_enchantEffectTextForPanel(p,unit);
     }
     // 「効果なし」の強化パネル（方向接続専用パネル等）はキャラクター側に何も表示しない
     if(text&&/効果なし/.test(text)) text='';
@@ -5112,7 +5113,7 @@ function _evalMath(desc){
 // キーワードとステータスを添える。
 //   例）「青スケルトン」を召喚し… → 復活を持つ4/1の「青スケルトン」を召喚し…
 // **数値もキーワードもカードの定義（シート）から引く。** 文章へ書き足さないこと。
-function _summonNameAnnotation(name, owner, isSummon){
+function _summonNameAnnotation(name, owner, isSummon, context){
   const wanted=String(name||'').trim();
   if(!wanted) return '';
   const defs=[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),
@@ -5123,16 +5124,19 @@ function _summonNameAnnotation(name, owner, isSummon){
   if(!def) return '';
   const kws=(def.keywords||[]).map(k=>String(k||'').trim())
     .filter(k=>k&&!(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(k)));
-  let atk=Number(def.power!=null?def.power:def.atk);
-  let hp=Number(def.life!=null?def.life:def.hp);
+  const form=!isSummon&&owner&&owner._runLevelsApplied
+    ?coreApplyUnitRunLevels(def,owner._runLevelsApplied,{familiar:coreUnitHasKeyword(owner,'眷属')}):def;
+  let atk=Number(form.power!=null?form.power:form.atk);
+  let hp=Number(form.life!=null?form.life:form.hp);
   // 敵カードの召喚文は、召喚先カードの基礎値ではなく、実戦と同じく
   // 召喚元（敵）の現在ATK／最大HPの80%を表示する。
   if(owner&&owner._sheetEnemy&&typeof coreEnemySummonStats==='function'){
     const actual=coreEnemySummonStats(owner);
     if(actual){ atk=actual.atk; hp=actual.hp; }
   }
-  if(isSummon&&owner&&owner.boon){
-    const stats=coreBoonFamiliarStats({atk,hp},owner.boon);atk=stats.atk;hp=stats.hp;
+  if(isSummon&&owner){
+    const stats=coreApplySummonRunLevels({atk,hp},runLevelDisplayValues(owner,context),owner.boon,false);
+    atk=stats.atk;hp=stats.hp;
   }
   const head=kws.length?`${kws.join('・')}を持つ`:'';
   const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${atk}/${hp}の`:'';
@@ -5140,11 +5144,11 @@ function _summonNameAnnotation(name, owner, isSummon){
 }
 // 「〇〇」を召喚／「〇〇」に変身 の直前へ注釈を差し込む。
 // **その並びの時だけ**にする（「「青レムレース」以外の」のような文には付けない）。
-function _annotateSummonNames(desc, owner){
+function _annotateSummonNames(desc, owner, context){
   // 中身から「も除く。除かないと入れ子（「死亡：「青スケルトン」を召喚する。」）で
   // 外側を先に掴んでしまい、内側のキャラ名に注釈が付かない（ボーンチャリオット）。
   return String(desc||'').replace(/「([^「」]{1,24})」(?=(?:を\d*体?召喚|に変身))/g,(m,name,offset,whole)=>{
-    const note=_summonNameAnnotation(name, owner,/^を\d*体?召喚/.test(whole.slice(offset+m.length)));
+    const note=_summonNameAnnotation(name, owner,/^を\d*体?召喚/.test(whole.slice(offset+m.length)),context);
     return note?`${note}${m}`:m;
   });
 }
@@ -5174,9 +5178,9 @@ function _stageEngravingDescription(card,desc){
   }
   return out.replace(/X/g,String(value));
 }
-function _rawSubstitutedDesc(card){
+function _rawSubstitutedDesc(card,owner){
   if(!card) return '';
-  if(card.type==='panel'&&card._mainBoardSlot==null) card=runLevelBattleCard(card);
+  card=runLevelDisplayCard(card,owner);
   const g=card.grade||1;
   let desc=_evalMath((card.desc||'').replace(/Grade/g,String(g)));
   const ownName=String(card.name||'').trim();
@@ -5191,7 +5195,7 @@ function _rawSubstitutedDesc(card){
   const shownPoison=card._persistentPoison!=null?card._persistentPoison
     :(card._mainBoardSlot!=null&&card.poison!=null?card.poison:null);
   if(shownPoison!=null) desc=desc.replace(/（状態異常：毒\d+）/,`（状態異常：毒${Math.max(0,Number(shownPoison)||0)}）`);
-  desc=_annotateSummonNames(desc,card);
+  desc=_annotateSummonNames(desc,card,owner);
   if(card.boon&&card.boon.famMul>1&&/召喚/.test(String(card.desc||''))){
     desc+=TOWER_BOON_CONFIG.text.familiar.replace('{mul}',card.boon.famMul);
   }
@@ -5265,6 +5269,7 @@ function cardRarityBannerHtml(card){
 function mkCardEl(card,_idx,_ctx){
   const div=document.createElement('div');
   if(typeof SaveProfile!=='undefined') SaveProfile.observe(div,card);
+  card=runLevelDisplayCard(card);
   const t=card.type||'ring';
   div.className=`card ${t}${card.legend?' legend-card':''}`;
   if(!card.type&&!card.kind) div.classList.add('character-card');

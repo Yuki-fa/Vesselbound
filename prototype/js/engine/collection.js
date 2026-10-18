@@ -111,7 +111,7 @@ function _collectionDisplayCard(card){
     out._sheetEnemy=true;
     out._useEnemyVisualFrame=!out.bossOnly;
   }
-  if(!panelMergeEnabled()||!_collectionMerged||!['character','enchant'].includes(_collectionKind)) return out;
+  if(!panelMergeEnabled()||!_collectionMerged||!['character','enchant'].includes(_collectionKind)) return runLevelDisplayCard(out);
   out._merged=true;
   out._tripleMerged=true;
   const baseName=String(out.name||'').replace(/\+$/,'');
@@ -127,7 +127,7 @@ function _collectionDisplayCard(card){
     if(out.atk!=null) out.atk=out.power;
     if(out.hp!=null) out.hp=out.life;
   }
-  return out;
+  return runLevelDisplayCard(out);
 }
 
 function _collectionItemArt(card){
@@ -250,6 +250,7 @@ function _collectionEnsureSelection(cards){
 
 function _collectionDescriptionHtml(card,entryKind){
   if(!card) return '';
+  card=runLevelDisplayCard(card);
   const desc=typeof _plainEffectTextForPreview==='function'
     ?_plainEffectTextForPreview(card):String(card.desc||card.effectText||card.effect||'').replace(/<[^>]*>/g,'');
   const kind=entryKind||_collectionEntryKind(card);
