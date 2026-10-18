@@ -48,6 +48,7 @@ for (const m of buildFn.matchAll(/([A-Za-z_][\w$]*)\s*:/g)) sentFields.add(m[1])
 
 // 送らなくてよいもの。**理由を必ず書くこと。**
 const ALLOW_MISSING = {
+  _runLevelsApplied: '2026-10-18利用者指定：PvEランレベルの二重適用防止。オンラインは全レベル1で、この印を生成・送信しない（送受信形式を維持）',
   side: '陣営は sides.p1 / sides.p2 の位置で決まる',
   slot: '配置は units の並び順で決まる',
   hp: '別途 hp/maxHp として送っている',

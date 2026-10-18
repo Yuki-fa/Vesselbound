@@ -165,6 +165,7 @@ function coreNormalizeBoon(boon) {
     const base = CORE_BOON_FIELDS[key];
     result[key] = Math.max(base, Number(boon[key]) || base);
   });
+  if (Number(boon.modMul) > 1) result.modMul = Number(boon.modMul);
   return Object.keys(result).some(key => result[key] !== CORE_BOON_FIELDS[key]) ? result : null;
 }
 function coreMergeBoons(cards) {
@@ -175,9 +176,30 @@ function coreMergeBoons(cards) {
   });
   return coreNormalizeBoon(result);
 }
-function coreBoonSignedValue(value, delta) {
+function coreBoonSignedValue(value, delta, multiplier) {
   const n = Number(value) || 0;
-  return n ? n + Math.sign(n) * delta : 0;
+  return n ? (n + Math.sign(n) * delta) * (Number(multiplier) || 1) : 0;
+}
+// ランレベルは呼び出し側から渡す純データ。1なら参照・乱数・個体の形も変えない。
+function coreNormalizeRunLevels(levels) {
+  return Object.fromEntries(['stats','familiars','modifiers','damage'].map(key =>
+    [key, Math.max(1, Math.floor(Number(levels && levels[key]) || 1))]));
+}
+function coreApplyCardRunLevels(card, levels, options) {
+  const values = coreNormalizeRunLevels(levels);
+  if (!card || card._runLevelsApplied || Object.values(values).every(n => n === 1)) return card;
+  const copy = { ...card };
+  const previous = coreNormalizeBoon(card.boon) || CORE_BOON_FIELDS;
+  const boon = { ...previous, statMul: previous.statMul * values.stats,
+    dmgMul: previous.dmgMul * values.damage, famMul: previous.famMul * values.familiars,
+    modMul: (previous.modMul || 1) * values.modifiers };
+  // 旧祝福を付けた後の巻物・永久強化も現在値として保つ。旧_boonBaseへ戻さない。
+  delete copy._boonBase;delete copy.boon;
+  coreApplyCardBoon(copy, {statMul:values.stats,modDelta:0,dmgMul:values.damage,
+    manaDelta:0,famMul:values.familiars,modMul:values.modifiers}, options);
+  copy.boon = coreNormalizeBoon(boon);
+  copy._runLevelsApplied = values;
+  return copy;
 }
 function coreBoonFamiliarStats(stats,boon){
   const mul=Number(boon&&boon.famMul)||1;
@@ -187,12 +209,12 @@ function coreBoonFamiliarStats(stats,boon){
 function coreBoonText(text, boon) {
   if (!boon) return text;
   let result = String(text || '');
-  const signed = (sign, digits) => sign + (Number(digits) ? Number(digits) + boon.modDelta : 0);
+  const signed = (sign, digits) => sign + coreBoonSignedValue(digits, boon.modDelta, boon.modMul);
   // ペア、単独ATK/HP（「HPが+N」も含む）。0はそのまま。
   result = result.replace(/((?:(?:ATK|HP)(?:が)?\s*)?)([+-])(\d+)(\s*\/\s*|(?=[+-]))([+-])(\d+)|((?:ATK|HP)(?:が)?)([+-])(\d+)/g,
     (_, label, a, x, slash, b, y, single, sign, digits) => single
       ? single + signed(sign, digits) : label + signed(a, x) + slash + signed(b, y));
-  result = result.replace(/(ATKを)(\d+)(奪う)/g, (_, a, n, b) => a + coreBoonSignedValue(n, boon.modDelta) + b);
+  result = result.replace(/(ATKを)(\d+)(奪う)/g, (_, a, n, b) => a + coreBoonSignedValue(n, boon.modDelta, boon.modMul) + b);
   result = result.replace(/(\d+)(ダメージ)/g, (_, n, label) => Number(n) * boon.dmgMul + label);
   result = result.replace(/(このダメージは永久に)(\d+)(減少)/g,
     (_, a, n, b) => a + Number(n) * boon.dmgMul + b);
@@ -221,10 +243,10 @@ function coreApplyCardBoon(card, rawBoon, options) {
     if (value == null) return;
     if (key === 'keywords') {
       card[key] = value.map(kw => String(kw).replace(/(全体強化)(\d+)_(\d+)/,
-        (_, label, a, h) => label + coreBoonSignedValue(a, boon.modDelta) + '_' + coreBoonSignedValue(h, boon.modDelta)));
+        (_, label, a, h) => label + coreBoonSignedValue(a, boon.modDelta, boon.modMul) + '_' + coreBoonSignedValue(h, boon.modDelta, boon.modMul)));
     } else if (typeof value === 'string') card[key] = coreBoonText(value, boon);
     else if (/^manaOn/.test(key)) card[key] = value > 0 ? value + boon.manaDelta : value;
-    else card[key] = coreBoonSignedValue(value, boon.modDelta);
+    else card[key] = coreBoonSignedValue(value, boon.modDelta, boon.modMul);
   });
   // 数値は個体へ一度だけ確定する。合体後の能力値は合体側が基礎値と個別補正を決める。
   if (!opts.effectsOnly && String(card.category || '') === 'キャラクター') {
@@ -260,7 +282,7 @@ function coreBoonDynamicValue(unit, effect, value, kind) {
   const boon = coreBoonForEffect(unit, effect);
   if (!boon) return value;
   return kind === 'damage' ? value * boon.dmgMul : kind === 'mana' ? value + boon.manaDelta
-    : coreBoonSignedValue(value, boon.modDelta);
+    : coreBoonSignedValue(value, boon.modDelta, boon.modMul);
 }
 function coreBoonNamedValue(unit, name, value, kind) {
   const key = coreEffectKey(name);
@@ -296,6 +318,11 @@ function coreBoonDisplayText(card, text, notes) {
   }
   if(boon.modDelta&&/(?:ATK|HP)を\d+倍にする/.test(result)&&notes&&notes.dynamicModifier){
     result+=notes.dynamicModifier.replace('{delta}',boon.modDelta);
+  }
+  if (boon.modMul > 1) {
+    result = result.replace(/([+-])X/g, (_, sign) => `${sign}(X×${boon.modMul})`)
+      .replace(/([+-])\(X\+(\d+)\)/g, (_, sign, delta) => `${sign}((X+${delta})×${boon.modMul})`);
+    if (/(?:ATK|HP)を\d+倍にする/.test(result)) result += `（戦闘修正の増加量×${boon.modMul}）`;
   }
   if (boon.manaDelta) result = result.replace(/Xマナ/g, `(X+${boon.manaDelta})マナ`)
     .replace(/マナをX得る/g, `マナを(X+${boon.manaDelta})得る`);
@@ -468,6 +495,9 @@ function coreConsumePermanentDamage(state, unit, match, emit) {
   const event = { type: 'keyword_effect', effect: 'effect_value', side: unit.side, unitId: unit.id,
     effectCardId: record.cardId, effectOwnerSide: record.ownerSide, boardSlot: record.boardSlot,
     damage: Math.max(0, damage - spec.decrease), persistent: record.boardSlot != null };
+  if (unit._runLevelsApplied && unit._runLevelsApplied.damage > 1) {
+    event.baseDamage = event.damage / unit._runLevelsApplied.damage;
+  }
   // 誘発による割り込み発動も次の値を読む。再生・保存は絶対値なので重ねて適用しても減らない。
   coreApplyPermanentDamageEvent(state.units, event);
   // 2026-10-10：先行した変身で実体から外れた効果も、反復は同じ減衰値を使う。
@@ -1043,6 +1073,7 @@ function createCoreUnit(raw, side, index) {
     // 効果文もキーワード判定の入力になる（coreUnitKeywords が本文からも拾う）。
     desc: String((raw && raw.desc) || ''),
     ...(raw && raw.boon ? { boon: { ...raw.boon } } : {}),
+    ...(raw && raw._runLevelsApplied ? { _runLevelsApplied: { ...raw._runLevelsApplied } } : {}),
     // 盤面上の性質。攻撃対象の決定に使う。
     guardian: !!(raw && raw.guardian),
     hate: !!(raw && raw.hate),
@@ -1145,7 +1176,7 @@ function createCoreUnit(raw, side, index) {
 // 変身・コピーで引き継ぐ、効果判定用の状態。新しい効果フィールドを追加する時に
 // 召喚経路ごとの引き継ぎ漏れを作らないよう、両経路でこの一覧を共有する。
 const CORE_UNIT_EFFECT_STATE_FIELDS = [
-  'boon',
+  'boon', '_runLevelsApplied',
   'manaOnAttack', 'manaOnInjury', 'manaOnDeath', 'goldOnBattleEnd', 'goldOnDeath',
   'randomItemOnBattleEnd', 'randomItemCost', 'manaCost', 'manaRepeat', 'manaThresholdDesc', 'manaThresholdNo', 'manaOrder', 'manaThresholdOrder', 'fxCode',
   'extraManaThresholds', 'weakenOnHit', 'effectRepeatBonus', '_effectRepeatBonus',
@@ -1224,6 +1255,7 @@ function coreUnitSnapshot(unit) {
     _rainbowRingBonus: Math.max(0, Number(u._rainbowRingBonus) || 0),
     ...(u._deployedAtZeroHp ? { _deployedAtZeroHp: true } : {}),
     ...(u.boon ? { boon: { ...u.boon } } : {}),
+    ...(u._runLevelsApplied ? { _runLevelsApplied: { ...u._runLevelsApplied } } : {}),
     boardCards: Array.isArray(u.boardCards) ? u.boardCards.map(x => ({ ...x })) : [],
     effectData: u.effectData ? {
       ...u.effectData,
@@ -1293,6 +1325,7 @@ function createBattleState(setup) {
   const frame = coreInitializeBattleState({ units });
   return {
     units,
+    ...(setup && setup.runLevels ? { runLevels: setup.runLevels } : {}),
     summonDefs: Array.isArray(setup && setup.summonDefs) ? setup.summonDefs.map(x => ({ ...x })) : [],
     itemDefs: Array.isArray(setup && setup.itemDefs) ? setup.itemDefs.map(x => ({ ...x })) : [],
     rings: {
@@ -2408,7 +2441,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
     const name = String(x.name || '').replace(/[“”＂]/g, '"');
     return name === wanted || `${x.color || ''}${name}` === wanted;
   }) || {};
-  const source = { ...def, ...spec,
+  let source = { ...def, ...spec,
     atk: spec && spec.atk != null ? spec.atk : (def.power ?? def.atk),
     hp: spec && spec.hp != null ? spec.hp : (def.life ?? def.hp),
     maxHp: spec && spec.maxHp != null ? spec.maxHp : (spec && spec.hp != null ? spec.hp : (def.life ?? def.maxHp ?? def.hp)),
@@ -2427,10 +2460,20 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
     source.hp = enemyStats.hp;
     source.maxHp = source.hp;
   }
-  if (summonBoon && summonBoon.famMul > 1) {
+  const levels = coreNormalizeRunLevels(state.runLevels && state.runLevels[side]);
+  const familiarMul = spec && spec._revivedFromDead
+    ? (summonBoon ? summonBoon.famMul / levels.familiars : 1)
+    : (summonBoon ? summonBoon.famMul : levels.familiars);
+  if (familiarMul > 1) {
     Object.assign(source,coreBoonFamiliarStats({atk:Number(source.atk)||0,hp:Number(source.hp)||1,
-      maxHp:Number(source.maxHp)||Number(source.hp)||1},summonBoon));
+      maxHp:Number(source.maxHp)||Number(source.hp)||1},{famMul:familiarMul}));
   }
+  if (levels.familiars > 1 && !(spec && spec._revivedFromDead)) {
+    if (source._baseAtk != null) source._baseAtk *= levels.familiars;
+    if (source._baseMaxHp != null) source._baseMaxHp *= levels.familiars;
+  }
+  // 召喚体の本体能力は眷属レベル。効果には同陣営のレベルを引き継ぐ。
+  source = coreApplyCardRunLevels(source, levels, { effectsOnly: true });
   // PvEの負傷・マナ効果は呼び出しごとに薄いコアstateを作り直すため、
   // state内の連番だけでは同じ召喚元から常に同じIDが再生成される。表示側が
   // 同一IDを既存ユニットとして再利用してしまうと、召喚数が増えず、召喚体の
@@ -2453,6 +2496,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
     no: source.no || source.artCode || '', art: source.art || '', sfxType: source.sfxType || source.attackSfx || '',
     desc: source.desc || '', effectData: source.effectData, _panelSummoned: true,
     ...(source.boon ? { boon: { ...source.boon } } : {}),
+    ...(source._runLevelsApplied ? { _runLevelsApplied: { ...source._runLevelsApplied } } : {}),
     _stageNumber: coreEngravingStageNumber(source, state),
     ...(source._engravingStages ? { _engravingStages: { ...source._engravingStages } } : {}),
     manaOnAttack: source.manaOnAttack, manaOnInjury: source.manaOnInjury, manaOnDeath: source.manaOnDeath,
@@ -4446,6 +4490,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
           no: dead.no || dead.artCode, art: dead.art, sfxType: dead.sfxType,
           desc: dead.desc, keywords: dead.keywords || [], effectData: dead.effectData || {},
           ...(dead.boon?{boon:{...dead.boon}}:{}),
+          ...(dead._runLevelsApplied?{_runLevelsApplied:{...dead._runLevelsApplied}}:{}),
           manaOnAttack: dead.manaOnAttack, manaOnInjury: dead.manaOnInjury, manaOnDeath: dead.manaOnDeath,
           goldOnBattleEnd: dead.goldOnBattleEnd, goldOnDeath: dead.goldOnDeath,
           randomItemOnBattleEnd: dead.randomItemOnBattleEnd, randomItemCost: dead.randomItemCost,
@@ -6566,7 +6611,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreToughValue, coreResolveIncomingDamage, coreConsumeWardCharge,
     coreUnitHasSacrifice, coreEngravingStageNumber, coreEngravingStageValue, coreSealValue, coreInitSealStates,
     coreSacrificeUnits, coreSacrificeCount, coreSealRelease,
-    coreNormalizeBoon, coreMergeBoons, coreApplyCardBoon, coreBoonText, coreBoonDisplayText,
+    coreNormalizeRunLevels, coreApplyCardRunLevels, coreNormalizeBoon, coreMergeBoons, coreApplyCardBoon, coreBoonText, coreBoonDisplayText,
     coreBoonForEffect, coreBoonDynamicValue, coreBoonFamiliarStats,
     coreKeywordSum, coreExtraAttackCount, coreAttackSpread, coreStatBonus, coreRefreshVoidWalkerBonus,
     coreKeywordCountBuff, coreFormationPassiveSpec, coreApplyFormationPassives,

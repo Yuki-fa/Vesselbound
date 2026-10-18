@@ -20,7 +20,6 @@ function swap(a,b) {
   [board[a],board[b]]=[board[b],board[a]];_syncUnitPanelEffectsAfterMove(unit);return true;
 }
 function apply(action) {
-  if(action.boon!==undefined&&!towerBoonChoose(action.boon))return false;
   if(action.exchange&&!exchangeShopCard(action.exchange.index,action.exchange.slot))return false;
   if(action.index!==undefined) {
     const card=_rewCards[action.index];if(!card)return false;
@@ -46,7 +45,7 @@ async function decision(context,callback) {
       const strategy=planner?.strategic(context,plan);
       await useItems(planner?'planner':'lookahead',context);
       const state=structuredClone(G);
-      const key=battleKey+JSON.stringify([state.mainBoard,state.gold,state.rings,state.spellSlots,state.pendingBattleItems,state.nextBattleItems,state.mapPanelPowers,state._waveLife,state.panelPermanentBuffs,state.panelColorPermanentBuffs]);
+      const key=battleKey+JSON.stringify([state.mainBoard,state.gold,state.rings,state.spellSlots,state.pendingBattleItems,state.nextBattleItems,state.mapPanelPowers,state._waveLife,state.panelPermanentBuffs,state.panelColorPermanentBuffs,state.runLevels?.values]);
       if(cache.has(key)){stats.cacheHits++;const point=cache.get(key);return planner?planner.evaluate(point,strategy,samples):point;}
       const result={win:0,hp:0,damage:0};
       for(const sample of samples) {
@@ -56,7 +55,7 @@ async function decision(context,callback) {
       cache.set(key,result);return planner?planner.evaluate(result,strategy,samples):result;
     },{seed:hash(`choice:${G._runSeed}:${G._wave}:${G._waveStage}`)});
     if(planner&&(!bestImmediate||immediateCompare(value,bestImmediate.value)>0))bestImmediate={action,value,
-      name:action.index!==undefined?_rewCards[action.index]?.name:action.exchange?_rewCards[action.exchange.index]?.name:action.ring!==undefined?G._ringOffer[action.ring]?.name:action.boon};
+      name:action.index!==undefined?_rewCards[action.index]?.name:action.exchange?_rewCards[action.exchange.index]?.name:action.ring!==undefined?G._ringOffer[action.ring]?.name:undefined};
     if(planner)evaluated.push({action,value});
     return value;
   }
@@ -193,9 +192,4 @@ async function arrange(context,{retry=false}={}) {
 }
 
 function resetStats(){cache.clear();for(const key of Object.keys(stats))stats[key]=0;}
-async function chooseBoon(context,choices){return decision(context,async evaluate=>{
-  const baseline=await evaluate({});let best={action:null,value:baseline,baseline};
-  for(const boon of choices){const action={boon},value=await evaluate(action);if(compare(value,best.value)>0)best={action,value,baseline};}
-  return best;
-});}
-module.exports={chooseCard,chooseRing,arrange,decision,evaluateCompare:compare,immediateCompare,apply,swap,configure,stats,resetStats,DEFAULTS,placements,chooseExchange,chooseBoon};
+module.exports={chooseCard,chooseRing,arrange,decision,evaluateCompare:compare,immediateCompare,apply,swap,configure,stats,resetStats,DEFAULTS,placements,chooseExchange};

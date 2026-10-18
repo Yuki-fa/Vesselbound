@@ -460,6 +460,18 @@ function placePendingPanelToGlobal(slotIdx){
   return true;
 }
 function placePendingPanelToSelectedUnit(slotIdx){
+  const debug=!!(G._debugMode&&G._pendingPanelPlacement&&G._pendingPanelPlacement.sourceName==='DEBUG');
+  try{return _placePendingPanelToSelectedUnit(slotIdx);}
+  finally{
+    // 商品以外の取得失敗で、交換を禁止する配置待ちを取り残さない。
+    if(debug&&G._pendingPanelPlacement){
+      G._pendingPanelPlacement=null;
+      _syncRewardPanelPlacementOverlay();
+      renderRewCards();renderHandEditor();renderMoveSlotsInEnemy();
+    }
+  }
+}
+function _placePendingPanelToSelectedUnit(slotIdx){
   const pending=G._pendingPanelPlacement;
   if(!pending||!pending.card) return false;
   if(!_libraryTutorialAllowsMove(pending.card,slotIdx)) return false;
@@ -468,7 +480,7 @@ function placePendingPanelToSelectedUnit(slotIdx){
     renderHandEditor();
     return false;
   }
-  if(_isCardExchangeShop()) return false;
+  if(_isCardExchangeShop()&&!(G._debugMode&&pending.sourceName==='DEBUG')) return false;
   const unit=_getPartyBoardUnit();
   if(!unit) return false;
   const boardList=_normalizeUnitBoardCards(unit);
@@ -985,6 +997,8 @@ function _storeRewardStartSnapshot(){
     globalPanels:clone(G.globalPanels||[]),
     spellSlots:clone(G.spellSlots||[]),
     gold:G.gold,
+    rerolls:towerBoonState().rerolls,
+    facilityRerollSeq:Number(G._shopRerollSeq)||0,
     freePickDone:!!_rewFreePickDone,
     selectedBoardUnitIdx:G._selectedBoardUnitIdx,
     rings:clone(G.rings||[]),
@@ -1012,12 +1026,14 @@ function _facilityCommitStateChanged(){
         ?SaveRun.copy(value):value);
     }catch(_e){ return ''; }
   };
-  return stable(G.mainBoard||[])!==stable(s.mainBoard||[])
+  return !!s.facilityRerolled||stable(G.mainBoard||[])!==stable(s.mainBoard||[])
     ||stable(G.globalPanels||[])!==stable(s.globalPanels||[])
     ||stable(G.mapPanelPowers||{})!==stable(s.mapPanelPowers||{})
     ||stable(G.spellSlots||[])!==stable(s.spellSlots||[])
     ||stable(G.rings||[])!==stable(s.rings||[])
-    ||Number(G.gold||0)!==Number(s.gold||0);
+    ||Number(G.gold||0)!==Number(s.gold||0)
+    ||(s.rerolls!=null&&towerBoonState().rerolls!==s.rerolls)
+    ||(Number(G._shopRerollSeq)||0)!==(Number(s.facilityRerollSeq)||0);
 }
 
 function resetRewardToStart(options){
@@ -1108,6 +1124,12 @@ function renderMoveSlotsInEnemy(){
     // 闘技場の継戦確認の間は出さない（勝利後に phase が reward になるため、確認窓の後ろに出ていた）。
     if(el) el.style.display=(G._debugMode&&G.phase==='reward'&&!(typeof debugButtonsSuppressed==='function'&&debugButtonsSuppressed()))?'':'none';
   });
+  if(runLevelRewardActive()){
+    const next=document.createElement('button');next.className='btn rew-move-btn';
+    next.innerHTML=`<span class="rew-btn-label">${_uiLabel('「進む」ボタン','進む')}</span>`;
+    next.onclick=()=>{ if(!G._pendingPanelPlacement&&guardFormationLeave()) _startWaveFlowNext(); };
+    el.appendChild(next);return;
+  }
   if(G._isLibrary){
     const test=document.createElement('button');
     test.className='btn rew-move-btn library-test-btn';
@@ -1723,6 +1745,7 @@ function renderRewCards(){
     :(G._isTavern
       ?(typeof questTavernRewardTitle==='function'?questTavernRewardTitle():_uiLabel('「酒場の報酬枠」見出し1','依頼人'))
       :_uiLabel('「編成画面の報酬枠」見出し','報酬'));
+  section.style.removeProperty('--title-reward');
   if(G.phase!=='reward'){ section.style.display='none'; el.innerHTML=''; _syncRewardProductionUi(); return; }
   // 村/祭壇メニューと鍛冶屋は同じ行を独自の選択肢で使用するため、
   // カード移動後の再描画で提示内容を消さない。
@@ -1738,6 +1761,10 @@ function renderRewCards(){
   }
   section.style.display='';
   el.innerHTML='';
+  if(runLevelRewardActive()){
+    section.style.setProperty('--title-reward',JSON.stringify(RUN_LEVEL_CONFIG.title));
+    runLevelRenderReward(el);return;
+  }
   if(G._ringOfferPhase){
     _renderRingOfferCards(el);
     return;
@@ -2373,7 +2400,8 @@ function markShopPurchase(target,offerCard,rewIdx,price){
   if(!target||!_isItemCard(target)&&!_cardTradingRules().sellCards||!G||!G._isShop||!(Number(price)>0)) return;
   const copy=clone(offerCard);
   delete copy._shopBuy;
-  target._shopBuy={key:_shopPurchaseKey(),idx:Number(rewIdx),price:Number(price),card:copy};
+  target._shopBuy={key:_shopPurchaseKey(),idx:Number(rewIdx),price:Number(price),card:copy,
+    ...(!G._onlineMode?{rerollSeq:Number(G._shopRerollSeq)||0}:{})};
 }
 function isShopReturnable(card){
   if(_isCardExchangeShop()) return false;
@@ -2389,6 +2417,9 @@ function returnShopPurchase(card,removeFromOwner){
   const cap=typeof _shopSlotCapacity==='function'?_shopSlotCapacity():REWARD_GRID_CAPACITY;
   while(_rewCards.length<cap) _rewCards.push(null);
   let slot=Number.isInteger(buy.idx)&&buy.idx>=0&&buy.idx<cap&&!_rewCards[buy.idx]?buy.idx:_rewCards.findIndex((c,k)=>k<cap&&!c);
+  // 再抽選で空き枠が補充された後の返品は元の枠へ戻す。見えない4枠目へ送らない。
+  if(slot<0&&!G._onlineMode&&G._isItemShop&&(Number(buy.rerollSeq)||0)<(Number(G._shopRerollSeq)||0)
+    &&Number.isInteger(buy.idx)&&buy.idx>=0&&buy.idx<cap) slot=buy.idx;
   if(slot<0) slot=_rewCards.length;
   _rewCards[slot]=offer;
   if(typeof playFileSfx==='function') playFileSfx('assets/sfx/sell.wav');
@@ -3381,6 +3412,7 @@ function _panelEyeRingPreviewBonus(card,unit,idx){
   return bonus;
 }
 function _panelCharacterPreviewStats(unit,idx,card){
+  card=runLevelBattleCard(card);
   const base={
     atk:Number(card?.power??card?.atk??0),
     hp:Number(card?.life??card?.hp??1)

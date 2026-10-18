@@ -1,4 +1,4 @@
-// 塔の試験施設。調整値・仮文言はこの表だけを編集する（後でシートへ移す）。
+// 旧祝福の個体・ランを壊さず、報酬の再抽選権を保持する。祝福の座は廃止済み。
 const TOWER_BOON_CONFIG = {
   key: 'towerBoon', name: '祝福の座（仮）', description: 'ゴールドを捧げ、これから出会うカードに祝福を授ける。',
   choiceCount: 3, firstPrices: [200, 500, 1000], priceStep: 1000,
@@ -98,6 +98,7 @@ function towerBoonRecordBattleDeaths(events, enemies) {
   }
 }
 function towerBoonChoose(id) {
+  if(!G._onlineMode) return false; // 通常プレイには祝福の購入経路を残さない。
   if (!TOWER_BOON_CONFIG.blessings.some(b => b.id === id)) return false;
   const state = towerBoonState(), price = towerBoonChoicePrice(id);
   if (Number(G.gold) < price) return false;
@@ -106,80 +107,27 @@ function towerBoonChoose(id) {
   state.purchases++;
   return true;
 }
-function towerBoonRollChoices() {
-  const state = towerBoonState();
-  const key = `tower-boon:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount) || 0}:${state.visits++}`;
-  return runWithKeyedRandom(key, () => {
-    const pool = TOWER_BOON_CONFIG.blessings.slice(), result = [];
-    while (pool.length && result.length < TOWER_BOON_CONFIG.choiceCount) result.push(pool.splice(Math.floor(rand() * pool.length), 1)[0].id);
-    return result;
-  });
-}
-let _towerBoonChoices = [];
-function openTowerBoonSeat() {
-  const state=towerBoonState();
-  // 塔を離れて入り直す操作は新しい訪問ではない。保存済みの塔別選択肢を使う。
-  // オンラインは従来の入口・乱数消費を維持する。
-  const cache=G._onlineMode?null:(state.visitChoices||(state.visitChoices={}));
-  const key=String(G._wave||1), first=!!cache&&!Array.isArray(cache[key]);
-  _towerBoonChoices=cache?(cache[key]||(cache[key]=towerBoonRollChoices())).slice():towerBoonRollChoices();
-  G._isTowerBoon = true;
-  document.body.classList.remove('world-map-active', 'reward-screen-active');
-  document.body.classList.add('tower-boon-active');
-  _setOverrideBackground(null);
-  showScreen('village');
-  renderVillageScreen();
-  const screen = document.getElementById('scr-village');
-  const host = document.createElement('div'); host.id = 'tower-boon-choices'; screen.appendChild(host);
-  renderTowerBoonChoices();
-  const depart = document.getElementById('village-depart-btn');
-  depart.querySelector('.rew-btn-label').textContent = TOWER_BOON_CONFIG.text.leave;
-  depart.onclick = () => {
-    if (_screenSwitchFading) return;
-    if (typeof playSfx === 'function') playSfx('uiConfirm', { group: 'ui' });
-    void fadeScreenSwitch(() => {
-      host.remove(); G._isTowerBoon = false;
-      document.body.classList.remove('tower-boon-active');
-      openMapVillage({ tower: true });
-    });
-  };
-  if(first&&typeof SaveRun!=='undefined') SaveRun.checkpoint('tower');
-}
-function renderTowerBoonChoices() {
-  const host = document.getElementById('tower-boon-choices');
-  if (!host) return;
-  host.replaceChildren();
-  for (const id of _towerBoonChoices) {
-    const blessing = TOWER_BOON_CONFIG.blessings.find(b => b.id === id);
-    const price = towerBoonChoicePrice(id);
-    const button = document.createElement('button'); button.className = 'tower-boon-choice'; button.type = 'button';
-    const label = document.createElement('span');
-    label.textContent=blessing.label.replace(/\{(\w+)\}/g,(_,key)=>TOWER_BOON_CONFIG[key]);
-    const cost = document.createElement('span'); cost.className = 'tower-boon-price';
-    cost.textContent = TOWER_BOON_CONFIG.text.price.replace('{price}', price);
-    button.append(label, cost); button.disabled = Number(G.gold) < price;
-    button.onclick = () => {
-      if (!G._isTowerBoon || !towerBoonChoose(id)) return;
-      renderTowerBoonChoices();
-      // 塔での確定操作として保存。会話や専用UIは保存せず、再開は塔へ戻す。
-      if (typeof SaveRun !== 'undefined') SaveRun.checkpoint('tower');
-    };
-    host.appendChild(button);
-  }
-}
 function towerBoonGrantRewardRerolls() {
   const state = towerBoonState();
   state.rerolls += (state.counts.rerolls || 0) * TOWER_BOON_CONFIG.rerollsPerStack;
 }
 function towerBoonRerollVisible() {
-  return G.phase === 'reward' && !!towerBoonState().counts.rerolls && !G._isShop && !G._isForge
-    && !G._isVillageMenu && !G._isTavern && !G._isFiveSaints && !G._isLibrary && !G._isRingExchange;
+  const rights=towerBoonState();
+  return !!(G.phase === 'reward' && (!!rights.counts.rerolls || (!G._onlineMode && (rights.rerolls>0 || runLevelRewardActive() || shopRerollKind())))
+    && !(G._isShop&&!shopRerollKind()) && !(G._isForge&&!shopRerollKind())
+    && !G._isVillageMenu && !G._isTavern && !G._isFiveSaints && !G._isLibrary && !G._isRingExchange);
 }
 function towerBoonCanReroll() { return towerBoonRerollVisible()&&!G._pendingPanelPlacement
+  &&!G._pendingItemUse&&!G._pendingMapForgePower&&!G._mapForgeAnimating&&!_dragSrc
   &&(G._onlineMode||!_rewardRerollReveal); }
+function towerBoonRerollCurrent() {
+  if(shopRerollKind()) return shopRerollOffers();
+  if(runLevelRewardActive()) return runLevelRerollReward();
+  return towerBoonRerollRewards();
+}
 function towerBoonRerollRewards() {
   const state = towerBoonState();
-  if (!towerBoonCanReroll() || state.rerolls <= 0 || !_rewCards.some(c => c && c._isOriginalReward)) return false;
+  if (runLevelRewardActive() || shopRerollKind() || !towerBoonCanReroll() || state.rerolls <= 0 || !_rewCards.some(c => c && c._isOriginalReward)) return false;
   const old = _rewCards.slice();
   const reveal=G._onlineMode?null:_prepareRewardRerollReveal(old);
   state.rerolls--; state.rerollSeq++;
@@ -194,21 +142,28 @@ function towerBoonRerollRewards() {
   if (typeof SaveRun !== 'undefined') SaveRun.checkpoint('reward');
   return true;
 }
+function towerBoonRerollButtonState(){
+  const shop=shopRerollKind(),rights=towerBoonState().rerolls;
+  return {visible:towerBoonRerollVisible(),label:shop&&!rights?`再抽選（${SHOP_REROLL_COST}G）`
+    :TOWER_BOON_CONFIG.text.reroll.replace('{count}',rights),
+    disabled:shop?!shopCanReroll():!towerBoonCanReroll()||rights<=0
+      ||(!runLevelRewardActive()&&!_rewCards.some(c=>c&&c._isOriginalReward))};
+}
 function towerBoonSyncRerollButton() {
   let button = document.getElementById('tower-boon-reroll-btn');
-  const show = towerBoonRerollVisible();
+  const view=towerBoonRerollButtonState(),show=view.visible;
   if (!show) { if (button) button.style.display = 'none'; return; }
   if (!button) {
     const screen=document.getElementById('scr-battle');
     if(!screen) return;
     button = document.createElement('button'); button.id = 'tower-boon-reroll-btn'; button.type = 'button';
     const label = document.createElement('span'); label.className = 'bcv-label'; button.appendChild(label);
-    button.onclick = towerBoonRerollRewards;
+    button.onclick = towerBoonRerollCurrent;
     screen.appendChild(button);
   }
   button.style.display = 'inline-flex';
-  button.querySelector('.bcv-label').textContent = TOWER_BOON_CONFIG.text.reroll.replace('{count}', towerBoonState().rerolls);
-  button.disabled = !towerBoonCanReroll() || towerBoonState().rerolls <= 0 || !_rewCards.some(c => c && c._isOriginalReward);
+  button.querySelector('.bcv-label').textContent=view.label;
+  button.disabled=view.disabled;
   // X は「カード非表示」と同じ。Y は「報酬カード」の見出し（#reward-offer-section::before）の中心へ揃える
   // （「カード非表示」が「魔導板」の見出しの横にあるのと同じ形。カード列の中央だと5枚目と重なる）。
   const anchor = document.getElementById('board-card-visibility-btn'), section = document.getElementById('reward-offer-section');

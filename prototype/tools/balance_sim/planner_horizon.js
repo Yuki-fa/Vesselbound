@@ -12,7 +12,7 @@ const combatCache=new Map(),projectionCache=new Map(),sampleCache=new Map();
 let audits=[];
 const round=x=>Number(x.toFixed(6));
 const signature=()=>JSON.stringify([G.mainBoard,G.rings,G.spellSlots,G.pendingBattleItems,G.nextBattleItems,
-  G.mapPanelPowers,G.panelPermanentBuffs,G.panelColorPermanentBuffs,G.towerBoons,G.gold,G._waveLife]);
+  G.mapPanelPowers,G.panelPermanentBuffs,G.panelColorPermanentBuffs,G.towerBoons,G.runLevels?.values,G.gold,G._waveLife]);
 function wallFrom(next){
   const opportunities=[];
   for(let wave=next.wave;wave<=4;wave++){
@@ -34,7 +34,6 @@ function actionName(action){
   if(action.index!==undefined)return _rewCards[action.index]?.name||'取得';
   if(action.exchange)return `${G.mainBoard[action.exchange.slot]?.name}→${_rewCards[action.exchange.index]?.name}`;
   if(action.ring!==undefined)return `${G._ringOffer[action.ring]?.name}（還魂${action.sacrifice.map(s=>G.mainBoard[s]?.name).join('/')}）`;
-  if(action.boon!==undefined)return `祝福${action.boon}`;
   if(action.swaps?.length)return '配置'+action.swaps.map(([a,b])=>`${a}↔${b}`).join('/');
   return '見送り/配置維持';
 }

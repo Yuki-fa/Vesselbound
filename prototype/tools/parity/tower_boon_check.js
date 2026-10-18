@@ -4,13 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const ROOT = path.resolve(__dirname, '../..');
 const { makeElement } = require('../balance_sim/stub');
-document.head = makeElement('head');
-global.requestAnimationFrame = () => 0;
-global.setInterval = () => 0;
-console.table = () => {};
-for (const match of fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').matchAll(/<script\s+src="([^"?]+)(?:\?[^"\s]*)?"/g)) {
-  if (!match[1].startsWith('http')) vm.runInThisContext(fs.readFileSync(path.join(ROOT, match[1]), 'utf8'), { filename: match[1] });
-}
+const { initialize } = require('../balance_sim/run_bot');
 let checked = 0;
 function check(name, fn) { fn(); checked++; console.log('OK ' + name); }
 const bonus = { statMul: 3, modDelta: 1, dmgMul: 3, manaDelta: 1, famMul: 3 };
@@ -44,7 +38,7 @@ function simulate(c, options = {}) {
 }
 
 (async () => {
-  await loadGameData();
+  const api=await initialize();
   check('祝福なし：個体の形・本文・コア結果・乱数が同一', () => {
     fresh();
     const raw = makePanel(def('C006').id), copy = clone(raw);
@@ -224,36 +218,9 @@ function simulate(c, options = {}) {
     } finally { renderRewCards = render; }
     G.towerBoons.counts.rerolls = 0; assert.equal(towerBoonRerollVisible(), false);
   });
-  check('ある祝福を買っても、別の祝福の値段は上がらない', () => {
-    fresh(); G.gold = 10000;
-    for (const [id, price] of [['stats', 200], ['mana', 200], ['stats', 500], ['damage', 200]]) {
-      const gold = G.gold;
-      assert.equal(towerBoonChoose(id), true);
-      assert.equal(gold - G.gold, price, id);
-    }
-    assert.deepEqual(towerBoonState().counts, { stats: 2, mana: 1, damage: 1 });
-    assert.equal(towerBoonState().purchases, 4);
-  });
-  check('同じ祝福の価格200→500→1000→2000→3000、支払い・不足時の拒否・累積', () => {
-    fresh(); G.gold = 10000;
-    assert.deepEqual([0, 1, 2, 3, 4].map(towerBoonPrice), [200, 500, 1000, 2000, 3000]);
-    for (let i = 0; i < 2; i++) assert.equal(towerBoonChoose('stats'), true);
-    assert.equal(G.gold, 9300); assert.equal(towerBoonCurrentCardBonus().statMul, 9);
-    const before = clone(G.towerBoons); G.gold = 999;
-    assert.equal(towerBoonChoose('stats'), false); assert.deepEqual(G.towerBoons, before);
-  });
-  check('祝福の価格表示と購入不可は、候補それぞれの購入回数を使う', () => {
-    fresh(); G.gold = 10000;
-    for (const id of ['stats', 'stats', 'mana']) assert.equal(towerBoonChoose(id), true);
-    G.gold = 300; _towerBoonChoices = ['stats', 'mana', 'damage'];
-    const get = document.getElementById, create = document.createElement, host = makeElement();
-    document.getElementById = id => id === 'tower-boon-choices' ? host : get(id);
-    document.createElement = tag => { const el = create(tag); el.append = (...nodes) => nodes.forEach(n => el.appendChild(n)); return el; };
-    try {
-      renderTowerBoonChoices();
-      assert.deepEqual(host.children.map(b => b.children[1].textContent), ['1000G', '500G', '200G']);
-      assert.deepEqual(host.children.map(b => b.disabled), [true, true, false]);
-    } finally { document.getElementById = get; document.createElement = create; }
+  check('祝福の座の廃止：通常プレイでは購入できず、ゴールド・状態を変えない',()=>{
+    fresh();G.gold=10000;const state=clone(towerBoonState());
+    assert.equal(towerBoonChoose('stats'),false);assert.deepEqual(towerBoonState(),state);assert.equal(G.gold,10000);
   });
   check('オンラインの祝福は従来の合計購入回数の価格・支払いを維持する', () => {
     fresh(); G._onlineMode = true; G.gold = 10000;
@@ -300,8 +267,8 @@ function simulate(c, options = {}) {
   check('セーブ→復元：祝福・購入回数・再抽選残数と個体を保持、旧セーブも復元できる', () => {
     fresh(); G._debugMode = false;
     G.gold = 50000;
-    for (const blessing of TOWER_BOON_CONFIG.blessings) assert.equal(towerBoonChoose(blessing.id), true);
-    assert.equal(towerBoonChoose('stats'), true);
+    G.towerBoons.counts=Object.fromEntries(TOWER_BOON_CONFIG.blessings.map(b=>[b.id,1]));
+    G.towerBoons.counts.stats=2;G.towerBoons.purchases=8;
     towerBoonGrantRewardRerolls(); towerBoonGrantRewardRerolls();
     G.mainBoard[1] = towerBoonBlessGeneratedCard(makePanel(def('C006').id));
     const expected = clone(G.towerBoons), individual = clone(G.mainBoard[1]);
@@ -335,14 +302,16 @@ function simulate(c, options = {}) {
     const save = SaveRun.buildRunSave('reward'); SaveRun.validate(save); SaveRun.restoreRunState(save);
     assert.equal(G.mainBoard[1].name, boss.name); assert.deepEqual(G.mainBoard[1].boon, bonus);
   });
-  check('施設：1周目にも塔の末尾へ追加、五聖の座のロックを引き継がず重ならない', () => {
+  check('施設：祝福の座は出さず、五聖の座のロックと他施設の位置は維持する', () => {
     fresh(); G._isWaveAltar = true; G._debugStoryCycle = 1;
-    const list = villageFacilityList(), facility = list.at(-1);
-    assert.equal(facility.key, TOWER_BOON_CONFIG.key); assert.equal(_villageFacilityDisabled(facility), false);
+    const list = villageFacilityList();
+    assert.equal(list.some(f=>f.key===TOWER_BOON_CONFIG.key),false);
     assert.equal(list.some(f => f.key === 'landing'), false);
     const positions = _villageFacilityPositions(list);
     assert.equal(new Set(positions.map(p => JSON.stringify(p))).size, positions.length);
-    assert.equal(new Set(towerBoonRollChoices()).size, 3);
   });
-  console.log(`\n塔の祝福検査: ${checked}項目 OK（ブラウザ表示は未確認）`);
+  await require('../balance_sim/debug_cards_1018c_regression').testDebugCards(api);
+  await require('../balance_sim/shop_reroll_1018c_regression').testShopReroll(api,check);
+  await require('../balance_sim/run_levels_1018c_regression').testRunLevels(api,check);
+  console.log(`\n旧祝福互換・店・レベル検査: ${checked}項目 OK（ブラウザ表示は未確認）`);
 })().catch(error => { console.error(error); process.exitCode = 1; });

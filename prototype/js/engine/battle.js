@@ -878,6 +878,7 @@ function _releaseRepeatCount(unit,isEnemySide){
 // 参照し、保存済みユニットへ以前の値が残っていてもそちらへ戻らないようにする。
 function _pveCoreStageFields(){
   return {
+    ...runLevelCoreFields(),
     mapIndex:Math.max(1,Number(G.floor)||1),
     stageNumber:Math.max(1,Number(G._wave)||1),
     ...(G._preserveEnemyOpening?{openingSides:['p1']}:{}),
@@ -3186,6 +3187,12 @@ async function finishBattleAsVictory(reason){
     else void arenaHandleBattleVictory();
     return;
   }
+  if(((typeof isEpitomeVictoryBattle==='function'&&isEpitomeVictoryBattle())
+    ||(typeof isFinalBossVictoryBattle==='function'&&isFinalBossVictoryBattle()))
+    &&runLevelOpenVictoryReward('boss',false)){
+    G._battleVictoryPending=true;G._battlePhaseRunning=false;
+    return;
+  }
   // Scene 5のボス（万象の揺り籠“エピトメ”）は勝利演出・報酬を通さず、
   // 全敵撃破が確定したこの時点から movie3 → 伏せられたラスボス戦の導入へ入る。
   if(typeof isEpitomeVictoryBattle==='function'&&isEpitomeVictoryBattle()){
@@ -4271,7 +4278,7 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
       result.push({panel:next,idx:nIdx});
     });
   }
-  return result;
+  return result.map(entry=>({...entry,panel:runLevelBattleCard(entry.panel)}));
 }
 
 function _collectAdjacentEnhancements(unit, slotIdx){
@@ -4673,6 +4680,7 @@ function _applyTerrainReinforcements(){
 
 function _panelSummonSpec(panel){
   if(!panel) return null;
+  panel=runLevelBattleCard(panel);
   const openingSpec=panel.summonOnBattleStart&&typeof panel.summonOnBattleStart==='object'
     ?panel.summonOnBattleStart:null;
   if(_isCharacterPanel(panel)||openingSpec){
@@ -4836,6 +4844,7 @@ async function _applyLegacyBattleSummonTraits(unit,isEnemySide,placement){
 }
 
 function _panelSummonDisplayBoardCards(sourcePanel, contributingPanels){
+  sourcePanel=runLevelBattleCard(sourcePanel);
   const center=sourcePanel?{...clone(sourcePanel),directions:['up','down','left','right']}:null;
   const panels=(contributingPanels||[]).map(entry=>{
     const p=entry&&entry.panel?entry.panel:entry;
@@ -5797,7 +5806,7 @@ async function _applyCoreBattleEndEffectsLive(){
 // 「終戦では上がるのに編成画面へ戻ると元に戻っている」という報告があり、
 // 静かに失敗していると原因を追えない（2026-09-22、再現条件を特定できていない）。
 function _persistPermanentStatOrWarn(board,ev){
-  const ok=persistBoardCharacterStats(board,ev&&ev.boardSlot,ev&&ev.atk,ev&&ev.hp);
+  const ok=persistBoardCharacterStats(board,ev&&ev.boardSlot,ev&&ev.atk,ev&&ev.hp,runLevelBattleValues());
   if(ok) return true;
   const cards=board&&Array.isArray(board.boardCards)?board.boardCards:null;
   const card=cards?cards[Number(ev&&ev.boardSlot)]:null;

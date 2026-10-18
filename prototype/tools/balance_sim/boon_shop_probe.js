@@ -8,7 +8,7 @@ async function probe(samples=30){
     initState();G._wave=2;G._waveStage=1;G._waveLife=3;G.life=3;G.gold=1000;G._runSeed=1;G._runRngState=1;
     const def=ENEMY_POOL.find(d=>d.bossOnly),unit={id:'shop-probe-boss',name:def.name,no:def.no,artCode:def.artCode,boss:true};
     towerBoonRecordBattleDeaths([{type:'death',side:'p2',unitId:unit.id}],[unit]);
-    assert.equal(towerBoonChoose('bosses'),true);return structuredClone(G);
+    towerBoonState().counts.bosses=1;return structuredClone(G);
   },{seed:913});
   const cases=[];
   for(let i=0;i<samples;i++)cases.push(await isolated(()=>{
