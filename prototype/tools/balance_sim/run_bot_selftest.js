@@ -5,6 +5,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
+const os=require('node:os');
+const {spawnSync}=require('node:child_process');
 const {initialize,simulateRun}=require('./run_bot');
 const lookahead=require('./lookahead');
 const sandbox=require('./bot_sandbox');
@@ -87,6 +89,17 @@ async function main(args=process.argv.slice(2)) {
     const flag=args[i],value=args[++i];if(!value)throw new Error(`値が必要: ${flag}`);
     if(flag==='--input')input=value;else if(flag==='--variant')variants.push(value);else if(flag==='--out')out=value;else throw new Error(`不明な引数: ${flag}`);
   }
+  let temporary=null;
+  // 出力はgit管理外。新しいworktreeでも実周回を生成し、同じ監査・再現検査へ渡す。
+  // 明示した--inputの欠落は誤指定として残し、既定のoutだけを補う。
+  if(!args.includes('--input')&&!fs.existsSync(path.join(input,'runs.jsonl'))){
+    temporary=fs.mkdtempSync(path.join(os.tmpdir(),'vb-run-selftest-'));
+    console.log('既定のout/runs.jsonlが無いため、一時フォルダで6方針×4周を生成して検査します（バランス評価の標本には含めません）。');
+    const child=spawnSync(process.execPath,[path.join(__dirname,'run_bot.js'),'--runs','4','--lookahead-runs','4','--policy','all','--seed','4001','--workers','4','--out',temporary],{encoding:'utf8'});
+    if(child.status!==0){fs.rmSync(temporary,{recursive:true,force:true});throw Error(child.stderr||child.error||'検査用周回の生成に失敗');}
+    input=temporary;
+  }
+  try{
   const api=await initialize();
   const baseline=readInput(path.resolve(input));
   if(!variants.length&&!(baseline.meta.botVersion>=2))variants=['override_numeric','override_add'].map(d=>path.join(path.dirname(baseline.file),d)).filter(f=>fs.existsSync(path.join(f,'runs.jsonl')));
@@ -118,20 +131,20 @@ async function main(args=process.argv.slice(2)) {
       // 合体停止で旧seedの戦況は変わるため、互いに倒し切れない体を本体の開戦入口へ渡す。
       // 通常成績には混ぜず、コア上限→周回終了→資源記録の出口を回帰検査する。
       Object.assign(planner.LIMITS,{hp:24,damage:12,fit:4,option:2,focus:4,prior:1});
-      const layout=_layoutStartingBattleEnemies;
+      const compute=SaveRun.computeBattle;
       let timeout;
       try{
-        _layoutStartingBattleEnemies=(...args)=>{
-          const capture=api.hooks.enemies;
-          api.hooks.enemies=enemies=>{
-            enemies.forEach((unit,i)=>{if(unit)enemies[i]={id:unit.id,name:'上限検査相手',atk:1,baseAtk:1,hp:1000000,maxHp:1000000,keywords:[],lane:unit.lane};});
-            capture?.(enemies);
-          };
-          try{return layout(...args);}finally{api.hooks.enemies=capture;}
+        SaveRun.computeBattle=(initial,seed)=>{
+          if(G._botProbe)return compute(initial,seed);
+          // 初期エンチャントが増えたため、敵だけを硬くしても毒・ATK低下で決着してしまう。
+          // 編成後の両軍を無効果の同数値へ置き換え、上限へ確実に達する入力を作る。
+          const state=structuredClone(initial);
+          state.units=Object.fromEntries(['p1','p2'].map(side=>[side,initial.units[side].map(u=>u?{
+            id:u.id,name:'上限検査',side,lane:u.lane,atk:1,baseAtk:1,hp:1000000,maxHp:1000000,keywords:[],desc:''}:null)]));
+          state.rings={p1:[],p2:[]};return compute(state,seed);
         };
-        const change=overrides.pools().panel.filter(c=>c.initial&&c.category==='キャラクター').map(c=>({name:c.name,power:1,life:1000000,desc:'',keywords:[]}));
-        timeout=await simulateRun({seed:197,policy:'planner',plannerStage:'r1',plannerWeights:{...planner.LIMITS},override:{change,add:[]}});
-      }finally{_layoutStartingBattleEnemies=layout;}
+        timeout=await simulateRun({seed:197,policy:'planner',plannerStage:'r1',plannerWeights:{...planner.LIMITS}});
+      }finally{SaveRun.computeBattle=compute;}
       check('コア上限の制御例：timeoutでも最後の戦闘と資源推移を欠落させない',()=>{
         assert.equal(timeout.status,'timeout');assert.equal(timeout.battles.at(-1).endReason,'turn_limit');
         assert.equal(timeout.trajectory.filter(p=>p.event==='battle').length,timeout.battles.length);
@@ -147,14 +160,31 @@ async function main(args=process.argv.slice(2)) {
         let values=coreNormalizeRunLevels(),previous=null;const counts={};
         const levels=row.actions.filter(a=>a.type==='level_reward');
         for(const a of levels){
-          assert.deepEqual(a.before,values);assert.notEqual(a.id,previous);previous=a.id;
-          const [kind,amount]=a.id.split(':');assert.ok(Object.keys(values).includes(kind));
-          assert.ok(Number(amount)===1||(a.wave>=2&&Number(amount)===2));
-          values[kind]+=Number(amount);
-          if(a.lowered){assert.notEqual(a.lowered,kind);assert.ok(values[a.lowered]>=2);values[a.lowered]--;}
-          assert.deepEqual(a.after,values);assert.equal(a.rerolled,false);counts[a.id]=(counts[a.id]||0)+1;
+          assert.deepEqual(a.before,values);
+          const history=a.history||[a];assert.equal(a.rerolled,history.length>1);
+          for(const shown of history){
+            assert.deepEqual(shown.before,values);assert.notEqual(shown.id,previous);previous=shown.id;
+            const [kind,amount]=shown.id.split(':');assert.ok(Object.keys(values).includes(kind));
+            assert.ok(Number(amount)===1||(a.wave>=2&&Number(amount)===2));
+            const after={...values};after[kind]+=Number(amount);
+            if(shown.lowered){assert.notEqual(shown.lowered,kind);assert.ok(values[shown.lowered]>=2);after[shown.lowered]--;}
+            assert.deepEqual(shown.after,after);counts[shown.id]=(counts[shown.id]||0)+1;
+          }
+          assert.equal(a.id,history.at(-1).id);assert.deepEqual(a.after,history.at(-1).after);values={...a.after};
         }
-        assert.deepEqual(row.runLevels.values,values);assert.deepEqual(row.runLevels.counts,counts);assert.equal(row.runLevels.seq,levels.length);
+        assert.deepEqual(row.runLevels.values,values);assert.deepEqual(row.runLevels.counts,counts);
+        assert.equal(row.runLevels.seq,Object.values(counts).reduce((a,b)=>a+b,0));
+      }
+    });
+    check('通常・レベル報酬の再抽選：弱さの根拠、権利優先、100Gと温存、1報酬の有料上限',()=>{
+      for(const row of all){
+        const paid=new Map();
+        for(const a of row.actions.filter(a=>['boon_reroll','level_reroll'].includes(a.type))){
+          assert.ok(a.quality.weak&&a.reason);
+          if(a.remainingBefore>0){assert.equal(a.remainingAfter,a.remainingBefore-1);assert.equal(a.goldBefore,a.goldAfter);}
+          else{assert.equal(a.goldBefore-a.goldAfter,100);assert.ok(a.goldAfter>=a.reserve);
+            const key=`${a.type}:${a.wave}:${a.stage}`;paid.set(key,(paid.get(key)||0)+1);assert.ok(paid.get(key)<=boons.LIMITS.maxPaidRerollsPerReward);}
+        }
       }
     });
     check('店の再抽選：1来店1回、権利優先／100G、支払い後300G以上、行商人では使わない',()=>{
@@ -172,10 +202,14 @@ async function main(args=process.argv.slice(2)) {
     check('旧祝福6：購入せず旧保存を再現し、撃破ボスが魔導店の最終提示へ残る',()=>{assert.ok(shopProbe.generated>0);assert.equal(shopProbe.offered,shopProbe.generated);});
   }
   if(baseline.meta.botVersion>=2) {
-    check('指定方針の規定周回数（第2段はlookaheadとplannerを各200周）',()=>{
+    check('指定方針・要求したseed範囲と周回数が全件揃う（標本規模はメタデータへ記録）',()=>{
       const required=baseline.meta.botVersion>=5?(baseline.meta.options.policy==='all'?Object.keys(require('./policies').policies):baseline.meta.options.policy.split(',')):['greedy','color','enchant','mana','lookahead'];
-      const comparisonOnly=required.length===2&&required.includes('planner')&&required.includes('lookahead');
-      for(const policy of required){const minimum=baseline.meta.botVersion>=6?200:policy==='planner'?100:policy==='lookahead'?(comparisonOnly?200:100):200;assert.ok(baseline.rows.filter(r=>r.policy===policy).length>=minimum,policy);}
+      for(const policy of required){
+        const rows=baseline.rows.filter(r=>r.policy===policy),count=baseline.meta.policyCounts[policy];
+        assert.equal(rows.length,count,policy);
+        assert.deepEqual(rows.map(r=>r.seed).sort((a,b)=>a-b),Array.from({length:count},(_,i)=>Number(baseline.meta.options.seed)+i));
+      }
+      assert.equal(baseline.rows.length,baseline.meta.completed);
     });
     check('全方針で再戦前の組み直しを検討し、実際の配置変更がある',()=>{
       for(const policy of presentPolicies) {
@@ -265,6 +299,7 @@ async function main(args=process.argv.slice(2)) {
     await require('./debug_cards_1018c_regression').testDebugCards(api);
     await require('./shop_reroll_1018c_regression').testShopReroll(api,check);
     await require('./run_levels_1018c_regression').testRunLevels(api,check);
+    await require('./bot_reroll_selftest').test(api,check);
   }
   check('異なるseedで結果が変わる',()=>assert.notDeepEqual(baseline.rows[0],baseline.rows.find(r=>r.seed!==baseline.rows[0].seed)));
   check('集計の提示・採用・保持率が有効な範囲',()=>{
@@ -338,6 +373,7 @@ async function main(args=process.argv.slice(2)) {
   fs.writeFileSync(target,JSON.stringify(result,null,2)+'\n');
   console.log(`合格 ${checks.length}項目 → ${target}`);
   return result;
+  }finally{if(temporary){fs.rmSync(temporary,{recursive:true,force:true});console.log('検査用の一時周回を削除しました。');}}
 }
 if(require.main===module)main().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
 module.exports={main,validateRuns};
