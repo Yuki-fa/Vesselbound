@@ -31,6 +31,7 @@ function _syncCoreLifeToG(state){
 }
 function _syncCoreResourcesToG(state){
   if(!state) return;
+  if(state.gameSummonBuff&&state.gameSummonBuff.p1) G.gameSummonBuff={...state.gameSummonBuff.p1};
   // **所持金だけは再生中に書き戻さない。** コアは1手番ぶんを先に解決するので、
   // 再生の途中でコアの値（もう加算済み）を入れると、その後の gold_gain の演出で
   // もう一度足されて多く見え、手番の終わりの同期で正しい値へ戻る＝一瞬増えて減る。
@@ -879,6 +880,7 @@ function _releaseRepeatCount(unit,isEnemySide){
 function _pveCoreStageFields(){
   return {
     ...runLevelCoreFields(),
+    ...coreGameSummonBuffFields({p1:G.gameSummonBuff}),
     mapIndex:Math.max(1,Number(G.floor)||1),
     stageNumber:Math.max(1,Number(G._wave)||1),
     ...(G._preserveEnemyOpening?{openingSides:['p1']}:{}),
@@ -2579,11 +2581,12 @@ function _takePveSummonState(state){
   if(!_pveOpeningSummonState) return;
   state._summonCount=_pveOpeningSummonState._summonCount;
   state._summonBuff=_pveOpeningSummonState._summonBuff;
+  if(_pveOpeningSummonState.gameSummonBuff) state.gameSummonBuff=_pveOpeningSummonState.gameSummonBuff;
   state._coreEnemyDeaths=_pveOpeningSummonState._coreEnemyDeaths;
   _pveOpeningSummonState=null;
 }
 function _keepPveSummonState(state){
-  _pveOpeningSummonState={_summonCount:state._summonCount,_summonBuff:state._summonBuff,
+  _pveOpeningSummonState={_summonCount:state._summonCount,_summonBuff:state._summonBuff,gameSummonBuff:state.gameSummonBuff,
     _coreEnemyDeaths:state._coreEnemyDeaths};
 }
 function _createPveCoreState(){
@@ -6239,6 +6242,7 @@ function startTestBattle(){
   if(G._testBattleMode) return;
   _suspendTestBattlePortraits();
   G._testBattleMode=true;
+  G._testBattleSavedGameSummonBuff={...G.gameSummonBuff};
   G._testBattleExitPending=false;
   // 前回の試験戦闘が中断で終わっていた場合の保険（残っていると次が進まない）。
   G._battlePhaseRunning=false;
@@ -6328,6 +6332,8 @@ async function _exitTestBattle(){
   // 立ったままになり、以後の終了処理が全て素通りする）。
   try{ await onBattleEnd(); }
   catch(err){ console.error('[testBattle onBattleEnd]',err); }
+  G.gameSummonBuff=G._testBattleSavedGameSummonBuff||{atk:0,hp:0};
+  delete G._testBattleSavedGameSummonBuff;
   G._testBattleMode=false;
   G._libraryTestBattleMode=false;
   G._testBattleAbort=false;

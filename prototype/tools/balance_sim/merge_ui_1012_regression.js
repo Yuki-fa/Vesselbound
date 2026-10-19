@@ -27,6 +27,9 @@ function node(id){
 }
 (async()=>{
   await loadGameData();let merges=0,blocked=0;
+  assert.equal(panelMergeEnabled(),false,'通常プレイの3枚合体は停止中');
+  // 停止中の合体形・旧保存の契約は、検査の間だけ有効にして従来どおり全行検査する。
+  PANEL_MERGE_TRIAL.enabled=true;
   for(const row of sheetRows('card')) {
     initState();const original=def(row['No.']);assert.ok(original,row['No.']);
     const atk=sheetNumber(row['パワー']),hp=sheetNumber(row['ライフ']);
@@ -57,6 +60,7 @@ function node(id){
     _permBaseLife:base.life*2,power:base.power*2+7,life:base.life*2+9});G.mainBoard[1]=old;
   const saved=saveAtReward();SaveRun.restoreRunState(copy(saved));
   assert.deepEqual(G.mainBoard[1],saved.state.player.mainBoard[1],'旧合体済みカードの保存値を保持');
+  PANEL_MERGE_TRIAL.enabled=false;
   console.log(`OK 1: ${merges}合体／${blocked}制限カード、図鑑、3枚の補正、4ポート、PvE／オンライン、旧セーブ`);
 
   // 貸出を番号で引く。改名しても同じカード・並び・ポート・返却先となる。

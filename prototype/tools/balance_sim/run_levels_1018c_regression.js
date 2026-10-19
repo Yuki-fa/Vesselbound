@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 'use strict';
 const assert=require('node:assert/strict'),vm=require('node:vm');
-const {execFileSync}=require('node:child_process');
 const {initialize}=require('./run_bot'),{source}=require('./bot_runtime');
 
 async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);}){
@@ -30,17 +29,15 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
     return {events,state};
   };
   fresh();
-  check('レベル1：参照・本文・カードの形・乱数を変えず、旧コアの80編成と全イベント・結果が一致',()=>{
-    const oldModule={exports:{}};
-    vm.runInNewContext(execFileSync('git',['show','647d175:prototype/js/battle/core.js'],{encoding:'utf8'})
-      ,{module:oldModule,exports:oldModule.exports,console},{filename:'baseline-core-647d175.js'});
-    const old=oldModule.exports,defs=PANEL_POOL.filter(c=>c.category==='キャラクター'&&c._implemented!==false);
+  check('レベル1：参照・本文・カードの形・乱数を変えず、レベル未指定の80編成と全イベント・結果が一致',()=>{
+    // 効果文の修正を旧コアの不発と比較しない。レベル未指定と明示した1の同一性を全行で守る。
+    const defs=PANEL_POOL.filter(c=>c.category==='キャラクター'&&c._implemented!==false);
     const rng=G._runRngState;
     for(let i=0;i<80;i++){
       const c=clone(defs[i%defs.length]);assert.equal(coreApplyCardRunLevels(c,ones),c);
       const u=formed(c),setup={sides:{p1:{units:[u]},p2:{units:[{id:'enemy',name:'相手',atk:7,hp:150,desc:i%2?'攻撃：このキャラクターは+2/+1を得る。':''}]}},summonDefs:[...PANEL_POOL,...ENEMY_POOL],stageNumber:2};
-      const play=core=>{const state=core.createBattleState(clone(setup)),events=[];state._coreStateToken="level-1-regression";const result=core.runBattleCore(state,createSeededRng(i+1),{turnLimit:12,onEvent:e=>events.push(e)});return JSON.stringify({result,events,state},(key,value)=>key==='_lastDamageSource'?undefined:value);};
-      assert.ok(play({createBattleState,runBattleCore,createSeededRng})===play(old),c.name);
+      const play=explicit=>{const state=createBattleState({...clone(setup),...(explicit?{runLevels:{p1:ones,p2:ones}}:{})}),events=[];state._coreStateToken="level-1-regression";const result=runBattleCore(state,createSeededRng(i+1),{turnLimit:12,onEvent:e=>events.push(e)});return JSON.stringify({result,events,state},(key,value)=>['_lastDamageSource','runLevels'].includes(key)?undefined:value);};
+      assert.ok(play(true)===play(false),c.name);
     }
     assert.equal(G._runRngState,rng);
   });

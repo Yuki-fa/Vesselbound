@@ -370,6 +370,10 @@ const ONLINE_VERSUS_GOLD = 100;
           p2: opponent,
         },
         resources: selfFormation && selfFormation.resources,
+        gameSummonBuff: {
+          p1: selfFormation && selfFormation.gameSummonBuff && selfFormation.gameSummonBuff.p1,
+          p2: opponent && opponent.gameSummonBuff && (opponent.gameSummonBuff.p2 || opponent.gameSummonBuff.p1),
+        },
         // buildSelfFormation() は rings/items を {p1:[…],p2:[]} の形で返す。
         // そのまま p1 へ入れると配列ではなくなり、createBattleState() の
         // Array.isArray 判定で弾かれて**指輪もアイテムも全て失われる**

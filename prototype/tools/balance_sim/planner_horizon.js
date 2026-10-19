@@ -12,7 +12,7 @@ const combatCache=new Map(),projectionCache=new Map(),sampleCache=new Map();
 let audits=[];
 const round=x=>Number(x.toFixed(6));
 const signature=()=>JSON.stringify([G.mainBoard,G.rings,G.spellSlots,G.pendingBattleItems,G.nextBattleItems,
-  G.mapPanelPowers,G.panelPermanentBuffs,G.panelColorPermanentBuffs,G.towerBoons,G.runLevels?.values,G.gold,G._waveLife]);
+  G.mapPanelPowers,G.panelPermanentBuffs,G.panelColorPermanentBuffs,G.towerBoons,G.runLevels?.values,G.gold,G._waveLife,G.gameSummonBuff]);
 function wallFrom(next){
   const opportunities=[];
   for(let wave=next.wave;wave<=4;wave++){

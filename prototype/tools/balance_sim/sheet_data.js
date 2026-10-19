@@ -76,4 +76,20 @@ function enchantCards() {
     }));
 }
 
-module.exports = { parseCsv, loadLocalXlsxData, sheetRows, characterCards, enchantCards };
+// 検査の期待値は現行の本文から読む。コアのパーサーを呼ばず独立に回数を求める。
+function effectText(no, enhanced = false) {
+  const row = [...sheetRows('card'), ...sheetRows('enchant')].find(r => r['No.'] === no);
+  if (!row) throw new Error(`シートにカードがない: ${no}`);
+  return String((enhanced ? row['強化効果'] ?? row['合体効果'] : row['効果']) || row['効果'] || '').trim();
+}
+function effectRepetitions(text) {
+  const repeat = String(text).match(/(?:これ|この判定)を(?:(\d+)回|もう一度)繰り返す[。.]?\s*$/);
+  return repeat ? 1 + (repeat[1] == null ? 1 : Number(repeat[1])) : 1;
+}
+function damageRepetitions(text) {
+  const hits = String(text).match(/ダメージを(\d+)回与える/);
+  return (hits ? Number(hits[1]) : 1) * effectRepetitions(text);
+}
+
+module.exports = { parseCsv, loadLocalXlsxData, sheetRows, characterCards, enchantCards,
+  effectText, effectRepetitions, damageRepetitions };

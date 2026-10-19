@@ -23,6 +23,7 @@ function simulateOnlineBattle(setup) {
   const rng = createSeededRng(seed);
   const state = createBattleState({
     sides: (setup && setup.sides) || {},
+    gameSummonBuff: setup && setup.gameSummonBuff,
     resources: (setup && setup.resources) || {},
     rings: (setup && setup.rings) || {},
     items: (setup && setup.items) || {},

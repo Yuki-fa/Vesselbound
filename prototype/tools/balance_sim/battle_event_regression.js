@@ -630,7 +630,10 @@ function runPersistentDeathObserverScenario() {
     state._enemyDeaths = state._enemyDeaths || 0;
     core.coreApplyDeathObservers(dead, state, createSeededRng(22), emit, hit);
   }
-  assert.equal(state.units.p1[1].atk, 4, 'ヘルハウンドが敵死亡回数（1+2）で強化されていない');
+  const pair = state.units.p1[1].desc.match(/このキャラクターは\+(\d+)\/\+(\d+)を得る/);
+  const deaths = state.units.p1.slice(2).length + state.units.p2.length;
+  assert.deepEqual([state.units.p1[1].atk, state.units.p1[1].maxHp],
+    [1 + Number(pair[1]) * deaths, 5 + Number(pair[2]) * deaths], 'ヘルハウンドは敵味方の死亡1件ごとに本文の修正を1回受ける');
 }
 
 function runSuccubusCaptureScenario() {

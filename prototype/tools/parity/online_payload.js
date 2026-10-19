@@ -117,6 +117,12 @@ if (resourceIssues.length) {
   console.log('\n★ 開戦時の資源がオフラインと違う:');
   resourceIssues.forEach(x => console.log(`   ${x}`));
 }
+// 眷属のゲーム中修正はユニット外の入力。編成→サーバー→コアの全境界を見る。
+if (!/coreGameSummonBuffFields\(\{p1:/.test(buildFn)) resourceIssues.push('編成がラン中の眷属修正を送っていない');
+const simulation = read('js/online/sim.js'), server = read('js/online/server_local.js');
+if (!/gameSummonBuff:\s*setup\s*&&\s*setup\.gameSummonBuff/.test(simulation)) resourceIssues.push('シミュレータが眷属修正をコアへ渡していない');
+if (!/gameSummonBuff:\s*\{\s*p1:[\s\S]*?selfFormation\.gameSummonBuff\.p1,[\s\S]*?p2:[\s\S]*?opponent\.gameSummonBuff/.test(server)) resourceIssues.push('サーバーが両陣営の眷属修正を渡していない');
+for (const issue of resourceIssues.filter(x => /眷属/.test(x))) console.log('★ ' + issue);
 
 console.log(`コアが読むフィールド: ${readFields.size}件 ／ オンラインが送るフィールド: ${sentFields.size}件`);
 if (missing.length) {

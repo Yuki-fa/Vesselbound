@@ -668,9 +668,10 @@ function audit() {
       createSeededRng(42), e => observerEvents.push(e), () => ({amount: 0, died: false}));
   }
   const hell = observerState.units.p1.find(u => u.id === 'hell');
+  const hellPair=hell.desc.match(/このキャラクターは\+(\d+)\/\+(\d+)を得る/);
   const observerOk = observerState.resources.p1.mana === 1
     && observerEvents.filter(e => e.type === 'mana_gain' && e.reason === 'eidolon').length === 1
-    && hell.atk === 4 && hell.maxHp === 7;
+    && hell.atk === 1+5*Number(hellPair[1]) && hell.maxHp === 4+5*Number(hellPair[2]);
   if (!observerOk) ng++;
   console.log(`常時観測回帰 エイドロン/ヘルハウンド ${observerOk ? 'OK' : 'NG'}`);
 
@@ -711,13 +712,15 @@ function audit() {
   };
   const plainDirectUnit = (id, side, extra = {}) => ({ id, name: '監査対象', side, atk: 2, hp: 10, maxHp: 10, color: '赤', keywords: [], desc: '', ...extra });
 
-  // ナーガ：召喚体への+1/+1が召喚回数に応じてコアで一度だけ適用される。
+  // ナーガ：本文のHP修正が召喚1件につき1回、ゲーム中の累積値へ入る。
   {
     const naga = makeDirectUnit('ナーガ', 'p1', { id: 'naga' });
     const s = makeDirectState([naga], [], undefined, [{ name: 'ペリカン', color: '緑', power: 1, life: 1 }]);
     const es = []; const child = core.coreSummonUnit(s, 'p1', { name: '緑ペリカン' }, e => es.push(e), 'naga');
-    recordDirect('ナーガ', !!child && child.atk === 2 && child.hp === 2
-      && es.filter(e => e.type === 'stat_change' && e.reason === 'naga_summon').length === 1,
+    const hp=Number(naga.desc.match(/HP\+(\d+)/)[1]);
+    recordDirect('ナーガ', !!child && child.atk === 1 && child.hp === 1+hp
+      && es.filter(e => e.type === 'stat_change' && e.reason === 'summon_buff').length === 1
+      && s.gameSummonBuff.p1.hp===hp,
       `召喚=${child && child.atk}/${child && child.hp}`);
   }
   // ダークワン：1マナ閾値を一度だけ処理し、紫対象へ+1/+1を与える。
@@ -955,8 +958,9 @@ function audit() {
     s.deadUnits = [core.coreUnitSnapshot(dead)]; const es = [];
     core.coreApplyDeathEffects(lem, s, createSeededRng(93), e => es.push(e), () => {});
     const summon = es.find(e => e.type === 'summon');
-    recordDirect('レムレース', !!summon && !es.some(e => e.type === 'transform') && summon.unit.atk === 5
-      && summon.unit.hp === 10 && summon.unit._useEnemyVisualFrame === true, `召喚=${summon && summon.unit.atk}/${summon && summon.unit.hp}`);
+    const hp=Number(lem.desc.match(/HPを(\d+)にして/)[1]);
+    recordDirect('レムレース', !!summon && !es.some(e => e.type === 'transform') && summon.unit.atk === dead.atk
+      && summon.unit.hp === hp && summon.unit._useEnemyVisualFrame === true, `召喚=${summon && summon.unit.atk}/${summon && summon.unit.hp}`);
   }
   {
     const ettin = makeDirectUnit('エティン', 'p1', { id: 'ettin' });

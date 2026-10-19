@@ -13,7 +13,12 @@ async function main(args=process.argv.slice(2)){
   const meta=JSON.parse(fs.readFileSync(path.join(out,'compare_meta.json'),'utf8'));
   const rows=fs.readFileSync(path.join(out,'comparisons.jsonl'),'utf8').trim().split('\n').map(JSON.parse);
   const manifest=JSON.parse(fs.readFileSync(path.join(boardsDir,'boards_manifest.json'),'utf8'));
-  const sourceFile=[manifest.options.input,path.join(__dirname,'out_no_boon/runs.jsonl')].find(file=>fs.existsSync(file)&&engine.sha(fs.readFileSync(file,'utf8'))===manifest.inputHash);
+  const sourceCandidates=[manifest.options.input,path.join(__dirname,'out_no_boon/runs.jsonl')];
+  if(!sourceCandidates.some(file=>fs.existsSync(file))){
+    console.log('SKIP fixed_selftest: git管理外の元周回JSONLが無いため、保存比較データの再測定を省略: '+sourceCandidates.join(' / '));
+    return {skipped:true,reason:'元周回JSONLが無い'};
+  }
+  const sourceFile=sourceCandidates.find(file=>fs.existsSync(file)&&engine.sha(fs.readFileSync(file,'utf8'))===manifest.inputHash);
   check(sourceFile,'選定に使用した元周回またはout_no_boonの退避に同じJSONLがある');
   const inputs=fs.readFileSync(sourceFile,'utf8'),runs=inputs.trim().split('\n').map(JSON.parse);
   assert.deepEqual(engine.sourceHashes(),meta.sourceHashes,'本体の読み込み元が比較時と異なる');

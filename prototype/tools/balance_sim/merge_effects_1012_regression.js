@@ -3,7 +3,7 @@
 // 反復文の期待値は「反復を除いた本文を独立にN+1回発動した結果」。カード別の古い数値は置かない。
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), vm = require('node:vm');
-const { sheetRows } = require('./sheet_data');
+const { sheetRows, effectRepetitions, damageRepetitions } = require('./sheet_data');
 require('./load');
 console.table=()=>{};
 const internals = vm.runInNewContext(fs.readFileSync('js/battle/core.js', 'utf8') + '\n({coreFireWargThreshold,coreMataSplit,coreGainResource});', {});
@@ -43,10 +43,10 @@ function exercise(row, merged, text, times = 1, side = 'p1', includeRegular=fals
   if (/この効果を持つ全ての味方/.test(text)) allies.forEach(a=>{
     a.effectData={effectNames:[p.name],effectTexts:[text]};a.boardCards=[p];
   });
-  const foes = [0,1,2].map(i=>plain('foe'+i,'青',{lane:'front',hp:9999,maxHp:10000,atk:0,poison:2}));
+  const foes = [0,1,2].map(i=>plain('foe'+i,'青',{lane:'front',hp:9999,maxHp:10000,atk:20,poison:2}));
   const cost = Number((text.match(/^(\d+)マナ/) || [])[1]) || 0;
   const state = createBattleState({sides:{[side]:{units:[subject,...allies]},[other]:{units:foes}},
-    resources:{p1:{mana:cost||10,gold:200},p2:{mana:cost||10,gold:200}},blood:{p1:10,p2:10},life:{p1:1,p2:1},maxLife:{p1:3,p2:3},
+    resources:{p1:{mana:cost||10,gold:1000},p2:{mana:cost||10,gold:1000}},blood:{p1:10,p2:10},life:{p1:1,p2:1},maxLife:{p1:3,p2:3},
     summonDefs:[...PANEL_POOL,...ENEMY_POOL],itemDefs:ITEM_POOL,frontSlots:30,maxUnits:40});
   const u=state.units[side][0], receiver=state.units[side][1]; u._currentAttackTarget=state.units[other][0];
   state.deadUnits=[plain('archived','青',{hp:0,atk:6,maxHp:10})];
@@ -75,7 +75,7 @@ function exercise(row, merged, text, times = 1, side = 'p1', includeRegular=fals
     else if (/が(?:死亡するたび|死んだ時)/.test(text)) {
       const dead=/敵が/.test(text)?state.units[other][0]:receiver;dead.hp=0;delete dead._coreDeathObserved;
       coreApplyDeathObservers(dead,state,rng,emit,hit);
-    } else if (/が召喚した|眷属が召喚された/.test(text)) {
+    } else if (/が召喚した|眷属が召喚され/.test(text)) {
       const child=coreSummonUnit(state,side,{name:'検査用の眷属',atk:10,hp:20},emit,u.id);
       if (/「死亡：/.test(text)) {child.hp=0;coreApplyDeathEffects(child,state,rng,emit,hit);}
     }
@@ -97,7 +97,7 @@ function concrete(row,merged,text,result) {
   const {p,u,state,events,score,side,other}=result;
   const match=re=>text.match(re);
   let m;
-  const repeats=1+Number((match(/これを(\d+)回繰り返す/)||[])[1]||0);
+  const repeats=effectRepetitions(text);
   if((m=match(/^(?:攻撃|負傷|死亡|終戦|開戦)：(\d+)(マナ|ゴールド)を得る。/))) {
     assert.equal(score[m[2]==='マナ'?'mana_gain':'gold_gain'],Number(m[1])*repeats);return;
   }
@@ -133,7 +133,7 @@ function concrete(row,merged,text,result) {
     assert.deepEqual([u.atk,u.maxHp],[20+Number(pair[1])*count,40+Number(pair[2])*count]);return;
   }
   if((m=match(/^\d+マナ毎：(?:全ての|ランダムな)([赤青緑黄紫])の味方は\+(\d+)\/\+(\d+)を得る/))) {
-    const runs=1+Number((match(/これを(\d+)回/)||[])[1]||0),count=text.includes('全ての')?state.units[side].filter(x=>x.color===m[1]).length:1;
+    const runs=repeats,count=text.includes('全ての')?state.units[side].filter(x=>x.color===m[1]).length:1;
     const buffs=events.filter(e=>e.type==='stat_change');assert.ok(buffs.every(e=>state.units[side].find(x=>x.id===e.unitId).color===m[1]));
     assert.deepEqual([score.stat_atk,score.stat_hp],[Number(m[2])*count*runs,Number(m[3])*count*runs]);return;
   }
@@ -144,7 +144,7 @@ function concrete(row,merged,text,result) {
   if((m=match(/このキャラクターの(死亡|攻撃|負傷|開戦|マナ|解放)効果は(\d+)回追加/))) {
     assert.equal(coreExtraTriggerTimes(u,m[1],1),Number(m[2]));return;
   }
-  if(text.includes('ダメージを1にし')) {const split=internals.coreMataSplit(u,13);const d=Number((match(/(\d+)分の1/)||[])[1])||1;assert.deepEqual(copy(split),{target:1,redirected:Math.floor(12/d)});return;}
+  if(text.includes('ダメージを1にし')) {const split=internals.coreMataSplit(u,13);const d=text.includes('半分')?2:Number((match(/(\d+)分の1/)||[])[1])||1;assert.deepEqual(copy(split),{target:1,redirected:Math.floor(12/d)});return;}
   if((m=match(/緑の味方から得るマナは\+(\d+)/))) {
     const before=state.resources[side].mana;internals.coreGainResource(state,side,'mana',1,createCoreUnit(plain('green','緑'),side,9),()=>{},'fixture');assert.equal(state.resources[side].mana-before,1+Number(m[1]));return;
   }
@@ -192,9 +192,9 @@ function concrete(row,merged,text,result) {
   if((m=match(/全ての敵の毒を(\d+)倍/))) {assert.ok(state.units[other].every(x=>x.poison===2*Number(m[1])));return;}
   if((m=match(/封印Xを得て封印される。Xは現在の血の(\d+)倍/))) {assert.equal(u._sealValue,11*Number(m[1]));return;}
   if((m=match(/報酬に(\d+)枚/))) {assert.equal(events.filter(e=>e.type==='bonus_reward').length,Number(m[1]));return;}
-  if((m=match(/(\d+)Gと引き換え/))) {assert.equal(200-state.resources[side].gold,Number(m[1]));return;}
+  if((m=match(/(\d+)Gと引き換え/))) {assert.equal(1000-state.resources[side].gold,Number(m[1]));return;}
   if((m=match(/全ての敵に(?:弱体|毒)(\d+)/))) {
-    const prop=text.includes('弱体')?'weaken':'poison';const runs=1+Number((match(/これを(\d+)回/)||[])[1]||0);
+    const prop=text.includes('弱体')?'weaken':'poison';const runs=repeats;
     assert.ok(state.units[other].every(x=>x[prop]===(prop==='poison'?2:0)+Number(m[1])*runs));return;
   }
   if((m=match(/死亡：血を(\d+)得る/))) {assert.equal(score.blood,Number(m[1]));return;}
@@ -211,7 +211,8 @@ function concrete(row,merged,text,result) {
   }
   if((m=match(/この戦闘で死んだ敵の数(?:の(\d+)倍)?(?:だけ)?繰り返す/))) {assert.equal(u.atk,20+(Number(m[1])||1));return;}
   if((m=match(/死亡：ランダムな敵に(\d+)ダメージ/))&&text.includes('が召喚した')) {
-    const runs=1+Number((match(/これを(\d+)回/)||[])[1]||0);assert.equal(score.damage,Number(m[1])*runs);return;
+    const granted=text.match(/「(死亡：[^」]+)」/)[1];
+    assert.equal(score.damage,Number(m[1])*damageRepetitions(granted));return;
   }
   if(text.includes('確率で即死')) return; // 境界と独立判定は下で別に確認する。
   if(!text || !/^(?:常時|開戦|攻撃|負傷|死亡|解放|終戦|\d+マナ)/.test(text)) return; // 荷物・クエスト・刻印の戦闘外の文。
@@ -307,11 +308,11 @@ async function pveBridgeChecks() {
           const numeric=k.match(/^(衝撃|毒牙|邪眼|結界)(\d+)$/);
           if(numeric) assert.ok(coreKeywordSum(result.u,numeric[1])>=Number(numeric[2]));
         }
-        const suffix=desc.match(/。(?:これ|この判定)を(\d+)回繰り返す。$/);
+        const suffix=desc.match(/。(?:これ|この判定)を(?:(\d+)回|もう一度)繰り返す。$/);
         if(suffix&&!desc.includes('即死')) {
           const primitive=desc.slice(0,suffix.index)+'。';
-          const expected=exercise(row,merged,primitive,1+Number(suffix[1]),side);
-          assert.deepEqual(result.score,expected.score,`${row['No.']} ${side} 初回＋${suffix[1]}回: ${desc}`);repeats++;
+          const count=effectRepetitions(desc),expected=exercise(row,merged,primitive,count,side);
+          assert.deepEqual(result.score,expected.score,`${row['No.']} ${side} 合計${count}回: ${desc}`);repeats++;
         }
         checked++;
       }
@@ -336,7 +337,7 @@ async function pveBridgeChecks() {
   const basilisk=rows.find(r=>r['No.']==='C059');
   for(const merged of [false,true]) for(const side of ['p1','p2']) {
     const text=String(merged?basilisk['合体効果']:basilisk['効果']);
-    const prob=Number(text.match(/(\d+)%/)[1])/100,rep=Number((text.match(/判定を(\d+)回/)||[])[1])||0;
+    const prob=Number(text.match(/(\d+)%/)[1])/100,rep=effectRepetitions(text)-1;
     for(let success=0;success<=rep;success++) {
       const source=plain('s','緑',{desc:text,name:'改名された体',lane:'front'}),target=plain('t','青',{lane:'front'});
       const other=side==='p1'?'p2':'p1';const state=createBattleState({sides:{[side]:{units:[source]},[other]:{units:[target]}}});
