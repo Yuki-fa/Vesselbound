@@ -793,6 +793,8 @@ function goToReward(options){
       G._isShop=true;
       G._isPeddler=true;
       G._isItemShop=false;
+      // 行商人の画面は村のメニューではない。印が残ると再抽選ボタンが隠れる（2026-10-19）。
+      G._isVillageMenu=false;
       G._mapReturnAfterReward=false;
       _rewCards=_ensureDefeatPeddlerStock();
       G._facilityLabel=typeof defeatPeddlerTitle==='function'?defeatPeddlerTitle():'';

@@ -60,9 +60,20 @@ async function testShopReroll(api,check=(name,fn)=>{fn();console.log('OK '+name)
         assert.equal(_rewCards.length,3);assert.equal(_rewCards[0].id,original.id);assert.equal(G.gold,900);assert.deepEqual(_rewCards,cached());
       });
     }
-    check('行商人・オンラインには新しい100G再抽選を出さない',()=>{
-      G._isForge=false;G._isShop=true;G._isPeddler=true;assert.equal(shopRerollKind(),'');assert.equal(shopRerollOffers(),false);
-      G._isPeddler=false;G._onlineMode=true;assert.equal(shopRerollKind(),'');assert.equal(shopRerollOffers(),false);
+    check('行商人：100G再抽選で品揃えを引き直し、行商人の在庫として保存・再表示で同じ（2026-10-19）',()=>{
+      api.resetRun();initState();SaveRun.begin();_dragSrc=null;_rewCards=[];
+      Object.assign(G,{_wave:2,_waveStage:3,phase:null,gold:150,_waveLife:3,life:3,_waveDefeatCount:1});
+      G.mainBoard[1]=makePanel('ノーム');G._isVillageMenu=false;G._waveVillage=false;
+      G._peddlerStock=_buildDefeatPeddlerStock();goToReward({noNewRewards:true,peddler:true});
+      assert.equal(G._isPeddler,true);assert.equal(shopRerollKind(),'peddler');assert.equal(towerBoonRerollVisible(),true);
+      assert.deepEqual(towerBoonRerollButtonState(),{visible:true,label:'再抽選（100G）',disabled:false});
+      const before=clone(_rewCards);assert.equal(shopRerollOffers(),true);assert.equal(G.gold,50);
+      assert.equal(_rewCards.length,before.length);assert.notDeepEqual(_rewCards.map(c=>c&&c.id),before.map(c=>c&&c.id));
+      assert.deepEqual(G._peddlerStock,clone(_rewCards));assert.deepEqual(_ensureDefeatPeddlerStock(),clone(_rewCards));
+      assert.equal(shopCanReroll(),false,'50Gでは2回目は押せない');
+    });
+    check('オンラインには100G再抽選を出さない',()=>{
+      G._isPeddler=false;G._onlineMode=true;assert.equal(shopRerollKind(),'');assert.equal(shopRerollOffers(),false);G._onlineMode=false;
     });
   }finally{_storeRewardStartSnapshot=store;}
 }

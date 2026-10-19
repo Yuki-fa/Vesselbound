@@ -2904,7 +2904,9 @@ function _ensureWaveForgeOffers(){
 }
 const SHOP_REROLL_COST=100;
 function shopRerollKind(){
-  if(G._onlineMode||G.phase!=='reward'||G._isPeddler) return '';
+  if(G._onlineMode||G.phase!=='reward') return '';
+  // 2026-10-19 利用者指定：敗北時の行商人にも同じ100G再抽選を付ける（品揃えは行商人の在庫として保存）。
+  if(G._isPeddler) return 'peddler';
   return G._isForge?'forge':G._isItemShop?'item':G._isShop?'shop':'';
 }
 function shopCanReroll(){
@@ -2919,7 +2921,7 @@ function shopRerollOffers(){
   G._shopRerollSeq=(Number(G._shopRerollSeq)||0)+1;
   const waveKey=Number(G._facilityCacheKey)||_waveFacilityCacheKey();
   const key=`shop-reroll:${waveKey}:${kind}:${G._shopRerollSeq}`;
-  if(kind==='shop'){
+  if(kind==='shop'||kind==='peddler'){
     _rewCards.filter(c=>c&&!c._towerBoonBoss).forEach(returnPanelToSalePool);
     _rewCards=_drawExchangeShopStock(key);
   }else if(kind==='item') _rewCards=runWithKeyedRandom(key,_drawItemShopStock);
