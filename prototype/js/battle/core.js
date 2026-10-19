@@ -3856,6 +3856,14 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
   } finally { coreEndSummonBatch(state, emit); }
 }
 
+// 効果による割り込み攻撃（ミノタウロス・咬竜"グレイプニル"）の反撃可否。通常の攻撃と同じく、
+// 先制で相手を倒した時だけ反撃を受けない。逃走した相手・攻撃側が倒れた時も反撃しない。
+function coreReactionCounterAllowed(attacker, target, targetResult) {
+  if (!attacker || !target || attacker.hp <= 0 || target._fled) return false;
+  const died = targetResult && targetResult.died != null ? !!targetResult.died : target.hp <= 0;
+  const attackerFirst = coreUnitHasKeyword(attacker, '先制') && !coreUnitHasKeyword(target, '先制');
+  return !(attackerFirst && died);
+}
 function coreApplyInjuryEffects(unit, actualDamage, state, rng, emit, applyHit, source, triggerIndex, causeKind) {
   if (!unit || unit.hp <= 0 || coreIsSealed(unit)) return;
   // 負傷イベントの再入を共通コアで遮断する。執念の炎・激怒の指輪などの
@@ -4023,12 +4031,19 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
       unit._currentAttackTarget = target;
       // 2026-10-19 利用者指定：ミノタウロスの効果による攻撃では「攻撃：」の効果（懺悔・竜の契約など）を発動しない。
       // 発動させると懺悔の自傷が割り込み攻撃ごとに増え、1回の攻撃で20以上の自傷になっていた。
-      emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: target.atk, immediate: true, reactionSourceId:unit.id });
+      const counterNotice = {}, counter = coreCounterDamage(unit, target, counterNotice);
+      emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: counter, immediate: true, reactionSourceId:unit.id });
       coreWithDamageKind(state, 'combat', () => {
         unit._coreAttackContact = true;
-        try { applyHit(unit, target, unit.atk); }
+        let targetResult;
+        try { targetResult = applyHit(unit, target, unit.atk); }
         finally { delete unit._coreAttackContact; }
-        if (target.hp > 0) applyHit(target, unit, target.atk, true);
+        // 通常の攻撃と同じ規則：先制が無ければ、相手を倒しても反撃を受ける（2026-10-19 利用者指摘）。
+        // 以前は相手が生き残った時だけ反撃し、倒すと結界が残って次の懺悔の1ダメージを防いでいた。
+        if (coreReactionCounterAllowed(unit, target, targetResult)) {
+          applyHit(target, unit, counter, true);
+          coreEmitCounterBlock(state, unit, target, counterNotice, emit);
+        }
       });
       delete unit._currentAttackTarget;
     }
@@ -4038,9 +4053,13 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
     if (target) {
       unit._currentAttackTarget = target;
       coreApplyAttackEffects(unit, state, rng, emit, applyHit);
-      emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: target.atk, immediate: true });
-      applyHit(unit, target, unit.atk);
-      if (target.hp > 0) applyHit(target, unit, target.atk, true);
+      const counterNotice = {}, counter = coreCounterDamage(unit, target, counterNotice);
+      emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: counter, immediate: true });
+      const targetResult = applyHit(unit, target, unit.atk);
+      if (coreReactionCounterAllowed(unit, target, targetResult)) {
+        applyHit(target, unit, counter, true);
+        coreEmitCounterBlock(state, unit, target, counterNotice, emit);
+      }
       delete unit._currentAttackTarget;
     }
   }
