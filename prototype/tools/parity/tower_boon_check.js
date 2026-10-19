@@ -308,11 +308,15 @@ function simulate(c, options = {}) {
     const save = SaveRun.buildRunSave('reward'); SaveRun.validate(save); SaveRun.restoreRunState(save);
     assert.equal(G.mainBoard[1].name, boss.name); assert.deepEqual(G.mainBoard[1].boon, bonus);
   });
-  check('施設：祝福の座は出さず、五聖の座のロックと他施設の位置は維持する', () => {
+  check('施設：旧祝福の座は廃止、五聖の解放条件を保ち、移設先と祝福の炎を配置する', () => {
     fresh(); G._isWaveAltar = true; G._debugStoryCycle = 1;
     const list = villageFacilityList();
     assert.equal(list.some(f=>f.key===TOWER_BOON_CONFIG.key),false);
     assert.equal(list.some(f => f.key === 'landing'), false);
+    assert.equal(list.filter(f=>f.key===BLESSING_FLAME_CONFIG.key).length,1);
+    assert.deepEqual(_villageFacilityFixedPos('五聖の座'),{x:650,y:1402});
+    assert.deepEqual(_villageFacilityFixedPos(BLESSING_FLAME_CONFIG.name),{x:1621,y:1402});
+    assert.deepEqual(_villageFacilityFixedPos('祭壇'),{x:2260,y:246});
     const positions = _villageFacilityPositions(list);
     assert.equal(new Set(positions.map(p => JSON.stringify(p))).size, positions.length);
   });

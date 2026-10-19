@@ -23,7 +23,8 @@ const COLLECTION_TEXTS={
   enchant:['「エンチャント」タブ','エンチャント'],
   enemy:['「エネミー」タブ','エネミー'],
   equipment:['「リング / アイテム」タブ','リング / アイテム'],
-  merge:['「マージ」ボタン','マージ'],
+  // 強化への改称はシート未反映のため、この設定表で仮ラベルを持つ。
+  merge:[null,'強化'],
   return:['「タイトルに戻る」ボタン','タイトルに戻る'],
   // この3件はシートに行が無い補助ラベル。
   previous:[null,'前のカード'],
@@ -111,23 +112,8 @@ function _collectionDisplayCard(card){
     out._sheetEnemy=true;
     out._useEnemyVisualFrame=!out.bossOnly;
   }
-  if(!panelMergeEnabled()||!_collectionMerged||!['character','enchant'].includes(_collectionKind)) return runLevelDisplayCard(out);
-  out._merged=true;
-  out._tripleMerged=true;
-  const baseName=String(out.name||'').replace(/\+$/,'');
-  out._tripleBaseName=baseName;
-  out._displayName=`${baseName}+`;
-  out.rarity=Math.max(1,Number(out.rarity)||1)+1;
-  if(typeof applyMergedPanelForm==='function') applyMergedPanelForm(out);
-  if(_collectionKind==='character'){
-    // 2026-10-12: 新規トリプルと同じ基本能力3倍を表示する。
-    const tripleBase=tripleCharacterBaseStats(card);
-    out.power=tripleBase.power;
-    out.life=Math.max(1,tripleBase.life);
-    if(out.atk!=null) out.atk=out.power;
-    if(out.hp!=null) out.hp=out.life;
-  }
-  return runLevelDisplayCard(out);
+  if(!_collectionMerged||!['character','enchant'].includes(_collectionKind)) return runLevelDisplayCard(out);
+  return runLevelDisplayCard(enhancedPanelCopy(out)||out);
 }
 
 function _collectionItemArt(card){
@@ -324,8 +310,8 @@ function _collectionRenderDetail(){
   name.textContent='';stats.textContent='';desc.innerHTML='';
   const selectable=_collectionSelectableIndices(cards);
   prev.disabled=next.disabled=selectable.length<2;
-  merge.style.display=panelMergeEnabled()?'':'none';
-  merge.disabled=!panelMergeEnabled()||!card||!['character','enchant'].includes(_collectionKind);
+  merge.style.display='';
+  merge.disabled=!card||!panelHasEnhancementForm(original)||!['character','enchant'].includes(_collectionKind);
   merge.classList.toggle('is-active',!!(_collectionMerged&&!merge.disabled));
   if(!card) return;
 
@@ -424,7 +410,6 @@ function _collectionStep(direction){
 }
 
 function _collectionToggleMerged(){
-  if(!panelMergeEnabled()) return;
   if(!['character','enchant'].includes(_collectionKind)||_collectionSelected<0) return;
   _collectionMerged=!_collectionMerged;
   // 拡大画像だけでなく、左の一覧カードも同じマージ枠へ更新する。
