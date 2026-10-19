@@ -17,12 +17,31 @@ const sheet = require('../balance_sim/sheet_data');
 const scripts = ['assets.js', 'js/engine/constants.js', 'js/data/floors.js', 'js/data/events.js',
   'js/data/local_xlsx_data.js', 'js/data/loader.js', 'js/data/units.js', 'js/engine/state.js',
   'js/engine/pool.js', 'js/battle/core.js', 'js/battle/formation.js', 'js/online/protocol.js', 'js/battle/present.js',
-  'js/battle/present_events.js', 'js/engine/battle.js', 'js/engine/battle_events.js', 'js/engine/render.js', 'js/engine/map.js', 'js/engine/run_levels.js',
+  'js/battle/present_events.js', 'js/engine/battle.js', 'js/engine/battle_events.js', 'js/engine/render.js', 'js/engine/blessing_flame.js', 'js/engine/map.js', 'js/engine/run_levels.js',
   'js/engine/action_banner.js', 'js/engine/reward.js', 'js/engine/reward_items.js',
   ...RUNTIME_SCRIPTS, 'js/engine/battle_fx.js'];
 global.setTimeout = () => 0;
 global.requestAnimationFrame = () => 0;
 for (const rel of scripts) vm.runInThisContext(fs.readFileSync(path.join(root, rel), 'utf8'), { filename: rel });
+// 2026-10-20：ATK0の逃走が効果の途中に割り込むようになった。requestAnimationFrame を発火させない採取では、
+// 逃走演出（描画1コマ待ち）で止まるので即時に終える（逃走の経路は採取対象外）。
+global.playFledVfx = async () => {};
+// 同時に逃げる複数体の時間差（setTimeout）も、止めた時計では終わらない。採取では盤面から外すだけにする。
+global.presentFledBatch = async (evs, api) => {
+  const list = (Array.isArray(evs) ? evs : [evs]).filter(Boolean);
+  if (!list.length || !api) return false;
+  let any = false;
+  list.forEach(ev => {
+    if (typeof api.isDone === 'function' && api.isDone(ev)) return;
+    const unit = api.findUnit(ev.side, ev.unitId);
+    if (!unit) return;
+    if (typeof api.markDone === 'function') api.markDone(ev);
+    unit._fled = true; any = true;
+    if (typeof api.removeFromBoard === 'function') api.removeFromBoard(unit, ev.side);
+  });
+  if (any && typeof api.compact === 'function') api.compact();
+  return any;
+};
 
 const sources = { card: 'キャラ', enemy: 'エネミー', char: 'NPC', enchant: 'エンチャント',
   item: 'アイテム', ring: '指輪', mapPanelPower: 'マス', keyword: 'キーワード', specialFx: '共通演出' };
@@ -375,6 +394,7 @@ async function main() {
       imageRecords = [];
       current = { signature: signature(row), vfx: [], se: [], unknown: { vfx: [], se: [] }, events: [] };
       records[no] = current;
+      if (process.env.VB_SCAN_TRACE) console.error('採取', key, no);
       let def = definition(no, row['名前'], key);
       if (key === 'keyword' || key === 'specialFx' || key === 'mapPanelPower') def = {
         no, name: row['名前'], desc: row['効果'] || '', keywords: [] };
@@ -462,5 +482,5 @@ async function main() {
   } else fs.writeFileSync(destination, output);
   console.log(`カード演出経路: ${Object.keys(records).length}件 / ${JSON.stringify(counts)}`);
 }
-const watchdog = require('node:timers').setTimeout(() => { console.error('カード採取が完了しない: 待機の置換を確認'); process.exit(1); }, 30000);
+const watchdog = require('node:timers').setTimeout(() => { console.error('カード採取が完了しない: 待機の置換を確認'); process.exit(1); }, 120000);
 main().finally(() => require('node:timers').clearTimeout(watchdog)).catch(err => { console.error(err.stack || err); process.exitCode = 1; });
