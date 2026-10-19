@@ -27833,8 +27833,8 @@ VbFxDefs.register({
       "name": "map-life",
       "label": "生命の力（魔導板）",
       "ms": 1100,
-      "color": "#6ae08a",
-      "light": "#f0fff0",
+      "color": "#ff7aa8",
+      "light": "#fff0f6",
       "playback": {
         "maxMs": 6000,
         "speedMin": 0.4,
@@ -27855,28 +27855,28 @@ VbFxDefs.register({
           "type": "glow",
           "blend": "normal",
           "time": [
-            0.0,
+            0,
             0.42
           ],
           "stops": [
             [
               0,
-              "#f0fff0",
+              "#fff0f6",
               0.8
             ],
             [
               0.3,
-              "#6ae08a",
+              "#ff7aa8",
               0.6
             ],
             [
               0.7,
-              "#0a5a2a",
+              "#8a1a48",
               0.25
             ],
             [
               1,
-              "#04200c",
+              "#2a0614",
               0
             ]
           ],
@@ -27920,7 +27920,7 @@ VbFxDefs.register({
           "geometry": "superellipse",
           "radius": 1,
           "pad": 0.04,
-          "color": "#6ae08a",
+          "color": "#ff7aa8",
           "width": 3,
           "widthSpace": "pixel",
           "noise": 0.02,
@@ -27966,22 +27966,22 @@ VbFxDefs.register({
           "stops": [
             [
               0,
-              "#f0fff0",
+              "#fff0f6",
               0.8
             ],
             [
               0.3,
-              "#6ae08a",
+              "#ff7aa8",
               0.6
             ],
             [
               0.7,
-              "#0a5a2a",
+              "#8a1a48",
               0.25
             ],
             [
               1,
-              "#04200c",
+              "#2a0614",
               0
             ]
           ],
@@ -28025,7 +28025,7 @@ VbFxDefs.register({
           "geometry": "superellipse",
           "radius": 1,
           "pad": 0.09,
-          "color": "#6ae08a",
+          "color": "#ff7aa8",
           "width": 3,
           "widthSpace": "pixel",
           "noise": 0.02,
@@ -28063,10 +28063,10 @@ VbFxDefs.register({
           "anchor": "each-target",
           "basis": "unit",
           "type": "shape",
-          "shape": "heart",
-          "color": "#6ae08a",
-          "light": "#f0fff0",
-          "shadow": "#0a4a2a",
+          "shape": "petal-seal",
+          "color": "#ff7aa8",
+          "light": "#fff0f6",
+          "shadow": "#7a1a44",
           "time": [
             0.1,
             0.85
@@ -28097,15 +28097,15 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.08
+                  0.1
                 ],
                 [
                   0.3,
-                  0.22
+                  0.26
                 ],
                 [
                   1,
-                  0.19
+                  0.23
                 ]
               ],
               "interpolation": "ease-out"
@@ -28135,7 +28135,7 @@ VbFxDefs.register({
           "size": 0.06,
           "sizeSize": 0.036,
           "sizePhase": -0.05,
-          "color": "#6ae08a",
+          "color": "#ff7aa8",
           "time": [
             0.15,
             1
@@ -28167,13 +28167,13 @@ VbFxDefs.register({
           "materials": [
             {
               "texture": "plasma",
-              "color": "#6ae08a",
+              "color": "#ff7aa8",
               "blend": "add",
               "rotationScale": 1
             },
             {
               "texture": "glow",
-              "color": "#f0fff0",
+              "color": "#fff0f6",
               "radiusScale": 0.5,
               "blend": "add"
             }

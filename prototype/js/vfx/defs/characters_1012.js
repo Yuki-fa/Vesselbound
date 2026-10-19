@@ -11777,8 +11777,8 @@ VbFxDefs.register({
       "label": "スキュラ",
       "sourceCode": "C056",
       "ms": 1050,
-      "color": "#8ad040",
-      "light": "#e8ffc0",
+      "color": "#3caa1e",
+      "light": "#c6f26a",
       "playback": {
         "maxMs": 6000,
         "speedMin": 0.4,
@@ -11801,9 +11801,78 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#3a7a14",
-          "light": "#c8f080",
-          "shadow": "#0a2a04",
+          "color": "#2a6a10",
+          "light": "#9fe04a",
+          "shadow": "#0e1e04",
+          "spread": [
+            0.2,
+            0
+          ],
+          "trail": {
+            "length": 0.46,
+            "width": 0.032,
+            "color": "#3f8f1c",
+            "alpha": 0.5,
+            "segments": 14
+          },
+          "curves": {
+            "progress": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "power-in",
+              "exponent": 1.6
+            },
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.15,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "fromOffset": [
+            -0.081,
+            -0.942
+          ],
+          "toOffset": [
+            0.04,
+            -0.021
+          ],
+          "time": [
+            0.128,
+            0.482
+          ],
+          "copies": 1
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
+          "type": "projectile",
+          "from": "target",
+          "to": "target",
+          "shape": "blood-drop",
+          "radius": 0.075,
+          "color": "#4cba22",
+          "light": "#d8ff9a",
+          "shadow": "#163a08",
           "spread": [
             0.2,
             0
@@ -11869,89 +11938,20 @@ VbFxDefs.register({
           "from": "target",
           "to": "target",
           "shape": "blood-drop",
-          "radius": 0.075,
-          "color": "#8ad040",
-          "light": "#f0ffd0",
-          "shadow": "#2e5a1a",
-          "spread": [
-            0.2,
-            0
-          ],
-          "trail": {
-            "length": 0.35,
-            "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
-            "segments": 12
-          },
-          "curves": {
-            "progress": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  1,
-                  1
-                ]
-              ],
-              "interpolation": "power-in",
-              "exponent": 1.6
-            },
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.15,
-                  1
-                ],
-                [
-                  1,
-                  1
-                ]
-              ],
-              "interpolation": "smooth"
-            }
-          },
-          "fromOffset": [
-            -0.081,
-            -0.942
-          ],
-          "toOffset": [
-            0.04,
-            -0.021
-          ],
-          "time": [
-            0.128,
-            0.482
-          ],
-          "copies": 1
-        },
-        {
-          "anchor": "each-target",
-          "basis": "unit",
-          "type": "projectile",
-          "from": "target",
-          "to": "target",
-          "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#3a7a14",
-          "light": "#c8f080",
-          "shadow": "#0a2a04",
+          "color": "#2a6a10",
+          "light": "#9fe04a",
+          "shadow": "#0e1e04",
           "spread": [
             0.2,
             0
           ],
           "trail": {
-            "length": 0.35,
-            "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
-            "segments": 12
+            "length": 0.46,
+            "width": 0.032,
+            "color": "#3f8f1c",
+            "alpha": 0.5,
+            "segments": 14
           },
           "curves": {
             "progress": {
@@ -12008,9 +12008,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#8ad040",
-          "light": "#f0ffd0",
-          "shadow": "#2e5a1a",
+          "color": "#4cba22",
+          "light": "#d8ff9a",
+          "shadow": "#163a08",
           "spread": [
             0.2,
             0
@@ -12077,19 +12077,19 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#3a7a14",
-          "light": "#c8f080",
-          "shadow": "#0a2a04",
+          "color": "#2a6a10",
+          "light": "#9fe04a",
+          "shadow": "#0e1e04",
           "spread": [
             0.2,
             0
           ],
           "trail": {
-            "length": 0.35,
-            "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
-            "segments": 12
+            "length": 0.46,
+            "width": 0.032,
+            "color": "#3f8f1c",
+            "alpha": 0.5,
+            "segments": 14
           },
           "curves": {
             "progress": {
@@ -12146,9 +12146,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#8ad040",
-          "light": "#f0ffd0",
-          "shadow": "#2e5a1a",
+          "color": "#4cba22",
+          "light": "#d8ff9a",
+          "shadow": "#163a08",
           "spread": [
             0.2,
             0
@@ -12215,19 +12215,19 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#3a7a14",
-          "light": "#c8f080",
-          "shadow": "#0a2a04",
+          "color": "#2a6a10",
+          "light": "#9fe04a",
+          "shadow": "#0e1e04",
           "spread": [
             0.2,
             0
           ],
           "trail": {
-            "length": 0.35,
-            "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
-            "segments": 12
+            "length": 0.46,
+            "width": 0.032,
+            "color": "#3f8f1c",
+            "alpha": 0.5,
+            "segments": 14
           },
           "curves": {
             "progress": {
@@ -12284,9 +12284,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#8ad040",
-          "light": "#f0ffd0",
-          "shadow": "#2e5a1a",
+          "color": "#4cba22",
+          "light": "#d8ff9a",
+          "shadow": "#163a08",
           "spread": [
             0.2,
             0
@@ -12353,19 +12353,19 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#3a7a14",
-          "light": "#c8f080",
-          "shadow": "#0a2a04",
+          "color": "#2a6a10",
+          "light": "#9fe04a",
+          "shadow": "#0e1e04",
           "spread": [
             0.2,
             0
           ],
           "trail": {
-            "length": 0.35,
-            "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
-            "segments": 12
+            "length": 0.46,
+            "width": 0.032,
+            "color": "#3f8f1c",
+            "alpha": 0.5,
+            "segments": 14
           },
           "curves": {
             "progress": {
@@ -12422,9 +12422,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#8ad040",
-          "light": "#f0ffd0",
-          "shadow": "#2e5a1a",
+          "color": "#4cba22",
+          "light": "#d8ff9a",
+          "shadow": "#163a08",
           "spread": [
             0.2,
             0
@@ -12491,7 +12491,7 @@ VbFxDefs.register({
             1
           ],
           "type": "glow",
-          "color": "#d8ff90",
+          "color": "#b8f060",
           "texture": "glow",
           "blend": "add",
           "curves": {
@@ -12532,7 +12532,7 @@ VbFxDefs.register({
             1
           ],
           "type": "glow",
-          "color": "#1e5208",
+          "color": "#163608",
           "texture": "smoke",
           "variant": 1,
           "curves": {
@@ -12593,7 +12593,68 @@ VbFxDefs.register({
             1
           ],
           "type": "glow",
-          "color": "#9ae03a",
+          "color": "#2c2446",
+          "texture": "smoke",
+          "variant": 2,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.2,
+                  0.4
+                ],
+                [
+                  0.6,
+                  0.25
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.2
+                ],
+                [
+                  1,
+                  0.62
+                ]
+              ],
+              "interpolation": "ease-out"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0.6
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
+          "time": [
+            0.52,
+            1
+          ],
+          "type": "glow",
+          "color": "#6cc02a",
           "texture": "plasma-soft",
           "blend": "add",
           "variant": 2,
@@ -12655,10 +12716,10 @@ VbFxDefs.register({
             1
           ],
           "type": "ring",
-          "color": "#c8f880",
+          "color": "#9fe04a",
           "width": 1,
           "widthSpace": "pixel",
-          "noise": 0.25,
+          "noise": 0.35,
           "strokeProfile": "halo",
           "core": 0.2,
           "curves": {
@@ -12714,10 +12775,10 @@ VbFxDefs.register({
           "type": "particles",
           "motion": "ballistic",
           "emit": "burst",
-          "count": 16,
+          "count": 20,
           "sizeRange": [
-            0.035,
-            0.06
+            0.022,
+            0.072
           ],
           "speed": [
             0.6,
@@ -12726,7 +12787,7 @@ VbFxDefs.register({
           "drag": 2.2,
           "gravity": [
             0,
-            1.6
+            1.9
           ],
           "lifeMs": [
             400,
@@ -12737,9 +12798,9 @@ VbFxDefs.register({
             40
           ],
           "shape": "blood-drop",
-          "color": "#8ad040",
-          "light": "#efffc8",
-          "shadow": "#2e5a1a",
+          "color": "#3caa1e",
+          "light": "#c6f26a",
+          "shadow": "#0e1e04",
           "emissionArc": [
             3.4,
             6
@@ -12777,8 +12838,8 @@ VbFxDefs.register({
           ],
           "type": "particles",
           "motion": "radial-drag",
-          "color": "#d0ff8a",
-          "count": 22,
+          "color": "#b9ff7a",
+          "count": 18,
           "vortex": 0.3,
           "radius": 0.6,
           "curves": {

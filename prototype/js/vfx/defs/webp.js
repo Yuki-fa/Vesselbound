@@ -2929,7 +2929,11 @@ VbFxDefs.register({
               ],
               "interpolation": "ease-out"
             }
-          }
+          },
+          "aspect": [
+            0.658,
+            1
+          ]
         },
         {
           "anchor": "source",
