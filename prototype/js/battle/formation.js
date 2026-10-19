@@ -141,7 +141,7 @@ function buildBoardFormation(board, opts) {
       if(panel._runLevelsApplied) unit._runLevelsApplied={...panel._runLevelsApplied};
       // 復活の半減基準は接続強化・常時修正を得る前のカード本体（祝福込み）。
       if (typeof coreStampUnitBaseStats === 'function') coreStampUnitBaseStats(unit);
-      if((panel.boon||contributingPanels.some(entry=>(entry.panel||entry).boon))
+      if((panel.boon||panel._runLevelsApplied||contributingPanels.some(entry=>(entry.panel||entry).boon))
         &&typeof _panelSummonDisplayBoardCards==='function'){
         unit.boardCards=_panelSummonDisplayBoardCards(panel,contributingPanels);
       }
@@ -228,9 +228,9 @@ function persistBoardCharacterStats(board, slotIdx, atk, hp, levels) {
   const cards = board && Array.isArray(board.boardCards) ? board.boardCards : [];
   const card = cards[Number(slotIdx)];
   if (!card || String(card.category || '') !== 'キャラクター') return false;
-  const multiplier = coreNormalizeRunLevels(levels).stats;
-  const da = (Number(atk) || 0) / multiplier;
-  const dh = (Number(hp) || 0) / multiplier;
+  const values = coreNormalizeRunLevels(levels);
+  const da = (Number(atk) || 0) / values.atk;
+  const dh = (Number(hp) || 0) / values.hp;
   if (!da && !dh) return false;
   if (da) {
     card.power = Math.max(0, (Number(card.power ?? card.atk) || 0) + da);

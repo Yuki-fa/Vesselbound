@@ -260,6 +260,7 @@ const SaveRun=(()=>{
     const s=copy(save.state);
     initState();
     for(const group of Object.keys(fields)) Object.assign(G,s[group]);
+    G.runLevels=runLevelNormalizeState(G.runLevels);
     for(const name of setFields) G[name]=new Set(s.sets[name]);
     G._runId=save.runId;G._runSeed=s.rng.seed;G._runRngState=s.rng.state;
     G.questProgress=(s.questProgress&&typeof s.questProgress==='object'&&!Array.isArray(s.questProgress))?s.questProgress:{};

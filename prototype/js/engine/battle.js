@@ -4564,7 +4564,7 @@ function _makePanelSummonUnit(spec, keywords){
   const mergedKeywords=[...(spec.keywords||[]),...(keywords||[])];
   return {
     id:uid(),
-    ...(spec._runLevelsApplied?{boon:{...spec.boon},_runLevelsApplied:{...spec._runLevelsApplied}}:{}),
+    ...(spec._runLevelsApplied?{_runLevelsApplied:{...spec._runLevelsApplied}}:{}),
     name:spec.name||'召喚',
     icon:spec.icon||'',
     race:spec.race||'召喚',
@@ -4684,7 +4684,7 @@ function _panelSummonSpec(panel,options){
     const manaLine=desc.match(/(?:^|\n)\s*(\d+)マナ(毎)?[：:]\s*([^\n]*)/);
     return {
       ...(openingSpec||{}),
-      ...(panel._runLevelsApplied?{boon:{...panel.boon},_runLevelsApplied:{...panel._runLevelsApplied}}:{}),
+      ...(panel._runLevelsApplied?{_runLevelsApplied:{...panel._runLevelsApplied}}:{}),
       name:openingSpec&&openingSpec.name||panel.name,
       atk:Number(openingSpec?.atk??panel.power??panel.atk??0),
       hp:Number(openingSpec?.hp??panel.life??panel.hp??1),
@@ -4763,7 +4763,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
       // enh.keywordsは直後のapplyAdjacentPanelEnhancements()側で付与するため、ここでは渡さない
       // （両方に渡すと同じキーワードが二重に加算され、逆襲・闇の儀式等のカウント依存効果が
       // 意図した回数より多く発動してしまう）
-      const summonSpec=coreApplySummonRunLevels({...spec,name:baseName,panelName:panel.name},runLevelBattleValues(),null,false);
+      const summonSpec={...spec,name:baseName,panelName:panel.name};
       const summoned=_makePanelSummonUnit(summonSpec,[]);
       _applyAdjacentPanelEnhancements(summoned,enh);
       summoned._mainBoardSlot=ownedIdx;
@@ -4796,7 +4796,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
     const cb=G&&G.panelColorPermanentBuffs&&G.panelColorPermanentBuffs[key];
     if(cb){ finalAtk+=Number(cb.atk||0); finalHp+=Number(cb.hp||0); }
   }
-  const unit=_makePanelSummonUnit(coreApplySummonRunLevels({
+  const unit=_makePanelSummonUnit({
     name:baseName,
     atk:finalAtk,
     hp:finalHp,
@@ -4806,7 +4806,7 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
     keywords:basePanel&&basePanel.keywords||[],
     art:basePanel&&typeof getPanelArtPath==='function'?getPanelArtPath(basePanel):(basePanel&&basePanel.art)||'',
     no:(basePanel&&(basePanel.no||basePanel.artCode||basePanel._artCode))||''
-  },isEnemySide?null:runLevelBattleValues(),null,false),[]);
+  },[]);
   const placedIdx=_summonMidBattleAllyFront(unit,isEnemySide,placement);
   // 召喚は前衛の右端にだけ出す。前衛が満杯なら成立させない（後衛へ逃がさない）。
   const rearIdx=placedIdx;
@@ -4820,6 +4820,8 @@ async function _spawnAdhocAllyUnit(name, atk, hp, isEnemySide, placement){
 
 // 旧入口は生成・配置だけを維持し、眷属の分類と5効果の計算は共通コアへ渡す。
 async function _applyLegacyBattleSummonTraits(unit,isEnemySide,placement){
+  // 薄いコアstateの初期化より前に眷属へ分類し、出撃本体のレベル適用から除外する。
+  coreMarkBattleSummon(unit);
   const liveState=G._coreDrivenBattle&&_pveLiveCoreState;
   const state=liveState||_createPveCoreState();
   const side=isEnemySide?'p2':'p1';
@@ -4831,7 +4833,6 @@ async function _applyLegacyBattleSummonTraits(unit,isEnemySide,placement){
     if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
   };
   unit.side=side;
-  coreMarkBattleSummon(unit);
   state._summonCount=state._summonCount||{};
   state._summonCount[side]=coreApplyKenzokuSummonEffects(state,unit,emit,placement&&placement.rightOf&&placement.rightOf.id);
   if(!liveState) _keepPveSummonState(state);

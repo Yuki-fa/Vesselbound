@@ -40,6 +40,13 @@ function options(args){const o={boards:path.join(__dirname,'fixed'),out:path.joi
   for(const k of ['samples','searchSamples','seed','cardSeed','workers'])o[k]=Number(o[k]);
   if(!Number.isInteger(o.samples)||o.samples<20||!Number.isInteger(o.searchSamples)||o.searchSamples<20||!Number.isInteger(o.workers)||o.workers<1||o.workers>8)throw new Error('samples/search-samples>=20、workers=1〜8 が必要');return o;
 }
+function normalizeLevels(values,scene){
+  const legacy=values&&values.atk==null&&values.hp==null&&values.stats!=null;
+  const keys=legacy?['stats']:['atk','hp'];
+  if(!values||keys.some(k=>!Number.isInteger(values[k])||values[k]<1))throw Error('不正な固定比較レベル: '+scene+'（atk・hpは1以上の整数）');
+  if(legacy)console.log('旧4レベルを移行: '+scene+'、ATK＝HP＝戦闘力 '+values.stats+'。他のレベルは破棄');
+  return coreNormalizeRunLevels(values);
+}
 async function main(args=process.argv.slice(2)){
   const o=options(args),start=performance.now();await engine.initialize();const override=engine.overrides.readOverride(o.overrideFile),notes=engine.resetOverride(override),forms=await engine.cardForms(o.cardSeed);
   const wanted=o.cards?.split(','),scenes=o.scenes?o.scenes.split(',').map(engine.sceneById):engine.SCENES,used=forms.filter(f=>!wanted||wanted.includes(f.name)||wanted.includes(f.baseId));
@@ -48,8 +55,7 @@ async function main(args=process.argv.slice(2)){
   const jobs=[],boardFiles=[];
   for(const scene of scenes){const file=path.join(o.boards,`boards_${scene.id}.json`),data=JSON.parse(fs.readFileSync(file,'utf8'));boardFiles.push({file:path.basename(file),hash:engine.sha(fs.readFileSync(file,'utf8')),count:data.boards.length});
     if(levels){
-      const values=levels[scene.id];
-      if(!values||Object.keys(RUN_LEVEL_CONFIG.names).some(k=>!Number.isInteger(values[k])||values[k]<1))throw Error('不正な固定比較レベル: '+scene.id);
+      const values=levels[scene.id]=normalizeLevels(levels[scene.id],scene.id);
       for(const board of data.boards)board.state.runLevels={...runLevelInitialState(),values:{...values}};
     }
     for(let i=0;i<used.length;i+=6)jobs.push({kind:'compare',scene:scene.id,boards:data.boards,keys:used.slice(i,i+6).map(f=>f.key),seed:o.seed,cardSeed:o.cardSeed,samples:o.samples,searchSamples:o.searchSamples,override});
@@ -65,4 +71,4 @@ async function main(args=process.argv.slice(2)){
   const {writeReport}=require('./fixed_report');writeReport(o.out,o.boards);console.log(`固定比較完了 ${(meta.elapsedMs/1000).toFixed(2)}秒、${rows.length}比較 → ${o.out}`);return {rows,meta};
 }
 if(require.main===module)main().catch(e=>{console.error(e.stack||e);process.exitCode=1;});
-module.exports={main,compareJob,options,metric};
+module.exports={main,compareJob,options,metric,normalizeLevels};

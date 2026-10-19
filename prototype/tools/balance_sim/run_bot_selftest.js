@@ -153,33 +153,27 @@ async function main(args=process.argv.slice(2)) {
     }finally{Object.assign(planner.LIMITS,limits);}
   }
   if(baseline.meta.runLevels){
-    check('全周回：祝福購入なし、レベル候補・連続禁止・上下と提示履歴が本体どおり',()=>{
+    check('全周回：祝福購入なし、ATK/HPの固定4候補を受領するだけ、下降・再抽選なし',()=>{
       for(const data of datasets)for(const row of data.rows){
-        assert.ok(!row.actions.some(a=>['boon_visit','boon_purchase'].includes(a.type)));
+        assert.ok(!row.actions.some(a=>['boon_visit','boon_purchase','level_reroll'].includes(a.type)));
         assert.equal(row.towerBoons.purchases,0);assert.equal(row.towerBoons.visits,0);
-        let values=coreNormalizeRunLevels(),previous=null;const counts={};
+        let values=coreNormalizeRunLevels();
         const levels=row.actions.filter(a=>a.type==='level_reward');
         for(const a of levels){
-          assert.deepEqual(a.before,values);
-          const history=a.history||[a];assert.equal(a.rerolled,history.length>1);
-          for(const shown of history){
-            assert.deepEqual(shown.before,values);assert.notEqual(shown.id,previous);previous=shown.id;
-            const [kind,amount]=shown.id.split(':');assert.ok(Object.keys(values).includes(kind));
-            assert.ok(Number(amount)===1||(a.wave>=2&&Number(amount)===2));
-            const after={...values};after[kind]+=Number(amount);
-            if(shown.lowered){assert.notEqual(shown.lowered,kind);assert.ok(values[shown.lowered]>=2);after[shown.lowered]--;}
-            assert.deepEqual(shown.after,after);counts[shown.id]=(counts[shown.id]||0)+1;
-          }
-          assert.equal(a.id,history.at(-1).id);assert.deepEqual(a.after,history.at(-1).after);values={...a.after};
+          const spec=RUN_LEVEL_CONFIG.rewards.find(c=>c.id===a.id);assert.ok(spec);
+          assert.deepEqual(a.before,values);assert.deepEqual(a.gains,spec.gains);assert.equal(a.rerolled,false);
+          assert.equal(a.history.length,1);assert.deepEqual(a.history[0].before,values);
+          const after={atk:values.atk+spec.gains.atk,hp:values.hp+spec.gains.hp};
+          assert.deepEqual(a.after,after);assert.deepEqual(a.history[0].after,after);values=after;
         }
-        assert.deepEqual(row.runLevels.values,values);assert.deepEqual(row.runLevels.counts,counts);
-        assert.equal(row.runLevels.seq,Object.values(counts).reduce((a,b)=>a+b,0));
+        assert.deepEqual(row.runLevels.values,values);assert.equal(row.runLevels.seq,levels.length);
+        assert.equal('counts' in row.runLevels,false);assert.equal('previous' in row.runLevels,false);
       }
     });
-    check('通常・レベル報酬の再抽選：弱さの根拠、権利優先、100Gと温存、1報酬の有料上限',()=>{
+    check('通常報酬の再抽選：弱さの根拠、権利優先、100Gと温存、1報酬の有料上限',()=>{
       for(const row of all){
         const paid=new Map();
-        for(const a of row.actions.filter(a=>['boon_reroll','level_reroll'].includes(a.type))){
+        for(const a of row.actions.filter(a=>a.type==='boon_reroll')){
           assert.ok(a.quality.weak&&a.reason);
           if(a.remainingBefore>0){assert.equal(a.remainingAfter,a.remainingBefore-1);assert.equal(a.goldBefore,a.goldAfter);}
           else{assert.equal(a.goldBefore-a.goldAfter,100);assert.ok(a.goldAfter>=a.reserve);

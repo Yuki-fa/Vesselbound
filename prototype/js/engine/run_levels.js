@@ -1,13 +1,36 @@
 // PvEのラン進行。数値への適用はcore.js、編成への接続はformation.jsに集約する。
 // シート未収録の今回の追加仕様の文言・調整値はこの表を使う。
 const RUN_LEVEL_CONFIG = {
-  names: { stats:'戦闘力レベル', familiars:'眷属レベル', modifiers:'戦闘修正レベル', damage:'効果威力レベル' },
-  repeatWeight:0.4, tradeoffStage:2, title:'レベル報酬',
+  names: { atk:'ATKレベル', hp:'HPレベル' },
+  rewards: [
+    { id:'atk3', gains:{atk:3,hp:0}, probability:0.15 },
+    { id:'hp3', gains:{atk:0,hp:3}, probability:0.25 },
+    { id:'atk2-hp1', gains:{atk:2,hp:1}, probability:0.35 },
+    { id:'atk1-hp2', gains:{atk:1,hp:2}, probability:0.25 },
+  ],
+  title:'レベル報酬', receivedTitle:'レベル報酬（受け取り済み）',
 };
 function runLevelInitialState(){
-  return { values:coreNormalizeRunLevels(), counts:{}, previous:null, seq:0, lastBattleKey:null, reward:null };
+  return { version:2, values:coreNormalizeRunLevels(), seq:0, lastBattleKey:null, reward:null };
 }
-function runLevelState(){ return G.runLevels || (G.runLevels=runLevelInitialState()); }
+function runLevelNormalizeState(raw){
+  const state={...runLevelInitialState(),values:coreNormalizeRunLevels(raw&&raw.values),
+    seq:Math.max(0,Math.floor(Number(raw&&raw.seq)||0)),lastBattleKey:raw&&raw.lastBattleKey||null};
+  const reward=raw&&raw.reward;
+  if(reward){
+    // 旧4レベルの表示中報酬は既にvaluesへ適用済み。再抽選・再加算せず、
+    // 受領確認だけ残して、進む時のエリート／ボス後処理を従来の入口へ通す。
+    state.reward=raw.version===2?{...reward,gains:{...reward.gains},
+      before:coreNormalizeRunLevels(reward.before),after:coreNormalizeRunLevels(reward.after)}
+      :{id:'legacy-received',gains:{atk:0,hp:0},before:{...state.values},after:{...state.values},
+        received:true,active:!!reward.active};
+  }
+  return state;
+}
+function runLevelState(){
+  if(!G.runLevels||G.runLevels.version!==2) G.runLevels=runLevelNormalizeState(G.runLevels);
+  return G.runLevels;
+}
 function runLevelBattleValues(){
   return coreNormalizeRunLevels(G._onlineMode?null:runLevelState().values);
 }
@@ -19,41 +42,29 @@ function runLevelDisplayValues(card,owner){
 }
 function runLevelDisplayCard(card,owner){
   if(!card) return card;
-  if(!['キャラクター','強化','エンチャント'].includes(String(card.category||''))) return card;
+  if(String(card.category||'')!=='キャラクター') return card;
+  if(owner&&coreRunLevelIsFamiliar(owner)) return card;
   return coreApplyCardRunLevels(card,runLevelDisplayValues(card,owner));
 }
 function runLevelCoreFields(){
   const values=runLevelBattleValues();
   return Object.values(values).some(n=>n>1)?{runLevels:{p1:values}}:{};
 }
-function runLevelCandidates(stage, state){
-  const s=state||runLevelState(), kinds=Object.keys(RUN_LEVEL_CONFIG.names);
-  return [1,...(Number(stage)>=RUN_LEVEL_CONFIG.tradeoffStage?[2]:[])].flatMap(amount=>kinds.map(kind=>{
-    const id=`${kind}:${amount}`, n=Math.max(0,Number(s.counts[id])||0);
-    return {id,kind,amount,weight:Math.pow(RUN_LEVEL_CONFIG.repeatWeight,n)};
-  })).filter(c=>c.id!==s.previous);
-}
 function runLevelRollReward(stage, before, options){
-  const state=runLevelState(), seq=state.seq++;
+  const state=runLevelState(),seq=state.seq++;
   const result=runWithKeyedRandom(`run-level:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}:${seq}`,()=>{
-    const pool=runLevelCandidates(stage,state), max=Math.max(...pool.map(c=>c.weight));
-    // 共通因子で割っておくと長いランでも重みの合計が0へ潰れにくい。
-    let point=rand()*pool.reduce((sum,c)=>sum+c.weight/max,0);
-    const choice=pool.find(c=>(point-=c.weight/max)<0)||pool[pool.length-1];
-    const values=coreNormalizeRunLevels(before);
-    values[choice.kind]+=choice.amount;
-    const lower=choice.amount===2?Object.keys(values).filter(k=>k!==choice.kind&&values[k]>=2):[];
-    const lowered=lower.length?randFrom(lower):null;
-    if(lowered) values[lowered]--;
-    return {...choice,lowered,before:coreNormalizeRunLevels(before),after:values,active:true};
+    let point=rand();
+    const pool=RUN_LEVEL_CONFIG.rewards;
+    const choice=pool.find(c=>(point-=c.probability)<0)||pool[pool.length-1];
+    const previous=coreNormalizeRunLevels(before),after={...previous};
+    Object.keys(RUN_LEVEL_CONFIG.names).forEach(kind=>{after[kind]+=choice.gains[kind];});
+    return {id:choice.id,gains:{...choice.gains},before:previous,after,active:true};
   });
-  state.counts[result.id]=(state.counts[result.id]||0)+1;
-  state.previous=result.id;
   if(!(options&&options.deferApply)) state.values={...result.after};
   state.reward=result;
   return result;
 }
-function runLevelRewardActive(){ return !!(!G._onlineMode&&G.runLevels&&G.runLevels.reward&&G.runLevels.reward.active); }
+function runLevelRewardActive(){ return !!(!G._onlineMode&&runLevelState().reward&&runLevelState().reward.active); }
 function runLevelOpenVictoryReward(type, intro){
   if(G._onlineMode||G._testBattleMode||G._libraryTestBattleMode||G._arenaActive||!['elite','boss'].includes(type)) return false;
   // 最終決戦の2連戦（エピトメ戦・伏せられたラスボス戦）ではレベル報酬を出さない（2026-10-19 利用者指定）。
@@ -78,31 +89,14 @@ function runLevelContinueReward(){
   runLevelState().reward.active=false;
   return finishWaveBattleVictory(false);
 }
-// 2026-10-19：店と同じく、再抽選権を優先して使い、無ければ100Gで引き直せる（利用者指定）。
-function runLevelCanReroll(){
-  return runLevelRewardActive()&&towerBoonCanReroll()
-    &&(towerBoonState().rerolls>0||Number(G.gold)>=SHOP_REROLL_COST);
-}
-function runLevelRerollReward(){
-  const state=runLevelState(),rights=towerBoonState();
-  if(!runLevelCanReroll()) return false;
-  if(rights.rerolls>0){rights.rerolls--;rights.rerollSeq++;}
-  else if(spendEventGold(SHOP_REROLL_COST)!==SHOP_REROLL_COST) return false;
-  // 前の上昇・下降を取り消し、同じ報酬前のレベルから置き換える。提示履歴は戻さない。
-  runLevelRollReward(Number(G._wave)||1,state.reward.before);
-  _storeRewardStartSnapshot();
-  renderRewCards();renderHandEditor();renderFieldEditor();renderMoveSlotsInEnemy();updateHUD();
-  if(typeof SaveRun!=='undefined') SaveRun.checkpoint('reward');
-  return true;
-}
 function runLevelRenderReward(row){
   const reward=runLevelState().reward;
   const host=document.createElement('div');host.className='run-level-reward';
   const heading=document.createElement('div');heading.className='run-level-result';
-  heading.textContent=`${RUN_LEVEL_CONFIG.names[reward.kind]} +${reward.amount}`;
-  const detail=document.createElement('div');
-  detail.textContent=reward.lowered?`${RUN_LEVEL_CONFIG.names[reward.lowered]} −1`:'他のレベルの低下なし';
+  heading.textContent=reward.received?RUN_LEVEL_CONFIG.receivedTitle:Object.entries(RUN_LEVEL_CONFIG.names)
+    .filter(([key])=>reward.gains[key]>0).map(([key,name])=>`${name} +${reward.gains[key]}`).join('・');
   const values=document.createElement('div');values.className='run-level-values';
-  values.textContent=Object.entries(RUN_LEVEL_CONFIG.names).map(([key,name])=>`${name} ${reward.before[key]} → ${reward.after[key]}`).join('　／　');
-  host.appendChild(heading);if(reward.amount>1) host.appendChild(detail);host.appendChild(values);row.appendChild(host);
+  values.textContent=Object.entries(RUN_LEVEL_CONFIG.names).map(([key,name])=>
+    reward.received?`${name} ${reward.after[key]}`:`${name} ${reward.before[key]} → ${reward.after[key]}`).join(' ／ ');
+  host.appendChild(heading);host.appendChild(values);row.appendChild(host);
 }

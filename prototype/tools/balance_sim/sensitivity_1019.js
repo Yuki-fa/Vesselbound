@@ -3,7 +3,7 @@
 const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
 const engine=require('./fixed_engine'),{csv}=require('./run_report');
 async function sceneJob(root,id){
-  await engine.initialize();const scene=engine.sceneById(id),levels=JSON.parse(fs.readFileSync(path.join(root,'typical_levels.json'),'utf8'))[id];
+  await engine.initialize();const scene=engine.sceneById(id),levels=require('./fixed_compare').normalizeLevels(JSON.parse(fs.readFileSync(path.join(root,'typical_levels.json'),'utf8'))[id],id);
   const boards=JSON.parse(fs.readFileSync(path.join(__dirname,'fixed',`boards_${id}.json`),'utf8')).boards;
   const samples=await engine.enemySamples(scene,30,7411),rows=[];
   const changes=Object.keys(levels).flatMap(kind=>[1,-1].filter(delta=>levels[kind]+delta>=1).map(delta=>({id:kind+(delta>0?'+1':'-1'),kind,delta})));
