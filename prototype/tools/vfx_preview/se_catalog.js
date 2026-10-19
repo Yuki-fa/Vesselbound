@@ -102,7 +102,7 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.1,
-      "adopted": true,
+      "adopted": false,
       "reason": "採用",
       "sha256": "eb2418c990ad16e932b1e9ae33c9440632e005ca27888886fdc18974e638b1e3"
     },
@@ -521,7 +521,8 @@ var VbFxSeCatalog = {
       "peakDbfs": -1,
       "peak": 0.9,
       "reason": "",
-      "sha256": "7844be68bdda8f8380defbbc7afc086c78d5fa5165ceb4ffa731e2366cb3b844"
+      "sha256": "7844be68bdda8f8380defbbc7afc086c78d5fa5165ceb4ffa731e2366cb3b844",
+      "adopted": false
     },
     "abyss-2": {
       "id": "abyss-2",
@@ -535,7 +536,8 @@ var VbFxSeCatalog = {
       "peakDbfs": -1,
       "peak": 0.9,
       "reason": "",
-      "sha256": "82606ecae2858aeaf3328e993dcacfa58690302ab43f35568d374db8bb498b40"
+      "sha256": "82606ecae2858aeaf3328e993dcacfa58690302ab43f35568d374db8bb498b40",
+      "adopted": true
     },
     "direwolf-1": {
       "id": "direwolf-1",
@@ -735,7 +737,9 @@ var VbFxSeCatalog = {
       "peakDbfs": -1,
       "peak": 0.62,
       "reason": "",
-      "sha256": "c373692692db521a2cbabec35d2b42960797dcdb622f70e0178e332549aee497"
+      "sha256": "c373692692db521a2cbabec35d2b42960797dcdb622f70e0178e332549aee497",
+      "adopted": false,
+      "provisional": false
     },
     "battle-summon-2": {
       "id": "battle-summon-2",
@@ -749,7 +753,9 @@ var VbFxSeCatalog = {
       "peakDbfs": -1,
       "peak": 0.46,
       "reason": "",
-      "sha256": "26ef845e764b83520b9396050aff45f0fadbba83b04fd624f70b5f928e3204f1"
+      "sha256": "26ef845e764b83520b9396050aff45f0fadbba83b04fd624f70b5f928e3204f1",
+      "adopted": true,
+      "provisional": false
     },
     "battle-summon-3": {
       "id": "battle-summon-3",
@@ -763,7 +769,9 @@ var VbFxSeCatalog = {
       "peakDbfs": -1,
       "peak": 0.52,
       "reason": "",
-      "sha256": "869c9c2afe336bf0d5385dc7658ad262114b9fdbb8ac31f9b8540ab412a7c115"
+      "sha256": "869c9c2afe336bf0d5385dc7658ad262114b9fdbb8ac31f9b8540ab412a7c115",
+      "adopted": false,
+      "provisional": false
     },
     "revive-summon-1": {
       "id": "revive-summon-1",
@@ -1045,8 +1053,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.48,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "白熱した魔力の炸裂。候補1は形の発生を強調",
       "sha256": "456e5d954e5b936f53a59a3903274e78c4407b9a47edbfd215519ae578ec647e"
     },
@@ -1141,8 +1149,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.736167,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "多色の細光が集まるきらめき。候補1は形の発生を強調",
       "sha256": "ea4dc5b35131bfdbc08713a911ebb70d65bd87fe7bc01a31b417e42e5c784bcd"
     },
@@ -1531,8 +1539,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.48,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "巨大な残像の重なりと重い倍化。候補1は形の発生を強調",
       "sha256": "68fc0427aa4689f8486de796ec3438da5e673dfedd4488ae7e371efaa88b4c91"
     },
@@ -1729,8 +1737,8 @@ var VbFxSeCatalog = {
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.16925,
-      "adopted": false,
-      "provisional": true,
+      "adopted": true,
+      "provisional": false,
       "reason": "沈静する冷たい霧。候補1は形の発生を強調",
       "sha256": "8a819acf55e68d9a18a6ea69c97756b25374f0aa538c2e6ace8875a309c8c1e8"
     },
@@ -1779,7 +1787,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "スプリガン：蔓が包み結界の光へつながる（結界獲得SEへ自然につながる澄んだ音。2026-10-18 選び直し）（MAGIC WHITE Cast）",
       "edit": {
@@ -2173,7 +2181,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "金の光芒が開く：明るい詠唱の発光",
       "sha256": "89f6eca231c60f7969d3477b8502abd9216c79a50ed9be69d438b1bd1f6f310b"
@@ -2455,7 +2463,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "毒で弾ける短い酸の音",
       "sha256": "03cf1cc8f31ed2b57814575f89aa0bd41385d00092472419c6f83cdf8d68adb8"
@@ -2563,7 +2571,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "青い魔力の着弾",
       "sha256": "9e963262068f79e693cae49d115c94c428cb918298950bff0acd32f2d3d4ec02"
@@ -2599,7 +2607,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": true,
+      "adopted": false,
       "provisional": false,
       "reason": "青い魔力の着弾",
       "sha256": "d060f446bfb28efb96ac71ed7a8a50951cf98ddaeb74d395ace725025bb10f26"
@@ -2617,7 +2625,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "魂の力を受け継ぐ：霊の召喚・冷たい霊火・神秘的な風",
       "sha256": "a16d0c03eccba204ff1be5d81c42ccb5be51d506f0208396fcb04766d21615e8"
@@ -3078,7 +3086,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "聖騎士の指輪：金の守りが二重に重なる（2026-10-18 選び直し）（MAGIC WHITE Cast）",
       "edit": {
@@ -3412,7 +3420,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "ウルズ・ラグナ：時の紋の輪が回り、白い亀裂の光で命の糸が断たれ、画面が灰色に沈む（古時計の刻み・結晶の砕け・黒い召喚魔法）",
       "sha256": "04f3404994a08b7f54bd3637b794ebbc3e21c77da89ecfe5f77e2aa898ae2bca"
@@ -3544,7 +3552,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "錬成：金貨が錬成陣へ吸い込まれ、光ってアイテムの結晶になる（金貨の落ちる音・白い魔法・溶けたガラスの泡立ち）",
       "sha256": "4b4259a22db756a171d63e870fbb4156ce0deb13b21e77b477196dcbab378987"
@@ -3580,7 +3588,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "ハイドラ：翠の首が3本伸び、先に報酬の宝石が灯る（水の魔法・白い風切り・氷の結晶）",
       "sha256": "d1288c14b0854d3d83cfd3b1a0c29ba795d6478953150114b90b2340a73e8a35"
@@ -3916,7 +3924,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "生命の力：緑の生命の光が2度脈打つ（癒やしの光・白い魔法・澄んだ鐘）",
       "sha256": "465433a025d152c68cc0d5dc9c4898b5092155c6779f0fe07f40f46edbc87aa5"
@@ -4235,7 +4243,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "二波の灰煙と金の衝撃（2026-10-18 選び直し）（Explosion Blast Debris Large）",
       "edit": {
@@ -4243,6 +4251,513 @@ var VbFxSeCatalog = {
         "tailMs": 400
       },
       "sha256": "f68ef6cce86a0a8b49dd56e05d463b1a70e9136ca0afb413975bb0e6dd488667"
+    },
+    "speed-ring-4": {
+      "id": "speed-ring-4",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-01.wav",
+      "url": "vfx_preview/se/speed-ring-4.wav",
+      "duration": 1.95,
+      "originalDuration": 10.02,
+      "start": 3.552458,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "集中線と踏み出す光：速さ。軽い風切りと明るい魔法の立ち上がり（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "9ed850444093c039ccb386998a8095eb716423dc84562bd8d6d8ede4ae618369"
+    },
+    "speed-ring-5": {
+      "id": "speed-ring-5",
+      "filename": "Production Element Title Transition Whoosh Fly By 03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fly By 03.wav",
+      "url": "vfx_preview/se/speed-ring-5.wav",
+      "duration": 1.95,
+      "originalDuration": 3.565042,
+      "start": 0.542208,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "集中線と踏み出す光：速さ。軽い風切りと明るい魔法の立ち上がり（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "b93e52074667c918b22dbe2b22b4b38bd9768abdb289af8ddd683bdd29e8f121"
+    },
+    "speed-ring-6": {
+      "id": "speed-ring-6",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Sonic Strike_RTSB_COL-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Sonic Strike_RTSB_COL-02.wav",
+      "url": "vfx_preview/se/speed-ring-6.wav",
+      "duration": 1.95,
+      "originalDuration": 3.45,
+      "start": 1.173,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "集中線と踏み出す光：速さ。軽い風切りと明るい魔法の立ち上がり（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "e51cf686a71a7771f8b6fabb0b3ba5f1b6ab7786b39588244f9c2e7a9f3fd83a"
+    },
+    "sealed-power-4": {
+      "id": "sealed-power-4",
+      "filename": "DSGNImpt-DS_IMPACT GAME-Unlocking_RTSB_COL-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT GAME-Unlocking_RTSB_COL-01.wav",
+      "url": "vfx_preview/se/sealed-power-4.wav",
+      "duration": 1.95,
+      "originalDuration": 4.1,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.351583,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "砕ける封印と金の光柱：封印が外れて砕け、光が立つ（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "7fb770f2868bafe6f8d5d381be5b89ae750b9cb30a291f8b74360c5ec83a35bb"
+    },
+    "sealed-power-5": {
+      "id": "sealed-power-5",
+      "filename": "Production Element Title Transition Crystal Shatter 04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Crystal Shatter 04.wav",
+      "url": "vfx_preview/se/sealed-power-5.wav",
+      "duration": 1.95,
+      "originalDuration": 2.572667,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.113229,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "砕ける封印と金の光柱：封印が外れて砕け、光が立つ（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "e59571c91b76c260bcf14643f8b2d9fda7a70e7cba5215c371d9a6a6a05003f8"
+    },
+    "sealed-power-6": {
+      "id": "sealed-power-6",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-03.wav",
+      "url": "vfx_preview/se/sealed-power-6.wav",
+      "duration": 1.95,
+      "originalDuration": 4.68,
+      "start": 1.36925,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "砕ける封印と金の光柱：封印が外れて砕け、光が立つ（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "7245a4ee0cbae4fefa84a03aa154f6fc0bb497e1ca7b41ec9912f6f935e88680"
+    },
+    "penance-ring-4": {
+      "id": "penance-ring-4",
+      "filename": "Production Element Title Transition Stab Dark Metallic 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Metallic 01.wav",
+      "url": "vfx_preview/se/penance-ring-4.wav",
+      "duration": 1.95,
+      "originalDuration": 11.746562,
+      "start": 3.160625,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "締め付ける茨の輪と血の滴：締め付ける暗い金属感（生々しさを避ける。2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "06c2ab92e5689a53aa12a04a988dba00190079c506b89e76a962b38fc845ed12"
+    },
+    "penance-ring-5": {
+      "id": "penance-ring-5",
+      "filename": "SORCERY - DESIGNED - MAGIC BLACK Cast Medium-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Medium-04.wav",
+      "url": "vfx_preview/se/penance-ring-5.wav",
+      "duration": 1.95,
+      "originalDuration": 5.78,
+      "start": 1.645417,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "締め付ける茨の輪と血の滴：締め付ける暗い金属感（生々しさを避ける。2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "8d1612d51d8a7e948a3d8f865f6386df55e670505dfb214fe843043eef410111"
+    },
+    "steal-mark-4": {
+      "id": "steal-mark-4",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Pad Angelic-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Pad Angelic-01.wav",
+      "url": "vfx_preview/se/steal-mark-4.wav",
+      "duration": 1.95,
+      "originalDuration": 32.9,
+      "start": 15.766042,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "魅了の渦と立ちのぼるハート：甘く揺らぐ響き（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "b1eac8dc4d222b1d476e114309b6dc3b47a6692cf645ff548aad6b019fcccb97"
+    },
+    "steal-mark-5": {
+      "id": "steal-mark-5",
+      "filename": "Production Element Title Transition Bell Swell 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Swell 01.wav",
+      "url": "vfx_preview/se/steal-mark-5.wav",
+      "duration": 1.95,
+      "originalDuration": 2.625771,
+      "start": 0.598042,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "魅了の渦と立ちのぼるハート：甘く揺らぐ響き（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "6bbf7e77d94748481a6a29cad4fc575800f9658252bb811bd481b9a06310be44"
+    },
+    "all-roar-4": {
+      "id": "all-roar-4",
+      "filename": "DSGNImpt-DS_IMPACT PHSYICS-Rock Detonation Short Debris_RTSB_COL-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Rock Detonation Short Debris_RTSB_COL-01.wav",
+      "url": "vfx_preview/se/all-roar-4.wav",
+      "duration": 1.22,
+      "originalDuration": 1.22,
+      "start": 0.0,
+      "trimmed": false,
+      "peak": 0.037562,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "粉塵を広げる大きな咆哮：地響きと粉塵（獣の声を避ける。2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "3834bdfbc7debbb3bbb01e04c3c59f14d308233ec4504448ff3e2eb49b3c9709"
+    },
+    "all-roar-5": {
+      "id": "all-roar-5",
+      "filename": "DSGNImpt-DS_IMPACT-Extreme Gravitation_RTSB_COL-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Extreme Gravitation_RTSB_COL-01.wav",
+      "url": "vfx_preview/se/all-roar-5.wav",
+      "duration": 1.95,
+      "originalDuration": 3.29,
+      "start": 0.041625,
+      "trimmed": true,
+      "peak": 0.427729,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "粉塵を広げる大きな咆哮：地響きと粉塵（獣の声を避ける。2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "9ae7adad91c9a3aef548e24058680bf9616f77e2ed5895e022ea5ca395ba7959"
+    },
+    "gremlin-4": {
+      "id": "gremlin-4",
+      "filename": "Production Element Title Transition Grinding Element 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Grinding Element 01.wav",
+      "url": "vfx_preview/se/gremlin-4.wav",
+      "duration": 1.586188,
+      "originalDuration": 1.768542,
+      "start": 0.182354,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "煤と歯車の煙の筋：機械のきしみ。後に残る低音が無いもの（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "f034961570cdd3132ef29d735f4691c254bfe6e2f6cd697f02cd0d0e103ecaf6"
+    },
+    "gremlin-5": {
+      "id": "gremlin-5",
+      "filename": "Production Element Title Transition Metallic Hit 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Metallic Hit 01.wav",
+      "url": "vfx_preview/se/gremlin-5.wav",
+      "duration": 0.888271,
+      "originalDuration": 0.889375,
+      "start": 0.001104,
+      "trimmed": true,
+      "peak": 0.345854,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "煤と歯車の煙の筋：機械のきしみ。後に残る低音が無いもの（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "4043fd5a69aaa267058f9fa75791f0a4c361c3385479c5bcb965e6d96ab38360"
+    },
+    "sleep-sheep-4": {
+      "id": "sleep-sheep-4",
+      "filename": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+      "url": "vfx_preview/se/sleep-sheep-4.wav",
+      "duration": 1.95,
+      "originalDuration": 3.95,
+      "start": 0.700917,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "深紅にほどけ昇る血の精髄：血の生々しさを避け、液体の魔力がほどけて昇る音（2026-10-20 再選定・不快感の緩和）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "86d78e701260d8dfc291dda26d2f5d4072da7f8eaf520491daa0cba5efe650f3"
+    },
+    "sleep-sheep-5": {
+      "id": "sleep-sheep-5",
+      "filename": "Production Element Title Transition Liquid 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Liquid 01.wav",
+      "url": "vfx_preview/se/sleep-sheep-5.wav",
+      "duration": 1.95,
+      "originalDuration": 5.641354,
+      "start": 0.389937,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "深紅にほどけ昇る血の精髄：血の生々しさを避け、液体の魔力がほどけて昇る音（2026-10-20 再選定・不快感の緩和）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "2660236d2f2c2c4285180b584f3360bb1f9a5cfba490eff6cd5240bf0980751b"
+    },
+    "sleep-sheep-6": {
+      "id": "sleep-sheep-6",
+      "filename": "Production Element Title Transition Ascend 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ascend 01.wav",
+      "url": "vfx_preview/se/sleep-sheep-6.wav",
+      "duration": 1.701313,
+      "originalDuration": 1.701313,
+      "start": 0.0,
+      "trimmed": false,
+      "peak": 0.028708,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "深紅にほどけ昇る血の精髄：血の生々しさを避け、液体の魔力がほどけて昇る音（2026-10-20 再選定・不快感の緩和）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "301b9b2b284e93aa733b405d42811e48ecc7306bf6578344b6bab24cbdc2ffcb"
+    },
+    "all-ring-4": {
+      "id": "all-ring-4",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Quasar Wave_RTSB_COL-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Quasar Wave_RTSB_COL-01.wav",
+      "url": "vfx_preview/se/all-ring-4.wav",
+      "duration": 1.95,
+      "originalDuration": 6.0,
+      "start": 0.601792,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "青白く広がる衝撃輪：広がる衝撃波（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "8f545287f2721c34b706efe6540dbe862a54d686f73d6f0f990824099b256cf7"
+    },
+    "all-ring-5": {
+      "id": "all-ring-5",
+      "filename": "Production Element Title Transition Blast Pulse 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Blast Pulse 01.wav",
+      "url": "vfx_preview/se/all-ring-5.wav",
+      "duration": 1.95,
+      "originalDuration": 3.855208,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.091583,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "青白く広がる衝撃輪：広がる衝撃波（2026-10-20 再選定）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "d336212d6e4fdc357d2bbe089c7c2286a7c4f074f6c371055e8b4c3b8d3e0463"
+    },
+    "shockwave-4": {
+      "id": "shockwave-4",
+      "filename": "Production Element Title Transition Whoosh Long 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Long 01.wav",
+      "url": "vfx_preview/se/shockwave-4.wav",
+      "duration": 1.680542,
+      "originalDuration": 5.450667,
+      "start": 3.770125,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "青白い乱流の波：途中に「チッ」が入らない長い風（2026-10-20 追加）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "15109ba9aced2e672bd98bbf562977003da05ffe43c4824eda44f0acf94c6c60"
+    },
+    "shockwave-5": {
+      "id": "shockwave-5",
+      "filename": "Production Element Title Transition Whoosh Drone 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Drone 01.wav",
+      "url": "vfx_preview/se/shockwave-5.wav",
+      "duration": 1.95,
+      "originalDuration": 3.01,
+      "start": 0.003896,
+      "trimmed": true,
+      "peak": 0.452792,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "青白い乱流の波：途中に「チッ」が入らない長い風（2026-10-20 追加）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "1059d5794286ca4ff89a4297aabb54c3a5fd94b365c53599cefe5c66323e8912"
+    },
+    "shockwave-6": {
+      "id": "shockwave-6",
+      "filename": "WINDDsgn_Wind, Rush, Whoosh, Long x5 01_344 Audio_Elemental Palette Designed Vol 1.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Elemental Palette Designed Vol. 1/WINDDsgn_Wind, Rush, Whoosh, Long x5 01_344 Audio_Elemental Palette Designed Vol 1.wav",
+      "url": "vfx_preview/se/shockwave-6.wav",
+      "duration": 1.019,
+      "originalDuration": 1.049,
+      "start": 0.03,
+      "trimmed": true,
+      "peakDbfs": -1,
+      "peak": 0.1,
+      "adopted": true,
+      "reason": "青白い乱流の波：ゲームに入っている加工版。0.603秒の「チッ」を前後40msの高音抑制でならした（2026-10-20）",
+      "sha256": "d9e16f543dc46f7e2bfee45320f08c6f303ac5463eef003a4692346d5f1f0d54",
+      "provisional": false,
+      "edit": {
+        "declick": [
+          0.6045,
+          0.084
+        ],
+        "note": "2026-10-18の加工に加えて再処理"
+      }
+    },
+    "siren-wave-4": {
+      "id": "siren-wave-4",
+      "filename": "SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-02.wav",
+      "url": "vfx_preview/se/siren-wave-4.wav",
+      "duration": 1.12,
+      "originalDuration": 3.12,
+      "start": 2.0,
+      "trimmed": true,
+      "peak": 0.043958,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": true,
+      "provisional": false,
+      "reason": "幾重にも広がる超音波：利用者指定。初期のSE（原音の2秒の位置から）（2026-10-20）",
+      "edit": {
+        "maxSec": 3.0,
+        "tailMs": 400
+      },
+      "sha256": "1eabd10541ef6e3a6a3e752462ad46c33a7b51b4d310bf8b331ceeb281353f93"
     }
   },
   "effects": {
@@ -4265,7 +4780,9 @@ var VbFxSeCatalog = {
       "cover-fire-1"
     ],
     "shockwave": [
-      "shockwave-1"
+      "shockwave-6",
+      "shockwave-4",
+      "shockwave-5"
     ],
     "demon-soul": [
       "demon-soul-1"
@@ -4350,18 +4867,16 @@ var VbFxSeCatalog = {
       "direwolf-1"
     ],
     "all-sweep": [
-      "all-sweep-1",
-      "all-sweep-2",
-      "all-sweep-3"
+      "all-cross-1"
     ],
     "all-ring": [
       "all-ring-1",
-      "all-ring-2",
-      "all-ring-3"
+      "all-ring-4",
+      "all-ring-5"
     ],
     "all-roar": [
-      "all-roar-1",
-      "all-roar-2",
+      "all-roar-4",
+      "all-roar-5",
       "all-roar-3"
     ],
     "titan": [
@@ -4449,8 +4964,8 @@ var VbFxSeCatalog = {
     ],
     "gremlin": [
       "gremlin-1",
-      "gremlin-2",
-      "gremlin-3"
+      "gremlin-4",
+      "gremlin-5"
     ],
     "lilith": [
       "lilith-1",
@@ -4468,9 +4983,9 @@ var VbFxSeCatalog = {
       "minotaur-3"
     ],
     "sleep-sheep": [
-      "sleep-sheep-1",
-      "sleep-sheep-2",
-      "sleep-sheep-3"
+      "sleep-sheep-4",
+      "sleep-sheep-5",
+      "sleep-sheep-6"
     ],
     "scylla": [
       "scylla-1",
@@ -4488,9 +5003,9 @@ var VbFxSeCatalog = {
       "spriggan-3"
     ],
     "incubus": [
-      "incubus-1",
-      "incubus-2",
-      "incubus-3"
+      "sleep-sheep-4",
+      "sleep-sheep-5",
+      "sleep-sheep-6"
     ],
     "chaos-imp": [
       "chaos-imp-1",
@@ -4523,7 +5038,7 @@ var VbFxSeCatalog = {
       "attack-buff-3"
     ],
     "siren-wave": [
-      "siren-wave-1",
+      "siren-wave-4",
       "siren-wave-2",
       "siren-wave-3"
     ],
@@ -4533,8 +5048,8 @@ var VbFxSeCatalog = {
       "medusa-gaze-3"
     ],
     "steal-mark": [
-      "steal-mark-1",
-      "steal-mark-2",
+      "steal-mark-4",
+      "steal-mark-5",
       "steal-mark-3"
     ],
     "fang-poison": [
@@ -4623,9 +5138,9 @@ var VbFxSeCatalog = {
       "paladin-ring-3"
     ],
     "speed-ring": [
-      "speed-ring-1",
-      "speed-ring-2",
-      "speed-ring-3"
+      "speed-ring-4",
+      "speed-ring-5",
+      "speed-ring-6"
     ],
     "curse-ring": [
       "curse-ring-1",
@@ -4633,9 +5148,9 @@ var VbFxSeCatalog = {
       "curse-ring-3"
     ],
     "sealed-power": [
-      "sealed-power-1",
-      "sealed-power-2",
-      "sealed-power-3"
+      "sealed-power-4",
+      "sealed-power-5",
+      "sealed-power-6"
     ],
     "ring-eye-blue": [
       "ring-eye-red-1",
@@ -4683,8 +5198,8 @@ var VbFxSeCatalog = {
       "fate-sever-3"
     ],
     "penance-ring": [
-      "penance-ring-1",
-      "penance-ring-2",
+      "penance-ring-4",
+      "penance-ring-5",
       "penance-ring-3"
     ],
     "alchemy": [

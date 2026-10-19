@@ -159,8 +159,10 @@ function audioChecks(){
   const old=execFileSync('git',['show',BASELINE+':prototype/tools/vfx_preview/se_catalog.js'],{cwd:ROOT,encoding:'utf8'});
   const previous=JSON.parse(old.slice(old.indexOf('{'),old.lastIndexOf('}')+1));
   // 2026-10-18：利用者の指示で選び直し・加工した候補（reason に日付を残す）は変更を許す。
-  const redone=id=>/2026-10-1[78]/.test(String((catalog.sounds[id]||{}).reason||''))&&!/2026-10-1[78]/.test(String((previous.sounds[id]||{}).reason||''));
-  for(const [id,sound]of Object.entries(previous.sounds))if(!redone(id))assert.deepEqual(catalog.sounds[id],sound,'既存SEの登録値を保持: '+id);
+  const redone=id=>/2026-10-(1[78]|2\d)/.test(String((catalog.sounds[id]||{}).reason||''))&&!/2026-10-(1[78]|2\d)/.test(String((previous.sounds[id]||{}).reason||''));
+  // 2026-10-20：採用の印（adopted／provisional）は利用者が選ぶたびに変わるので、登録値の比較から外す。
+  const stable=s=>{if(!s)return s;const {adopted,provisional,...rest}=s;return rest;};
+  for(const [id,sound]of Object.entries(previous.sounds))if(!redone(id))assert.deepEqual(stable(catalog.sounds[id]),stable(sound),'既存SEの登録値を保持: '+id);
   for(const [name,entry]of Object.entries(picks)){
     assert.equal(catalog.effects[name].length,3);
     for(let i=1;i<=3;i++){
@@ -195,7 +197,9 @@ function audioChecks(){
   // 2026-10-17：巻物・旗の使用SE（利用者が LAB 候補 scroll-shield-3 を採用）を新しく足した。追加だけを許す。
   const addedByUser=new Set(['prototype/assets/sfx/item_scroll.wav']);
   // 2026-10-18：利用者がLABで選んだ候補で置き換えた・足した効果音（台帳 adopted_1018.json）は変更を許す。
-  for(const v of Object.values(fs.existsSync(path.join(ROOT,'tools/vfx_preview/se/adopted_1018.json'))?JSON.parse(read('tools/vfx_preview/se/adopted_1018.json')):{}))addedByUser.add('prototype/'+v.file);
+  // 2026-10-20 以降の採用（adopted_MMDD.json。加工しただけの E071 なども含む）も同じ扱い。
+  for(const f of fs.readdirSync(path.join(ROOT,'tools/vfx_preview/se')).filter(f=>/^adopted_\d{4}\.json$/.test(f)))
+    for(const v of Object.values(JSON.parse(read('tools/vfx_preview/se/'+f))))if(v&&v.file)addedByUser.add('prototype/'+v.file);
   assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!removable(f)&&!addedByUser.has(f)).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
   console.log('OK SE63候補: 既存登録保持・元素材重複なし・ボイス名除外・48kHz/PCM16・最長1.95秒・-1dBFS・peak・末尾フェード・仮コピー21');
 }

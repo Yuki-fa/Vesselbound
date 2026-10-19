@@ -109,8 +109,9 @@ var VbFxSeSources = {
  },
  "C011.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-02.wav",
-  "note": "キャラ固有SE",
-  "basis": "アセットリスト"
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-02.wav",
+  "effect": "siren-wave",
+  "basis": "ADOPTED.md"
  },
  "C017.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-01.wav",
@@ -171,9 +172,10 @@ var VbFxSeSources = {
   "basis": "アセットリスト"
  },
  "S005.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Large-02.wav",
-  "note": "バフ（攻撃）",
-  "basis": "アセットリスト"
+  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-01.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-01.wav",
+  "effect": "attack-buff",
+  "basis": "ADOPTED.md"
  },
  "S006.wav": {
   "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Large Frenzy-01.wav",
@@ -182,9 +184,10 @@ var VbFxSeSources = {
   "basis": "ADOPTED.md"
  },
  "S007.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
-  "note": "バフ（死亡）",
-  "basis": "アセットリスト"
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Summon Large 01-01.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Large 01-01.wav",
+  "effect": "death-buff",
+  "basis": "ADOPTED.md"
  },
  "S008.wav": {
   "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Large-03.wav",
@@ -225,9 +228,10 @@ var VbFxSeSources = {
   "basis": "ADOPTED.md"
  },
  "K017.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-03",
-  "note": "毒",
-  "basis": "アセットリスト"
+  "source": "SORCERY - DESIGNED - MAGIC ACID Hit-01.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Hit-01.wav",
+  "effect": "poison-tick",
+  "basis": "ADOPTED.md"
  },
  "K018.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ICE Deflect Spell-02.wav",
@@ -661,6 +665,78 @@ var VbFxSeSources = {
   "effect": "revive-gain",
   "basis": "ADOPTED.md"
  },
+ "R019.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-04.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-04.wav",
+  "effect": "paladin-ring",
+  "basis": "ADOPTED.md"
+ },
+ "EN075_1.wav": {
+  "source": "CLOCKTick_Crooked Antique Clock_344 Audio_Antique Clocks.wav",
+  "path": "Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Antique Clocks/CLOCKTick_Crooked Antique Clock_344 Audio_Antique Clocks.wav",
+  "effect": "fate-sever",
+  "basis": "ADOPTED.md"
+ },
+ "E030.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-02.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-02.wav",
+  "effect": "alchemy",
+  "basis": "ADOPTED.md"
+ },
+ "C060.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
+  "effect": "behemoth",
+  "basis": "ADOPTED.md"
+ },
+ "C055.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WATER Cast Large-01.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Large-01.wav",
+  "effect": "hydra-reward",
+  "basis": "ADOPTED.md"
+ },
+ "C071.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
+  "effect": "nymph",
+  "basis": "ADOPTED.md"
+ },
+ "C097.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
+  "effect": "overlord",
+  "basis": "ADOPTED.md"
+ },
+ "C066.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
+  "effect": "undine",
+  "basis": "ADOPTED.md"
+ },
+ "C079.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 01-01.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 01-01.wav",
+  "effect": "spriggan",
+  "basis": "ADOPTED.md"
+ },
+ "C029.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
+  "effect": "phantom",
+  "basis": "ADOPTED.md"
+ },
+ "C034.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
+  "effect": "eidolon",
+  "basis": "ADOPTED.md"
+ },
+ "C019_HIT.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav",
+  "effect": "centaur-impact",
+  "basis": "ADOPTED.md"
+ },
  "C004.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
@@ -695,18 +771,6 @@ var VbFxSeSources = {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
   "effect": "fiend",
-  "basis": "ADOPTED.md"
- },
- "C029.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
-  "effect": "phantom",
-  "basis": "ADOPTED.md"
- },
- "C034.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
-  "effect": "eidolon",
   "basis": "ADOPTED.md"
  },
  "C082.wav": {
@@ -811,12 +875,6 @@ var VbFxSeSources = {
   "effect": "centaur-missile",
   "basis": "ADOPTED.md"
  },
- "C019_HIT.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC ICE Deflect Spell-03.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Deflect Spell-03.wav",
-  "effect": "centaur-impact",
-  "basis": "ADOPTED.md"
- },
  "E032.wav": {
   "source": "Production Element Title Transition Whoosh Fire 01.wav",
   "path": "Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 01.wav",
@@ -835,28 +893,10 @@ var VbFxSeSources = {
   "effect": "shield-break",
   "basis": "ADOPTED.md"
  },
- "C060.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
-  "effect": "behemoth",
-  "basis": "ADOPTED.md（仮）"
- },
- "C071.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
-  "effect": "nymph",
-  "basis": "ADOPTED.md（仮）"
- },
  "C083.wav": {
   "source": "Industry Metal Clink Gear Fast 06.wav",
   "path": "Adobe/工業・工場・機械系/Industry Metal Clink Gear Fast 06.wav",
   "effect": "gremlin",
-  "basis": "ADOPTED.md（仮）"
- },
- "C097.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
-  "effect": "overlord",
   "basis": "ADOPTED.md（仮）"
  },
  "C042.wav": {
@@ -869,18 +909,6 @@ var VbFxSeSources = {
   "source": "SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav",
   "effect": "scylla",
-  "basis": "ADOPTED.md（仮）"
- },
- "C066.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
-  "effect": "undine",
-  "basis": "ADOPTED.md（仮）"
- },
- "C079.wav": {
-  "source": "Foley Wood Tree Branches Breaking And Crunching 01.wav",
-  "path": "Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Wood Tree Branches Breaking And Crunching 01.wav",
-  "effect": "spriggan",
   "basis": "ADOPTED.md（仮）"
  },
  "C084.wav": {

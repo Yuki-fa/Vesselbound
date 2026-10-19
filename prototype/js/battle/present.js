@@ -1808,19 +1808,19 @@ const PRESENT_LAB_FX = {
   E008:['dragon-pact',0.228604,'foe'], E032:['rage-shards',0.450021,'foe'], R023:['storm-ring',0.215771,'foes'],
   // 指輪の開戦効果・封印されしもの（2026-10-17。それまで何も出ていなかった）。
   // 瞳の指輪（R001〜R005・R032）は常時効果なので戦闘中は発動しない扱いにし、演出は外した（2026-10-18 利用者指定。定義 ring-eye-* は別で使う）。
-  R019:['paladin-ring',null,'friends'], R031:['speed-ring',null,'friend'], R015:['toughness-ring',null,'friends'],
+  R019:['paladin-ring',0.45,'friends'], R031:['speed-ring',null,'friend'], R015:['toughness-ring',null,'friends'],
   R041:['curse-ring',0.45,'foes'], R042:['curse-ring',0.45,'foes'], E057:['sealed-power',null,'self'],
   C093:['void-mastery',0.45,'friends'],
   // 敵の開戦効果（2026-10-17。何も出ていなかった）：全員へのキーワード付与・ライフを1にする。
-  EN044:['keyword-grant',0.45,'friends'], EN075_1:['fate-sever',null,'self'],
+  EN044:['keyword-grant',0.45,'friends'], EN075_1:['fate-sever',0.45,'self'],
   // 第3弾（2026-10-17。何も出ていなかった）：苦行の指輪・錬成・ハイドラ・苦悶の刻印・受難の刻印。
-  R012:['penance-ring',null,'friends'], E030:['alchemy',null,'self'], C055:['hydra-reward',null,'self'],
+  R012:['penance-ring',null,'friends'], E030:['alchemy',0.45,'self'], C055:['hydra-reward',0.45,'self'],
   E078:['gold-loss',null,'self'], E077:['suffering-brand',0.074896,'dead'],
   // 第4弾（2026-10-17。汎用の演出で代わりに出していた）：レムレースの呼び戻し・召喚の指輪・魔導板の力・威圧／魔力の指輪。
   // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
   C031:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
   R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.45,'foes'],
-  'map:life':['map-life',null,'friends'], 'map:resonance':['map-resonance',0.072292,'friends'], 'map:duplicate':['map-duplicate',0.45,'self'],
+  'map:life':['map-life',0.243979,'friends'], 'map:resonance':['map-resonance',0.072292,'friends'], 'map:duplicate':['map-duplicate',0.45,'self'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
@@ -1832,7 +1832,7 @@ const PRESENT_LAB_FX = {
   C099:['fiend',0.833771,'foe'],C029:['phantom',0.218375,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
   C082:['arch-demon',0.774937,'purple'],C083:['gremlin',0.017667,'foes'],C095:['lilith',0.384333,'sequence'],
   C097:['overlord',0.48,'self'],C009:['minotaur',0.2575,'reaction'],C042:['sleep-sheep',0.433979,'self'],
-  C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.48,'friend'],
+  C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.45,'friend'],
   C084:['incubus',0.270292,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
 };
 const PRESENT_LAB_1012_CODES=new Set(['C004','C020','C021','C060','C064','C071','C089','C099','C029','C034','C082','C083','C095','C097','C009','C042','C056','C066','C079','C084','C094']);
@@ -1910,7 +1910,7 @@ function presentCharacterHitVfxMs(code) {
 // ゲームの効果音（assets/sfx）の一番大きい所の時刻（秒、ファイル先頭から。実測）。
 // 固有VFXと一緒に鳴らす時、このピークをVFXの山場（定義の impact）へ合わせる。LABも同じ表を使う。
 const PRESENT_SFX_PEAK_SEC = {
-  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: .195, C017: 0.45, C019: 0.45, C019_HIT: 0.196729, C043: 0.45,
+  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: 0.043958, C017: 0.45, C019: 0.45, C019_HIT: 0.196729, C043: 0.45,
   C090: .130, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
   [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
 };

@@ -307,16 +307,21 @@ const Assets = {
     C002: 'assets/sfx/C002.wav',
     C003: 'assets/sfx/S006.wav', // ゴーレム（素材名はS006へ変更済み）
     C008: 'assets/sfx/C008.wav', // アラクネ
-    C011: 'assets/sfx/C011.wav', // サイレン
+    C011: 'assets/sfx/C011.wav', // LAB採用（2026-10-20 siren-wave 候補1・初期のSE・原音2秒から）
     C017: 'assets/sfx/C017.wav', // メデューサ
     C019: 'assets/sfx/C019_1.wav', // ケンタウロス（発射）
     C090: 'assets/sfx/C090.wav', // 奪う
-    C019_HIT: 'assets/sfx/C019_2.wav', // ケンタウロス（着弾）
+    C019_HIT: 'assets/sfx/C019_2.wav', // LAB採用（2026-10-20 centaur-impact 候補1）
     // マナ効果SE。シートのNo.に合わせて K024（旧 K023）。
     K024: 'assets/sfx/K024.wav',
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    C055: 'assets/sfx/C055.wav', // LAB採用（2026-10-20 hydra-reward 候補1）
+    'map:life': 'assets/sfx/map_life.wav', // LAB採用（2026-10-20 map-life 候補1）
+    E030: 'assets/sfx/E030.wav', // LAB採用（2026-10-20 alchemy 候補2）
+    EN075_1: 'assets/sfx/EN075_1.wav', // LAB採用（2026-10-20 fate-sever 候補1・暗転明けの2回目の音を除去）
+    R019: 'assets/sfx/R019.wav', // LAB採用（2026-10-20 paladin-ring 候補2）
     // 強化カード（エンチャント）の効果SE。カードのNo.（EXXX）で引く。
     // 効果が回数ぶん発動する時は、この音を回数ぶん鳴らす（マナ効果SEは最初の1回だけ）。
     E045: 'assets/sfx/S008.wav', // 活性化（素材名はS008へ変更済み）
@@ -327,22 +332,22 @@ const Assets = {
     C004: 'assets/sfx/C004.wav',
     C020: 'assets/sfx/C020.wav',
     C021: 'assets/sfx/C021.wav',
-    C060: 'assets/sfx/C060.wav',
+    C060: 'assets/sfx/C060.wav', // LAB採用（2026-10-20 behemoth 候補1）
     C064: 'assets/sfx/C064.wav',
-    C071: 'assets/sfx/C071.wav',
+    C071: 'assets/sfx/C071.wav', // LAB採用（2026-10-20 nymph 候補1）
     C089: 'assets/sfx/C089.wav',
     C099: 'assets/sfx/C099.wav',
-    C029: 'assets/sfx/C029.wav',
-    C034: 'assets/sfx/C034.wav',
+    C029: 'assets/sfx/C029.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
+    C034: 'assets/sfx/C034.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
     C082: 'assets/sfx/C082.wav',
     C083: 'assets/sfx/C083.wav',
     C095: 'assets/sfx/C095.wav',
-    C097: 'assets/sfx/C097.wav',
+    C097: 'assets/sfx/C097.wav', // LAB採用（2026-10-20 overlord 候補1）
     C009: 'assets/sfx/C009.wav',
     C042: 'assets/sfx/C042.wav',
     C056: 'assets/sfx/C056.wav',
-    C066: 'assets/sfx/C066.wav',
-    C079: 'assets/sfx/C079.wav',
+    C066: 'assets/sfx/C066.wav', // LAB採用（2026-10-20 undine 候補1）
+    C079: 'assets/sfx/C079.wav', // LAB採用（2026-10-20 spriggan 候補1）
     C084: 'assets/sfx/C084.wav',
     C094: 'assets/sfx/C094.wav',
     // VFX LABで採用済みの戦闘SE。
@@ -405,7 +410,7 @@ const Assets = {
     C043: 'assets/sfx/C043.wav', // アラッサス（全体へ広がる効果ダメージ）
     K001: 'assets/sfx/K001.wav', // 即死（即死効果を受けた瞬間）
     K003: 'assets/sfx/K003.wav', // 毒牙（毒のデバフを受けた瞬間）
-    K017: 'assets/sfx/K017.wav', // 毒（毒でダメージを受けた瞬間）
+    K017: 'assets/sfx/K017.wav', // LAB採用（2026-10-20 poison-tick 候補1）
     K018: 'assets/sfx/K018.wav', // 結界（結界がダメージを防いだ瞬間）
     K020: 'assets/sfx/K020.wav', // 復活（再召喚された瞬間）
     victory: 'assets/sfx/victory.wav',
