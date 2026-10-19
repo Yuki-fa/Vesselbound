@@ -27,3 +27,5 @@ body{grid-template-columns:244px minmax(0,1fr)}
 /* 2026-10-18 使っていない演出の印 */
 #effect-list button .effect-unused{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid #8a6a5a;border-radius:3px;font-size:10px;line-height:15px;color:#e8b8a0;vertical-align:1px;}
 #effect-list button.unused .effect-caption{opacity:.75;}
+#effect-list button .effect-unfixed{display:inline-block;margin-left:6px;padding:0 5px;border:1px solid #6a7fa0;border-radius:3px;font-size:10px;line-height:15px;color:#a8c4ec;vertical-align:1px;}
+.game-sound-info{margin:6px 0;font-size:12px;line-height:1.5;color:#d9c9a8}.game-sound-info .game-sound-row{margin-left:8px}.game-sound-info code{color:#f0dca8}

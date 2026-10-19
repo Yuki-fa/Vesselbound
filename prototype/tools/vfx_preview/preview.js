@@ -217,6 +217,35 @@ var VbFxPreview = (function () {
     var id = setTimeout(function () { audioTimers.delete(id); fn(); }, ms); audioTimers.add(id); return id;
   }
   function audition(id) { stopAudio(); playSound(VbFxSeCatalog.sounds[id] || selectedSound()); }
+  // 2026-10-20 利用者指定：以前から決まっていたSEも、今ゲームで鳴っているファイルと元ファイル名（アセットリスト・ADOPTED.md）を出す。
+  // 経路は cards_routes.js（実ゲームで採取した演出とSE）から、この演出と同じ番号のSEを引く。
+  function gameSoundFiles(name) {
+    var out = {}, records = (window.VbFxCardRoutes && VbFxCardRoutes.records) || {};
+    Object.keys(records).forEach(function (no) {
+      var rec = records[no], hits = (rec.vfx || []).filter(function (v) { return v.definition === name; });
+      if (!hits.length) return;
+      var codes = {}; hits.forEach(function (v) { if (v.sourceCode) codes[v.sourceCode] = 1; });
+      (rec.se || []).forEach(function (s) {
+        var file = String(s.path || '').split('/').pop(), code = file.replace(/\.wav$/, '');
+        if (!codes[s.key] && !codes[code]) return;
+        (out[file] = out[file] || {}); out[file][no] = 1;
+      });
+    });
+    return out;
+  }
+  function renderGameSound() {
+    var host = $('game-sound-info'); if (!host) return; host.replaceChildren();
+    var files = gameSoundFiles(effect), names = Object.keys(files);
+    var head = document.createElement('strong'); head.textContent = '今のゲームSE'; host.appendChild(head);
+    if (!names.length) { var none = document.createElement('span'); none.textContent = '：ゲームで鳴っている固有SEは見つからない（未使用、または汎用SE）'; host.appendChild(none); return; }
+    names.forEach(function (file) {
+      var src = (window.VbFxSeSources || {})[file], row = document.createElement('div'); row.className = 'game-sound-row';
+      var code = document.createElement('code'); code.textContent = file;
+      var orig = document.createElement('span'); orig.textContent = src ? ' ← ' + src.source + '（' + src.basis + (src.note ? '・' + src.note : '') + '）' : ' ← 元ファイル不明（アセットリスト・ADOPTED.md に無い）';
+      var used = document.createElement('small'); used.textContent = ' / ' + Object.keys(files[file]).slice(0, 6).join('・');
+      row.append(code, orig, used); host.appendChild(row);
+    });
+  }
   function refreshSound() {
     var ids = VbFxSeCatalog.effects[effect] || [], selected = selectedSound();
     $('sound-select').replaceChildren(); $('candidate-details').replaceChildren();
@@ -230,6 +259,7 @@ var VbFxPreview = (function () {
       var button = document.createElement('button'); button.textContent = 'この候補を聴く'; button.addEventListener('click', function () { choices[effect] = id; saveChoices(); refreshSound(); audition(id); });
       row.append(strong, info, path, button); $('candidate-details').appendChild(row);
     });
+    renderGameSound();
     if (!ids || !ids.length) {
       $('sound-name').textContent = selected.filename; $('sound-duration').textContent = ''; $('sound-source').textContent = selected.source; $('sound-reason').textContent = selected.reason;
       $('aux-sound').hidden = true; return;
@@ -471,8 +501,12 @@ var VbFxPreview = (function () {
       var unused=!!(window.VbFxLabUI&&VbFxLabUI.unused&&VbFxLabUI.unused(d.name));b.classList.toggle('unused',unused);
       if(unused){var mark=b.querySelector('.effect-unused')||document.createElement('span');mark.className='effect-unused';mark.textContent='未使用';mark.title='ゲームで使っていない（割り振りなし）';b.querySelector('.effect-caption').after(mark);}
       else{var old=b.querySelector('.effect-unused');if(old)old.remove();}
+      // 2026-10-20 利用者指定：見た目・SEともに決めていない演出には「未FIX」の印（決めた演出は lab_fixed.js）。
+      var fixed=!!(window.VbFxLabFixed&&VbFxLabFixed[d.name]);b.classList.toggle('unfixed',!fixed);
+      if(!fixed){var fm=b.querySelector('.effect-unfixed')||document.createElement('span');fm.className='effect-unfixed';fm.textContent='未FIX';fm.title='見た目・SEをまだ決めていない（利用者のOK待ち）';b.querySelector('.effect-caption').after(fm);}
+      else{var oldFix=b.querySelector('.effect-unfixed');if(oldFix)oldFix.remove();}
       b.querySelector('.effect-tags').textContent=entry.meta.tags.join(' / ');
-      b.dataset.search=[d.name,entry.meta.title].concat(entry.meta.tags,window.VbFxLabUI?VbFxLabUI.searchText(d.name):[]).join(' ').toLowerCase();
+      b.dataset.search=[d.name,entry.meta.title,fixed?'FIX':'未FIX'].concat(entry.meta.tags,window.VbFxLabUI?VbFxLabUI.searchText(d.name):[]).join(' ').toLowerCase();
       b.classList.toggle('selected',effect===d.name);b.setAttribute('aria-current',effect===d.name?'true':'false');
       var at=$('effect-list').children[i];if(at!==b)$('effect-list').insertBefore(b,at||null);
     });filterList();

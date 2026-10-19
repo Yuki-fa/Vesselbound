@@ -46,6 +46,7 @@
       <div class="sound-head"><h2>SE候補 <small>各演出3つ</small></h2><label class="volume">音量 <input id="volume" type="range" min="0" max="1" step="0.01" value="0.32"><output id="volume-value">32%</output></label></div>
       <div class="sound-controls"><select id="sound-select" aria-label="SE候補の選択"></select><button id="sound-only">SEだけ聴く</button><button id="export">選択を保存</button></div>
       <div class="sound-meta"><strong id="sound-name"></strong><span id="sound-duration"></span><code id="sound-source"></code><span id="sound-reason"></span><p id="aux-sound" hidden></p></div>
+      <div id="game-sound-info" class="game-sound-info"></div>
       <details id="sound-details"><summary>3候補の元ファイル・尺を比較</summary><div id="candidate-details"></div></details>
       <div id="attack-proposals" hidden><p>全体攻撃の比較</p><div id="proposal-buttons"></div></div>
       <details class="references"><summary>見た目の基準：既存素材のコマを比較</summary>
@@ -80,10 +81,12 @@
   <script src="vfx_preview/cards_routes.js?v=lab-layout1015-1"></script>
   <script src="vfx_preview/cards_geometry.js?v=cards1006-geometry3"></script>
   <script src="vfx_preview/lab_meta.js?v=lab-layout1015-1-add1017f"></script>
+  <script src="vfx_preview/lab_fixed.js?v=fix1020"></script>
+  <script src="vfx_preview/se_sources.js?v=src1020b"></script>
   <script src="vfx_preview/lab_model.js?v=lab-layout1015-1"></script>
   <script src="vfx_preview/lab_store.js?v=lab-layout1015-1"></script>
   <!-- 2026-10-12指定・撮影第2回: LABの命中表示を各脈動へ同期した再生処理だけキャッシュ更新。 -->
-  <script src="vfx_preview/preview.js?v=lab-scroll1016-2-unused1018"></script>
+  <script src="vfx_preview/preview.js?v=lab-scroll1016-2-unused1018-fix1020"></script>
   <script src="vfx_preview/capture_frames.js?v=fxlab1006-4"></script>
   <script src="vfx_preview/frame_capture.js?v=fxlab1006-4"></script>
   <script src="../js/data/local_xlsx_data.js?v=cards1006-read"></script>
