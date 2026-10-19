@@ -122,6 +122,7 @@
     });
     return {
       units,
+      ...coreGameSummonBuffFields({p1:typeof G!=='undefined'&&G&&G.gameSummonBuff}),
       stageNumber: Math.max(1, Number(typeof G !== 'undefined' && G && G._wave) || 1),
       mapIndex: Math.max(1, Number(typeof G !== 'undefined' && G && G._wave) || 1),
       rings: {

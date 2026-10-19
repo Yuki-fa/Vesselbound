@@ -34,11 +34,11 @@ function readCards() {
   };
   sheetData.sheetRows('card').forEach(r => {
     push('キャラクター', r['名前'], '基本', r['効果']);
-    push('キャラクター', r['名前'], '合体', r['合体効果']);
+    push('キャラクター', r['名前'], '強化', r['合体効果']);
   });
   sheetData.sheetRows('enchant').forEach(r => {
     push('強化', r['名前'], '基本', r['効果']);
-    push('強化', r['名前'], '合体', r['合体効果']);
+    push('強化', r['名前'], '強化', r['合体効果']);
   });
   return out;
 }
@@ -46,12 +46,12 @@ function readCards() {
 // 文から読み取れる期待値。読めなければ null（対象外）。
 // 2026-10-12: 初回＋反復分を検査し、期待値は現在のシート本文から読む。
 function expectationOf(body) {
-  const repeat = body.match(/。これを(\d+)回繰り返す。?$/);
+  const repeat = body.match(/。これを(?:(\d+)回|もう一度)繰り返す。?$/);
   if (repeat) {
     const exp = expectationOf(body.slice(0, repeat.index) + '。');
     if (!exp) return null;
     if (exp.kind === 'damage' || exp.kind === 'eachStat') return exp; // 1回あたりの値は元のまま
-    for (const key of ['value', 'atk', 'hp']) if (exp[key] != null) exp[key] *= 1 + Number(repeat[1]);
+    for (const key of ['value', 'atk', 'hp']) if (exp[key] != null) exp[key] *= sheetData.effectRepetitions(body);
     return exp;
   }
   if (UNCHECKABLE.test(body)) return null;
@@ -107,8 +107,17 @@ function fire(card, trigger, summonDefs) {
   const allies = [subject, ...['赤', '青', '緑', '黄', '紫'].map(color => ({
     id: `ally-${color}`, name: `味方${color}`, atk: 2, hp: 50, maxHp: 50, color, keywords: [], desc: '',
     lane: 'rear' }))];
+  if (/負傷効果を発動/.test(card.desc)) allies[1].desc = '負傷：このキャラクターは+1/+1を得る。';
+  if (/マナ効果を発動/.test(card.desc)) Object.assign(allies[1], {
+    desc: '1マナ毎：このキャラクターは+1/+1を得る。', manaCost: 1, manaRepeat: true,
+    manaThresholdDesc: 'このキャラクターは+1/+1を得る。' });
+  if (/接続しているエンチャント/.test(card.desc)) subject.boardCards = [
+    { category: 'エンチャント', name: '接続1' }, { category: 'エンチャント', name: '接続2' }];
+  if (/この効果を持つ全ての味方/.test(card.desc)) {
+    allies[1].effectData = { effectNames: [card.name], effectTexts: [card.desc] };
+  }
   const foes = ['a', 'b', 'c'].map(k => ({ id: `foe-${k}`, name: `敵${k}`, atk: 2, hp: 90, maxHp: 100,
-    color: '青', keywords: [], desc: '', poison: 2 }));
+    color: '青', keywords: [], desc: '', poison: 2, lane: k === 'c' ? 'rear' : 'front' }));
   // 盤面依存の効果（血・マナ・毒・失ったライフ・HP/ATKのしきい値）が0で空振りしないよう、
   // どれも「発動する側」の値を入れておく。**空振りだと合体前後の差も出ない。**
   const state = core.createBattleState({
@@ -126,10 +135,12 @@ function fire(card, trigger, summonDefs) {
   const events = [];
   const emit = e => events.push(e);
   const rng = createSeededRng(11);
+  if (/確率で/.test(card.desc)) rng.next = () => 0; // 外れ同士の一致で反復漏れを見逃さない。境界は専用回帰でも確認。
+  if (/操り/.test(card.desc)) rng.pick = list => list.at(-1); // 後衛が選択可能かを比較する。
   const applyHit = (s, t, a, c) => core.coreResolveHit(state, s, t, a, c, rng, emit);
   if (trigger === '開戦') core.coreApplyOpeningEffects(unit, state, rng, emit, applyHit);
   if (trigger === '攻撃') { core.coreTriggerManaOnAttack(unit, state, emit); core.coreApplyAttackEffects(unit, state, rng, emit, applyHit); }
-  if (trigger === '負傷') { core.coreTriggerManaOnInjury(unit, state, emit); core.coreApplyInjuryEffects(unit, 3, state, rng, emit, applyHit, state.units.p2[0]); }
+  if (trigger === '負傷') { core.coreTriggerManaOnInjury(unit, state, emit); core.coreApplyInjuryEffects(unit, 3, state, rng, emit, applyHit, state.units.p2[0], null, 'attack_effect'); }
   if (trigger === '死亡') { unit.hp = 0; core.coreTriggerDeath(unit, state, emit); core.coreApplyDeathEffects(unit, state, rng, emit, applyHit); }
   if (trigger === '終戦') core.coreTriggerBattleEnd(state, emit, rng);
   if (trigger === '解放') core.coreApplyReleaseEffects(unit, [], state, rng, emit, applyHit);
@@ -177,40 +188,28 @@ function actualOf(exp, res) {
 // （＝合体しても基本の値のまま動く）。**上の数値監査で形を読めない文もこれで拾える。**
 // 検査盤面の作りでは差が出ないもの。**実装漏れではない**理由を必ず書くこと。
 // ここへ足す時は、コード側を読んで「本文から読んでいる」ことを確認してから足す。
-const MERGE_DIFF_KNOWN = new Map([
-  ['ヘカトンケイル|負傷', '確率だけが変わる（10%→20%）。同じ乱数では結果が変わらない'],
-  ['レイス|死亡', '負傷効果を持つ味方が要る。検査盤面の味方は効果を持たない'],
-  ['ペガサス|攻撃', 'マナ効果を持つ味方が要る。検査盤面の味方は効果を持たない'],
-  ['メリュジーヌ|攻撃', '毒の倍率はイベントに値が載らない（stat_changeは0/0）'],
-  ['アークデーモン|解放', '接続しているエンチャントの数だけ繰り返す。検査盤面は接続0'],
-  ['フィーンド|解放', '同上（接続0では繰り返し回数が0）'],
-  ['錬成|終戦', '引き換えのGは js/engine/battle.js が本文から読む（コアは item_reward を出すだけ）'],
-  ['援護射撃|攻撃', 'この効果を持つ味方が撃つ。検査盤面の味方は持っていないので0発（基本・合体とも）'],
-  ['血の結束|死亡', 'この効果を持つ味方だけが強化される。検査盤面の味方は持っていないので0体（基本・合体とも）'],
-]);
-
 function mergeDiffAudit(summonDefs) {
   const rows = [];
-  const digits = t => (String(t).match(/\d+/g) || []).join(',');
   // 値の入る欄はできるだけ拾う。拾い漏らすと「差が無い」と誤検出する。
   const sign = res => res.events
     .filter(e => e && e.type !== 'effect_flash' && e.type !== 'battle_start')
-    .map(e => [e.type, e.unitId || e.targetId || '', e.amount, e.atk, e.hp, e.value,
-      e.shield, e.count, e.effect, e.keyword, e.unit && e.unit.name, e.name].join(':')).join('|');
+    .map(e => [e.type, e.unitId || e.targetId || '', e.attackerId, e.sourceId, e.amount, e.atk, e.hp, e.value,
+      e.shield, e.count, e.effect, e.keyword, e.unit && e.unit.name, e.name].join(':')).join('|')
+    + '#' + JSON.stringify(Object.values(res.state.units).flat().map(u => [u.id,u.atk,u.hp,u.maxHp,u.poison,u.shield,u.keywords]));
   const pairs = [];
   sheetData.sheetRows('card').forEach(r => pairs.push(['キャラクター', r['名前'], r['効果'], r['合体効果']]));
   sheetData.sheetRows('enchant').forEach(r => pairs.push(['強化', r['名前'], r['効果'], r['合体効果']]));
   let checked = 0;
   for (const [kind, name, base, merged] of pairs) {
     if (!String(base || '').trim() || !String(merged || '').trim()) continue;
-    if (digits(base) === digits(merged)) continue;   // 数が同じなら比べる意味がない
+    if (String(base).trim() === String(merged).trim()) continue;
     for (const [trigger, pattern] of TRIGGERS) {
       if (!pattern.test(base) || !pattern.test(merged)) continue;
       checked++;
       const a = fire({ kind, name, variant: '基本', desc: String(base).trim() }, trigger, summonDefs);
-      const b = fire({ kind, name, variant: '合体', desc: String(merged).trim() }, trigger, summonDefs);
-      if (sign(a) === sign(b) && !MERGE_DIFF_KNOWN.has(`${name}|${trigger}`)) {
-        rows.push(`NG ${kind} ${name} ${trigger}：合体しても結果が変わらない 〔${String(base).trim()} → ${String(merged).trim()}〕`);
+      const b = fire({ kind, name, variant: '強化', desc: String(merged).trim() }, trigger, summonDefs);
+      if (sign(a) === sign(b)) {
+        rows.push(`NG ${kind} ${name} ${trigger}：強化しても結果が変わらない 〔${String(base).trim()} → ${String(merged).trim()}〕`);
       }
     }
   }
@@ -224,7 +223,6 @@ function mergeDiffAudit(summonDefs) {
 // 「+2+2」とスラッシュ抜けで書かれていて、丸ごと不発になっていた）。
 function manaDiffAudit() {
   const rows = [];
-  const digits = t => (String(t).match(/\d+/g) || []).join(',');
   const run = (desc, manaAmount) => {
     const m = /^(\d+)マナ(毎)?\s*[：:]/.exec(String(desc || ''));
     if (!m) return null;
@@ -245,7 +243,7 @@ function manaDiffAudit() {
       (src, tgt, amt, ctr) => core.coreResolveHit(state, src, tgt, amt, ctr, rng, emit));
     // 盤面の最終値もそのまま比べる（イベントに値が載らない効果を拾うため）。
     const board = [...state.units.p1, ...state.units.p2]
-      .map(u => `${u.id}:${u.atk}/${u.hp}/${u.maxHp}/${u.shield || 0}`).join('|');
+      .map(u => `${u.id}:${u.name}/${u.no}/${u.atk}/${u.hp}/${u.maxHp}/${u.shield || 0}/${u.keywords}`).join('|');
     return events.filter(e => e && e.type !== 'effect_flash' && e.type !== 'battle_start')
       .map(e => [e.type, e.unitId || e.targetId || '', e.amount, e.atk, e.hp].join(':')).join('|')
       + '#' + board;
@@ -257,13 +255,13 @@ function manaDiffAudit() {
     const merged = String(r['合体効果'] || '').trim();
     if (!base || !merged) return;
     if (!/^\d+マナ/.test(base) || !/^\d+マナ/.test(merged)) return;
-    if (digits(base) === digits(merged)) return;
+    if (base === merged) return;
     checked++;
     // 閾値の変更も検出するため、低いほうの閾値ちょうどで比較する。
     const manaAmount = Math.min(Number(base.match(/^(\d+)/)[1]), Number(merged.match(/^(\d+)/)[1]));
     const a = run(base, manaAmount); const b = run(merged, manaAmount);
     if (a === null || b === null) return;
-    if (a === b) rows.push(`NG キャラクター ${name} マナ：合体しても結果が変わらない 〔${base} → ${merged}〕`);
+    if (a === b) rows.push(`NG キャラクター ${name} マナ：強化しても結果が変わらない 〔${base} → ${merged}〕`);
   });
   rows.forEach(r => console.log(r));
   return { checked, ng: rows.length };
@@ -280,7 +278,7 @@ function repeatAudit() {
     const name = String(r['名前'] || '').trim();
     const kind = KIND_BY_NAME[name];
     if (!kind) return;
-    [['基本', r['効果']], ['合体', r['合体効果']]].forEach(([variant, desc]) => {
+    [['基本', r['効果']], ['強化', r['合体効果']]].forEach(([variant, desc]) => {
       const text = String(desc || '').trim();
       const m = /(\d+)回追加で発動する/.exec(text);
       if (!m) return;
@@ -326,9 +324,9 @@ function audit() {
   rows.forEach(r => console.log(r));
   console.log(`効果文の数値監査: 検査${checked}件 / 対象外${skipped}件 / NG${ng}件`);
   const merge = mergeDiffAudit(summonDefs);
-  console.log(`合体で値が変わる監査: 検査${merge.checked}件 / NG${merge.ng}件`);
+  console.log(`強化で値が変わる監査: 検査${merge.checked}件 / NG${merge.ng}件`);
   const mana = manaDiffAudit();
-  console.log(`マナ効果の合体差分監査: 検査${mana.checked}件 / NG${mana.ng}件`);
+  console.log(`マナ効果の強化差分監査: 検査${mana.checked}件 / NG${mana.ng}件`);
   const repeat = repeatAudit();
   console.log(`追加発動回数の監査: 検査${repeat.checked}件 / NG${repeat.ng}件`);
   return ng + merge.ng + mana.ng + repeat.ng;

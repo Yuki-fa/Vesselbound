@@ -94,6 +94,7 @@ function initState(){
     floor:0, gold:100, life:3,
     towerBoons:typeof towerBoonInitialState==='function'?towerBoonInitialState():null,
     runLevels:typeof runLevelInitialState==='function'?runLevelInitialState():null,
+    gameSummonBuff:{atk:0,hp:0},
     _shopRerollSeq:0,
     // ── 盤面（MAX_ALLIES/MAX_ENEMIES件・HP持続）──
     allies: Array(MAX_ALLIES||5).fill(null),

@@ -6,8 +6,8 @@ function extendCacheInputs(api){
   // 元ファイルは保存済みoutのハッシュ契約の対象。ディスクを変更せず、
   // 実験用の追加資源だけを両キャッシュの入力に含めた同じモジュールを使う。
   for(const [name,from,to] of [
-    ['lookahead','state.panelColorPermanentBuffs]);','state.panelColorPermanentBuffs,Number(state._experimentCarryMana)||0]);'],
-    ['planner_horizon','G.gold,G._waveLife]);','G.gold,G._waveLife,Number(G._experimentCarryMana)||0]);'],
+    ['lookahead','state.panelColorPermanentBuffs,','state.panelColorPermanentBuffs,Number(state._experimentCarryMana)||0,'],
+    ['planner_horizon','G.gold,G._waveLife,','G.gold,G._waveLife,Number(G._experimentCarryMana)||0,'],
   ]){
     const file=path.join(__dirname,name+'.js'),original=fs.readFileSync(file,'utf8');
     if(original.split(from).length!==2)throw Error('先読みキャッシュの境界が変わった: '+name);

@@ -547,6 +547,7 @@ async function new1012Checks(){
   for(const no of ['C099','C095','C082','C029','C034','C071','C084','C009','C094']){
     const state=fixture(no);setup(state);const run=vbLabVfxStartPve(no,state,vbLabVfx1012Cases[no]);await run.done;
     const main=calls.filter(c=>c.name===presentLabFx(no)[0]);
+    assert.ok(main.length>0,no+' 現行シートの効果で固有演出が発動する');
     if(no==='C099')assert.deepEqual(main.flatMap(c=>c.targets),run.events.filter(e=>e.type==='damage'&&e.sourceId==='source'&&!e.counter).map(e=>e.unitId),'弾の回数・対象・順序はdamageそのもの');
     if(no==='C095'){
       const targets=run.events.filter(e=>e.type==='stat_change'&&e.reason==='lilith').map(e=>e.unitId);
@@ -628,7 +629,8 @@ async function browser1012ParityChecks(){
 }
 
 function new1012CoreBaselineChecks(){
-  // コア変更は演出メタデータだけ。作業前コアと数値・実体イベントを厳密に比較する。
+  // 演出接続を作った時点の本文で、数値・実体イベントを厳密に比較する。
+  // 現行本文の動作は下のnew1012Checksで別途検査する。
   const baseline='097927f8332c7a55701eaa82aebc7b2177d17016';
   const ctx={console,Math,PANEL_POOL,ENEMY_POOL,ITEM_POOL,KW_NO_MAP,KW_DESC_MAP};ctx.window=ctx;vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(ROOT,'js/online/protocol.js'),'utf8'),ctx);
@@ -636,6 +638,7 @@ function new1012CoreBaselineChecks(){
   const clean=(value)=>JSON.parse(JSON.stringify(value,(key,v)=>['_coreOpeningEffectsState','retriggerSourceId','retriggerTargetId','retriggerKey','colorSources','reactionSourceId','victimId','victimSide'].includes(key)?undefined:v));
   for(const [no,trigger]of Object.entries(vbLabVfx1012Cases)){
     const initial=fixture(no),results=[];
+    if(['C029','C034'].includes(no)) initial.units.p1[0].desc=initial.units.p1[0].desc.replace('このゲーム中','この戦闘中');
     // 1018：復活基準は本体の _base* を優先する。旧コアにも同じ入力契約を渡す。
     // 値を比較から除外せず、旧コアが読む base* へも同じ値を載せる。
     for(const u of [...initial.units.p1,...initial.units.p2].filter(Boolean)){

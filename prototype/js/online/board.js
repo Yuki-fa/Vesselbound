@@ -880,6 +880,7 @@
         break;
       }
       case 'summon_buff': {
+        if(ev.persistent&&ev.side==='p1'&&typeof G!=='undefined'&&G) G.gameSummonBuff={atk:ev.gameTotalAtk,hp:ev.gameTotalHp};
         // 「この戦闘中、召喚された味方は+X/+Yを得る」の記録。
         // 実際の加算はコアが召喚時に行い、summonイベントの中身に載っている（PvEと同じ）。
         break;
@@ -969,7 +970,7 @@
       case 'death_summon_grant': {
         const u = _find(ev.side, ev.unitId);
         if (u) {
-          u.effectData = { ...(u.effectData || {}), grantedDeathSummon: ev.summon || null };
+          coreApplyDeathSummonGrantEvent(u, ev);
           _render();
         }
         break;

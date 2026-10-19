@@ -10,7 +10,10 @@ async function replay(file){const job=JSON.parse(fs.readFileSync(file,'utf8')),r
   assert.deepEqual(canonical(row),canonical(job.row),'同じ種・仮設定で再計測が一致');
 }
 async function main(argv){if(argv[0]==='--replay')return replay(argv[1]);const checks=[],check=(name,fn)=>{fn();checks.push(name);console.log('OK '+name);};
-  const dirs=fs.readdirSync(OUT).filter(d=>fs.existsSync(path.join(OUT,d,'runs.jsonl'))),old=new Map(load(path.join(__dirname,'out/runs.jsonl')).map(r=>[r.policy+':'+r.seed,r]));
+  const dirs=fs.existsSync(OUT)?fs.readdirSync(OUT).filter(d=>fs.existsSync(path.join(OUT,d,'runs.jsonl'))):[];
+  const previous=path.join(__dirname,'out/runs.jsonl');
+  const old=new Map(fs.existsSync(previous)?load(previous).map(r=>[r.policy+':'+r.seed,r]):[]);
+  if(!dirs.length)console.log('SKIP 周回出力の比較・再現: git管理外の '+OUT+' に runs.jsonl が無い（独立したルール検査は続行）');
   const jobs=[];for(const id of dirs){const rows=load(path.join(OUT,id,'runs.jsonl')),meta=JSON.parse(fs.readFileSync(path.join(OUT,id,'meta.json')));
     check(id+': 件数・種・交換・祭壇・資源・マナ入力',()=>{
       assert.equal(rows.length,id==='baseline'?400:100);
@@ -22,22 +25,31 @@ async function main(argv){if(argv[0]==='--replay')return replay(argv[1]);const c
         let carry=0;for(const b of r.experiment.battles){if(meta.simulation.openingMana)assert.ok(b.openingMana>=meta.simulation.openingMana);if(meta.simulation.thresholdCarry){assert.equal(b.thresholdCarry,carry);carry+=Math.max(0,b.finalMana);}else assert.equal(b.thresholdCarry,0);}
       }
     });
-    if(id==='baseline')check('基準400周は既存の新ルール400周と全JSONが一致',()=>{for(const row of rows){const r=structuredClone(row);delete r.experiment;assert.deepEqual(r,old.get(r.policy+':'+r.seed));}});
+    if(id==='baseline'){
+      if(fs.existsSync(previous))check('基準400周は既存の新ルール400周と全JSONが一致',()=>{for(const row of rows){const r=structuredClone(row);delete r.experiment;assert.deepEqual(r,old.get(r.policy+':'+r.seed));}});
+      else console.log('SKIP 旧周回との全JSON比較: '+previous+' が無い');
+    }
     const row=meta.simulation.thresholdCarry?rows.find(r=>r.experiment.battles.some(b=>b.thresholdCarry>0))||rows[0]:rows.find(r=>r.clear)||rows[0];jobs.push({id,row,spec:{simulation:meta.simulation,override:meta.override}});
   }
   const rules=require('./experiment_1017b_rules'),e=require('./fixed_engine');await rules.install();
-  const fixedBase=load(path.join(OUT,'fixed_baseline/comparisons.jsonl')),fixedMap=new Map(fixedBase.map(r=>[`${r.scene}:${r.cardKey}:${r.board}`,r]));
+  const fixedBaseFile=path.join(OUT,'fixed_baseline/comparisons.jsonl'),fixedEffectsFile=path.join(OUT,'fixed_baseline_effects/comparisons.jsonl');
+  if(fs.existsSync(fixedBaseFile)&&fs.existsSync(fixedEffectsFile)){
+  const fixedBase=load(fixedBaseFile),fixedMap=new Map(fixedBase.map(r=>[`${r.scene}:${r.cardKey}:${r.board}`,r]));
   check('固定基準の発動観測960件も全カード基準と実測JSONが一致',()=>{
     const records=load(path.join(OUT,'fixed_baseline_effects/comparisons.jsonl'));assert.equal(records.length,960);
     for(const record of records){const row={...record};delete row.activation;assert.deepEqual(row,fixedMap.get(`${row.scene}:${row.cardKey}:${row.board}`));}
   });
-  check('追加固定比較の件数・発動率の分母とF通常形の本文解釈',()=>{
-    for(const [id,n] of [['b_seal',280],['c_opening',3080],['c_carry',3080],['d_nerfs',160],['f_enchants',120]]){
-      const records=load(path.join(OUT,`fixed_${id}_effects/comparisons.jsonl`));assert.equal(records.length,n);
+  }else console.log('SKIP 固定基準960件の比較: '+fixedBaseFile+' または '+fixedEffectsFile+' が無い');
+  const additional=[['b_seal',280],['c_opening',3080],['c_carry',3080],['d_nerfs',160],['f_enchants',120]];
+  if(additional.some(([id])=>fs.existsSync(path.join(OUT,`fixed_${id}_effects/comparisons.jsonl`))))check('追加固定比較の件数・発動率の分母とF通常形の本文解釈',()=>{
+    for(const [id,n] of additional){
+      const file=path.join(OUT,`fixed_${id}_effects/comparisons.jsonl`);
+      if(!fs.existsSync(file)){console.log('SKIP 追加固定比較 '+id+': git管理外の '+file+' が無い');continue;}
+      const records=load(file);assert.equal(records.length,n);
       for(const row of records){assert.equal(row.n,30);assert.ok(row.activation.manaTriggered<=row.activation.manaEligible);assert.ok(row.activation.released<=row.activation.sealEligible);}
       if(id==='f_enchants')for(const name of new Set(records.filter(r=>r.form==='通常').map(r=>r.name)))assert.ok(records.filter(r=>r.name===name).some(r=>r.eventChangedCases>0),'新効果が本文除去対照と変化する');
     }
-  });
+  });else console.log('SKIP 追加固定比較5条件: git管理外の '+OUT+'/fixed_*_effects/comparisons.jsonl が無い');
   check('祝福100Gは初回だけ。2回目500G・3回目1000Gを維持',()=>{rules.configure({firstBoonPrice:100});assert.deepEqual([0,1,2].map(towerBoonPrice),[100,500,1000]);rules.configure();});
   check('持ち越しはNマナ毎だけに加算。消費マナ・召喚後の閾値は元のまま',()=>{
     const state={resources:{p1:{mana:1}},_experimentThresholdCarry:5},repeat={cost:2,repeat:true},once={cost:2,repeat:false};rules.configure({thresholdCarry:true});
@@ -57,6 +69,7 @@ async function main(argv){if(argv[0]==='--replay')return replay(argv[1]);const c
     const evaluate=()=>lookahead.decision({policy:'lookahead',color:''},async trial=>{await trial({});});
     await evaluate();const firstTrials=lookahead.stats.trials;await evaluate();assert.equal(lookahead.stats.trials,firstTrials,'同じマナの試行はキャッシュする');
     G._experimentCarryMana=4;await evaluate();assert.equal(lookahead.stats.trials,firstTrials+lookahead.DEFAULTS.samples,'マナだけ変わった時は試行をやり直す');
+    G.gameSummonBuff={atk:1,hp:2};await evaluate();assert.equal(lookahead.stats.trials,firstTrials+2*lookahead.DEFAULTS.samples,'眷属のゲーム中修正だけ変わった時も試行をやり直す');
   },{state:boards.state,seed:1234});rules.configure();
   checks.push('同じ盤面・金・ライフでも持ち越しマナだけ変われば先読みを再計算する');console.log('OK '+checks.at(-1));
   for(const cfg of [{},{openingMana:2},{thresholdCarry:true}]){rules.configure(cfg);for(const sample of samples){const state=await e.setup({...boards.state,_experimentCarryMana:4},normal,sample,{preparedItems:boards.preparedItems,seed:1234});
@@ -66,8 +79,11 @@ async function main(argv){if(argv[0]==='--replay')return replay(argv[1]);const c
   try{async function worker(){while(cursor<jobs.length){const job=jobs[cursor++],file=path.join(temp,job.id+'.json');fs.writeFileSync(file,JSON.stringify(job));await new Promise((resolve,reject)=>{const p=spawn(process.execPath,[__filename,'--replay',file],{stdio:['ignore','ignore','pipe']});let err='';p.stderr.on('data',b=>err+=b);p.on('error',reject);p.on('close',code=>code?reject(Error(job.id+': '+err)):resolve());});console.log('OK '+job.id+': 代表種の全JSON再現');}}
     const settled=await Promise.allSettled(Array.from({length:4},worker));const bad=settled.find(r=>r.status==='rejected');if(bad)throw bad.reason;
   }finally{fs.rmSync(temp,{recursive:true,force:true});}
-  checks.push(`${jobs.length}条件の代表種（クリア種・マナ持ち越し成立種を優先）の全JSON再現`);
-  const result={checks,datasets:dirs,replaySeeds:jobs.map(j=>({variant:j.id,seed:j.row.seed,policy:j.row.policy}))};fs.writeFileSync(path.join(OUT,'validation/experiment_selftest.json'),JSON.stringify(result,null,2)+'\n');console.log('合格 '+checks.length+'項目');
+  if(jobs.length)checks.push(`${jobs.length}条件の代表種（クリア種・マナ持ち越し成立種を優先）の全JSON再現`);
+  else console.log('SKIP 代表種の全JSON再現: 元になる周回出力が無い');
+  const result={checks,datasets:dirs,replaySeeds:jobs.map(j=>({variant:j.id,seed:j.row.seed,policy:j.row.policy}))};
+  if(fs.existsSync(OUT)){fs.mkdirSync(path.join(OUT,'validation'),{recursive:true});fs.writeFileSync(path.join(OUT,'validation/experiment_selftest.json'),JSON.stringify(result,null,2)+'\n');}
+  console.log('合格 '+checks.length+'項目');
 }
 if(require.main===module)main(process.argv.slice(2)).catch(e=>{console.error(e.stack);process.exitCode=1;});
 module.exports={canonical};

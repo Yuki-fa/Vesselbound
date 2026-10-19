@@ -45,7 +45,7 @@ async function decision(context,callback) {
       const strategy=planner?.strategic(context,plan);
       await useItems(planner?'planner':'lookahead',context);
       const state=structuredClone(G);
-      const key=battleKey+JSON.stringify([state.mainBoard,state.gold,state.rings,state.spellSlots,state.pendingBattleItems,state.nextBattleItems,state.mapPanelPowers,state._waveLife,state.panelPermanentBuffs,state.panelColorPermanentBuffs,state.runLevels?.values]);
+      const key=battleKey+JSON.stringify([state.mainBoard,state.gold,state.rings,state.spellSlots,state.pendingBattleItems,state.nextBattleItems,state.mapPanelPowers,state._waveLife,state.panelPermanentBuffs,state.panelColorPermanentBuffs,state.runLevels?.values,state.gameSummonBuff]);
       if(cache.has(key)){stats.cacheHits++;const point=cache.get(key);return planner?planner.evaluate(point,strategy,samples):point;}
       const result={win:0,hp:0,damage:0};
       for(const sample of samples) {

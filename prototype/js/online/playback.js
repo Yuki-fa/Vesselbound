@@ -227,7 +227,7 @@ async function playOnlineBattleEvents(result, handlers) {
       if (u) u.shield = Number(ev.amount) || 0;
     } else if (ev.type === 'death_summon_grant') {
       const u = ctx.unitById(ev.unitId);
-      if (u) u.effectData = { ...(u.effectData || {}), grantedDeathSummon: ev.summon || null };
+      if (u) coreApplyDeathSummonGrantEvent(u, ev);
     } else if (ev.type === 'life_set') {
       ctx.life = ctx.life || {};
       ctx.life[ev.side] = Number(ev.amount) || 0;

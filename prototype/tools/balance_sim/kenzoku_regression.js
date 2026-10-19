@@ -39,12 +39,11 @@ function ring(name) {
 // 2026-10-12: 眷属強化・合体反復は現行のシート本文から期待値を求める。
 function buffSpec(name, merged) {
   const text = card(name, 'expected', {}, merged).desc;
-  const pair = text.match(/\+(\d+)\/\+(\d+)/), atk = text.match(/ATK\+(\d+)/);
-  const repeat = text.match(/これを(\d+)回繰り返す/);
+  const pair = text.match(/\+(\d+)\/\+(\d+)/), atk = text.match(/ATK\+(\d+)/), hp = text.match(/HP\+(\d+)/);
   const scale = text.match(/眷属の(?:数の)?(\d+)倍繰り返す/);
-  const times = repeat ? 1 + Number(repeat[1]) : 1;
+  const times = sheetData.effectRepetitions(text);
   return { atk: (pair ? Number(pair[1]) : Number(atk && atk[1]) || 0) * times,
-    hp: (pair ? Number(pair[2]) : 0) * times, scale: Number(scale && scale[1]) || 1 };
+    hp: (pair ? Number(pair[2]) : Number(hp && hp[1]) || 0) * times, scale: Number(scale && scale[1]) || 1 };
 }
 function ringBuff() {
   const match = ring('召喚師の指輪').desc.match(/\+(\d+)\/\+(\d+)/);
@@ -156,7 +155,7 @@ function runCoreChecks() {
       const specimen = { name: '検査用の召喚体', atk: 10, hp: 20, maxHp: 20, keywords: ['復活'] };
       const live = core.coreSummonUnit(h.state, side, specimen, h.emit);
       const revived = core.coreSummonUnit(h.state, side, specimen, h.emit);
-      assert.deepEqual([live.atk, live.hp, live.shield], summonExpected(1), 'ナーガ／指輪の召喚時強化');
+      assert.deepEqual([live.atk, live.hp, live.shield], summonExpected(2), '後続の召喚時に既存の眷属にもナーガの修正が乗る');
       assert.deepEqual([revived.atk, revived.hp], summonExpected(2).slice(0, 2), 'ナーガの召喚累計');
       const initial = h.state.units[side].find(u => u.id === 'initial-reviver');
       const revivalStart = h.events.length;
@@ -169,7 +168,7 @@ function runCoreChecks() {
         '眷属の復活へナーガ／指輪の修正が付かない／復活を召喚数へ加えた');
       assert.deepEqual([initial.atk, initial.hp, initial.shield], [6, 10, 0], '初期配置の復活へ強化が付いた');
       assert.deepEqual(h.events.slice(revivalStart).filter(e => e.type === 'stat_change').map(e => e.reason),
-        ['naga_summon', 'summoner_ring'], '元眷属の復活でナーガが発動しない／初期配置へ眷属バフが付いた');
+        ['summon_buff', 'summoner_ring'], '元眷属の復活へ累積修正を1回だけ掛け、初期配置へは掛けない');
       const beforeLive = [live.atk, live.hp];
       const beforeRevived = [revived.atk, revived.hp, initial.atk, initial.hp];
       h.source.hp = 0;
@@ -218,11 +217,12 @@ function runCoreChecks() {
       assert.equal(h.state._summonCount[side], 2, '復活自体を数えた／復活前の召喚履歴を失った');
       const third = core.coreSummonUnit(h.state, side, specimen, h.emit);
       assert.deepEqual([third.atk, third.hp], expected(3), '後続の召喚が累計3体分にならない');
-      assert.deepEqual([second.atk, second.hp, initial.atk, initial.hp], [...revivedExpected, 6, 10],
-        '後続召喚時に復活体も再度強化した');
+      assert.deepEqual([second.atk, second.hp, initial.atk, initial.hp],
+        [revivedExpected[0]+naga.atk,revivedExpected[1]+naga.hp,6,10],
+        '後続召喚時は復活した眷属も強化し、初期配置の復活は対象外');
       assert.equal(h.state._summonCount[side], 3);
-      assert.deepEqual(h.events.filter(e => e.type === 'stat_change' && e.reason === 'naga_summon').map(e => e.unitId),
-        [first.id, second.id, second.id, third.id], 'ナーガが復活した元眷属に発動しない／初期配置の復活へ発動した');
+      assert.deepEqual(h.events.filter(e => e.type === 'stat_change' && e.reason === 'summon_buff').map(e => e.unitId),
+        [first.id, second.id, second.id, second.id, third.id, second.id, third.id], '累積修正の再適用と新規召喚の追加分を各1回だけ反映');
     });
     check(`${side}/眷属判定・変身・沈黙・根性`, () => {
       const h = harness(side, [plain('marker-only', { _summonedInBattle: true }), plain('keyword-only', { keywords: ['眷属'] })]);
@@ -286,8 +286,7 @@ function runCoreChecks() {
     child.hp = 0;
     assert.equal(core.coreTryRevive(child, h.state, h.emit), 'revival_ring');
     const spec = buffSpec('ナーガ', merged);
-    const bonus = spec.atk * spec.scale;
-    assert.deepEqual([child.atk, child.hp, child.shield], [base[0] + bonus + ringBuff()[0], base[1] + bonus + ringBuff()[1], 1],
+    assert.deepEqual([child.atk, child.hp, child.shield], [base[0] + spec.atk + ringBuff()[0], base[1] + spec.hp + ringBuff()[1], 1],
       '指輪復活の半減後にナーガ・召喚師を1回ずつ適用し、光の結界も戻す');
     assert.equal(isKenzoku(child), true);
     const initial = h.state.units.p1.find(unit => unit.id === 'initial-ring-revival');
@@ -429,9 +428,11 @@ async function runPveHandoffChecks() {
   await _finishNewPanelBattleStartEffects();
   const afterOpening = _createPveCoreState();
   assert.equal(afterOpening._summonCount.p1, 2, 'PvEで開戦の眷属召喚累計が消えた');
-  assert.deepEqual(afterOpening._summonBuff.p1, { atk: 1, hp: 2 }, 'PvEで開戦の累積強化が消えた');
+  const phantom=buffSpec('ファントム',false),naga=buffSpec('ナーガ',false);
+  const accumulated={atk:phantom.atk+2*naga.atk,hp:phantom.hp+2*naga.hp};
+  assert.deepEqual(afterOpening.gameSummonBuff.p1, accumulated, 'PvEでゲーム中の累積強化が消えた');
   const child = core.coreSummonUnit(afterOpening, 'p1', { name: '引継ぎ検査体', atk: 10, hp: 20, maxHp: 20 }, () => {});
-  assert.deepEqual([child.atk, child.hp], [14, 25], 'PvEの開戦後の召喚が同じ累計・強化を受けない');
+  assert.deepEqual([child.atk, child.hp], [10+accumulated.atk+naga.atk,20+accumulated.hp+naga.hp], 'PvEの開戦後の召喚が同じ累計・強化を受けない');
   assert.equal(_createPveCoreState()._summonCount, undefined, '開戦状態の受け渡しが消費後も残る');
 }
 
@@ -447,6 +448,7 @@ async function runPveLegacyChecks() {
   } });
   state._summonCount = { p1: 2, p2: 3 };
   state._summonBuff = { p1: { atk: 1, hp: 2 }, p2: { atk: 2, hp: 0 } };
+  G.gameSummonBuff={atk:0,hp:0};
   G.allies = state.units.p1; G.enemies = state.units.p2;
   G.activeBattleItems = []; G.panelColorPermanentBuffs = {}; G._coreDrivenBattle = false;
   global.kenzokuCheckRings = [ring('光の指輪'), ring('召喚師の指輪')];
@@ -456,14 +458,15 @@ async function runPveLegacyChecks() {
     const child = await _spawnAdhocAllyUnit('青スケルトン', 1, 1, side === 'p2');
     assert.ok(child && isKenzoku(child), `${side}: 旧召喚入口で眷属が欠落`);
     assert.deepEqual([child.atk, child.hp, child.shield], side === 'p1'
-      ? [base.atk + 9, base.hp + 10, 1] : [base.atk + 6, base.hp + 4, 0], '旧入口で共通の眷属強化が不一致');
+      ? [base.atk+1+ringBuff()[0],base.hp+2+buffSpec('ナーガ',false).hp+ringBuff()[1],1]
+      : [base.atk+2,base.hp+buffSpec('ナーガ',false).hp,0], '旧入口で共通の眷属強化が不一致');
   }
   // 魔導板に同名カードがある分岐も、実際の生成・配置入口を通す。
   const panel = PANEL_POOL.find(p => p.name === 'スケルトン');
   global.kenzokuCheckBoard = { boardCards: Array.from({ length: 25 }, (_, i) => i === 1 ? { ...panel } : null) };
   const owned = await _spawnAdhocAllyUnit('青スケルトン', 1, 1, false);
   assert.ok(owned && isKenzoku(owned), '所持カード由来の旧召喚で眷属が欠落');
-  assert.deepEqual([owned.atk, owned.hp, owned.shield], [base.atk + 10, base.hp + 11, 1]);
+  assert.deepEqual([owned.atk, owned.hp, owned.shield], [base.atk+1+ringBuff()[0],base.hp+2+2*buffSpec('ナーガ',false).hp+ringBuff()[1],1]);
   const afterLegacy = _createPveCoreState();
   assert.deepEqual(afterLegacy._summonCount, { p1: 4, p2: 4 }, '旧入口の召喚累計が通常手番へ渡らない');
   assert.deepEqual(afterLegacy._summonBuff, state._summonBuff);

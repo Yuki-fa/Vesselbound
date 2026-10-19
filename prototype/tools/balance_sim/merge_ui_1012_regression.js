@@ -27,12 +27,18 @@ function node(id){
 }
 (async()=>{
   await loadGameData();let merges=0,blocked=0;
+  assert.equal(panelMergeEnabled(),false,'通常プレイの3枚合体は停止中');
+  // 停止中の合体形・旧保存の契約は、検査の間だけ有効にして従来どおり全行検査する。
+  PANEL_MERGE_TRIAL.enabled=true;
   for(const row of sheetRows('card')) {
     initState();const original=def(row['No.']);assert.ok(original,row['No.']);
     const atk=sheetNumber(row['パワー']),hp=sheetNumber(row['ライフ']);
     _collectionKind='character';_collectionMerged=true;
     const display=_collectionDisplayCard(original);
-    assert.deepEqual([display.power,display.life],[atk*3,hp*3],row['No.']+' 図鑑');
+    // 2026-10-19：図鑑の「強化」表示は祝福の炎と同じ強化後の姿（基本ATK/HP×2）。3枚合体（×3）は停止中。
+    // 強化効果・強化キーワードが両方空欄のカード（ペリカン等）は強化できないので、図鑑も元の値のまま。
+    const enhanceable=!!String(row['強化効果']||'').trim()||!!String(row['強化キーワード']||'').trim();
+    assert.deepEqual([display.power,display.life],enhanceable?[atk*2,hp*2]:[atk,hp],row['No.']+' 図鑑');
     const slots=[1,3,5];
     slots.forEach((idx,i)=>{
       const c=makePanel(original.id);c._permBasePower=atk;c._permBaseLife=hp;
@@ -57,6 +63,7 @@ function node(id){
     _permBaseLife:base.life*2,power:base.power*2+7,life:base.life*2+9});G.mainBoard[1]=old;
   const saved=saveAtReward();SaveRun.restoreRunState(copy(saved));
   assert.deepEqual(G.mainBoard[1],saved.state.player.mainBoard[1],'旧合体済みカードの保存値を保持');
+  PANEL_MERGE_TRIAL.enabled=false;
   console.log(`OK 1: ${merges}合体／${blocked}制限カード、図鑑、3枚の補正、4ポート、PvE／オンライン、旧セーブ`);
 
   // 貸出を番号で引く。改名しても同じカード・並び・ポート・返却先となる。

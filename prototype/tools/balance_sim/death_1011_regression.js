@@ -2,7 +2,7 @@
 // 2026-10-11: ケットシー＋E006＋E067、EN011、指輪なし。コアの発動と表示の発動を別々に数える。
 const assert = require('node:assert/strict');
 const h = require('./presentation_1011_harness');
-const { sheetRows } = require('./sheet_data');
+const { sheetRows, damageRepetitions } = require('./sheet_data');
 const plain = (id, extra = {}) => ({ id, name: id, atk: 1, hp: 100, maxHp: 100, lane: 'front', keywords: [], ...extra });
 const panel = no => makePanel(PANEL_POOL.find(c => c.no === no).id);
 function formation(no, effectNo, merged = false) {
@@ -40,8 +40,7 @@ function kill(units, shield, side = 'p1') {
     // 2026-10-12: 合体反復の期待値はシート本文から読む。
     const row = sheetRows('enchant').find(r => r['No.'] === 'E006');
     const text = merged ? row['合体効果'] : row['効果'];
-    const repeat = text.match(/これを(\d+)回繰り返す/);
-    const expected = 1 + Number(repeat && repeat[1]);
+    const expected = damageRepetitions(text);
     assert.equal(dead.length, 1, 'ケットシーの死亡は1件');
     assert.equal(damages.length, expected * 3, '敵3体×本文の反復回数');
     assert.equal(run.events.filter(e => e.type === 'effect_flash' && e.unitId === 'cat' && e.trigger === 'death').length, 1);

@@ -239,8 +239,9 @@ async function run() {
       assert.equal(core.coreTryRevive(child, h.state, h.emit), '根性'); assert.equal(child.atk, base.atk); assert.equal(child.maxHp, base.hp);
       const h2 = harness('p1', [plain('source')], ['青い瞳の指輪', '虹の瞳の指輪', '復活の指輪']);
       const c2 = core.coreSummonUnit(h2.state, 'p1', { name: '青スケルトン', color: '青' }, h2.emit, h2.source.id);
-      const before = [c2.atk, c2.maxHp]; c2.hp = 0; core.coreTryRevive(c2, h2.state, h2.emit);
-      assert.deepEqual([c2.atk, c2.maxHp], before);
+      const expected = [Math.floor(c2._baseAtk / 2) + 10 + 3, Math.max(1, Math.floor(c2._baseMaxHp / 2)) + 10 + 3];
+      c2.hp = 0; core.coreTryRevive(c2, h2.state, h2.emit);
+      assert.deepEqual([c2.atk, c2.maxHp], expected, '指輪復活は本体を半減して常時指輪を1回だけ掛け直す');
     });
     await check(`${side}/鏡で増えた色・虹の指輪と今回の召喚色を数える`, () => {
       const h = harness(side, [plain('source', { color: '赤' })], ['鏡の指輪', '青い瞳の指輪', '鏡の指輪', '虹の瞳の指輪']);

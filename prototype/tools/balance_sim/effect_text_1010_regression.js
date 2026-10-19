@@ -3,6 +3,7 @@
 // 2026-10-10 のシート変更（効果文）がコアで本文どおりに動くかを確かめる。ブラウザは使わない。
 // 邪眼・結界・狂気（強化）／ミノタウロス・エルフ（キャラクター）／ラン・ドーター・ヴィーザル・リムスルス（敵）。
 const assert = require('node:assert/strict');
+const { sheetRows, effectText, effectRepetitions } = require('./sheet_data');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const ROOT = path.resolve(__dirname, '../..');
 const { makeElement } = require('./stub');
@@ -32,10 +33,8 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
 (async () => {
   await loadGameData();
   await check('シートの本文：邪眼・結界・狂気（通常／合体）、エルフ、ミノタウロス、敵3体', () => {
-    assert.equal(card('邪眼').desc, '負傷：ランダムな敵はATK-2を得る。');
-    assert.equal(card('死者の守護').desc, '死亡：ランダムな味方は結界1を得る。');
-    assert.equal(card('狂気').desc, '死亡：全てのキャラクターはATK+4を得る。');
-    assert.deepEqual(card('エルフ').keywords, ['先制', '結界1']);
+    for(const no of ['E018','E021','E009','C009']) assert.equal(PANEL_POOL.find(c=>c.no===no).desc,effectText(no));
+    assert.deepEqual(card('エルフ').keywords, sheetRows('card').find(r=>r['No.']==='C062')['キーワード'].split(/[\s　]+/));
     assert.match(card('ミノタウロス').desc, /結界1を得てからランダムな敵に攻撃する/);
     assert.match(enemy('ラン・ドーター').desc, /「黒ケルピー」を1体召喚する/);
     assert.match(enemy('ヴィーザル').desc, /全ての味方は\+12\/\+12を得る/);
@@ -45,40 +44,45 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
   await check('強化「死者の守護」（旧「結界」）は効果文の強化で、接続先へ結界1のキーワードを付けない', () => {
     assert.deepEqual(card('死者の守護').adjacentKeywords.filter(k => /^結界/.test(k)), []);
   });
-  for (const [label, text, count] of [['通常', '負傷：ランダムな敵はATK-2を得る。', 1], ['合体', '負傷：ランダムな敵2体はATK-2を得る。', 2]]) {
-    await check(`邪眼（${label}）：負傷でランダムな敵${count}体（別々の体）がATK-2`, () => {
+  for (const enhanced of [false,true]) {
+    const text=effectText('E018',enhanced),label=enhanced?'強化':'通常',per=Number((text.match(/敵(\d+)体/)||[])[1])||1;
+    const repeat=effectRepetitions(text),count=per*repeat,amount=Number(text.match(/ATK-(\d+)/)[1]);
+    await check(`邪眼（${label}）：ランダムな敵${per}体へATK-${amount}を${repeat}回（同時対象は別々）`, () => {
       const h = harness([plain('eye', { desc: text })], [plain('e0'), plain('e1'), plain('e2')]);
       coreApplyInjuryEffects(h.p1[0], 1, h.state, h.rng, h.emit, h.hit, h.p2[0], undefined, 'combat');
       const changes = statChanges(h.events, 'injury_random_enemy_atk_down');
       assert.equal(changes.length, count);
-      assert.equal(new Set(changes.map(e => e.unitId)).size, count);
-      assert.ok(changes.every(e => e.atk === -2 && e.side === 'p2'));
+      for(let i=0;i<repeat;i++) assert.equal(new Set(changes.slice(i*per,(i+1)*per).map(e=>e.unitId)).size,per,'1回の同時対象は別々');
+      assert.ok(changes.every(e => e.atk === -amount && e.side === 'p2'));
     });
   }
-  for (const [label, text, count] of [['通常', '死亡：ランダムな味方は結界1を得る。', 1], ['合体', '死亡：ランダムな味方2体は結界1を得る。', 2]]) {
-    await check(`結界（${label}）：死亡でランダムな味方${count}体（自分以外・別々）が結界1`, () => {
+  for (const enhanced of [false,true]) {
+    const text=effectText('E021',enhanced),label=enhanced?'強化':'通常',per=Number((text.match(/味方(\d+)体/)||[])[1])||1;
+    const repeat=effectRepetitions(text),count=per*repeat,amount=Number(text.match(/結界(\d+)/)[1]);
+    await check(`結界（${label}）：自分以外の味方${per}体へ結界${amount}を${repeat}回（同時対象は別々）`, () => {
       const h = harness([plain('ward', { desc: text }), plain('a1'), plain('a2'), plain('a3')], [plain('e0')]);
       h.p1[0].hp = 0;
       coreApplyDeathEffects(h.p1[0], h.state, h.rng, h.emit, h.hit);
       const got = h.events.filter(e => e.type === 'keyword_effect' && e.effect === 'shield');
       assert.equal(got.length, count);
-      assert.equal(new Set(got.map(e => e.unitId)).size, count);
+      for(let i=0;i<repeat;i++) assert.equal(new Set(got.slice(i*per,(i+1)*per).map(e=>e.unitId)).size,per);
       assert.ok(got.every(e => e.unitId !== 'ward' && e.side === 'p1'));
-      assert.equal(h.p1.filter(u => u.shield === 1).length, count);
+      assert.equal(h.p1.reduce((sum,u)=>sum+(u.shield||0),0),count*amount);
     });
   }
-  for (const [label, text, amount] of [['通常', '死亡：全てのキャラクターはATK+4を得る。', 4], ['合体', '死亡：全てのキャラクターはATK+8を得る。', 8]]) {
-    await check(`狂気（${label}）：死亡で敵味方の全員（自分以外）がATK+${amount}`, () => {
+  for (const enhanced of [false,true]) {
+    const text=effectText('E009',enhanced),label=enhanced?'強化':'通常',amount=Number(text.match(/ATK\+(\d+)/)[1]),repeat=effectRepetitions(text);
+    await check(`狂気（${label}）：本文の対象へATK+${amount}を${repeat}回`, () => {
       const h = harness([plain('mad', { desc: text }), plain('a1')], [plain('e0'), plain('e1')]);
       h.p1[0].hp = 0;
       coreApplyDeathEffects(h.p1[0], h.state, h.rng, h.emit, h.hit);
       assert.deepEqual(statChanges(h.events, 'death_all_atk').map(e => [e.unitId, e.atk]).sort(),
-        [['a1', amount], ['e0', amount], ['e1', amount]]);
+        Array.from({length:repeat},()=>/全ての味方/.test(text)?[['a1',amount]]:[['a1',amount],['e0',amount],['e1',amount]]).flat().sort());
+      if(/全ての味方/.test(text)) assert.ok(h.p2.every(u=>u.atk===5),'敵には加算しない');
     });
   }
-  for (const [label, text, times] of [
-    ['通常', '負傷：効果ダメージを受けた場合、結界1を得てからランダムな敵に攻撃する。', 1],
-    ['合体', '負傷：効果ダメージを受けた場合、結界1を得てからランダムな敵に攻撃する。これをもう一度繰り返す。', 2]]) {
+  for (const enhanced of [false,true]) {
+    const text=effectText('C009',enhanced),label=enhanced?'強化':'通常',times=effectRepetitions(text);
     await check(`ミノタウロス（${label}）：効果ダメージで結界1を得てから攻撃、を${times}回`, () => {
       const h = harness([plain('ミノタウロス', { desc: text, atk: 1, hp: 500, maxHp: 500 })], [plain('e0', { atk: 0, hp: 500, maxHp: 500 })]);
       coreApplyInjuryEffects(h.p1[0], 1, h.state, h.rng, h.emit, h.hit, h.p2[0], undefined, 'effect');

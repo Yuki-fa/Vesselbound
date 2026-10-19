@@ -345,6 +345,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       continue;
     }
     if(e.type==='summon_buff'){
+      if(e.persistent&&e.side==='p1') G.gameSummonBuff={atk:e.gameTotalAtk,hp:e.gameTotalHp};
       // 「この戦闘中、召喚された味方は+X/+Yを得る」の記録。
       // 実際の加算は召喚時にコアが行い、summonイベントの中身に載っている。
       // ここでは見せるものが無い（数値は召喚された体に最初から付いている）。

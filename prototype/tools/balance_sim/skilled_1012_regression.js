@@ -54,7 +54,8 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   }
   // 同じ旧文を通常＋合体で接続すると各本文の値を足す（最大値で上書きしない）。
   const mixed=formed('C093',[['E052',false],['E052',true]],{desc:'',keywords:[]});
-  assert.equal(coreStatBonus(plain('r'),1,mixed),5);assert.equal(coreStatBonus(plain('r'),-1,mixed),-5);
+  const mixedBonus=[false,true].reduce((n,m)=>n+Number(text('E052',m).match(/値は(\d+)/)[1]),0);
+  assert.equal(coreStatBonus(plain('r'),1,mixed),1+mixedBonus);assert.equal(coreStatBonus(plain('r'),-1,mixed),-1-mixedBonus);
   for(const side of ['p1','p2']){
     const eye=setup([plain('eye','赤',{keywords:['熟練1'],desc:'負傷：ランダムな敵はATK-2を得る。'})],side);
     coreApplyInjuryEffects(eye.state.units[side][0],1,eye.state,eye.rng,eye.emit,eye.hit,eye.state.units[eye.other][0],0,'combat');
@@ -105,7 +106,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   }
   // 2体の開戦付与は値を加算する。旧常時は旧本文のある保存だけに残す。
   const twice=setup([plain('a','紫',{desc:text('C093',false)}),plain('b','紫',{desc:text('C093',true)}),plain('r')]);opening(twice);
-  assert.equal(coreKeywordSum(twice.state.units.p1[2],'熟練'),4);
+  assert.equal(coreKeywordSum(twice.state.units.p1[2],'熟練'),[false,true].reduce((n,m)=>n+Number(text('C093',m).match(/熟練(\d+)/)[1]),0));
   const copied=setup([plain('copy-walker','紫',{desc:text('C093',false),_mapPanelPower:'duplicate'})]);opening(copied);
   assert.equal(copied.state.units.p1.length,2,'複製の力の開戦コピー');
   copied.state.units.p1.forEach(u=>assert.equal(coreKeywordSum(u,'熟練'),1,'先に出た開戦コピーも熟練を得る'));
