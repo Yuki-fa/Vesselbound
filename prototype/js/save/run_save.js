@@ -257,6 +257,7 @@ const SaveRun=(()=>{
   function deleteRunSave(){SaveStorage.remove('run');refreshContinue();}
   function restoreRunState(save){
     save=validate(save);
+    if(typeof questResetSaveSuspension==='function') questResetSaveSuspension();
     const s=copy(save.state);
     initState();
     for(const group of Object.keys(fields)) Object.assign(G,s[group]);
@@ -299,6 +300,8 @@ const SaveRun=(()=>{
   }
   function checkpoint(type){
     if(!enabled()||restoring||busy||G._runEnded) return;
+    // 酒場の依頼の途中（受諾・拒否・立ち去る前）は保存しない。入店時の保存のまま（quest.js）。
+    if(typeof questSaveSuspended==='function'&&questSaveSuspended()) return loadRun();
     try{
       SaveProfile.owned();
       const save=buildRunSave(type);
@@ -309,6 +312,7 @@ const SaveRun=(()=>{
   // 会話だけの進行は街の購入途中を丸ごと確定せず、必要な値だけ現チェックポイントへ書く。
   function checkpointFacilityTalk(innPaid,options){
     if(!enabled()||restoring||busy||G._runEnded) return null;
+    if(typeof questSaveSuspended==='function'&&questSaveSuspended()) return null;
     try{
       const opt=innPaid&&typeof innPaid==='object'?innPaid:(options||{innPaid:!!innPaid});
       const paidInn=innPaid&&typeof innPaid==='object'?!!opt.innPaid:!!innPaid;

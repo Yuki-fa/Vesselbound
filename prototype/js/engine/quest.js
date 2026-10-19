@@ -3655,6 +3655,7 @@ function _qAcceptTavernQuest(){
   _qAssignEnemyReplacements(entry);
   _qCloseRingOffer(entry,false);
   if(cfg.acceptedExit||cfg.acceptGold) entry.pendingEvent='accepted';
+  _qTavernEventUncommitted=false;
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
     const saved=SaveRun.checkpoint('town');
     if(saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
@@ -3683,6 +3684,7 @@ function _qRejectTavernQuest(){
   entry.status=special?'rejectedSpecial':'rejected';
   entry.rewardCardTaken=false;
   _qCloseRingOffer(entry,true);
+  _qTavernEventUncommitted=false;
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()){
     const saved=SaveRun.checkpoint('town');
     if(special&&saved&&typeof SaveRun.showAutoSaveIndicator==='function') void SaveRun.showAutoSaveIndicator();
@@ -3740,9 +3742,16 @@ function _qLeaveTavernToVillageNow(){
   document.body.classList.remove('tavern-village-active','tavern-screen-active','reward-screen-active','facility-bg-active');
   if(typeof _setOverrideBackground==='function') _setOverrideBackground(null);
   if(typeof openMapVillage==='function') openMapVillage();
+  _qTavernEventUncommitted=false;
   if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
 }
 
+// 2026-10-19 利用者指定：酒場の依頼は、受諾・拒否・立ち去るまでは確定しない。その間は保存を書かず、
+// リセットした時は入店時の保存（依頼のイベントが始まる前）から再開する。カードを受け取ってから受諾前に
+// リセットすると、カードを持ったまま再開して受諾したように見えていた。
+let _qTavernEventUncommitted=false;
+function questSaveSuspended(){ return _qTavernEventUncommitted; }
+function questResetSaveSuspension(){ _qTavernEventUncommitted=false; }
 async function openTavern(){
   if(!G||!questTavernAvailable(G._wave)) return;
   const generation=Number(G._debugEventGeneration)||0;
@@ -3754,7 +3763,9 @@ async function openTavern(){
   // 入店は暗転を挟む（map.js の fadeScreenSwitch）。立ち絵は明けてから出す。
   const enter=()=>{
     _qShowTavernVillage();
+    _qTavernEventUncommitted=false;
     if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('town');
+    _qTavernEventUncommitted=true;
     void _qClearPresentation({immediate:true});
   };
   if(typeof fadeScreenSwitch==='function') await fadeScreenSwitch(enter); else enter();
