@@ -26,28 +26,19 @@ async function test(api,check=(title,fn)=>{fn();console.log('OK '+title);}){
   fresh(1000);_rewCards=[makePanel('ゴーレム')];Object.assign(_rewCards[0],{power:999,life:999,_isOriginalReward:true});records.length=0;
   await boons.rerollIfWeak('greedy',{color:''},hooks);
   check('通常報酬：十分強い候補は1000Gあっても引き直さない',()=>{assert.equal(records.length,0);assert.equal(G.gold,1000);});
-  const badLevel=()=>{
-    G.runLevels.values={stats:2,familiars:1,modifiers:1,damage:1};
-    const random=rand;
-    try{rand=()=>5.01/8;runLevelRollReward(2,G.runLevels.values);}finally{rand=random;}
-    assert.equal(G.runLevels.reward.id,'familiars:2');assert.equal(G.runLevels.reward.lowered,'stats');
-    assert.ok(boons.levelQuality(G.runLevels.reward).weak);
-  };
-  for(const [gold,rights,expected] of [[399,0,0],[400,0,1],[25,1,1]]){
-    fresh(gold);_rewCards=[];towerBoonState().rerolls=rights;badLevel();records.length=0;
-    const before=clone(G.runLevels.reward.before);boons.acceptLevelReward('greedy',hooks.record);
-    check(`レベル報酬：${gold}G・権利${rights}、重要な戦闘力の低下を本体で取り消す`,()=>{
-      const rerolls=records.filter(a=>a.type==='level_reroll'),accepted=records.at(-1);
-      assert.equal(rerolls.length,expected);assert.equal(accepted.rerolled,!!expected);
-      assert.equal(accepted.history.length,expected+1);assert.equal(G.runLevels.seq,expected+1);
-      assert.deepEqual(accepted.before,before);assert.deepEqual(G.runLevels.values,accepted.after);
-      if(expected){assert.equal(rerolls[0].goldAfter,gold-(rights?0:100));assert.equal(rerolls[0].remainingAfter,0);
-        assert.ok(rerolls[0].quality.gain<boons.LIMITS.levelLoss&&rerolls[0].reason);}
+  for(const policy of Object.keys(boons.SETTINGS))for(const [gold,rights] of [[0,0],[1000,0],[25,3]]){
+    fresh(gold);_rewCards=[];towerBoonState().rerolls=rights;
+    const reward=runLevelRollReward(2,G.runLevels.values),state=clone(G.runLevels);records.length=0;
+    boons.acceptLevelReward(policy,hooks.record);
+    await boons.rerollIfWeak(policy,{color:''},hooks);
+    check(`レベル報酬（${policy}）：${gold}G・権利${rights}でも受領だけ、判断・支払い・再抽選は無し`,()=>{
+      assert.equal(records.length,1);assert.equal(records[0].type,'level_reward');assert.equal(records[0].id,reward.id);
+      assert.equal(records[0].rerolled,false);assert.deepEqual(records[0].gains,reward.gains);
+      assert.equal(records[0].history.length,1);assert.deepEqual(G.runLevels,state);
+      assert.equal(G.gold,gold);assert.equal(towerBoonState().rerolls,rights);
     });
   }
-  fresh(1000);G.runLevels.values={stats:1,familiars:1,modifiers:1,damage:1};
-  runLevelRollReward(1,G.runLevels.values);records.length=0;boons.acceptLevelReward('greedy',hooks.record);
-  check('レベル報酬：+1のみの改善は引き直さない',()=>{assert.equal(records.length,1);assert.equal(records[0].rerolled,false);assert.equal(G.gold,1000);});
+
 }
 if(require.main===module)bot.initialize().then(api=>test(api)).catch(e=>{console.error(e.stack);process.exitCode=1;});
 module.exports={test};

@@ -7,11 +7,8 @@ const SPECS={
   greedy_current:{label:'基本評価方針での現行仕様（感度比較の基準）'},
   bot_previous:{label:'報酬の有料再抽選を追加する前の判断',previousBot:true},
   no_levels:{label:'レベルの戦闘への適用なし（他の現仕様は維持）',noLevels:true},
-  level_plus1:{label:'全ステージで+1だけ',plus1Only:true},
-  level_no_down:{label:'現行の+1/+2候補、+2の−1をなくす',noDown:true},
   shop50:{label:'店の再抽選だけ50G',prices:{shop:50}},
   reward50:{label:'通常報酬の再抽選だけ50G',prices:{reward:50}},
-  level50:{label:'レベル報酬の再抽選だけ50G',prices:{level:50}},
   elite085:{label:'エリート初期能力値×0.85',eliteMultiplier:0.85},
   boss085:{label:'ボス戦の初期敵全体の能力値×0.85',bossMultiplier:0.85},
 };
@@ -19,20 +16,14 @@ function replaceOnce(text,from,to){if(text.split(from).length!==2)throw Error('�
 async function install(spec={}){
   const engine=require('./fixed_engine');await engine.initialize();
   const boons=require('./bot_boons');
-  if(spec.previousBot){for(const s of Object.values(boons.SETTINGS))s.rerollLevels=false;boons.LIMITS.maxPaidRerollsPerReward=0;}
+  if(spec.plus1Only||spec.noDown||spec.prices?.level!=null)throw Error('旧4レベル用の候補・下降・再抽選価格の実験は廃止。ATK/HPの固定4候補には適用できない');
+  if(spec.previousBot)boons.LIMITS.maxPaidRerollsPerReward=0;
   if(spec.noLevels){
     runLevelBattleValues=()=>coreNormalizeRunLevels();
-    for(const s of Object.values(boons.SETTINGS))s.rerollLevels=false;
-  }
-  if(spec.plus1Only)RUN_LEVEL_CONFIG.tradeoffStage=Number.MAX_SAFE_INTEGER;
-  if(spec.noDown){
-    const original=runLevelRollReward.toString();
-    const changed=replaceOnce(original,'const lowered=lower.length?randFrom(lower):null;','const lowered=null;');
-    vm.runInThisContext('runLevelRollReward = ('+changed+');',{filename:'experiment_1019_no_down.js'});
   }
   if(spec.prices){
-    globalThis.__balance1019Prices={shop:100,reward:100,level:100,...spec.prices};
-    for(const [kind,names] of Object.entries({shop:['shopCanReroll','shopRerollOffers'],reward:['towerBoonRerollRewards'],level:['runLevelCanReroll','runLevelRerollReward']})){
+    globalThis.__balance1019Prices={shop:100,reward:100,...spec.prices};
+    for(const [kind,names] of Object.entries({shop:['shopCanReroll','shopRerollOffers'],reward:['towerBoonRerollRewards']})){
       for(const name of names){
         const original=globalThis[name].toString();if(!original.includes('SHOP_REROLL_COST'))throw Error('再抽選価格の本体境界が変わった: '+name);
         vm.runInThisContext(`${name} = (${original.replaceAll('SHOP_REROLL_COST',`globalThis.__balance1019Prices.${kind}`)});`,{filename:'experiment_1019_price.js'});
@@ -42,7 +33,6 @@ async function install(spec={}){
     const file=path.join(__dirname,'bot_boons.js');let code=fs.readFileSync(file,'utf8');
     code=replaceOnce(code,'function canFund(policy){',"function canFund(policy,kind='reward'){");
     code=replaceOnce(code,'G.gold>=SHOP_REROLL_COST+SETTINGS[policy].reserve','G.gold>=globalThis.__balance1019Prices[kind]+SETTINGS[policy].reserve');
-    code=replaceOnce(code,'runLevelCanReroll()||!canFund(policy)',"runLevelCanReroll()||!canFund(policy,'level')");
     code=replaceOnce(code,'SHOP_REROLL_COST+setting.reserve','globalThis.__balance1019Prices.shop+setting.reserve');
     const replacement=new Module(file,module);replacement.filename=file;replacement.paths=module.paths;replacement._compile(code,file);
     Object.assign(boons,replacement.exports);
@@ -76,7 +66,7 @@ async function main(argv=process.argv.slice(2)){
   if(!Number.isInteger(o.workers)||o.workers<1||o.workers>16||!Number.isInteger(o.runs)||o.runs<1||!Number.isInteger(o.seed)||o.seed<0||!Number.isInteger(o.timeoutMs)||o.timeoutMs<1000)throw Error('不正な計測規模');
   if(!['greedy','lookahead','planner'].includes(o.policy))throw Error('不正な方針');
   const ids=o.variants.split(','),tmp=fs.mkdtempSync(path.join(os.tmpdir(),'vb-1019-experiment-')),jobs=[],results=[];
-  for(const id of ids){if(!SPECS[id])throw Error('不明な実験: '+id);if(fs.existsSync(path.join(o.out,id,'runs.jsonl')))throw Error('既存出力を上書きしない: '+id);
+  for(const id of ids){if(!SPECS[id])throw Error(['level_plus1','level_no_down','level50'].includes(id)?'廃止した実験: '+id+'（ATK/HPの固定4候補・下降なし・レベル再抽選なしへ変更済み）':'不明な実験: '+id);if(fs.existsSync(path.join(o.out,id,'runs.jsonl')))throw Error('既存出力を上書きしない: '+id);
     const size=o.policy==='greedy'?5:1;
     for(let offset=0;offset<o.runs;offset+=size)jobs.push({id,policy:o.policy,seed:o.seed+offset,runs:Math.min(size,o.runs-offset),output:path.join(tmp,`${id}-${offset}.json`)});}
   let next=0,done=0,failed=false;const start=performance.now();

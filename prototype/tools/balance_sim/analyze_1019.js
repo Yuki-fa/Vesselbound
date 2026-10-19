@@ -2,14 +2,17 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
 const {csv}=require('./run_report');
-const KEYS=['stats','familiars','modifiers','damage'];
+const KEYS=['atk','hp'];
 const avg=(xs,fn=x=>x)=>xs.length?xs.reduce((s,x)=>s+Number(fn(x)||0),0)/xs.length:null;
 const sum=(xs,fn=x=>x)=>xs.reduce((s,x)=>s+Number(fn(x)||0),0);
 const group=(xs,fn)=>{const m=new Map();for(const x of xs){const k=fn(x);if(!m.has(k))m.set(k,[]);m.get(k).push(x);}return m;};
 const quantile=(xs,p)=>{const s=xs.slice().sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.floor(p*(s.length-1)))];};
 function read(file){return fs.readFileSync(file,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);}
 function wilson(k,n){if(!n)return [null,null];const z=1.96,p=k/n,d=1+z*z/n,c=(p+z*z/(2*n))/d,h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;return [Math.max(0,c-h),Math.min(1,c+h)];}
-function firsts(row){return row.battles.filter(b=>!b.retry);}
+function firsts(row){
+  if(row.battles.some(b=>!KEYS.every(k=>Number.isFinite(b.runLevels?.[k]))))throw Error('旧4レベルの周回結果はATK/HPレベルの成績として比較できません。現行仕様で周回を再生成してください');
+  return row.battles.filter(b=>!b.retry);
+}
 function curves(rows){
   const out=[];
   for(const [policy,runs] of group(rows,r=>r.policy))for(const [key,bs] of group(runs.flatMap(firsts),b=>`${b.wave}:${b.stage}`)){
@@ -30,18 +33,18 @@ function finances(row){
   const start=row.trajectory.find(t=>t.event==='start')?.gold||0;
   const battleIncome=sum(row.battles,b=>b.goldAfter-b.goldBefore),questIncome=sum(row.actions.filter(a=>a.type==='quest_reward'),a=>a.gold);
   const spent=type=>-sum(row.actions.filter(a=>a.type===type),a=>Math.min(0,a.gold||0));
-  const rerolls=row.actions.filter(a=>['shop_reroll','boon_reroll','level_reroll'].includes(a.type));
-  const categories={shop:rerolls.filter(a=>a.type==='shop_reroll'),reward:rerolls.filter(a=>a.type==='boon_reroll'),level:rerolls.filter(a=>a.type==='level_reroll')};
+  const rerolls=row.actions.filter(a=>['shop_reroll','boon_reroll'].includes(a.type));
+  const categories={shop:rerolls.filter(a=>a.type==='shop_reroll'),reward:rerolls.filter(a=>a.type==='boon_reroll')};
   const r={policy:row.policy,seed:row.seed,clear:row.clear,reachedWave:row.reachedWave,start,battleIncome,questIncome,inn:spent('inn'),forge:spent('forge'),item:spent('item_purchase'),final:row.finalGold};
   for(const [k,actions] of Object.entries(categories)){r[k+'Rerolls']=actions.length;r[k+'Spent']=sum(actions,a=>a.goldBefore-a.goldAfter);r[k+'Rights']=actions.filter(a=>a.remainingBefore>0).length;}
-  r.otherNet=r.final-start-battleIncome-questIncome+r.inn+r.forge+r.item+r.shopSpent+r.rewardSpent+r.levelSpent;
+  r.otherNet=r.final-start-battleIncome-questIncome+r.inn+r.forge+r.item+r.shopSpent+r.rewardSpent;
   return r;
 }
 function summary(rows){return [...group(rows,r=>r.policy)].map(([policy,runs])=>{
   const f=runs.map(finances),clears=runs.filter(r=>r.clear).length,[low,high]=wilson(clears,runs.length);
   return {policy,n:runs.length,clear:clears,clearRate:clears/runs.length,clearLow:low,clearHigh:high,meanWave:avg(runs,r=>r.reachedWave),meanProgress:avg(runs,r=>r.progress),
     finalLife:avg(runs,r=>r.finalLife),finalGold:avg(runs,r=>r.finalGold),timeout:runs.filter(r=>r.status==='timeout').length,stalled:runs.filter(r=>r.status==='stalled').length,
-    ...Object.fromEntries(['battleIncome','questIncome','inn','forge','item','shopRerolls','shopSpent','rewardRerolls','rewardSpent','levelRerolls','levelSpent','otherNet'].map(k=>[k,avg(f,r=>r[k])]))};
+    ...Object.fromEntries(['battleIncome','questIncome','inn','forge','item','shopRerolls','shopSpent','rewardRerolls','rewardSpent','otherNet'].map(k=>[k,avg(f,r=>r[k])]))};
 });}
 function paired(base,other){
   const ref=new Map(base.filter(r=>r.policy===other[0]?.policy).map(r=>[r.seed,r])),pairs=other.map(r=>[ref.get(r.seed),r]).filter(([a])=>a);
@@ -57,7 +60,7 @@ function typicalLevels(rows,policy='lookahead'){
     const vectors=[...group(bs,b=>JSON.stringify(b.runLevels))].map(([key,list])=>({values:JSON.parse(key),frequency:list.length,
       distance:sum(bs,b=>sum(KEYS,k=>Math.abs(b.runLevels[k]-list[0].runLevels[k])))}));
     vectors.sort((a,b)=>a.distance-b.distance||b.frequency-a.frequency||JSON.stringify(a.values).localeCompare(JSON.stringify(b.values)));
-    levels[scene]=vectors[0].values;provenance[scene]={policy,n:bs.length,method:'到達者が実際に持った4値ベクトルのL1メドイド（同点は頻度、辞書順）',...vectors[0],
+    levels[scene]=vectors[0].values;provenance[scene]={policy,n:bs.length,method:'到達者が実際に持った2値ベクトルのL1メドイド（同点は頻度、辞書順）',...vectors[0],
       distribution:vectors.map(({distance,...x})=>x)};
   }
   return {levels,provenance};
@@ -73,10 +76,10 @@ function main(root=process.argv[2]||path.join(__dirname,'out_1019')){
   csv(path.join(root,'difficulty_curve.csv'),curve);csv(path.join(root,'finances.csv'),funds);csv(path.join(root,'baseline_summary.csv'),summary(base));
   fs.writeFileSync(path.join(root,'typical_levels.json'),JSON.stringify(typical.levels,null,2)+'\n');
   fs.writeFileSync(path.join(root,'typical_level_provenance.json'),JSON.stringify(typical.provenance,null,2)+'\n');
-  const levelOutcomes=base.flatMap(r=>r.actions.filter(a=>a.type==='level_reward').map(a=>({policy:r.policy,seed:r.seed,wave:a.wave,stage:a.stage,id:a.id,lowered:a.lowered,
-    ...a.after,rerolled:a.rerolled,shown:a.history.length,weightedGain:a.quality.gain,negative:a.quality.gain<0})));
+  const levelOutcomes=base.flatMap(r=>r.actions.filter(a=>a.type==='level_reward').map(a=>({policy:r.policy,seed:r.seed,wave:a.wave,stage:a.stage,id:a.id,
+    ...a.after,atkGain:a.gains.atk,hpGain:a.gains.hp})));
   csv(path.join(root,'level_rewards.csv'),levelOutcomes);
-  const rerolls=base.flatMap(r=>r.actions.filter(a=>['shop_reroll','boon_reroll','level_reroll'].includes(a.type)).map(a=>({policy:r.policy,seed:r.seed,wave:a.wave,stage:a.stage,type:a.type,kind:a.kind||'level',
+  const rerolls=base.flatMap(r=>r.actions.filter(a=>['shop_reroll','boon_reroll'].includes(a.type)).map(a=>({policy:r.policy,seed:r.seed,wave:a.wave,stage:a.stage,type:a.type,kind:a.kind||'reward',
     spent:a.goldBefore-a.goldAfter,rights:a.remainingBefore-a.remainingAfter,reason:a.reason||'店の訪問後に余剰資金で1回',quality:JSON.stringify(a.quality||{})})));
   csv(path.join(root,'rerolls.csv'),rerolls);
   const variants=[];
@@ -93,8 +96,7 @@ function main(root=process.argv[2]||path.join(__dirname,'out_1019')){
     const file=path.join(root,id,'comparisons.jsonl');if(!fs.existsSync(file))continue;
     const rows=read(file),aggregate=fixedAggregate(rows);fixed[id]=aggregate;csv(path.join(root,id,'aggregate.csv'),aggregate);
   }
-  const result={baseline:summary(base),curve,variants,typical,fixed,levelOutcomes:base.map(r=>({policy:r.policy,seed:r.seed,rewards:r.actions.filter(a=>a.type==='level_reward').length,
-    rerolls:r.actions.filter(a=>a.type==='level_reroll').length,negativeAccepted:r.actions.filter(a=>a.type==='level_reward'&&a.quality.gain<0).length})),
+  const result={baseline:summary(base),curve,variants,typical,fixed,levelOutcomes:base.map(r=>({policy:r.policy,seed:r.seed,rewards:r.actions.filter(a=>a.type==='level_reward').length})),
     ledgerResidual:funds.filter(f=>Math.abs(f.otherNet)>1e-6)};
   fs.writeFileSync(path.join(root,'analysis.json'),JSON.stringify(result,null,2)+'\n');
   console.log(JSON.stringify({baseline:result.baseline,variants,typical:typical.levels,ledgerResidual:result.ledgerResidual.length},null,2));return result;

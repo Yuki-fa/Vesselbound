@@ -12,11 +12,6 @@ async function main(args=process.argv.slice(2)){
     const actions=[];
     if(kind==='shop'){openMapShop();assert.ok(boons.rerollShop('greedy',a=>actions.push(a)));}
     else if(kind==='reward')await boons.rerollIfWeak('greedy',{color:''},{record:a=>actions.push(a),recordOffers:()=>{}});
-    else{
-      G.runLevels.values={stats:2,familiars:1,modifiers:1,damage:1};const random=rand;
-      try{rand=()=>5.01/8;runLevelRollReward(2,G.runLevels.values);}finally{rand=random;}
-      boons.acceptLevelReward('greedy',a=>actions.push(a));
-    }
     assert.equal(G.gold,300);assert.equal(actions.filter(a=>/reroll/.test(a.type)).length,1);console.log('OK '+kind+'50：判断と本体の支払いがともに50G');return;
   }
   const engine=require('./fixed_engine');await engine.initialize();
@@ -32,13 +27,13 @@ async function main(args=process.argv.slice(2)){
   assert.deepEqual(after,before,'空の仮設定とフレーム省略computeで全周回のJSONが一致');console.log('OK 空の実験設定：実周回・全選択・資源が完全一致');
   for(const scene of engine.SCENES){
     const board=JSON.parse(fs.readFileSync(path.join(__dirname,'fixed',`boards_${scene.id}.json`),'utf8')).boards[0];
-    const state=engine.copy(board.state);state.runLevels={...runLevelInitialState(),values:{stats:3,familiars:2,modifiers:2,damage:2}};
+    const state=engine.copy(board.state);state.runLevels={...runLevelInitialState(),values:{atk:3,hp:2}};
     const samples=await engine.enemySamples(scene,3,7411),options={preparedItems:board.preparedItems,setupSeed:engine.hash('1019-parity:'+scene.id)};
     const fast=await engine.evaluate(state,scene,samples,options),original=await engine.evaluate(state,scene,samples,{...options,original:true});
-    assert.deepEqual(fast,original);assert.deepEqual(state.runLevels.values,{stats:3,familiars:2,modifiers:2,damage:2});
+    assert.deepEqual(fast,original);assert.deepEqual(state.runLevels.values,{atk:3,hp:2});
     assert.deepEqual(fast.initial.runLevels.p1,state.runLevels.values);console.log('OK '+scene.id+'：高レベルでも本番computeと固定比較が一致');
   }
-  for(const kind of ['shop','reward','level']){
+  for(const kind of ['shop','reward']){
     const child=spawnSync(process.execPath,[__filename,'--price',kind],{encoding:'utf8'});
     assert.equal(child.status,0,child.stderr);process.stdout.write(child.stdout);
   }

@@ -111,14 +111,14 @@ function towerBoonGrantRewardRerolls() {
   const state = towerBoonState();
   state.rerolls += (state.counts.rerolls || 0) * TOWER_BOON_CONFIG.rerollsPerStack;
 }
-// 2026-10-19 利用者指定：通常の戦闘報酬も、店・レベル報酬と同じく再抽選権を優先し、無ければ100Gで引き直せる（PvEのみ）。
+// 2026-10-19 利用者指定：通常の戦闘報酬も、店と同じく再抽選権を優先し、無ければ100Gで引き直せる（PvEのみ）。
 function towerBoonRewardGoldReroll() {
   return !G._onlineMode && !runLevelRewardActive() && !shopRerollKind() && !G._isPeddler
     && Array.isArray(_rewCards) && _rewCards.some(c => c && c._isOriginalReward);
 }
 function towerBoonRerollVisible() {
   const rights=towerBoonState();
-  return !!(G.phase === 'reward' && (!!rights.counts.rerolls || (!G._onlineMode && (rights.rerolls>0 || runLevelRewardActive() || shopRerollKind() || towerBoonRewardGoldReroll())))
+  return !!(G.phase === 'reward' && !runLevelRewardActive() && (!!rights.counts.rerolls || (!G._onlineMode && (rights.rerolls>0 || shopRerollKind() || towerBoonRewardGoldReroll())))
     && !(G._isShop&&!shopRerollKind()) && !(G._isForge&&!shopRerollKind())
     && !G._isVillageMenu && !G._isTavern && !G._isFiveSaints && !G._isLibrary && !G._isRingExchange);
 }
@@ -127,7 +127,7 @@ function towerBoonCanReroll() { return towerBoonRerollVisible()&&!G._pendingPane
   &&(G._onlineMode||!_rewardRerollReveal); }
 function towerBoonRerollCurrent() {
   if(shopRerollKind()) return shopRerollOffers();
-  if(runLevelRewardActive()) return runLevelRerollReward();
+  if(runLevelRewardActive()) return false;
   return towerBoonRerollRewards();
 }
 function towerBoonRerollRewards() {
@@ -153,11 +153,11 @@ function towerBoonRerollRewards() {
   return true;
 }
 function towerBoonRerollButtonState(){
-  const shop=shopRerollKind(),level=!shop&&runLevelRewardActive(),rights=towerBoonState().rerolls;
-  const gold=!shop&&!level&&towerBoonRewardGoldReroll();
-  return {visible:towerBoonRerollVisible(),label:(shop||level||gold)&&!rights?`再抽選（${SHOP_REROLL_COST}G）`
+  const shop=shopRerollKind(),rights=towerBoonState().rerolls;
+  const gold=!shop&&towerBoonRewardGoldReroll();
+  return {visible:towerBoonRerollVisible(),label:(shop||gold)&&!rights?`再抽選（${SHOP_REROLL_COST}G）`
     :TOWER_BOON_CONFIG.text.reroll.replace('{count}',rights),
-    disabled:shop?!shopCanReroll():level?!runLevelCanReroll():!towerBoonCanReroll()
+    disabled:shop?!shopCanReroll():!towerBoonCanReroll()
       ||(rights<=0&&!(gold&&Number(G.gold)>=SHOP_REROLL_COST))
       ||!_rewCards.some(c=>c&&c._isOriginalReward)};
 }

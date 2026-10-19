@@ -23,8 +23,8 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
   fresh();
   check('レベル1：参照・本文・カードの形・乱数を変えず、旧コアの80編成と全イベント・結果が一致',()=>{
     const oldModule={exports:{}};
-    vm.runInNewContext(execFileSync('git',['show','3e67d88:prototype/js/battle/core.js'],{encoding:'utf8'})
-      ,{module:oldModule,exports:oldModule.exports,console},{filename:'baseline-core-3e67d88.js'});
+    vm.runInNewContext(execFileSync('git',['show','647d175:prototype/js/battle/core.js'],{encoding:'utf8'})
+      ,{module:oldModule,exports:oldModule.exports,console},{filename:'baseline-core-647d175.js'});
     const old=oldModule.exports,defs=PANEL_POOL.filter(c=>c.category==='キャラクター'&&c._implemented!==false);
     const rng=G._runRngState;
     for(let i=0;i<80;i++){
@@ -36,149 +36,140 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
     assert.equal(G._runRngState,rng);
   });
   fresh();
-  check('戦闘力：所持済み・後から得たカードの本体だけ×3、盤面・永続値へ焼き付けず復活の基準も×3',()=>{
-    const c=card('C006'),copy=clone(c);G.runLevels.values.stats=3;
-    const u=formed(c);assert.equal(u.atk,c.power*3);assert.equal(u.maxHp,c.life*3);
-    assert.equal(u._baseAtk,c.power*3);assert.equal(u._baseMaxHp,c.life*3);
-    assert.deepEqual(c,copy);assert.equal(_panelCharacterPreviewStats(null,null,c).atk,c.power*3);
-    assert.equal(formed(card('C006')).atk,c.power*3);
+  check('ATK・HP：別々の倍率をカード本体と復活の基礎へ適用し、強化前に確定・保存値は不変',()=>{
+    for(const values of [{atk:3,hp:5},{atk:5,hp:2}]){
+      G.runLevels.values=values;
+      const c=card('C006'),raw=clone(c),u=formed(c);
+      assert.equal(u.atk,c.power*values.atk);assert.equal(u.maxHp,c.life*values.hp);
+      assert.equal(u._baseAtk,u.atk);assert.equal(u._baseMaxHp,u.maxHp);
+      assert.deepEqual(c,raw);assert.equal(_panelCharacterPreviewStats(null,null,c).atk,u.atk);
+      assert.equal(formed(card('C006')).atk,u.atk);
+      assert.equal(coreApplyUnitRunLevels(u,values),u);
+    }
+    assert.deepEqual(Object.keys(runLevelInitialState().values),['atk','hp']);
+    assert.deepEqual(coreNormalizeRunLevels({stats:7,familiars:9,modifiers:8,damage:6}),{atk:7,hp:7});
   });
   fresh();
-  check('戦闘修正：固定の正負・0・接続強化・ATK奪取・X・倍率による増加量を×4',()=>{
-    G.runLevels.values.modifiers=4;
+  check('本文：固定の正負・0・接続強化・ATK奪取・X・倍率・効果ダメージ・マナ・回数は変わらない',()=>{
+    G.runLevels.values={atk:3,hp:5};
     const c=card('C006');c.desc='攻撃：このキャラクターは+2/+1を得る。';
-    const projected=runLevelBattleCard(c);assert.equal(projected.desc,'攻撃：このキャラクターは+8/+4を得る。');
+    const projected=runLevelBattleCard(c);assert.equal(projected.desc,c.desc);assert.equal(projected.boon,undefined);
     const ev=simulate(formed(c)).events.find(e=>e.type==='stat_change'&&e.reason==='attack_self_buff');
-    assert.equal(ev.atk,8);assert.equal(ev.hp,4);
-    assert.equal(coreBoonText('+0/-1 ATK-2 HP+1 ATKを2奪う',projected.boon),'+0/-4 ATK-8 HP+4 ATKを8奪う');
-    assert.equal(coreBoonDynamicValue(projected,projected.desc,3,'mod'),12);
+    assert.equal(ev.atk,2);assert.equal(ev.hp,1);
+    assert.equal(coreBoonDynamicValue(projected,projected.desc,3,'mod'),3);
+    assert.equal(coreBoonText('+0/-1 ATK-2 HP+1 ATKを2奪う',projected.boon),'+0/-1 ATK-2 HP+1 ATKを2奪う');
     const roar=card('C006');roar.desc='開戦：このキャラクターのATKを2倍にする。';
-    const change=simulate(formed(roar)).events.find(e=>e.type==='stat_change'&&e.reason==='roar');assert.equal(change.atk,roar.power*4);
+    const doubled=simulate(formed(roar)).events.find(e=>e.type==='stat_change'&&e.reason==='roar');
+    assert.equal(doubled.atk,roar.power*3,'効果の2倍は維持し、増加量へ別のレベルを掛けない');
     const enchant=card('E001');enchant.adjacentAtkBonus=2;enchant.adjacentHpBonus=-1;
-    const e=runLevelBattleCard(enchant);assert.equal(e.adjacentAtkBonus,8);assert.equal(e.adjacentHpBonus,-4);
-  });
-  fresh();
-  check('効果威力：固定4→12・マナX→3X、マナ量・通常攻撃・敵は据え置き',()=>{
-    G.runLevels.values.damage=3;
-    const u=formed(card('C043')),result=simulate(u),hit=result.events.find(e=>e.type==='damage'&&e.sourceId===u.id&&e.damageKind==='attack_effect');
-    assert.equal(hit.amount,12);assert.equal(u.atk,card('C043').power);
+    assert.equal(runLevelBattleCard(enchant),enchant);
+    const u=formed(card('C043')),result=simulate(u);
+    assert.equal(result.events.find(e=>e.type==='damage'&&e.sourceId===u.id&&e.damageKind==='attack_effect').amount,4);
     const caster=formed(card('C019')),dynamic=simulate(caster,{resources:{p1:{mana:4}}});
-    assert.equal(dynamic.events.find(e=>e.type==='damage'&&e.sourceId===caster.id&&e.damageKind==='attack_effect').amount,12);
+    assert.equal(dynamic.events.find(e=>e.type==='damage'&&e.sourceId===caster.id&&e.damageKind==='attack_effect').amount,4);
     const mana=formed(card('C064'));assert.equal(simulate(mana).events.find(e=>e.type==='mana_gain').amount,1);
     assert.equal(result.state.units.p2[0].atk,1);
   });
   fresh();
-  check('眷属：通常出撃を変えず召喚体の基礎だけ×5、召喚された体の効果にも陣営のレベルが効く',()=>{
+  check('眷属：通常出撃だけを強化、召喚の基礎・効果・固定コピー・呼び戻しは不変',()=>{
     const raw=card('C045'),base=simulate(formed(raw)).events.filter(e=>e.type==='summon');
-    G.runLevels.values.familiars=5;
+    G.runLevels.values={atk:3,hp:5};
     const u=formed(raw),result=simulate(u).events.filter(e=>e.type==='summon');
-    assert.equal(u.atk,raw.power);assert.equal(result.length,base.length);assert.ok(result.length);
-    result.forEach((e,i)=>{assert.equal(e.unit.atk,base[i].unit.atk*5);assert.equal(e.unit.hp,base[i].unit.hp*5);});
-    G.runLevels.values.damage=3;
-    const state=createBattleState({sides:{p1:{units:[formed(raw)]},p2:{units:[]}},...runLevelCoreFields(),summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
-    const child=coreSummonUnit(state,'p1',{name:'アラッサス'},()=>{},state.units.p1[0].id);
-    assert.match(child.desc,/12ダメージ/);assert.equal(child.atk,card('C043').power*5);
-    assert.equal(child.boon.dmgMul,3);
+    assert.equal(u.atk,raw.power*3);assert.equal(result.length,base.length);assert.ok(result.length);
+    result.forEach((e,i)=>{assert.equal(e.unit.atk,base[i].unit.atk);assert.equal(e.unit.hp,base[i].unit.hp);assert.equal(e.unit.desc,base[i].unit.desc);});
+    const state=createBattleState({sides:{p1:{units:[u]},p2:{units:[]}},...runLevelCoreFields(),summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
+    const child=coreSummonUnit(state,'p1',{name:'アラッサス'},()=>{},u.id);
+    assert.match(child.desc,/4ダメージ/);assert.equal(child.atk,card('C043').power);assert.equal(child.boon,undefined);
+    assert.equal(coreApplyUnitRunLevels(child,G.runLevels.values),child);
     const copy=coreSummonUnit(state,'p1',{name:'コピー検査',atk:2,hp:3,_baseAtk:2,_baseMaxHp:3},()=>{},null,false);
-    assert.equal(copy._baseAtk,10);assert.equal(copy._baseMaxHp,15);
-    const revived=coreSummonUnit(state,'p1',{name:'呼び戻し検査',atk:2,hp:3,_baseAtk:4,_baseMaxHp:6,
-      _revivedFromDead:true,_summonBoon:{...CORE_BOON_FIELDS,famMul:5}},()=>{});
+    assert.equal(copy.atk,2);assert.equal(copy.hp,3);assert.equal(copy._baseAtk,2);assert.equal(copy._baseMaxHp,3);
+    const revived=coreSummonUnit(state,'p1',{name:'呼び戻し検査',atk:2,hp:3,_baseAtk:4,_baseMaxHp:6,_revivedFromDead:true},()=>{},null,false);
     assert.equal(revived.atk,2);assert.equal(revived.hp,3);assert.equal(revived._baseAtk,4);
   });
   fresh();
-  check('旧祝福とレベル：固定値・X・眷属・本体倍率を合成し、繰り返し表示でも二重適用しない',()=>{
+  check('旧祝福：本体へATK・HPだけを追加適用し、旧本文・動的値・眷属祝福・後からの変更を保持',()=>{
     const c=card('C006');c.desc='攻撃：このキャラクターは+2/+1を得る。';
     coreApplyCardBoon(c,{statMul:3,modDelta:1,dmgMul:3,manaDelta:0,famMul:3});
-    c.keywords.push('復活');c.manaOnAttack=2; // 旧祝福を付けた後のアイテム等の変更。
-    const original=clone(c);G.runLevels.values={stats:2,familiars:2,modifiers:2,damage:2};
-    const p=runLevelBattleCard(c);assert.equal(p.power,original.power*2);assert.match(p.desc,/\+6\/\+4/);
-    assert.equal(p.boon.famMul,6);assert.equal(p.boon.dmgMul,6);
-    assert.equal(coreBoonDynamicValue(p,p.desc,2,'mod'),6);assert.equal(runLevelBattleCard(p),p);assert.deepEqual(c,original);
+    c.keywords.push('復活');c.manaOnAttack=2;
+    const original=clone(c);G.runLevels.values={atk:2,hp:5};
+    const p=runLevelBattleCard(c);assert.equal(p.power,original.power*2);assert.equal(p.life,original.life*5);
+    assert.equal(p.desc,original.desc);assert.deepEqual(p.boon,original.boon);
+    assert.equal(coreBoonDynamicValue(p,p.desc,2,'mod'),3);assert.equal(runLevelBattleCard(p),p);assert.deepEqual(c,original);
     assert.ok(p.keywords.includes('復活'));assert.equal(p.manaOnAttack,2);
+    assert.deepEqual(coreApplySummonBoon({atk:2,hp:3},p.boon),{atk:6,hp:9,maxHp:9});
   });
   fresh();
-  check('永久値：E075の減衰・永久能力値は一時倍率を外して保存し、次戦で二重に掛けない',()=>{
-    G.runLevels.values={stats:3,familiars:1,modifiers:1,damage:3};
+  check('永久値：E075の減衰はそのまま保存、永久能力値はATK・HPの別倍率を外して保存',()=>{
+    G.runLevels.values={atk:3,hp:5};
     const hero=card('C006'),enchant=card('E075');hero.directions=['left'];enchant.directions=['right'];
     G.mainBoard.fill(null);G.mainBoard[1]=hero;G.mainBoard[0]=enchant;
     const u=buildBoardFormation(_getPartyBoardUnit(),{persistEternal:false}).ordered[0].unit;
     const ev=simulate(u).events.find(e=>e.type==='keyword_effect'&&e.effect==='effect_value');
-    assert.ok(ev);assert.equal(ev.damage,33);assert.equal(ev.baseDamage,11);
+    assert.ok(ev);assert.equal(ev.damage,11);assert.equal(ev.baseDamage,undefined);
     assert.equal(_persistPermanentEffectDamageOrWarn(_getPartyBoardUnit(),ev),true);
-    assert.equal(enchant._permanentEffectDamage,11);assert.equal(corePermanentDamageValue(runLevelBattleCard(enchant)),33);
-    assert.equal(_persistPermanentStatOrWarn(_getPartyBoardUnit(),{boardSlot:1,atk:3,hp:6}),true);
+    assert.equal(enchant._permanentEffectDamage,11);assert.equal(corePermanentDamageValue(runLevelBattleCard(enchant)),11);
+    assert.equal(_persistPermanentStatOrWarn(_getPartyBoardUnit(),{boardSlot:1,atk:3,hp:10}),true);
     const next=buildBoardFormation(_getPartyBoardUnit(),{persistEternal:false}).ordered[0].unit;
-    assert.equal(next.atk,u.atk+3);assert.equal(next.maxHp,u.maxHp+6);
+    assert.equal(next.atk,u.atk+3);assert.equal(next.maxHp,u.maxHp+10);
   });
   fresh();
-  check('オンライン：ランに高レベルがあっても入力・表示・payloadのレベルはすべて1、形を増やさない',()=>{
+  check('オンライン：ランに高レベルがあっても入力・表示・payloadはレベル1、形を増やさない',()=>{
     const c=card('C006'),base=clone(formed(c));
-    G.runLevels.values={stats:9,familiars:9,modifiers:9,damage:9};G._onlineMode=true;
+    G.runLevels.values={atk:9,hp:7};G._onlineMode=true;
     assert.deepEqual(runLevelBattleValues(),ones);assert.equal(runLevelBattleCard(c),c);assert.deepEqual(runLevelCoreFields(),{});
     const u=formed(c);u.id=base.id;assert.deepEqual(clone(u),base);assert.equal('_runLevelsApplied' in u,false);
+    assert.equal('runLevels' in buildOnlineSelfFormation(),false);
   });
   fresh();
-  check('候補：St1は+1の4つ、St2から+2の4つ追加、連続を除外・重み0.4^n',()=>{
-    assert.equal(runLevelCandidates(1).length,4);assert.equal(runLevelCandidates(2).length,8);
-    G.runLevels.counts={'stats:1':1,'damage:1':2,'familiars:2':3};G.runLevels.previous='modifiers:1';
-    const c=runLevelCandidates(2),weight=id=>c.find(x=>x.id===id).weight;
-    assert.equal(c.length,7);assert.equal(c.some(x=>x.id==='modifiers:1'),false);
-    assert.equal(weight('stats:1'),.4);assert.ok(Math.abs(weight('damage:1')-.16)<1e-12);assert.ok(Math.abs(weight('familiars:2')-.064)<1e-12);
-  });
-  check('重み付き抽選：表示用の重みだけでなく、実際の抽選境界も0.4^nで変わる',()=>{
-    const saved=rand;
+  check('固定4候補：確率の全境界・全ステージ・連続同結果・過去回数で変わらない',()=>{
+    const random=rand;
     try{
-      for(const [count,point] of [[1,.2],[2,.1]]){
-        rand=saved;fresh();G.runLevels.counts={'stats:1':count};G.runLevels.previous='modifiers:1';
+      for(const stage of [1,2,5])for(const [point,id] of [[0,'atk3'],[.14999,'atk3'],[.15,'hp3'],[.39999,'hp3'],[.4,'atk2-hp1'],[.74999,'atk2-hp1'],[.75,'atk1-hp2'],[.99999,'atk1-hp2']]){
         rand=()=>point;
-        assert.equal(runLevelRollReward(1,ones).id,'familiars:1');
+        for(let n=0;n<3;n++){
+          const r=runLevelRollReward(stage,ones),spec=RUN_LEVEL_CONFIG.rewards.find(c=>c.id===id);
+          assert.equal(r.id,id);assert.deepEqual(r.gains,spec.gains);
+          assert.deepEqual(r.after,{atk:1+spec.gains.atk,hp:1+spec.gains.hp});
+          assert.equal('lowered' in r,false);
+        }
       }
-    }finally{rand=saved;}
+    }finally{rand=random;}
   });
   fresh();
-  check('+2の−1：上昇対象を除く2以上だけから選び、候補なしは下げず、最低1',()=>{
-    const saved=rand;
-    try{
-      for(const kind of Object.keys(ones)){
-        rand=saved;fresh();const idx=4+Object.keys(ones).indexOf(kind);rand=()=> (idx+.01)/8;
-        const before={stats:1,familiars:3,modifiers:2,damage:1};
-        const r=runLevelRollReward(2,before);
-        assert.equal(r.kind,kind);assert.equal(r.amount,2);assert.equal(r.after[kind],before[kind]+2);
-        assert.notEqual(r.lowered,kind);assert.ok(before[r.lowered]>=2);assert.equal(r.after[r.lowered],before[r.lowered]-1);
-        assert.ok(Object.values(r.after).every(n=>n>=1));
-        rand=saved;fresh();rand=()=> (idx+.01)/8;const r2=runLevelRollReward(2,ones);assert.equal(r2.lowered,null);
-      }
-    }finally{rand=saved;}
+  check('固定確率：本体ラン乱数で50000回、15/25/35/25%へ収束・各回の合計増分は3',()=>{
+    const counts=Object.fromEntries(RUN_LEVEL_CONFIG.rewards.map(c=>[c.id,0])),samples=50000;
+    for(let i=0;i<samples;i++){
+      const r=runLevelRollReward(i%5+1,G.runLevels.values);counts[r.id]++;
+      assert.equal(r.after.atk+r.after.hp-r.before.atk-r.before.hp,3);
+    }
+    for(const c of RUN_LEVEL_CONFIG.rewards)assert.ok(Math.abs(counts[c.id]/samples-c.probability)<.007,JSON.stringify(counts));
+    console.log('実測確率 '+JSON.stringify(Object.fromEntries(Object.entries(counts).map(([k,n])=>[k,n/samples]))));
   });
   fresh();
-  check('報酬の提示回数・連続禁止・seed：150回、保存から次の抽選まで同一',()=>{
-    let prev=null;
-    for(let i=0;i<150;i++){const r=runLevelRollReward(i%2+1,G.runLevels.values);assert.notEqual(r.id,prev);prev=r.id;}
-    assert.equal(Object.values(G.runLevels.counts).reduce((a,b)=>a+b,0),150);
-    const save=SaveRun.buildRunSave('reward');SaveRun.validate(save);
+  check('保存復元：表示中の結果・次回抽選・乱数は同じ、未収録セーブは初期値、旧4レベルは戦闘力だけ移行',()=>{
+    runLevelRollReward(1,G.runLevels.values);
+    const current=clone(G.runLevels),save=SaveRun.buildRunSave('reward');SaveRun.validate(save);
     const expected=clone(runLevelRollReward(2,G.runLevels.values)),rng=G._runRngState;
-    SaveRun.restoreRunState(save);assert.deepEqual(runLevelRollReward(2,G.runLevels.values),expected);assert.equal(G._runRngState,rng);
-    const legacy=clone(save);delete legacy.state.player.runLevels;SaveRun.restoreRunState(legacy);assert.deepEqual(G.runLevels,runLevelInitialState());
+    SaveRun.restoreRunState(save);assert.deepEqual(G.runLevels,current);
+    assert.deepEqual(runLevelRollReward(2,G.runLevels.values),expected);assert.equal(G._runRngState,rng);
+    const missing=clone(save);delete missing.state.player.runLevels;SaveRun.restoreRunState(missing);assert.deepEqual(G.runLevels,runLevelInitialState());
+    for(const stats of [1,7]){
+      const legacy=clone(save);legacy.state.player.runLevels={values:{stats,familiars:99,modifiers:55,damage:33},counts:{'stats:1':4},previous:'stats:1',seq:5,lastBattleKey:'1:4:0:elite',
+        reward:{kind:'stats',amount:1,before:{stats:stats-1},after:{stats},active:true}};
+      SaveRun.restoreRunState(legacy);assert.deepEqual(G.runLevels.values,{atk:stats,hp:stats});
+      assert.equal('counts' in G.runLevels,false);assert.equal('previous' in G.runLevels,false);
+      assert.equal(G.runLevels.reward.received,true);assert.equal(runLevelRewardActive(),true);
+      const migrated=clone(G.runLevels);SaveRun.restoreRunState(SaveRun.buildRunSave('reward'));assert.deepEqual(G.runLevels,migrated);
+    }
   });
   fresh();
-  check('レベル再抽選：権利を優先（ゴールドは変えない）、権利が無ければ100G、元の上昇・下降を取り消して別候補',()=>{
-    G._wave=2;G.runLevels.values={stats:2,familiars:3,modifiers:2,damage:2};
-    const before=clone(G.runLevels.values),random=rand;let r;
-    try{rand=()=>.52;r=runLevelRollReward(2,before);}finally{rand=random;}
-    assert.equal(r.amount,2);assert.ok(r.lowered);
-    const money=G.gold;
-    towerBoonState().rerolls=1;_rewCards=[card('C006')];const cards=clone(_rewCards);
-    assert.equal(runLevelRerollReward(),true);assert.notEqual(G.runLevels.reward.id,r.id);
-    assert.deepEqual(G.runLevels.reward.before,before);assert.equal(towerBoonState().rerolls,0);assert.equal(G.gold,money);assert.deepEqual(_rewCards,cards);
-    assert.equal(G.runLevels.seq,2);assert.equal(Object.values(G.runLevels.counts).reduce((a,b)=>a+b,0),2);
-    G.gold=99;const values=clone(G.runLevels.values);assert.equal(runLevelRerollReward(),false);assert.deepEqual(G.runLevels.values,values);
-    assert.deepEqual(towerBoonRerollButtonState(),{visible:true,label:'再抽選（100G）',disabled:true});
-    // 2026-10-19：権利が無ければ100Gで引き直せる（権利は優先して使う）。
-    G.gold=150;assert.equal(towerBoonRerollButtonState().disabled,false);
-    assert.equal(runLevelRerollReward(),true);assert.equal(G.gold,50);assert.equal(towerBoonState().rerolls,0);
-    assert.deepEqual(G.runLevels.reward.before,before);assert.equal(G.runLevels.seq,3);
-    const paid=clone(G.runLevels.values);
-    const save=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(save);assert.deepEqual(G.runLevels.values,paid);assert.equal(towerBoonState().rerolls,0);assert.equal(G.gold,50);
+  check('レベル報酬：権利・所持金があってもボタン非表示、再抽選不能・資源不変',()=>{
+    runLevelRollReward(2,G.runLevels.values);towerBoonState().rerolls=3;
+    const levels=clone(G.runLevels),money=G.gold;
+    assert.equal(typeof runLevelRerollReward,'undefined');assert.equal(typeof runLevelCanReroll,'undefined');
+    assert.equal(towerBoonRerollButtonState().visible,false);assert.equal(towerBoonCanReroll(),false);
+    assert.equal(towerBoonRerollCurrent(),false);assert.equal(towerBoonRerollRewards(),false);
+    assert.equal(towerBoonState().rerolls,3);assert.equal(G.gold,money);assert.deepEqual(G.runLevels,levels);
   });
   const store=_storeRewardStartSnapshot;
   try{
@@ -197,6 +188,18 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
       assert.equal(_startWaveFlowNext(),true);
     });
     await api.drain();assert.equal(G._isVillageMenu,true);assert.equal(G._isWaveAltar,false);assert.equal(runLevelRewardActive(),false);
+    fresh();G._wave=2;G._waveStage=_waveRouteForWave(2).indexOf('elite')+1;G._waveBattleType='elite';G.phase=null;
+    finishWaveBattleVictory(false);
+    const legacy=SaveRun.buildRunSave('reward'),battleKey=G.runLevels.lastBattleKey;
+    legacy.state.player.runLevels={values:{stats:4,familiars:9,modifiers:8,damage:7},counts:{},previous:'stats:1',seq:6,
+      lastBattleKey:battleKey,reward:{kind:'stats',amount:1,before:{stats:3},after:{stats:4},active:true}};
+    SaveRun.restoreRunState(legacy);
+    const migrated=clone(G.runLevels.values),seq=G.runLevels.seq;
+    _startWaveFlowNext();await api.drain();
+    check('旧表示中報酬：受け取り済みとして街へ進み、移行値へ再加算しない・勝利後処理を飛ばさない',()=>{
+      assert.deepEqual(G.runLevels.values,migrated);assert.deepEqual(migrated,{atk:4,hp:4});
+      assert.equal(G.runLevels.seq,seq);assert.equal(runLevelRewardActive(),false);assert.equal(G._isVillageMenu,true);
+    });
     fresh();G._wave=2;G._waveStage=_waveRouteForWave(2).indexOf('boss')+1;G._waveBattleType='boss';G.phase=null;
     finishWaveBattleVictory(false);assert.ok(runLevelRewardActive());_startWaveFlowNext();await api.drain();
     check('勝利入口：ボス後はレベル報酬から塔へ、祝福の座は全ステージ・全周回で出ない',()=>{

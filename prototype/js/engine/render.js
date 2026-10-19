@@ -5133,7 +5133,7 @@ function _summonNameAnnotation(name, owner, isSummon, context){
   const kws=(def.keywords||[]).map(k=>String(k||'').trim())
     .filter(k=>k&&!(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(k)));
   const form=!isSummon&&owner&&owner._runLevelsApplied
-    ?coreApplyUnitRunLevels(def,owner._runLevelsApplied,{familiar:coreUnitHasKeyword(owner,'眷属')}):def;
+    ?coreApplyUnitRunLevels(def,owner._runLevelsApplied,{familiar:coreRunLevelIsFamiliar(context||owner)}):def;
   let atk=Number(form.power!=null?form.power:form.atk);
   let hp=Number(form.life!=null?form.life:form.hp);
   // 敵カードの召喚文は、召喚先カードの基礎値ではなく、実戦と同じく
@@ -5143,7 +5143,7 @@ function _summonNameAnnotation(name, owner, isSummon, context){
     if(actual){ atk=actual.atk; hp=actual.hp; }
   }
   if(isSummon&&owner){
-    const stats=coreApplySummonRunLevels({atk,hp},runLevelDisplayValues(owner,context),owner.boon,false);
+    const stats=coreApplySummonBoon({atk,hp},owner.boon);
     atk=stats.atk;hp=stats.hp;
   }
   const head=kws.length?`${kws.join('・')}を持つ`:'';

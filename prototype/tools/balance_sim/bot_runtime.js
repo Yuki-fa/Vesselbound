@@ -34,7 +34,7 @@ const BYPASSES = [
   '行商人は本体の判定・イベント・品揃えを使用し、会話を即時完了。クエストも会話のonLine/onDoneを実行して本体から受領・達成。初回ホーム・酒場は本体に報酬処理がないため配布を追加しない。',
   'SaveRun.begin 後に種・乱数状態・runId を固定。ラン抽選は本体 SaveRun.random／鍵付き乱数を使用。Math.random（uid・非ラン抽選）と Date.now も周回内で固定。所要時間は別メタデータ。SaveRun.enabled の公開入口は既存loadと同じくfalseで保存再生を開始しない。',
   '指輪の取得は _syncRewardProductionRings が登録する本物の drop ハンドラを空DOM上で実行。還魂の枚数・取得済み処理を複製しない。',
-  '祝福の座は廃止。レベル報酬は本体runLevelOpenVictoryRewardを使う。通常報酬・レベル報酬・店の再抽選は本体towerBoonRerollRewards／runLevelRerollReward／shopRerollOffersへ委譲。AIの評価が低い報酬だけ引き直し、有料時は300G温存・1報酬1回。再抽選ボタンの描画は無処理。ボス撃破の本体記録関数をコア結果へ呼ぶ。lookaheadの予測だけ固定比較と同じ表示フレーム省略computeを使い、実戦computeBattleは本体のまま。',
+  '祝福の座は廃止。レベル報酬は本体runLevelOpenVictoryRewardを使う。ATK・HPのレベル報酬は受け取るだけ。通常報酬・店の再抽選は本体towerBoonRerollRewards／shopRerollOffersへ委譲。AIの評価が低い通常報酬だけ引き直し、有料時は300G温存・1報酬1回。再抽選ボタンの描画は無処理。ボス撃破の本体記録関数をコア結果へ呼ぶ。lookaheadの予測だけ固定比較と同じ表示フレーム省略computeを使い、実戦computeBattleは本体のまま。',
   '宿屋の会話選択は _qStartDialogue の受け口で支払可能な最大回復を選ぶ。支払・回復・利用済みは本体 _runVillageInnDialogue。',
 ];
 

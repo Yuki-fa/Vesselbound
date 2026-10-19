@@ -182,76 +182,50 @@ function coreBoonSignedValue(value, delta, multiplier) {
 }
 // ランレベルは呼び出し側から渡す純データ。1なら参照・乱数・個体の形も変えない。
 function coreNormalizeRunLevels(levels) {
-  return Object.fromEntries(['stats','familiars','modifiers','damage'].map(key =>
-    [key, Math.max(1, Math.floor(Number(levels && levels[key]) || 1))]));
+  // 旧4レベルの戦闘力だけをATK・HPへ移す。他の旧レベルは引き継がない。
+  return Object.fromEntries(['atk','hp'].map(key =>
+    [key, Math.max(1, Math.floor(Number(levels && (levels[key] ?? levels.stats)) || 1))]));
+}
+function coreScaleRunLevelStats(source, values) {
+  const copy = { ...source, _runLevelsApplied: values };
+  // カード本体と復活の基礎値だけ。本文・接続強化・旧祝福には触らない。
+  const fields = { atk:['power','atk','baseAtk','_baseAtk','_permBasePower'],
+    hp:['life','hp','maxHp','baseMaxHp','_baseMaxHp','_permBaseLife'] };
+  Object.entries(fields).forEach(([kind, keys]) => keys.forEach(key => {
+    if (source[key] != null) copy[key] = Number(source[key]) * values[kind];
+  }));
+  return copy;
+}
+function coreRunLevelIsFamiliar(unit) {
+  // 沈黙中はキーワードを退避しているが、召喚体という由来は変わらない。
+  return coreUnitHasKeyword(unit, '眷属') || !!(unit && unit._silenceStash
+    && coreUnitHasKeyword(unit._silenceStash, '眷属'));
 }
 function coreApplyCardRunLevels(card, levels, options) {
   const values = coreNormalizeRunLevels(levels);
-  if (!card || card._runLevelsApplied || Object.values(values).every(n => n === 1)) return card;
-  const copy = { ...card };
-  const previous = coreNormalizeBoon(card.boon) || CORE_BOON_FIELDS;
-  const boon = { ...previous, statMul: previous.statMul * values.stats,
-    dmgMul: previous.dmgMul * values.damage, famMul: previous.famMul * values.familiars,
-    modMul: (previous.modMul || 1) * values.modifiers };
-  // 旧祝福を付けた後の巻物・永久強化も現在値として保つ。旧_boonBaseへ戻さない。
-  delete copy._boonBase;delete copy.boon;
-  coreApplyCardBoon(copy, {statMul:values.stats,modDelta:0,dmgMul:values.damage,
-    manaDelta:0,famMul:values.familiars,modMul:values.modifiers}, options);
-  copy.boon = coreNormalizeBoon(boon);
-  copy._runLevelsApplied = values;
-  return copy;
+  if (!card || String(card.category || '') !== 'キャラクター' || card._runLevelsApplied
+    || options && options.effectsOnly || coreRunLevelIsFamiliar(card)
+    || Object.values(values).every(n => n === 1)) return card;
+  return coreScaleRunLevelStats(card, values);
 }
-// 編成を通らない体（外部からの配置・奪取・変身）の入口。元データは変えず、
-// 生成済みのコピー・復活は印で除外する。能力値と接続効果も同じコアの倍率を使う。
+// 編成を通らない初期配置・奪取・変身も同じ基礎値の倍率を使う。
+// 召喚・コピー・復活は現在値を引き継ぎ、新たにレベルを掛けない。
 function coreApplyUnitRunLevels(unit, levels, options) {
   const values = coreNormalizeRunLevels(levels), opts = options || {};
-  if (!unit || unit._isObject || unit._isSoul || unit._runLevelsApplied || Object.values(values).every(n => n === 1)) return unit;
-  const copy = coreApplyCardRunLevels(unit, values, { effectsOnly: true });
-  const familiar = opts.familiar != null ? opts.familiar : coreUnitHasKeyword(unit, '眷属');
-  const multiplier = opts.effectsOnly ? 1 : values[familiar ? 'familiars' : 'stats'];
-  ['power','life','atk','hp','maxHp','baseAtk','baseMaxHp','_baseAtk','_baseMaxHp'].forEach(key => {
-    if (unit[key] != null) copy[key] = Number(unit[key]) * multiplier;
-  });
-  const bonus = { ...CORE_BOON_FIELDS, modMul: values.modifiers, dmgMul: values.damage };
-  const texts = xs => xs.map(text => coreBoonText(text, bonus));
-  const thresholds = xs => xs.map(t => coreApplyCardRunLevels(t, values, { effectsOnly: true }));
-  if (Array.isArray(unit.boardCards)) copy.boardCards = unit.boardCards.map(c => coreApplyCardRunLevels(c, values));
-  if (Array.isArray(unit._adjacentPanelEffectTexts)) copy._adjacentPanelEffectTexts = texts(unit._adjacentPanelEffectTexts);
-  ['extraManaThresholds','_extraManaThresholds'].forEach(key => {
-    if (Array.isArray(unit[key])) copy[key] = thresholds(unit[key]);
-  });
-  ['_releaseAtkBonus','_releaseHpBonus'].forEach(key => {
-    if (unit[key] != null) copy[key] = coreBoonSignedValue(unit[key], 0, values.modifiers);
-  });
-  if (unit.effectData) {
-    copy.effectData = { ...unit.effectData };
-    if (Array.isArray(unit.effectData.effectTexts)) copy.effectData.effectTexts = texts(unit.effectData.effectTexts);
-    if (Array.isArray(unit.effectData.extraManaThresholds)) copy.effectData.extraManaThresholds = thresholds(unit.effectData.extraManaThresholds);
-    ['releaseAtkBonus','releaseHpBonus'].forEach(key => {
-      if (unit.effectData[key] != null) copy.effectData[key] = coreBoonSignedValue(unit.effectData[key], 0, values.modifiers);
-    });
-  }
-  if (Array.isArray(unit._permanentEffectCards)) copy._permanentEffectCards = unit._permanentEffectCards.map(c => ({ ...c, damage: c.damage * values.damage }));
-  if (unit._silenceStash) copy._silenceStash = coreApplyUnitRunLevels(unit._silenceStash, values, { effectsOnly: true });
-  return copy;
+  if (!unit || unit._isObject || unit._isSoul || unit._runLevelsApplied || opts.effectsOnly
+    || opts.familiar || coreRunLevelIsFamiliar(unit)
+    || Object.values(values).every(n => n === 1)) return unit;
+  return coreScaleRunLevelStats(unit, values);
 }
-// 新しい眷属の基礎値だけに倍率を掛ける。効果を引き継ぐコピー・復活は再適用しない。
-function coreApplySummonRunLevels(source, levels, summonBoon, revived) {
-  const values = coreNormalizeRunLevels(levels);
-  if (revived) source = coreApplyUnitRunLevels(source, values);
-  const multiplier = revived ? (summonBoon ? summonBoon.famMul / values.familiars : 1)
-    : (summonBoon ? summonBoon.famMul : values.familiars);
+// 旧セーブの眷属祝福だけを維持する。ランレベルは召喚体へ渡さない。
+function coreApplySummonBoon(source, summonBoon) {
+  const multiplier = Number(summonBoon && summonBoon.famMul) || 1;
   if (multiplier > 1) {
     source = { ...source, ...coreBoonFamiliarStats({ atk: Number(source.atk) || 0, hp: Number(source.hp) || 1,
       maxHp: Number(source.maxHp) || Number(source.hp) || 1 }, { famMul: multiplier }) };
     ['baseAtk','baseMaxHp'].forEach(key => { if (source[key] != null) source[key] *= multiplier; });
   }
-  if (values.familiars > 1 && !revived) {
-    source = { ...source };
-    if (source._baseAtk != null) source._baseAtk *= values.familiars;
-    if (source._baseMaxHp != null) source._baseMaxHp *= values.familiars;
-  }
-  return coreApplyCardRunLevels(source, values, { effectsOnly: true });
+  return source;
 }
 function coreBoonFamiliarStats(stats,boon){
   const mul=Number(boon&&boon.famMul)||1;
@@ -547,6 +521,7 @@ function coreConsumePermanentDamage(state, unit, match, emit) {
   const event = { type: 'keyword_effect', effect: 'effect_value', side: unit.side, unitId: unit.id,
     effectCardId: record.cardId, effectOwnerSide: record.ownerSide, boardSlot: record.boardSlot,
     damage: Math.max(0, damage - spec.decrease), persistent: record.boardSlot != null };
+  // 旧4レベルで保存済みの戦闘だけの互換処理。新しいレベルは効果威力を持たない。
   if (unit._runLevelsApplied && unit._runLevelsApplied.damage > 1) {
     event.baseDamage = event.damage / unit._runLevelsApplied.damage;
   }
@@ -2519,9 +2494,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect) {
     source.hp = enemyStats.hp;
     source.maxHp = source.hp;
   }
-  const levels = coreNormalizeRunLevels(state.runLevels && state.runLevels[side]);
-  // 召喚体の本体能力は眷属レベル。効果には同陣営のレベルを引き継ぐ。
-  source = coreApplySummonRunLevels(source, levels, summonBoon, spec && spec._revivedFromDead);
+  source = coreApplySummonBoon(source, summonBoon);
   // PvEの負傷・マナ効果は呼び出しごとに薄いコアstateを作り直すため、
   // state内の連番だけでは同じ召喚元から常に同じIDが再生成される。表示側が
   // 同一IDを既存ユニットとして再利用してしまうと、召喚数が増えず、召喚体の
@@ -2721,8 +2694,8 @@ function coreTransformUnit(state, target, name, emit, overrides) {
   const rawDef = defs.find(x => x && (String(x.name || '').replace(/[“”＂]/g, '"') === wanted
     || `${x.color || ''}${String(x.name || '').replace(/[“”＂]/g, '"')}` === wanted)) || {};
   const levels = state.runLevels && state.runLevels[target.side];
-  const def = coreApplyUnitRunLevels(rawDef, levels, { familiar: coreUnitHasKeyword(target, '眷属') });
-  if (overrides) overrides = coreApplyUnitRunLevels(overrides, levels, { familiar: coreUnitHasKeyword(target, '眷属') });
+  const def = coreApplyUnitRunLevels(rawDef, levels, { familiar: coreRunLevelIsFamiliar(target) });
+  if (overrides) overrides = coreApplyUnitRunLevels(overrides, levels, { familiar: coreRunLevelIsFamiliar(target) });
   const old = coreUnitSnapshot(target);
   const oldName = target.name;
   const atk = Number(overrides && overrides.atk != null ? overrides.atk : def.power ?? def.atk ?? target.atk) || 0;
@@ -6724,7 +6697,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreToughValue, coreResolveIncomingDamage, coreConsumeWardCharge,
     coreUnitHasSacrifice, coreEngravingStageNumber, coreEngravingStageValue, coreSealValue, coreInitSealStates,
     coreSacrificeUnits, coreSacrificeCount, coreSealRelease,
-    coreNormalizeRunLevels, coreApplyCardRunLevels, coreApplyUnitRunLevels, coreApplySummonRunLevels, coreNormalizeBoon, coreMergeBoons, coreApplyCardBoon, coreBoonText, coreBoonDisplayText,
+    coreNormalizeRunLevels, coreRunLevelIsFamiliar, coreApplyCardRunLevels, coreApplyUnitRunLevels, coreApplySummonBoon, coreNormalizeBoon, coreMergeBoons, coreApplyCardBoon, coreBoonText, coreBoonDisplayText,
     coreBoonForEffect, coreBoonDynamicValue, coreBoonFamiliarStats,
     coreKeywordSum, coreExtraAttackCount, coreAttackSpread, coreStatBonus, coreRefreshVoidWalkerBonus,
     coreKeywordCountBuff, coreFormationPassiveSpec, coreApplyFormationPassives,
