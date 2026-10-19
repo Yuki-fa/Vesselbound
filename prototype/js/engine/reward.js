@@ -1135,6 +1135,7 @@ function renderMoveSlotsInEnemy(){
     // 闘技場の継戦確認の間は出さない（勝利後に phase が reward になるため、確認窓の後ろに出ていた）。
     if(el) el.style.display=(G._debugMode&&G.phase==='reward'&&!(typeof debugButtonsSuppressed==='function'&&debugButtonsSuppressed()))?'':'none';
   });
+  if(blessingFlameActive()){ blessingFlameRenderControls(el);return; }
   if(runLevelRewardActive()){
     const next=document.createElement('button');next.className='btn rew-move-btn';
     next.innerHTML=`<span class="rew-btn-label">${_uiLabel('「進む」ボタン','進む')}</span>`;
@@ -1499,7 +1500,7 @@ function _syncRewardTitleLabel(){
   const el=document.querySelector('#reward-production-ui .reward-prod-title span');
   if(!el) return;
   // 街から入った施設は、シートに書かれた施設名そのまま（G._facilityLabel）を優先する。
-  const fromVillage=(G._isItemShop||G._isForge||G._isShop||G._isLibrary||G._isTavern||G._isFiveSaints)?String(G._facilityLabel||'').trim():'';
+  const fromVillage=(G._isItemShop||G._isForge||G._isShop||G._isLibrary||G._isTavern||G._isFiveSaints||G._isBlessingFlame)?String(G._facilityLabel||'').trim():'';
   // **見出しはテキストメッセージシートが唯一の出どころ**（「◯◯見出し」）。
   const t=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
   el.textContent=fromVillage
@@ -1772,6 +1773,7 @@ function renderRewCards(){
   }
   section.style.display='';
   el.innerHTML='';
+  if(blessingFlameActive()){ blessingFlameRenderPreview(el,section);return; }
   if(runLevelRewardActive()){
     section.style.setProperty('--title-reward',JSON.stringify(RUN_LEVEL_CONFIG.title));
     runLevelRenderReward(el);return;
@@ -4427,6 +4429,9 @@ function _wireHeCardDiscard(div,card,arr,arrName,i,_ringOfferDiscardable){
 }
 
 function _wireHeCardControls(div,card,arrName,i){
+  if(arrName==='boardCards'&&blessingFlameActive()){
+    blessingFlameWireCard(div,card,i);return;
+  }
   // アイテム使用中は、対象になり得ないカードを暗くして選択不能にする。
   if(arrName==='boardCards'&&G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'){
     if(_isItemUseTargetSlot(i)) div.classList.add('item-target-ok');

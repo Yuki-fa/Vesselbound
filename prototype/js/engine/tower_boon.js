@@ -120,7 +120,7 @@ function towerBoonRerollVisible() {
   const rights=towerBoonState();
   return !!(G.phase === 'reward' && !runLevelRewardActive() && (!!rights.counts.rerolls || (!G._onlineMode && (rights.rerolls>0 || shopRerollKind() || towerBoonRewardGoldReroll())))
     && !(G._isShop&&!shopRerollKind()) && !(G._isForge&&!shopRerollKind())
-    && !G._isVillageMenu && !G._isTavern && !G._isFiveSaints && !G._isLibrary && !G._isRingExchange);
+    && !G._isVillageMenu && !G._isTavern && !G._isFiveSaints && !G._isLibrary && !G._isRingExchange && !G._isBlessingFlame);
 }
 function towerBoonCanReroll() { return towerBoonRerollVisible()&&!G._pendingPanelPlacement
   &&!G._pendingItemUse&&!G._pendingMapForgePower&&!G._mapForgeAnimating&&!_dragSrc

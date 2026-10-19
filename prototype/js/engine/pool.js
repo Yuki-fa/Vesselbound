@@ -118,6 +118,36 @@ function extraPanelKeywords(card){
   return card.keywords.map(k=>String(k||'').trim()).filter(k=>k&&!base.has(k));
 }
 
+// 祝福の炎と図鑑で共用する、シート由来の強化後の姿。
+function panelHasEnhancementForm(card){
+  return !!(card&&card.mergedForm&&card._mergedSource
+    &&(String(card._mergedSource.desc||'').trim()||String(card._mergedSource.keywords||'').trim()));
+}
+function enhancedPanelCopy(card){
+  if(!panelHasEnhancementForm(card)||card._merged||card._tripleMerged||card._mergedFormApplied) return null;
+  const out=clone(card),extra=extraPanelKeywords(card);
+  if(!applyMergedPanelForm(out)) return null;
+  if(extra.length) out.keywords=_mergeCardKeywordsForBond(out.keywords,extra);
+  out._merged=true;
+  out._tripleMerged=true; // 旧合体枠と、共通の編成・送受信形式をそのまま使う。
+  out._tripleBaseName=String(card.name||'').replace(/\+$/,'');
+  out._displayName=out._tripleBaseName+'+';
+  if(String(card.category||'')==='キャラクター'){
+    const def=PANEL_POOL.find(p=>(card.id&&p.id===card.id)||p.name===card.name)||card;
+    const mul=card.boon?coreNormalizeBoon(card.boon).statMul:1;
+    const basePower=(Number(def.power??def.atk)||0)*mul;
+    const baseLife=(Number(def.life??def.hp)||1)*mul;
+    // 現在値との差分（巻物・永劫の力・同名/色修正など）は倍にしない。
+    out.power=(Number(card.power??card.atk)||0)+basePower;
+    out.life=Math.max(1,(Number(card.life??card.hp)||0)+baseLife);
+    out._permBasePower=Number(card._permBasePower??basePower)+basePower;
+    out._permBaseLife=Number(card._permBaseLife??baseLife)+baseLife;
+    if(card.atk!=null) out.atk=out.power;
+    if(card.hp!=null) out.hp=out.life;
+  }
+  return out;
+}
+
 function _isImplementedPoolCard(p){
   return !!(p&&p._implemented!==false&&p._sheetSeen);
 }

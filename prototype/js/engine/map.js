@@ -486,6 +486,7 @@ const VILLAGE_FACILITY_DEFS={
   '祭壇':     {key:'ringExchange'},
   '踊り場':   {key:'landing'},
   '五聖の座': {key:'landing'},
+  [BLESSING_FLAME_CONFIG.name]: {key:BLESSING_FLAME_CONFIG.key},
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導店／魔道店、旧称ショップ）を吸収した候補名を返す。
 function villageFacilityNameVariants(name){
@@ -537,6 +538,8 @@ function _villageLifeFull(){
   return life>=max;
 }
 function villageFacilityDescText(name){
+  if(name===BLESSING_FLAME_CONFIG.name) return blessingFlameUsed()
+    ?BLESSING_FLAME_CONFIG.text.used:BLESSING_FLAME_CONFIG.text.description;
   const variants=villageFacilityNameVariants(name);
   if(variants.includes('五聖の座')&&(!_fiveSaintsUnlocked()
     ||(typeof fiveSaintsCurrentTowerResolved==='function'&&fiveSaintsCurrentTowerResolved()))){
@@ -632,8 +635,10 @@ const VILLAGE_FACILITY_POS_BY_WAVE={
 // 塔の施設位置（全ステージ共通・左上合わせpx）。
 const TOWER_FACILITY_POS={
   '祭壇':  {x:2260,y:246},
-  '踊り場':{x:1621,y:1402},
-  '五聖の座':{x:1621,y:1402},
+  // d7cbdf4 の TOWER_BOON_CONFIG.position（旧祝福の座）へ移設。
+  '踊り場':{x:650,y:1402},
+  '五聖の座':{x:650,y:1402},
+  [BLESSING_FLAME_CONFIG.name]:BLESSING_FLAME_CONFIG.position,
 };
 // 施設名の表記揺れ（鍛冶屋／鍛治屋）を吸収して個別配置を引く。
 function _villageFacilityFixedPos(name){
@@ -671,6 +676,8 @@ function villageFacilityList(){
   const raw=(G&&G._isWaveAltar)?(info&&info.towerFacilities):(info&&info.townFacilities);
   const names=String(raw||'').split(/[、,／\/]/).map(s=>s.trim()).filter(Boolean);
   if(!names.length&&G&&G._isWaveAltar) names.push('祭壇');
+  // 祝福の炎は周回を問わず各塔に1つ。五聖の座の解放条件は従来どおり。
+  if(G&&G._isWaveAltar&&!names.includes(BLESSING_FLAME_CONFIG.name)) names.push(BLESSING_FLAME_CONFIG.name);
   return (names.length?names:['ショップ']).filter(name=>{
     const def=VILLAGE_FACILITY_DEFS[name]||null;
     // 1周目は塔の「五聖の座」自体を描画しない。
@@ -704,6 +711,7 @@ function _firstRunVargaInnLocked(){
 }
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
+  if(fac.key===BLESSING_FLAME_CONFIG.key) return blessingFlameUsed();
   // 酒場はクエストのある街だけ開く（地域情報の「クエスト」列。quest.js）。
   // 酒場はクエストのある街だけ開き、そのクエストを達成した後は入れない。
   if(fac.key==='tavern'){
@@ -911,7 +919,7 @@ async function _onVillageFacility(fac){
       return;
     }finally{ if(isCurrent()) G._villageFacilityBusy=false; }
   }
-  if(['ringExchange','library','landing'].includes(fac.key)){
+  if(['ringExchange','library','landing',BLESSING_FLAME_CONFIG.key].includes(fac.key)){
     return fadeScreenSwitch(()=>_enterVillageFacilityNow(fac));
   }
   return _enterVillageFacilityNow(fac);
@@ -947,6 +955,7 @@ function _revealFacilityUi(){
   window.setTimeout(()=>{ try{ cover.remove(); }catch(_e){} },FACILITY_UI_FADE_MS+120);
 }
 function _enterVillageFacilityNow(fac){
+  if(fac.key===BLESSING_FLAME_CONFIG.key) return openBlessingFlame();
   if(fac.key==='shop'||fac.key==='forge'||fac.key==='item'){
     // 施設は既存の編成画面（#scr-battle上の報酬UI）をそのまま使う。
     // 左上のラベルは「編成」ではなくシートに書かれた施設名にする。
@@ -1590,6 +1599,7 @@ async function _playVillageEnterIntro(build,beforeReveal){
 // 施設から「店を出る」で戻る場合はfalse（演出なしで即表示）。
 // options.tower：塔（祭壇）として開く。背景・BGM・施設一覧・名前が塔仕様になる。
 function openMapVillage(options){
+  blessingFlameClear();
   G._savePresentation=false;
   _clearShopPortrait();
   // 店で「別れる」を選んだ直後など、致死クエスト会話が必要でも、
