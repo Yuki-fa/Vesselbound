@@ -34,6 +34,7 @@ function baselineFunction(text,name){
 }
 
 async function testRunLevelDisplay(api){
+  RUN_LEVEL_CONFIG.rewardEnabled=true; // 2026-10-19：レベル報酬は止めたが、表示の仕組みはこの検査の中だけ有効にして確かめる。
   let checked=0;
   const check=async(name,fn)=>{await fn();checked++;console.log('OK '+name);};
   const make=no=>{const def=PANEL_POOL.find(c=>c.no===no);assert.ok(def,no);return makePanel(def.id);};
@@ -287,6 +288,7 @@ async function testRunLevelDisplay(api){
       assert.equal(coreBoonText('攻撃：ランダムな敵に4ダメージを与える。',boon),'攻撃：ランダムな敵に12ダメージを与える。');
     });
   }finally{document.createElement=previous.create;document.getElementById=previous.get;SaveProfile.collectionState=previous.collectionState;}
+  RUN_LEVEL_CONFIG.rewardEnabled=false;
   console.log(`レベル表示1019：${checked}項目 OK（ブラウザの見た目は未確認）`);
 }
 if(require.main===module) initialize().then(testRunLevelDisplay).catch(e=>{console.error(e.stack||e);process.exitCode=1;});

@@ -283,16 +283,21 @@ async function main(args=process.argv.slice(2)) {
     }
   }
   if(baseline.meta.runLevels){
-    const candidate=baseline.rows.find(r=>r.actions.some(a=>a.type==='level_reward'));
+    // 2026-10-19：レベル報酬は止めた（RUN_LEVEL_CONFIG.rewardEnabled=false）。止めている間は出ないことを確かめる。
+    const levelRewardOn=!!RUN_LEVEL_CONFIG.rewardEnabled;
+    if(!levelRewardOn) check('レベル報酬を止めている間は、どの周回にもレベル報酬が出ない',()=>{
+      for(const data of datasets)for(const r of data.rows)assert.ok(!r.actions.some(a=>a.type==='level_reward'),r.seed+'/'+r.policy);
+    });
+    const candidate=levelRewardOn?baseline.rows.find(r=>r.actions.some(a=>a.type==='level_reward')):baseline.rows[0];
     assert.ok(candidate,'レベル報酬のあるseed');
     const off=await simulateRun({seed:candidate.seed,policy:candidate.policy,storyCycle:candidate.storyCycle,towerBoon:'off'}),again=await simulateRun({seed:candidate.seed,policy:candidate.policy,storyCycle:candidate.storyCycle,towerBoon:'off'});
-    check('旧CLIのoffは再現可能、廃止した施設を復活させず、通常のレベル報酬は得る',()=>{
+    check('旧CLIのoffは再現可能、廃止した施設を復活させず、レベル報酬は設定どおり',()=>{
       assert.deepEqual(off,again);assert.equal(off.towerBoons.visits,0);assert.equal(off.towerBoons.purchases,0);
-      assert.ok(off.actions.some(a=>a.type==='level_reward'));assert.ok(!off.actions.some(a=>['boon_visit','boon_purchase'].includes(a.type)));
+      assert.equal(off.actions.some(a=>a.type==='level_reward'),levelRewardOn);assert.ok(!off.actions.some(a=>['boon_visit','boon_purchase'].includes(a.type)));
     });
     await require('./debug_cards_1018c_regression').testDebugCards(api);
     await require('./shop_reroll_1018c_regression').testShopReroll(api,check);
-    await require('./run_levels_1018c_regression').testRunLevels(api,check);
+    await require('./run_levels_1018c_regression').testRunLevels(api,check);RUN_LEVEL_CONFIG.rewardEnabled=levelRewardOn;
     await require('./bot_reroll_selftest').test(api,check);
   }
   check('異なるseedで結果が変わる',()=>assert.notDeepEqual(baseline.rows[0],baseline.rows.find(r=>r.seed!==baseline.rows[0].seed)));

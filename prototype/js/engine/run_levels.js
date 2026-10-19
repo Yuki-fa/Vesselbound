@@ -1,6 +1,8 @@
 // PvEのラン進行。数値への適用はcore.js、編成への接続はformation.jsに集約する。
 // シート未収録の今回の追加仕様の文言・調整値はこの表を使う。
 const RUN_LEVEL_CONFIG = {
+  // 2026-10-19 利用者指定：エリート・ボス戦後のレベル報酬はやめる（レベルは1のまま。仕組みは残し、ここで止める）。
+  rewardEnabled:false,
   names: { atk:'ATKレベル', hp:'HPレベル' },
   rewards: [
     { id:'atk3', gains:{atk:3,hp:0}, probability:0.15 },
@@ -66,6 +68,7 @@ function runLevelRollReward(stage, before, options){
 }
 function runLevelRewardActive(){ return !!(!G._onlineMode&&runLevelState().reward&&runLevelState().reward.active); }
 function runLevelOpenVictoryReward(type, intro){
+  if(!RUN_LEVEL_CONFIG.rewardEnabled) return false;
   if(G._onlineMode||G._testBattleMode||G._libraryTestBattleMode||G._arenaActive||!['elite','boss'].includes(type)) return false;
   // 最終決戦の2連戦（エピトメ戦・伏せられたラスボス戦）ではレベル報酬を出さない（2026-10-19 利用者指定）。
   if(typeof isEpitomeVictoryBattle==='function'&&isEpitomeVictoryBattle()) return false;

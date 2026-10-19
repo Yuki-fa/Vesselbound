@@ -1299,8 +1299,9 @@ async function loadGameData() {
       // **合体後の姿はシートの「合体効果」列で決まる。**
       // 組み立ては全ての上書き処理が終わってから（下の最終パス）。ここでは素材だけ控える。
       panel._mergedSource = {
-        desc: String(row['合体効果'] ?? '').trim(),
-        keywords: String(row['合体キーワード'] ?? '').trim(),
+        // 2026-10-19：列名は「強化効果／強化キーワード」へ改名。旧名のシートも読める。
+        desc: String(row['強化効果'] ?? row['合体効果'] ?? '').trim(),
+        keywords: String(row['強化キーワード'] ?? row['合体キーワード'] ?? '').trim(),
         sheetKeywords: sheetKeywords.slice(),
       };
     };

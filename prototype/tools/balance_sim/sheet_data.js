@@ -44,6 +44,9 @@ function sheetRows(key) {
   return rows.slice(1).map(cells => {
     const row = {};
     headers.forEach((h, i) => { if (h) row[h] = cells[i]; });
+    // 2026-10-19：シートの列名「合体効果／合体キーワード」は「強化効果／強化キーワード」へ改名。検査は旧名でも読めるよう揃える。
+    if (row['強化効果'] != null && row['合体効果'] == null) row['合体効果'] = row['強化効果'];
+    if (row['強化キーワード'] != null && row['合体キーワード'] == null) row['合体キーワード'] = row['強化キーワード'];
     return row;
   }).filter(row => String(row['名前'] || '').trim());
 }

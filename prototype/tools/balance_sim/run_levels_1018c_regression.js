@@ -6,6 +6,15 @@ const {initialize}=require('./run_bot'),{source}=require('./bot_runtime');
 
 async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);}){
   const ones=coreNormalizeRunLevels();
+  // 2026-10-19 利用者指定：レベル報酬は止めた（RUN_LEVEL_CONFIG.rewardEnabled=false）。普段は出ないことを確かめ、
+  // 仕組みそのものの検査はこの中だけ有効にして続ける。
+  check('レベル報酬は既定で止まっていて、エリート・ボス後に出ずレベルも1のまま',()=>{
+    assert.equal(RUN_LEVEL_CONFIG.rewardEnabled,false);
+    api.resetRun();initState();SaveRun.begin();G._wave=2;G._waveStage=3;G._waveBattleType='elite';G.phase=null;
+    for(const type of ['elite','boss']) assert.equal(runLevelOpenVictoryReward(type,false),false);
+    assert.deepEqual(G.runLevels?G.runLevels.values:ones,ones);
+  });
+  RUN_LEVEL_CONFIG.rewardEnabled=true;
   const fresh=()=>{
     api.resetRun();initState();SaveRun.begin();
     Object.assign(G,{_wave:1,_waveStage:4,_waveLife:3,life:3,gold:800,phase:'reward'});
@@ -216,6 +225,7 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
       assert.deepEqual(G.runLevels,before);
     }
   });
+  RUN_LEVEL_CONFIG.rewardEnabled=false;
   console.log('レベル1018c：完了（ブラウザの見た目は未確認）');
 }
 if(require.main===module)initialize().then(testRunLevels).catch(e=>{console.error(e.stack||e);process.exitCode=1;});
