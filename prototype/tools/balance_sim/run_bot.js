@@ -74,11 +74,11 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
   api.hooks={
     enemies:enemies=>{battleStart={wave:G._wave,stage:G._waveStage,type:G._waveBattleType,floor:G.floor,
       deepLevel:_waveDeepLevel(G._waveStage),retry:!!G._waveIsRetry,lifeBefore:_currentBattleLife(),goldBefore:G.gold,
-      enemies:enemies.filter(Boolean).map(enemyInfo),board:boardInfo(),synergy:planner.describe()};},
+      enemies:enemies.filter(Boolean).map(enemyInfo),board:boardInfo(),runLevels:clone(runLevelBattleValues()),synergy:planner.describe()};},
     grant,
   };
   const checkpoint=event=>row.trajectory.push({event,wave:G._wave,stage:G._waveStage,
-    life:_currentBattleLife(),gold:G.gold,mana:Number(G.mana)||0});
+    life:_currentBattleLife(),gold:G.gold,mana:Number(G.mana)||0,runLevels:clone(runLevelBattleValues())});
   const recordOffers=(cards,source)=>cards.map((c,index)=>{
     if(!c) return null;
     const offered={id:`o${++offerSeq}`,source,wave:G._wave,stage:G._waveStage,index,card:cardInfo(c)};
@@ -189,7 +189,9 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
         }
       } else if(key==='inn') {
         const talk=_facilityGreetingEntry(fac);
+        const gold=G.gold,life=_currentBattleLife();
         if(talk) await _runVillageInnDialogue(talk);
+        row.actions.push({type:'inn',gold:G.gold-gold,lifeBefore:life,lifeAfter:_currentBattleLife(),wave:G._wave,stage:G._waveStage});
       } else if(key==='shop'||key==='item') {
         if(key==='shop') openMapShop();else openMapItemShop();
         if(key==='shop')await exchangeCards();else await takeCards(key,{shop:true});
@@ -204,7 +206,8 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
         const offers=(G._mapForgeOffers||[]).filter(Boolean).sort((a,b)=>
           (b.id==='summon'?10:0)-(a.id==='summon'?10:0));
         for(const power of offers) if(mapForgePrice(power)<=G.gold && _mapForgeCandidateSlots(power).length) {
-          if(await applyPendingMapForgePower(power)) row.actions.push({type:'forge',power:power.id,wave:G._wave,stage:G._waveStage});
+          const gold=G.gold;
+          if(await applyPendingMapForgePower(power)) row.actions.push({type:'forge',power:power.id,gold:G.gold-gold,wave:G._wave,stage:G._waveStage});
         }
           if(attempt===boons.SETTINGS[policy].maxShopRerolls||!boons.rerollShop(policy,a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage})))break;
         }
@@ -288,7 +291,10 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
         await facilityTurn();
       } else {
         // 5枚提示から1枚だけ選び、編成を整えて次の戦闘へ。
-        if(runLevelRewardActive()){boons.acceptLevelReward(policy,a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage}));}
+        if(runLevelRewardActive()){
+          boons.acceptLevelReward(policy,a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage}));
+          refresh('level_reward');checkpoint('level_reward');
+        }
         else if(G._isPeddler){row.actions.push({type:'peddler',wave:G._wave,stage:G._waveStage,stock:_rewCards.map(cardInfo)});await exchangeCards('peddler');}
         else if(!G._battleDefeatHandled){
           if(towerBoon==='on')await boons.rerollIfWeak(policy,ctx,{record:a=>row.actions.push({...a,wave:G._wave,stage:G._waveStage}),recordOffers});
@@ -384,7 +390,7 @@ async function main(args=process.argv.slice(2)) {
   const elapsedMs=wall.now()-start;
   const files=['js/engine/main.js','js/engine/map.js','js/engine/pool.js','js/engine/enemy.js','js/engine/reward.js',
     'js/engine/reward_items.js','js/engine/render.js','js/engine/battle.js','js/engine/tower_boon.js','js/engine/run_levels.js','js/engine/peddler.js','js/battle/core.js','js/battle/formation.js','js/save/run_save.js','js/data/local_xlsx_data.js'];
-  const meta={schemaVersion:SCHEMA_VERSION,botVersion:10,trial:{panelMerge:PANEL_MERGE_TRIAL.enabled,exchangeItemSale:false},policyCounts:counts,policyElapsedMs:policyElapsed,lookahead:{...lookahead.DEFAULTS},planner:planner.weights(opts.plannerStage,opts.plannerWeightsFile?JSON.parse(fs.readFileSync(opts.plannerWeightsFile,'utf8')).weights:undefined),horizon:horizon.LIMITS,options:{...opts,overrideFile:opts.overrideFile?path.basename(opts.overrideFile):null},
+  const meta={schemaVersion:SCHEMA_VERSION,botVersion:11,trial:{panelMerge:PANEL_MERGE_TRIAL.enabled,exchangeItemSale:false},policyCounts:counts,policyElapsedMs:policyElapsed,lookahead:{...lookahead.DEFAULTS},planner:planner.weights(opts.plannerStage,opts.plannerWeightsFile?JSON.parse(fs.readFileSync(opts.plannerWeightsFile,'utf8')).weights:undefined),horizon:horizon.LIMITS,options:{...opts,overrideFile:opts.overrideFile?path.basename(opts.overrideFile):null},
     runLevels:{config:clone(RUN_LEVEL_CONFIG),settings:boons.SETTINGS,limits:boons.LIMITS,shopRerollCost:SHOP_REROLL_COST},
     completed,elapsedMs,msPerRun:elapsedMs/completed,policies:Object.fromEntries(names.map(n=>[n,policies[n].description])),
     catalog:cards,override:override,overrideNotes:notes,bypasses:BYPASSES,noopFunctions:NOOPS,

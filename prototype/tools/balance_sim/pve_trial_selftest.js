@@ -19,9 +19,11 @@ async function testPveTrial(api,check=(name,fn)=>{fn();console.log('OK '+name);}
     try{
       document.createElement=element;
       const offer=_mkRewDiv(_rewCards[0],()=>{},0),board=G.mainBoard.map(()=>element('div'));
-      document.querySelectorAll=sel=>sel==='#hand-slots.board-slots > *'?board
+      // 本体は団結線の画像を枠の列挙から除外する。現在のセレクタへ空DOMも追随する。
+      document.querySelectorAll=sel=>sel==='#hand-slots.board-slots > :not(.panel-unite-link)'?board
         :sel==='#reward-offer-row > .rew-card[data-merge-rew-idx]'?[offer]
-        :sel==='.shop-exchange-drop-hint'?[...board,offer].filter(el=>el.classList.contains('shop-exchange-drop-hint')):[];
+        :['.shop-exchange-drop-hint','.shop-exchange-empty-dim','.shop-exchange-offer-dim'].includes(sel)
+          ?[...board,offer].filter(el=>el.classList.contains(sel.slice(1))):[];
       check((peddler?'行商人':'魔導店')+'：交換可能な相手だけ両方向に発光し、実dropが同じ交換を行う',()=>{
         _dragSrc={arr:'rew',idx:0};assert.equal(_syncExchangeShopDropHints(),true);
         assert.equal(board[1].classList.contains('drag-over'),true);assert.equal(board[0].classList.contains('drag-over'),false);

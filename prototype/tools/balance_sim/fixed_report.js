@@ -95,7 +95,8 @@ function writeReport(out,boardsDir=out){
   md+=`${meta.forms.filter(c=>c.form==='通常').length}枚の通常形と${meta.forms.filter(c=>c.form==='合体').length}形態の本体合体後、合計${meta.forms.length}形態・${rows.length}件のカード×盤面比較。評価は各${meta.options.samples}サンプル、エンチャントの接続選択は別seedの各${meta.options.searchSamples}サンプル。${meta.options.workers}プロセス、比較の壁時計${f(meta.elapsedMs/1000)}秒。差し替え後の評価${rows.reduce((s,r)=>s+r.n,0)}戦に加え、基準・接続探索・効果除去も実行した。\n\n`;
   if(meta.effectProbe)md+=`効果観測の追加検査: ${meta.effectProbe.rows}件、${meta.effectProbe.workers}プロセス、${f(meta.effectProbe.elapsedMs/1000)}秒。${meta.effectProbe.reason}\n\n`;
   const manifestFile=path.join(boardsDir,'boards_manifest.json');if(fs.existsSync(manifestFile)){const m=JSON.parse(fs.readFileSync(manifestFile));md+=`盤面選定の壁時計${f(m.elapsedMs/1000)}秒。${m.construction}\n\n`;}
-  if(meta.boardProvenance&&JSON.stringify(meta.boardProvenance.selectionSourceHashes)!==JSON.stringify(meta.sourceHashes))md+='標準盤面は第3段の保存済み20枚を維持し、今回取り込まれた本体で全カード比較と祝福比較を再計算した。選定時勝率は元版の値、比較時勝率は今回の値。元周回はout_no_boonへ退避して保存している。\n\n';
+  if(meta.boardProvenance&&JSON.stringify(meta.boardProvenance.selectionSourceHashes)!==JSON.stringify(meta.sourceHashes))md+='保存済みの標準盤面を維持し、現在の本体で比較を再計算した。選定時勝率は元版の値、比較時勝率は今回の値。盤面選定の元周回は新しいworktreeに含まれない場合がある。\n\n';
+  if(meta.runLevels)md+='今回の固定レベル（戦闘力・眷属・戦闘修正・効果威力の順）:\n\n'+table(['場面','レベル'],Object.entries(meta.runLevels).map(([scene,values])=>[scene,['stats','familiars','modifiers','damage'].map(k=>values[k]).join(' / ')]));
   md+='## 方法と解釈\n\n';
   md+=Object.values(meta.rules).map(t=>'- '+t).join('\n')+'\n\n';
   md+='通常形はシートの基準カードで、G1が中心。固有の出現グレードがG2〜G4のカードも全数を測り、その値をG1へ改変しない。合体は `_tryTripleMergeOnBoard` で実際に3枚を合体させた別形態。合体不可のカードは通常行だけ。標準価格は割引前の本体 `_mapSalePrice`。\n\n';
