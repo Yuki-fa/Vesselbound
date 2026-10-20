@@ -677,7 +677,7 @@ function _arrangeRewardRarity(cards){
 // 戦闘報酬の抽選。魔導店も同じ出現率・保証・祝福を使い、提示枚数だけ3枚にする。
 // 以前はアイテムを引く分岐（宝箱）を兼ねていたが、宝箱の機能は廃止済み。
 // アイテムを引くのは drawItems() が唯一の入口（道具屋・鍛冶屋・報酬アイテム）。
-function drawRewards(count=5){
+function drawRewards(count=5,opts){
   const baseGrade=1;
   const res=drawPanel(count, baseGrade);
   const maxGrade=_currentRewardMapGrade(baseGrade);
@@ -712,7 +712,9 @@ function drawRewards(count=5){
   if(G._nextRewardUniqueSlot){
     G._nextRewardUniqueSlot=false;
   }
-  if(Array.isArray(G._bonusRewardPanels)&&G._bonusRewardPanels.length){
+  // ハイドラ等の「報酬に出現」は**戦闘報酬の抽選だけ**で取り出す（opts.bonus）。魔導店の品揃えも同じ抽選を使うため、
+  // エリート・ボス戦（カード報酬なし）の後に残った分が店に並んでいた（2026-10-20 利用者報告）。
+  if(opts&&opts.bonus&&Array.isArray(G._bonusRewardPanels)&&G._bonusRewardPanels.length){
     // 通常報酬の既存経路は維持し、3枚提示では余りを次の報酬へ残す。
     const bonus=G._bonusRewardPanels.splice(0,count===REWARD_GRID_CAPACITY?Infinity:count);
     const visibleBonus=bonus.filter(Boolean);

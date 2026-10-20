@@ -2366,6 +2366,8 @@ async function startBattle(){
   G._revivalRingUsed=false;
   G._oniRingAttackCount=0;
   G._stormRingFireCount=0;
+  // 「報酬に出現」（ハイドラ）はその戦闘の報酬のもの。報酬の無かった戦闘（エリート・ボス等）の残りは持ち越さない。
+  if(!carryBattle) G._bonusRewardPanels=[];
   // 闘技場などの継戦：持ち越したマナで到達済みのマナ効果・嵐の指輪は発動済みにする。
   // 前の戦闘で敵が全滅して処理されなかった効果を、この戦闘の開始時に発動させない（2026-10-20 利用者指定）。
   if(carryBattle&&typeof coreConsumeCarriedManaEffects==='function'){

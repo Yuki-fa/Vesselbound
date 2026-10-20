@@ -1842,6 +1842,10 @@ function gameOver(options){
   const opt=options||{};
   const isClear=opt.clear===true;
   const firstRunClear=isClear&&opt.firstRunClear===true&&!(G&&G._onlineMode);
+  // 「出発する」の保存中に掛けた入力止め（SaveRun.lockInput＝body.inert）は、普段は次の戦闘・村で外れる。
+  // 蝕界の塔から出発して踏破になる時はどちらも通らず、結果画面の「続ける」等が押せなかった（2026-10-21 利用者報告）。
+  if(typeof SaveRun!=='undefined'&&SaveRun&&typeof SaveRun.lockInput==='function') SaveRun.lockInput(false);
+  else if(document.body) document.body.inert=false;
   if(!isLibraryTestBattle&&!G._debugGameOver&&typeof SaveRun!=='undefined') SaveRun.finish(isClear?'clear':'gameover');
   const isDebugGameOver=!!G._debugGameOver;
   document.body.classList.remove('debug-mode');

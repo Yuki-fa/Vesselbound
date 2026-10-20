@@ -781,7 +781,7 @@ function goToReward(options){
     // 既存の勝利報酬の鍵（敗北回数を含む）は維持する。敗北後の編成では抽選しない。
     // レア度4以上の枚数と並び（隣り合わせない）は _arrangeRewardRarity() が唯一の実装。枚数を切り詰めた後に通す。
     _rewCards=(_noNewRewards||G._isTavern||G._isFiveSaints)?[]:runWithKeyedRandom(`reward:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`,
-      ()=>_arrangeRewardRarity(drawRewards().filter(c=>c).slice(0,_waveRewardCount)));
+      ()=>_arrangeRewardRarity(drawRewards(undefined,{bonus:true}).filter(c=>c).slice(0,_waveRewardCount)));
     if(!_noNewRewards&&!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
     G._retryRewardCards=null;
     _rewCards.forEach(c=>{ if(c){ towerBoonBlessGeneratedCard(c); c._isOriginalReward=true; } });

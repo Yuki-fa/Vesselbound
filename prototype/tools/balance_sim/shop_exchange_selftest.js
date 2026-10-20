@@ -17,9 +17,14 @@ async function testShopExchange(api,check=(title,fn)=>{fn();console.log('OK '+ti
       assert.equal(calls,1);assert.equal(_rewCards.length,3);assert.ok(_rewCards.every(c=>c&&!('_buyPrice'in c)));assert.deepEqual(_rewCards,stock);
     });
   } finally {drawRewards=draw;}
-  check('店の抽選：追加報酬が多い時も3枚提示し、余りを失わない',()=>{
+  // 2026-10-20 利用者報告：ハイドラの「報酬に出現」がエリート・ボス戦の後の店に並んだ。店の抽選では取り出さない。
+  check('店の抽選：追加報酬（ハイドラ）は取り出さず、戦闘報酬の抽選だけが取り出す（余りは失わない）',()=>{
     G._bonusRewardPanels=Array.from({length:5},()=>makePanel('ノーム'));
-    const cards=drawRewards(3);assert.equal(cards.length,3);assert.equal(G._bonusRewardPanels.length,2);G._bonusRewardPanels=[];
+    const shop=drawRewards(3);assert.equal(shop.length,3);assert.equal(G._bonusRewardPanels.length,5,'店では取り出さない');
+    const reward=drawRewards(3,{bonus:true});assert.equal(reward.length,3);assert.equal(G._bonusRewardPanels.length,2,'報酬は3枚取り出し、余りを残す');
+    G._bonusRewardPanels=[];
+    // 報酬の無い戦闘（エリート・ボス）の残りは、次の戦闘の開始時に捨てる。
+    assert.match(require('fs').readFileSync(require('path').join(__dirname,'../../js/engine/battle.js'),'utf8'),/if\(!carryBattle\) G\._bonusRewardPanels=\[\];/);
   });
   const first=makePanel('ラミア'),out=G.mainBoard[1];_rewCards=[first,makePanel('ノーム'),makePanel('ゴーレム')];
   const money=G.gold,count=G.mainBoard.filter(Boolean).length;
