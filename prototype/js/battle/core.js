@@ -2111,6 +2111,12 @@ function coreTriggerAtkGainEffects(target, amount, state, rng, emit, applyHit) {
     .filter(x => x && x.hp > 0 && !coreIsSealed(x));
   if (!foes.length || damage <= 0) return;
   target._coreAtkGainEffectDepth = true;
+  // 同じ体のマナ効果から誘発しても、ダメージはその常時効果自身のもの。
+  // ownerIdだけでは活性化とワイバーンを区別できず、E045の命中として再生されていた。
+  // 数値・対象・乱数には触れず、外側の演出用番号だけをこの誘発の間退避する。
+  const effectNo = state._coreEffectNo, effectOwner = state._coreEffectOwnerId;
+  state._coreEffectNo = null;
+  state._coreEffectOwnerId = null;
   try {
     coreEmitPassiveFlash(emit, target);
     for (let repeat = 0; repeat < (coreMatchRepeatCount(hit) || 1); repeat++) {
@@ -2118,6 +2124,8 @@ function coreTriggerAtkGainEffects(target, amount, state, rng, emit, applyHit) {
       coreHitAll(state, rng, emit, applyHit, target, picked, damage);
     }
   } finally {
+    state._coreEffectNo = effectNo;
+    state._coreEffectOwnerId = effectOwner;
     delete target._coreAtkGainEffectDepth;
   }
 }

@@ -721,6 +721,9 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - 範囲攻撃：敵が1体しかいない時は全体攻撃・三方向攻撃・貫通の接触演出とSEを出さない（コアが attack_contact_vfx を出さない。ダメージは同じ）。敵が前衛だけ・後衛だけの時の全体攻撃は、列を交差する「交差する二本の光刃」（all-cross）ではなく「白い芯の横一閃」（all-sweep、登録名 K009_SWEEP、音は全体攻撃と同じ K009）。
 - 結界の破損（shield_break／shield-break）：接触の瞬間に割れる。演出の全尺の30%（234ms）まではひびの溜めなので、戦闘では割れる直前（26%）から再生する（playBattleLabFx の seekRatio → VbFx.play の seekMs）。SEの山も同じだけ前へ寄せる。以前は攻撃したカードが元の位置へ戻った頃に割れて見えた。LAB では溜めから全部見せる。
 - VFXの層（`render.js: _vfxClipLayer()`）：攻撃の動く複製（body直下 z=10000）がある間だけ、層を body 直下 z=10001 へ出す（戦闘画面の中 z=9999 のままだと攻撃中のVFXが動くカードの下へ回り込んだ）。VbFx が毎コマ呼ぶので複製が消えると戻る。検査 present_parity「接触時、VFXの層が動くカードより上」。
+- ATK獲得の誘発（ワイバーン）：活性化などマナ効果の途中で誘発したダメージに、外側の演出番号（E045 等）が継承されてワイバーンのVFXが出なかった。`core.js: coreTriggerAtkGainEffects()` で誘発の間だけ演出用の番号を退避する（数値・乱数は不変。検査 atk_gain_vfx_1020b_regression.js）。
+- 全滅後の省略：最後の死亡・逃走から、復活・召喚で戦闘が再開しない区間の余分な合図（発光・マナ効果の合図・攻撃の踏み込み・能力変化のVFX等）を省く（`present.js: presentMarkBattleTail()`／`presentIsSilentEvent()`。数値・状態表示・復活・報酬は残す。PvE・オンライン共通。検査 wipe_tail_1020b_regression.js）。
+- 同じ処理の繰り返し：同じ手番内の同じ効果の2回目以降は、マナの繰り返しと同じ間隔（PRESENT_MANA_RUN_GAP_MS）で見せる（`present.js: presentEffectRun()`。激怒・執念・懺悔・二段／三段攻撃・マナ閾値・解放、LAB演出・飛び道具も対象。検査 repeat_speed_1020b_regression.js）。
 - 召喚の登場（S001）：光をカードの位置に毎コマ追従させる（followGeometry）。召喚後の詰め直しでカードが動くと光だけ元の位置に残っていた。
 - 魔導板のマスの変化（board-summon／board-enchant）：入れ物をマスと同じ大きさにし（旧画像素材の頃の「マス×2.6・16:9」をやめる）、魔法陣・ルーンの輪をカードに収める。枠の光はカード枠に沿う。
 - 生命の光（map-life）：HPなのでピンク系にし、ハートは花びらの紋に替えた。スキュラの毒のしずくは毒の状態と同じ深い緑に。石化（medusa-gaze）の広がる石の板はカードの縦横比に。

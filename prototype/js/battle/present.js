@@ -105,7 +105,7 @@ function presentShouldSkipTurnGapBeforeManaEffect(events, index) {
 // damage はマナ閾値効果自身（アラクネ等）も出すため継続扱いにする。
 const PRESENT_MANA_RUN_TYPES = new Set([
   'mana_threshold', 'mana_gain', 'gold_gain', 'gold_spend', 'mana_set',
-  'stat_change', 'keyword_effect', 'item_reward', 'summon', 'transform', 'seal_apply', 'damage',
+  'stat_change', 'keyword_effect', 'item_reward', 'summon', 'transform', 'seal_apply', 'damage', 'effect_flash',
 ]);
 
 // ── 召喚のスロット選択 ────────────────────────────────
@@ -529,6 +529,56 @@ function presentReorderDeathsAfterDamageBatch(events) {
   });
   flush();
   return out;
+}
+
+// 最後の死亡・逃走から、復活／召喚で戦闘が再開しない区間の余分な合図だけを省く。
+// コアの列や数値は変更しない。反撃・死亡ダメージ・復活・報酬の事象は必ず残す。
+// PvEは据え置き中の開始盤面、オンラインはbattle_startの写しを渡す。
+const _presentSilentEvents = new WeakSet();
+const PRESENT_TAIL_CUE_TYPES = new Set(['effect_flash','mana_threshold','turn_begin','attack_contact_vfx','sweep_vfx','ring_effect','attack']);
+function presentIsSilentEvent(ev) { return !!ev && _presentSilentEvents.has(ev); }
+function presentSkipsEvent(ev) { return presentIsSilentEvent(ev) && PRESENT_TAIL_CUE_TYPES.has(ev.type); }
+function presentMarkBattleTail(events, initialUnits) {
+  const list = events || [], alive = {p1:new Set(),p2:new Set()};
+  const enter = (side,u) => {
+    if (alive[side] && u && !u._isObject && !u._isSoul && !u._sealed && Number(u.hp)>0) alive[side].add(String(u.id));
+  };
+  for (const side of ['p1','p2']) for (const u of initialUnits && initialUnits[side] || []) enter(side,u);
+  let started = !!(alive.p1.size && alive.p2.size), after = -1, end = list.length;
+  for (let i=0;i<list.length;i++) {
+    const ev=list[i]; if(!ev)continue;
+    if(ev.type==='battle_end'||ev.type==='effect_flash'&&ev.trigger==='battle_end'){end=i;break;}
+    if(ev.type==='battle_start') {
+      alive.p1.clear();alive.p2.clear();
+      for(const side of ['p1','p2'])for(const u of ev.sides && ev.sides[side] || [])enter(side,u);
+    }
+    const key=String(ev.unitId);
+    const exit=['death','fled','sacrifice','instant_death','curse_death','seal_apply'].includes(ev.type);
+    if(exit && alive[ev.side]) alive[ev.side].delete(key);
+    if(ev.type==='revive'||ev.type==='seal_release')alive[ev.side]?.add(key);
+    if(ev.type==='summon'&&ev.unit)enter(ev.side,ev.unit);
+    if(ev.type==='unit_stolen') {
+      alive[ev.side]?.delete(key);alive[ev.toSide || (ev.side==='p1'?'p2':'p1')]?.add(key);
+    }
+    if(alive.p1.size&&alive.p2.size){started=true;after=-1;}
+    else if(started && after<0 && (exit||ev.type==='unit_stolen'))after=i;
+  }
+  if(after<0)return;
+  const effects=new Set(['stat_change','keyword_effect','mana_gain','mana_set','summon_buff',...PRESENT_TAIL_CUE_TYPES]);
+  for(let i=after+1;i<end;i++) {
+    const ev=list[i];if(!ev||!effects.has(ev.type)||ev.type==='attack'&&ev.effectOnly)continue;
+    // 決着を変え得る死亡効果等の開始合図は、その実体と一緒に見せる。
+    if(ev.type==='effect_flash'||ev.type==='mana_threshold') {
+      let consequential=false;
+      for(let j=i+1;j<end;j++) {
+        const next=list[j];
+        if(['effect_flash','mana_threshold','turn_begin'].includes(next.type))break;
+        if(['damage','death','fled','summon','revive','seal_release','unit_stolen','life_set','life_gain'].includes(next.type)){consequential=true;break;}
+      }
+      if(consequential)continue;
+    }
+    _presentSilentEvents.add(ev);
+  }
 }
 
 // 2026-10-10 利用者報告：攻撃効果中の死亡では通常attackが出ないことがある。
@@ -2008,6 +2058,35 @@ function presentCreateOnceGate() {
   };
 }
 
+// 同じ手番内の同じ効果は、対象数とは別に発動回を数える。
+// マナのrepeatと同じく、初回を通常の尺、2回目以降を既存の間隔で全回見せる。
+const _presentEffectRuns = new WeakMap();
+function presentEffectRun(events,index,key) {
+  if(!Array.isArray(events))return {key,repeat:false};
+  let context=_presentEffectRuns.get(events);
+  if(!context){context={seen:new Set(),stats:new WeakMap()};_presentEffectRuns.set(events,context);}
+  let turn=-1;
+  for(let i=index;i>=0;i--)if(['turn_begin','battle_start'].includes(events[i]?.type)){turn=i;break;}
+  const scoped=`${turn}:${key}`,repeat=context.seen.has(scoped);
+  context.seen.add(scoped);
+  return {key:`${scoped}:${index}`,repeat};
+}
+function presentStatChangeRun(ev,events,index) {
+  if(!Array.isArray(events))return {key:`${ev.sourceId}:${ev.reason}`,repeat:false};
+  let context=_presentEffectRuns.get(events);
+  if(context?.stats.has(ev))return context.stats.get(ev);
+  const run=presentEffectRun(events,index,`stat:${ev.sourceId}:${ev.reason}`);
+  context=_presentEffectRuns.get(events);
+  const targets=new Set();
+  for(let i=index;i<events.length;i++) {
+    const next=events[i],target=`${next?.side}:${next?.unitId}`;
+    if(!next||next.type!=='stat_change'||next.reason!==ev.reason||next.sourceId!==ev.sourceId||targets.has(target))break;
+    targets.add(target);context.stats.set(next,run);
+  }
+  return run;
+}
+function presentEffectRunDuration(repeat,normalMs) { return repeat ? PRESENT_MANA_RUN_GAP_MS : normalMs; }
+
 // マナ解決のひと続きが途切れたか（＝間引きを数え直すか）
 function presentBreaksManaRun(ev) {
   return !ev || !PRESENT_MANA_RUN_TYPES.has(ev.type);
@@ -2020,7 +2099,7 @@ function presentBreaksManaRun(ev) {
 function presentBreaksEffectRun(ev) {
   // 死亡も区切りにする。「キャラクターが死亡するたび」（ヴァンパイアロード等）は死亡1回ごとに別の発動なので、
   // 同じ一撃で2体倒れても、2回目の発動の固有SE・VFXを出し直す。
-  return !!ev && (ev.type === 'attack' || ev.type === 'turn_begin' || ev.type === 'death');
+  return !!ev && (ev.type === 'attack' || ev.type === 'turn_begin' || ev.type === 'death' || ev.type === 'battle_start');
 }
 
 if (typeof window !== 'undefined') {
@@ -2148,6 +2227,8 @@ if (typeof module !== 'undefined' && module.exports) {
     presentShouldSkipTurnGapBeforeManaEffect,
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     presentBreaksEffectRun,
+    presentEffectRun, presentStatChangeRun, presentEffectRunDuration,
+    presentMarkBattleTail, presentIsSilentEvent, presentSkipsEvent,
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
     presentReorderDeathsAfterDamageBatch, presentHoldHpForGuts, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,
