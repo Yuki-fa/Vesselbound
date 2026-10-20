@@ -2504,7 +2504,18 @@ function coreSummonBaseStats(source, sourceUnit, side, spec, summonBoon) {
 // 表示のための写しだけへ、実際の召喚と同じ能力補正を適用する。
 // 盤面・累積値を複製し、イベント・乱数・召喚位置・戦闘の誘発を外へ出さない。
 function corePreviewSummonStats(state, side, definition, sourceUnit, summonBoon) {
-  const copy = value => value == null ? value : JSON.parse(JSON.stringify(value));
+  // 表示用の下書きなので値だけ写す。PvE の体は DOM や親への参照（循環）を持つことがあり、
+  // そのまま JSON にすると止まる（2026-10-21 present_parity で検出）。祖先へ戻る参照・DOM・関数だけ落とす。
+  const copy = (value, stack = []) => {
+    if (value === null || typeof value !== 'object') return typeof value === 'function' ? undefined : value;
+    if ((typeof Node !== 'undefined' && value instanceof Node) || stack.includes(value)) return undefined;
+    stack.push(value);
+    let out;
+    if (Array.isArray(value)) out = value.map(x => { const c = copy(x, stack); return c === undefined ? null : c; });
+    else { out = {}; for (const k of Object.keys(value)) { const c = copy(value[k], stack); if (c !== undefined) out[k] = c; } }
+    stack.pop();
+    return out;
+  };
   const preview = { ...state, units: { p1: copy(state.units && state.units.p1 || []), p2: copy(state.units && state.units.p2 || []) },
     _summonBuff: copy(state._summonBuff), gameSummonBuff: copy(state.gameSummonBuff), _summonCount: { ...state._summonCount } };
   const sourceId = sourceUnit && sourceUnit.id;
