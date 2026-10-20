@@ -20,4 +20,13 @@ var VbFxLabFixed = {
   'phantom':'2026-10-20','eidolon':'2026-10-20','overlord':'2026-10-20','undine':'2026-10-20','centaur-impact':'2026-10-20',
   'poison-tick':'2026-10-20','attack-buff':'2026-10-20','death-buff':'2026-10-20','contact-burst':'2026-10-20','battle-summon':'2026-10-20',
   'abyss':'2026-10-20',
+  // 2026-10-21 FIX（02・03・05・06・08・22・27・32・33・46・50・54・57・66・67・69・71・74・75・76・96・124・134〜138、SEを決めた19・23・26・51・55・65・103・130・132、速度2.5倍の62、ゲーム側の出し方を直す129・131）
+  'rage-shards':'2026-10-21','storm-ring':'2026-10-21','scroll-revive':'2026-10-21','scroll-giant':'2026-10-21','scroll-guts':'2026-10-21',
+  'fate-sever':'2026-10-21','suffering-brand':'2026-10-21','map-resonance':'2026-10-21','map-duplicate':'2026-10-21','arch-demon':'2026-10-21',
+  'minotaur':'2026-10-21','spriggan':'2026-10-21','hit-burst':'2026-10-21','fire-arrow':'2026-10-21','fire-arrow-impact':'2026-10-21',
+  'fang-poison':'2026-10-21','tri-streak':'2026-10-21','shield-contact':'2026-10-21','seal-release':'2026-10-21','revive-burst':'2026-10-21',
+  'shield-break':'2026-10-21','baron':'2026-10-21','revive-state':'2026-10-21','shield-state':'2026-10-21','poison-state':'2026-10-21',
+  'weaken-state':'2026-10-21','guts-state':'2026-10-21','sealed-power':'2026-10-21','steal-mark':'2026-10-21','penance-ring':'2026-10-21',
+  'shockwave':'2026-10-21','all-ring':'2026-10-21','all-roar':'2026-10-21','gold-loss':'2026-10-21','sleep-sheep':'2026-10-21',
+  'incubus':'2026-10-21','centaur-missile':'2026-10-21','all-sweep':'2026-10-21','all-cross':'2026-10-21',
 };

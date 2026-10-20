@@ -3369,7 +3369,7 @@ VbFxDefs.register({
       "name": "centaur-missile",
       "label": "ケンタウロスの弾 · C019_1",
       "sourceCode": "C019_1",
-      "ms": 672,
+      "ms": 269,
       "color": "#5ab8ff",
       "light": "#eaf8ff",
       "playback": {
@@ -3383,8 +3383,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 672,
-        "cueMs": 408
+        "atMs": 269,
+        "cueMs": 163
       },
       "layers": [
         {

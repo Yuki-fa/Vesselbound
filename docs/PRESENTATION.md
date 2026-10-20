@@ -717,6 +717,12 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - SE は各3候補（巻物5種・瞳と強靭の指輪7種はそれぞれ共有。シンドリ・ウルズ・第3弾の5つも3候補ずつ）を `tools/vfx_preview/se/` に置いた。利用者が LAB で選ぶまでゲームは無音（`PRESENT_LAB_FX` の第2要素が null）。
 - 品質は実際の戦闘画面の大きさで10コマを撮って確認した（手本はフィーンド・カオス・インプ）。
 
+## 2026-10-21 VFX LAB の指摘への対応
+- FIX（`tools/vfx_preview/lab_fixed.js`）：02・03・05・06・08・22・27・32・33・46・50・54・57・66・67・69・71・74・75・76・96・124・134〜138、SEを決めた19・23・26・51・55・65・103・130・132、62、129・131。
+- SE採用（`adopt_se.py`、台帳 adopted_1021.json）：sealed-power 候補3（E057）、steal-mark 候補3（C090）、penance-ring 候補2（R012）、shockwave 候補2（E071）、gold-loss 候補1（E078）、sleep-sheep・incubus 候補1（C042・C084）、all-ring・all-roar 候補2（未使用のため印だけ）。
+- SE選び直し：加護（ring-eye-*）の候補2・3、重圧（intimidate-ring）の候補1・3、即死（death-mark）の3候補。グレムリンの後に続く弱体の音は今の即死の音（K001）を当てる案（LAB の gremlin-weaken、ゲームも同じ）。
+- ケンタウロスの矢（centaur-missile）：LAB の2.5倍速を標準に（定義の尺 672→269ms、ゲームの飛行時間も C019 だけ 269ms。`PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE`）。
+
 ## 2026-10-20 VFX・SEの調整（利用者指摘）
 - 範囲攻撃：敵が1体しかいない時は全体攻撃・三方向攻撃・貫通の接触演出とSEを出さない（コアが attack_contact_vfx を出さない。ダメージは同じ）。敵が前衛だけ・後衛だけの時の全体攻撃は、列を交差する「交差する二本の光刃」（all-cross）ではなく「白い芯の横一閃」（all-sweep、登録名 K009_SWEEP、音は全体攻撃と同じ K009）。
 - 結界の破損（shield_break／shield-break）：接触の瞬間に割れる。演出の全尺の30%（234ms）まではひびの溜めなので、戦闘では割れる直前（26%）から再生する（playBattleLabFx の seekRatio → VbFx.play の seekMs）。SEの山も同じだけ前へ寄せる。以前は攻撃したカードが元の位置へ戻った頃に割れて見えた。LAB では溜めから全部見せる。

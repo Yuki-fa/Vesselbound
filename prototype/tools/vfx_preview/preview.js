@@ -435,16 +435,17 @@ var VbFxPreview = (function () {
     }).then(function (result) {
       if (result.assetErrors.length) message('素材を読み込めません: ' + result.assetErrors.join(', '));
       // 続けて出す演出（例：ヴリコラカス → 復活獲得）。ゲームでも本来のVFXの後に自動で続ける予定（2026-10-06 利用者指定）。
-      if (conf.then && (options.suppress || []).indexOf(conf.then)<0 && generation === token && !result.cancelled) (conf.thenAt==='source'?[sourceId]:targetIds).forEach(function (id) { playChained(conf.then, card(id), token); });
+      // thenSound：続く演出の音を、その演出の既定の音ではなく専用の候補で鳴らす（グレムリンの弱体＝K001の案。2026-10-21）。
+      if (conf.then && (options.suppress || []).indexOf(conf.then)<0 && generation === token && !result.cancelled) (conf.thenAt==='source'?[sourceId]:targetIds).forEach(function (id) { playChained(conf.then, card(id), token, conf.thenSound); });
       return { name: name, result: result, impacts: impacts.slice() };
     }).catch(function (err) { message('演出エラー: ' + err.message); throw err; }).finally(function () {
       placement.dispose();
       if (generation === token) { running = Math.max(0, running - 1); $('active-status').textContent = running ? '再生中 ' + running : '待機中'; }
     });
   }
-  function playChained(name, el, token) {
+  function playChained(name, el, token, soundName) {
     if (!el) return;
-    var sound = selectedSound(name), speed = Number($('speed').value);
+    var sound = selectedSound(soundName || name), speed = Number($('speed').value);
     if (sound && sound.url) {
       var lead = VbFx.impactMs(name, speed) - (sound.peak || 0) * 1000, startAt = Math.max(0, lead), ms = VbFx.duration(name, speed);
       timer(function () { if (generation === token) playSound(sound, { offset: lead < 0 ? -lead / 1000 : 0, fadeAt: Math.max(0, ms * .95 - startAt), fadeEnd: Math.max(0, ms * .95 - startAt) + 1100 }); }, startAt);

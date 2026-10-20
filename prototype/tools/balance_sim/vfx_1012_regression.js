@@ -155,7 +155,9 @@ async function newDataChecks(){
 function audioChecks(){
   const raw=read('tools/vfx_preview/se_catalog.js'),catalog=JSON.parse(raw.slice(raw.indexOf('{'),raw.lastIndexOf('}')+1));
   const picks=JSON.parse(read('tools/vfx_preview/se/picks_1012.json')),used=new Set(),hashes=new Set();
-  const adopted1018=fs.existsSync(path.join(ROOT,'tools/vfx_preview/se/adopted_1018.json'))?JSON.parse(read('tools/vfx_preview/se/adopted_1018.json')):{};
+  // 利用者がLABで選んだ候補の台帳（adopted_MMDD.json）。日付順に重ね、同じ番号は新しい採用を正とする（2026-10-21 から全台帳を見る）。
+  const adopted1018=Object.assign({},...fs.readdirSync(path.join(ROOT,'tools/vfx_preview/se')).filter(f=>/^adopted_\d{4}\.json$/.test(f)).sort()
+    .map(f=>JSON.parse(read('tools/vfx_preview/se/'+f))));
   const old=execFileSync('git',['show',BASELINE+':prototype/tools/vfx_preview/se_catalog.js'],{cwd:ROOT,encoding:'utf8'});
   const previous=JSON.parse(old.slice(old.indexOf('{'),old.lastIndexOf('}')+1));
   // 2026-10-18：利用者の指示で選び直し・加工した候補（reason に日付を残す）は変更を許す。

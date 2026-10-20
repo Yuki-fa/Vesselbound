@@ -328,6 +328,8 @@ const PRESENT_PROJECTILE_EFFECTS = new Set([
 ]);
 // **速度の唯一のつまみ。** 大きくすると遅くなる（224→448＝速度50%）。
 const PRESENT_PROJECTILE_FLIGHT_MS = 448;               // 炎の矢の飛行時間
+// 効果ごとの飛行時間。ケンタウロスの矢は LAB の2.5倍速を標準にした（定義 centaur-missile の尺 672→269ms と同じ。2026-10-21 利用者指定）。
+const PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE = { C019:269, C019_1:269 };
 // 同時に撃つ時の発射ずらし。賢者の指輪・マナの種の反復で2本以上になる時、
 // 短いと「2発同時に出た」ように見える。1本ずつ続けて撃つ間隔にする。
 const PRESENT_PROJECTILE_STAGGER_MS = 260;
@@ -1878,7 +1880,7 @@ const PRESENT_VFX_SCALE = {
 const PRESENT_LAB_FX = {
   E006:['dark-fire',.5,'foes'], C024:['banshee',.24,'foe'], E035:['resentment',.7,'foe'],
   C039:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
-  E071:['shockwave',.1,'foes'], E075:['demon-soul',.9,'foes'], C032:['vrykolakas',.9,'friend'],
+  E071:['shockwave',0.45,'foes'], E075:['demon-soul',.9,'foes'], C032:['vrykolakas',.9,'friend'],
   C037:['dullahan',.18,'foe'], C038:['bone-chariot',.9,'friend'], C046:['jackalope',.7,'green'],
   C049:['dragonnet',.58,'morph'], C053:['bandersnatch',.9,'morph'], C051:['cockatrice',.04,'foe'],
   C054:['worm',.9,'foes'], C058:['wyvern',.3,'foe'], C067:['frost-sprite',.18,'foe'],
@@ -1893,13 +1895,13 @@ const PRESENT_LAB_FX = {
   // 指輪の開戦効果・封印されしもの（2026-10-17。それまで何も出ていなかった）。
   // 瞳の指輪（R001〜R005・R032）は常時効果なので戦闘中は発動しない扱いにし、演出は外した（2026-10-18 利用者指定。定義 ring-eye-* は別で使う）。
   R019:['paladin-ring',0.45,'friends'], R031:['speed-ring',null,'friend'], R015:['toughness-ring',null,'friends'],
-  R041:['curse-ring',0.45,'foes'], R042:['curse-ring',0.45,'foes'], E057:['sealed-power',null,'self'],
+  R041:['curse-ring',0.45,'foes'], R042:['curse-ring',0.45,'foes'], E057:['sealed-power',0.45,'self'],
   C093:['void-mastery',0.45,'friends'],
   // 敵の開戦効果（2026-10-17。何も出ていなかった）：全員へのキーワード付与・ライフを1にする。
   EN044:['keyword-grant',0.45,'friends'], EN075_1:['fate-sever',0.45,'self'],
   // 第3弾（2026-10-17。何も出ていなかった）：苦行の指輪・錬成・ハイドラ・苦悶の刻印・受難の刻印。
-  R012:['penance-ring',null,'friends'], E030:['alchemy',0.45,'self'], C055:['hydra-reward',0.45,'self'],
-  E078:['gold-loss',null,'self'], E077:['suffering-brand',0.074896,'dead'],
+  R012:['penance-ring',0.45,'friends'], E030:['alchemy',0.45,'self'], C055:['hydra-reward',0.45,'self'],
+  E078:['gold-loss',0.242979,'self'], E077:['suffering-brand',0.074896,'dead'],
   // 第4弾（2026-10-17。汎用の演出で代わりに出していた）：レムレースの呼び戻し・召喚の指輪・魔導板の力・威圧／魔力の指輪。
   // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
   C031:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
@@ -1915,9 +1917,9 @@ const PRESENT_LAB_FX = {
   C060:['behemoth',0.48,'self'],C064:['sylph',0.284083,'self'],C071:['nymph',0.736167,'colors'],C089:['familiar',0.867437,'foe'],
   C099:['fiend',0.833771,'foe'],C029:['phantom',0.218375,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
   C082:['arch-demon',0.774937,'purple'],C083:['gremlin',0.017667,'foes'],C095:['lilith',0.384333,'sequence'],
-  C097:['overlord',0.48,'self'],C009:['minotaur',0.2575,'reaction'],C042:['sleep-sheep',0.433979,'self'],
+  C097:['overlord',0.48,'self'],C009:['minotaur',0.2575,'reaction'],C042:['sleep-sheep',0.45,'self'],
   C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.45,'friend'],
-  C084:['incubus',0.270292,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
+  C084:['incubus',0.45,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
 };
 const PRESENT_LAB_1012_CODES=new Set(['C004','C020','C021','C060','C064','C071','C089','C099','C029','C034','C082','C083','C095','C097','C009','C042','C056','C066','C079','C084','C094']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
@@ -2214,6 +2216,7 @@ if (typeof window !== 'undefined') {
   window.PRESENT_CONTACT_PIERCE_START_OFFSET = PRESENT_CONTACT_PIERCE_START_OFFSET;
   window.PRESENT_CONTACT_PIERCE_OVERSHOOT = PRESENT_CONTACT_PIERCE_OVERSHOOT;
   window.PRESENT_PROJECTILE_FLIGHT_MS = PRESENT_PROJECTILE_FLIGHT_MS;
+  window.PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE = PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE;
   window.PRESENT_PROJECTILE_STAGGER_MS = PRESENT_PROJECTILE_STAGGER_MS;
   window.PRESENT_PROJECTILE_IMPACT_OFFSET_Y = PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
   window.presentProjectileImpactOffsetY = presentProjectileImpactOffsetY;

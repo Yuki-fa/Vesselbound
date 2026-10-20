@@ -2074,7 +2074,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "魅了の渦と立ちのぼるハート（2026-10-18 選び直し）（Bell Warble 0）",
       "edit": {
@@ -3333,7 +3333,7 @@
       "tailFadeMs": 60,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "苦悶の刻印：刻印が疼き金貨が崩れ落ちる（2026-10-18 選び直し）（Foley Coin Drop On Wood Platform）",
       "edit": {
@@ -4133,7 +4133,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "砕ける封印と金の光柱：封印が外れて砕け、光が立つ（2026-10-20 再選定）",
       "edit": {
@@ -4177,7 +4177,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "締め付ける茨の輪と血の滴：締め付ける暗い金属感（生々しさを避ける。2026-10-20 再選定）",
       "edit": {
@@ -4265,7 +4265,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "粉塵を広げる大きな咆哮：地響きと粉塵（獣の声を避ける。2026-10-20 再選定）",
       "edit": {
@@ -4331,7 +4331,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "深紅にほどけ昇る血の精髄：血の生々しさを避け、液体の魔力がほどけて昇る音（2026-10-20 再選定・不快感の緩和）",
       "edit": {
@@ -4397,7 +4397,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "青白く広がる衝撃輪：広がる衝撃波（2026-10-20 再選定）",
       "edit": {
@@ -4441,7 +4441,7 @@
       "tailFadeMs": 60,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "青白い乱流の波：途中に「チッ」が入らない長い風（2026-10-20 追加）",
       "edit": {
@@ -4483,7 +4483,7 @@
       "trimmed": true,
       "peakDbfs": -1,
       "peak": 0.1,
-      "adopted": true,
+      "adopted": false,
       "reason": "青白い乱流の波：ゲームに入っている加工版。0.603秒の「チッ」を前後40msの高音抑制でならした（2026-10-20）",
       "sha256": "d9e16f543dc46f7e2bfee45320f08c6f303ac5463eef003a4692346d5f1f0d54",
       "provisional": false,
@@ -4516,6 +4516,160 @@
         "tailMs": 400
       },
       "sha256": "1eabd10541ef6e3a6a3e752462ad46c33a7b51b4d310bf8b331ceeb281353f93"
+    },
+    "ring-eye-red-4": {
+      "id": "ring-eye-red-4",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 02-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 02-02.wav",
+      "url": "vfx_preview/se/ring-eye-red-4.wav",
+      "duration": 1.561833,
+      "originalDuration": 2.77,
+      "start": 1.208167,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21 利用者指定：加護（結晶・マナっぽさを避ける）の候補2",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "d0b6f2d64d38aeb504b58150980b7ef9ea97cbfafed6d679c7c42b6e7089d323"
+    },
+    "ring-eye-red-5": {
+      "id": "ring-eye-red-5",
+      "filename": "57 BOOM Morning Glow_E.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/57 BOOM Morning Glow_E.wav",
+      "url": "vfx_preview/se/ring-eye-red-5.wav",
+      "duration": 1.95,
+      "originalDuration": 11.192646,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.035667,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21 利用者指定：加護の候補3",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "91d12ac60f984259bffd79e1ef556acc7493e0c747840515153b4027eb30d29d"
+    },
+    "intimidate-ring-4": {
+      "id": "intimidate-ring-4",
+      "filename": "Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav",
+      "url": "vfx_preview/se/intimidate-ring-4.wav",
+      "duration": 1.95,
+      "originalDuration": 60.0625,
+      "start": 9.238812,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21 利用者指定：のしかかる重圧の候補1",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "88a6efbb199da6b7dbeb6ce44b888f287cbfb37235bda95d79614e3f2203a555"
+    },
+    "intimidate-ring-5": {
+      "id": "intimidate-ring-5",
+      "filename": "95 BOOM Tyrant Shadow_Bb.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/95 BOOM Tyrant Shadow_Bb.wav",
+      "url": "vfx_preview/se/intimidate-ring-5.wav",
+      "duration": 1.95,
+      "originalDuration": 10.527708,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.043917,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21 利用者指定：のしかかる重圧の候補3",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "25a1f6f24949cc553fad9dc4a9fe3d1395c0aa4cdcfddaabf5f35a4532783f2c"
+    },
+    "death-mark-1": {
+      "id": "death-mark-1",
+      "filename": "SORCERY - DESIGNED - MAGIC BLACK Cast Large-03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large-03.wav",
+      "url": "vfx_preview/se/death-mark-1.wav",
+      "duration": 1.95,
+      "originalDuration": 7.34,
+      "start": 4.044437,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21 利用者指定：死の印の選び直し",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "7149545f4d97ff5163d01e7337f0b702e7396a95ea70e5849746505f0697d9fe"
+    },
+    "death-mark-2": {
+      "id": "death-mark-2",
+      "filename": "SORCERY - DESIGNED - MAGIC BLACK Cast Large-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large-04.wav",
+      "url": "vfx_preview/se/death-mark-2.wav",
+      "duration": 1.95,
+      "originalDuration": 7.8,
+      "start": 3.926854,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21 利用者指定：死の印の選び直し",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "a3231a1df2aab2baec56b3d4f8eb8aaa06bfca86c94a23404a7d05273633d469"
+    },
+    "death-mark-3": {
+      "id": "death-mark-3",
+      "filename": "DSGNImpt-DS_IMPACT PHSYICS-Doomsday Chime_RTSB_COL-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Doomsday Chime_RTSB_COL-01.wav",
+      "url": "vfx_preview/se/death-mark-3.wav",
+      "duration": 1.95,
+      "originalDuration": 4.11,
+      "start": 0.004333,
+      "trimmed": true,
+      "peak": 0.384833,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21 利用者指定：死の印の選び直し",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "c1e9c7c2b0bee6baf1ff81545a040deac7e2aa7571a7b6de2b14e1157eb73847"
     }
   },
   "effects": {
@@ -4919,8 +5073,8 @@
     ],
     "ring-eye-red": [
       "ring-eye-red-1",
-      "ring-eye-red-2",
-      "ring-eye-red-3"
+      "ring-eye-red-4",
+      "ring-eye-red-5"
     ],
     "paladin-ring": [
       "paladin-ring-1",
@@ -4944,28 +5098,28 @@
     ],
     "ring-eye-blue": [
       "ring-eye-red-1",
-      "ring-eye-red-2",
-      "ring-eye-red-3"
+      "ring-eye-red-4",
+      "ring-eye-red-5"
     ],
     "ring-eye-green": [
       "ring-eye-red-1",
-      "ring-eye-red-2",
-      "ring-eye-red-3"
+      "ring-eye-red-4",
+      "ring-eye-red-5"
     ],
     "ring-eye-yellow": [
       "ring-eye-red-1",
-      "ring-eye-red-2",
-      "ring-eye-red-3"
+      "ring-eye-red-4",
+      "ring-eye-red-5"
     ],
     "ring-eye-purple": [
       "ring-eye-red-1",
-      "ring-eye-red-2",
-      "ring-eye-red-3"
+      "ring-eye-red-4",
+      "ring-eye-red-5"
     ],
     "ring-eye-rainbow": [
       "ring-eye-red-1",
-      "ring-eye-red-2",
-      "ring-eye-red-3"
+      "ring-eye-red-4",
+      "ring-eye-red-5"
     ],
     "toughness-ring": [
       "ring-eye-red-1",
@@ -5043,9 +5197,9 @@
       "map-duplicate-3"
     ],
     "intimidate-ring": [
-      "intimidate-ring-1",
+      "intimidate-ring-4",
       "intimidate-ring-2",
-      "intimidate-ring-3"
+      "intimidate-ring-5"
     ],
     "magic-ring-mana": [
       "magic-ring-mana-1",
@@ -5066,6 +5220,11 @@
       "all-roar-4",
       "all-roar-5",
       "all-roar-3"
+    ],
+    "death-mark": [
+      "death-mark-1",
+      "death-mark-2",
+      "death-mark-3"
     ]
   }
 }

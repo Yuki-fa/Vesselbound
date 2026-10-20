@@ -126,9 +126,10 @@ var VbFxSeSources = {
   "basis": "ADOPTED.md"
  },
  "C090.wav": {
-  "source": "Liquid Water Water Balloon Dropped In Water 03.wav",
-  "note": "キャラ固有SE",
-  "basis": "アセットリスト"
+  "source": "Production Element Title Transition Bell Warble 04.wav",
+  "path": "Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Warble 04.wav",
+  "effect": "steal-mark",
+  "basis": "ADOPTED.md"
  },
  "C019_1.wav": {
   "source": "HERO - DESIGNED - ARROW Fire By 02-05.wav",
@@ -485,12 +486,6 @@ var VbFxSeSources = {
   "effect": "cover-fire",
   "basis": "ADOPTED.md"
  },
- "E071.wav": {
-  "source": "WINDDsgn_Wind, Rush, Whoosh, Long x5 01_344 Audio_Elemental Palette Designed Vol 1.wav",
-  "path": "Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Elemental Palette Designed Vol. 1/WINDDsgn_Wind, Rush, Whoosh, Long x5 01_344 Audio_Elemental Palette Designed Vol 1.wav",
-  "effect": "shockwave",
-  "basis": "ADOPTED.md"
- },
  "E075.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-01.wav",
@@ -737,6 +732,42 @@ var VbFxSeSources = {
   "effect": "centaur-impact",
   "basis": "ADOPTED.md"
  },
+ "E057.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-03.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-03.wav",
+  "effect": "sealed-power",
+  "basis": "ADOPTED.md"
+ },
+ "R012.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Medium-04.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Medium-04.wav",
+  "effect": "penance-ring",
+  "basis": "ADOPTED.md"
+ },
+ "E071.wav": {
+  "source": "Production Element Title Transition Whoosh Long 01.wav",
+  "path": "Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Long 01.wav",
+  "effect": "shockwave",
+  "basis": "ADOPTED.md"
+ },
+ "E078.wav": {
+  "source": "Foley Coin Drop On Wood Platform 05.wav",
+  "path": "Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Coin Drop On Wood Platform 05.wav",
+  "effect": "gold-loss",
+  "basis": "ADOPTED.md"
+ },
+ "C042.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+  "effect": "sleep-sheep",
+  "basis": "ADOPTED.md"
+ },
+ "C084.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+  "effect": "incubus",
+  "basis": "ADOPTED.md"
+ },
  "C004.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
@@ -899,22 +930,10 @@ var VbFxSeSources = {
   "effect": "gremlin",
   "basis": "ADOPTED.md（仮）"
  },
- "C042.wav": {
-  "source": "MELEE - DESIGNED - BLOOD Squish 01-02.wav",
-  "path": "The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-02.wav",
-  "effect": "sleep-sheep",
-  "basis": "ADOPTED.md（仮）"
- },
  "C056.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav",
   "effect": "scylla",
-  "basis": "ADOPTED.md（仮）"
- },
- "C084.wav": {
-  "source": "MELEE - DESIGNED - BLOOD Squish 02-01.wav",
-  "path": "The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 02-01.wav",
-  "effect": "incubus",
   "basis": "ADOPTED.md（仮）"
  }
 };

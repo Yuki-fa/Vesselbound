@@ -2093,7 +2093,9 @@ async function playProjectileEffectVfx(from,fromSide,to,toSide,code,options){
     :null;
   const toRect=to?rectOf(to,toSide):null;
   if(!url||!fromRect||!toRect){ await impact(); return; }
-  const flightMs=Number(opt.flightMs)||((typeof PRESENT_PROJECTILE_FLIGHT_MS==='number'?PRESENT_PROJECTILE_FLIGHT_MS:420));
+  const flightMs=Number(opt.flightMs)
+    ||(typeof PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE==='object'&&PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE[String(code||'')])
+    ||((typeof PRESENT_PROJECTILE_FLIGHT_MS==='number'?PRESENT_PROJECTILE_FLIGHT_MS:420));
   startHitSfx(flightMs);
   await playCurvedMissile({
     asset:url,

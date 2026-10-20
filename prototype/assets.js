@@ -310,13 +310,16 @@ const Assets = {
     C011: 'assets/sfx/C011.wav', // LAB採用（2026-10-20 siren-wave 候補1・初期のSE・原音2秒から）
     C017: 'assets/sfx/C017.wav', // メデューサ
     C019: 'assets/sfx/C019_1.wav', // ケンタウロス（発射）
-    C090: 'assets/sfx/C090.wav', // 奪う
+    C090: 'assets/sfx/C090.wav', // LAB採用（2026-10-21 steal-mark 候補3）
     C019_HIT: 'assets/sfx/C019_2.wav', // LAB採用（2026-10-20 centaur-impact 候補1）
     // マナ効果SE。シートのNo.に合わせて K024（旧 K023）。
     K024: 'assets/sfx/K024.wav',
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    E078: 'assets/sfx/E078.wav', // LAB採用（2026-10-21 gold-loss 候補1）
+    R012: 'assets/sfx/R012.wav', // LAB採用（2026-10-21 penance-ring 候補2）
+    E057: 'assets/sfx/E057.wav', // LAB採用（2026-10-21 sealed-power 候補3）
     K009_SWEEP: 'assets/sfx/K009.wav', // 全体攻撃（敵が1列だけの時の白い芯の横一閃。音は全体攻撃と同じ）
     C055: 'assets/sfx/C055.wav', // LAB採用（2026-10-20 hydra-reward 候補1）
     'map:life': 'assets/sfx/map_life.wav', // LAB採用（2026-10-20 map-life 候補1）
@@ -345,11 +348,11 @@ const Assets = {
     C095: 'assets/sfx/C095.wav',
     C097: 'assets/sfx/C097.wav', // LAB採用（2026-10-20 overlord 候補1）
     C009: 'assets/sfx/C009.wav',
-    C042: 'assets/sfx/C042.wav',
+    C042: 'assets/sfx/C042.wav', // LAB採用（2026-10-21 sleep-sheep 候補1）
     C056: 'assets/sfx/C056.wav',
     C066: 'assets/sfx/C066.wav', // LAB採用（2026-10-20 undine 候補1）
     C079: 'assets/sfx/C079.wav', // LAB採用（2026-10-20 spriggan 候補1）
-    C084: 'assets/sfx/C084.wav',
+    C084: 'assets/sfx/C084.wav', // LAB採用（2026-10-21 incubus 候補1）
     C094: 'assets/sfx/C094.wav',
     // VFX LABで採用済みの戦闘SE。
     E006: 'assets/sfx/E006.wav',
@@ -357,7 +360,7 @@ const Assets = {
     E035: 'assets/sfx/E035.wav',
     C039: 'assets/sfx/C039.wav',
     E062: 'assets/sfx/E062.wav',
-    E071: 'assets/sfx/E071.wav',
+    E071: 'assets/sfx/E071.wav', // LAB採用（2026-10-21 shockwave 候補2）
     E075: 'assets/sfx/E075.wav',
     C032: 'assets/sfx/C032.wav',
     C037: 'assets/sfx/C037.wav',

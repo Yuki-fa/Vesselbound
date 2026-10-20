@@ -33,6 +33,9 @@ _head, _tail = _cat_text[:_cat_text.index('{')], _cat_text[_cat_text.rindex('}')
 CAT = json.loads(_cat_text[_cat_text.index('{'):_cat_text.rindex('}') + 1])
 MAN = json.loads((SE / 'manifest.json').read_text())
 LEDGER = []
+# 登録行の注記に入れる日付。A.DATE = '2026-10-21' のように採用前に設定する（未設定なら今日）。
+import datetime
+DATE = datetime.date.today().isoformat()
 
 
 def _read(path):
@@ -98,7 +101,7 @@ def adopt(effect, index=None, codes=(), key=None, gain_db=0.0, note='', cut_afte
         else:
             shutil.copyfile(src, dst)
         lit = f"'{reg}'" if ':' in reg else reg
-        comment = f' // LAB採用（2026-10-20 {effect} 候補{index or key}{("・" + note) if note else ""}）'
+        comment = f' // LAB採用（{DATE} {effect} 候補{index or key}{("・" + note) if note else ""}）'
         _ensure_line(ASSETS_JS, r"^\s*K009: 'assets/sfx/K009\.wav'", lit, f"{lit}: 'assets/sfx/{file}',{comment}")
         _ensure_line(AUDIO_JS, r"^\s*K009: \{group:'magic',volume:\.70,maxPlayMs:0\}", lit,
                      f"{lit}: {{group:'magic',volume:.70,maxPlayMs:0}},{comment}")
