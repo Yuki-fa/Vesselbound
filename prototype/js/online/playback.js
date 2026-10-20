@@ -112,7 +112,7 @@ async function playOnlineBattleEvents(result, handlers) {
   // 死亡効果の青い発光も、カードが消える前へ寄せる（規則は present.js）。
   const events = typeof presentReorderDeathFlashesBeforeDeath === 'function'
     ? presentReorderDeathFlashesBeforeDeath(_noStolenDeaths) : _noStolenDeaths;
-  presentMarkBattleTail(events);
+  if (typeof presentMarkBattleTail === 'function') presentMarkBattleTail(events);
 
   // プロトコル版が食い違う場合は、勝手に再生して結果の食い違いを隠さない。
   if (result && result.protocolVersion != null && result.protocolVersion !== ONLINE_PROTOCOL_VERSION) {
@@ -261,7 +261,7 @@ async function playOnlineBattleEvents(result, handlers) {
     await _onlineSleep(waitMs);
   }
 
-  await presentFinishLabEvents(events);
+  if (typeof presentFinishLabEvents === 'function') await presentFinishLabEvents(events);
   // 勝敗はサーバーの値をそのまま返す。
   return { outcome: result.outcome, endReason: result.endReason, aborted: false };
 }

@@ -198,7 +198,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     ?presentDropDeathsOfStolen(_reordered):_reordered;
   const eventList=typeof presentReorderDeathFlashesBeforeDeath==='function'
     ?presentReorderDeathFlashesBeforeDeath(_noStolenDeaths):_noStolenDeaths;
-  presentMarkBattleTail(eventList,Object.fromEntries(['p1','p2'].map(side=>[side,
+  if(typeof presentMarkBattleTail==='function')presentMarkBattleTail(eventList,Object.fromEntries(['p1','p2'].map(side=>[side,
     [...new Set([...(state.units[side]||[]),...(beforeUnits||[])])]
       .filter(u=>u&&u.side===side).map(u=>({...u,hp:presentShownHp(u)}))])));
   async function _showDamage(e) {
@@ -303,7 +303,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 同じ瞬間（同じ発動回）に同じ効果が乗る分は、1体目の演出でまとめて見せる。
   const manaWaveGate=presentCreateOnceGate();
   for(const [eventIndex,e] of eventList.entries()){
-    if(presentSkipsEvent(e))continue;
+    if(typeof presentSkipsEvent==='function'&&presentSkipsEvent(e))continue;
     if(!_preAttack&&(e.type==='turn_begin'||e.type==='battle_start'
       ||(typeof presentPreAttackActorId==='function'&&presentPreAttackActorId(e)!=null))){
       _startPreAttackAt(eventIndex);
@@ -949,7 +949,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       if(typeof presentEndActionBannerEvent==='function') presentEndActionBannerEvent(_actionBannerEvent);
     }
   }
-  await presentFinishLabEvents(eventList);
+  if(typeof presentFinishLabEvents==='function')await presentFinishLabEvents(eventList);
   // 先出ししたモーションが解放されないまま残らないようにする
   // （attackイベントに到達せず抜けた場合の保険）。
   if(_preAttack){

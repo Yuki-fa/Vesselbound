@@ -595,7 +595,7 @@
   }
 
   async function _renderOnlineVersusEvent(ev, ctx, lab) {
-    if(presentSkipsEvent(ev))return;
+    if(typeof presentSkipsEvent==='function'&&presentSkipsEvent(ev))return;
     const board = (ctx && ctx.board) || { p1: [], p2: [] };
     _syncOnlineStatuses(board);
     // 二段・三段攻撃の各一撃で、効果列へ入る直前にモーションを始めて途中停止する。
