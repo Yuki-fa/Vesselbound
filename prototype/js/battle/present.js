@@ -178,11 +178,45 @@ function presentDamageRunLabelMs(gapMs) {
 // **present側でイベントの並びから推測しない。**
 function presentManaEffectKey(ev) {
   if (!ev) return '';
-  return `${String(ev.effectNo || '')}|${Number(ev.cost) || 0}|${String(ev.desc || '')}`;
+  return `${ev.side}|${String(ev.effectNo || '')}|${Number(ev.cost) || 0}|${String(ev.desc || '')}`;
 }
 function presentManaWaveKey(ev) {
   if (!ev) return '';
   return `${presentManaEffectKey(ev)}|w${Number(ev.wave) || 0}`;
+}
+// コアのwaveと発動元で、能力変化をそのマナ効果へ結び付ける。
+// 同じwaveの全員を先読みするが、攻撃・死亡などの境界は越えない。
+// イベント列は書き換えず、表示の束だけを1回の走査で作る。
+const _presentManaWaveLists = new WeakMap();
+function presentManaWaveInfo(events, index) {
+  if (!Array.isArray(events)) return null;
+  let cached = _presentManaWaveLists.get(events);
+  if (!cached || cached.length !== events.length) {
+    const byEvent = new WeakMap(), groups = new Map();
+    let threshold = null, group = null, wave = 0;
+    for (const ev of events) {
+      if (!ev) continue;
+      if (presentBreaksManaRun(ev)) { threshold = group = null; groups.clear(); wave = 0; }
+      if (ev.type === 'mana_threshold') {
+        if (!(Number(ev.wave) > 0)) { threshold = group = null; groups.clear(); continue; }
+        if (Number(ev.wave) !== wave) { groups.clear(); wave = Number(ev.wave); }
+        const key = presentManaWaveKey(ev);
+        if (!groups.has(key)) groups.set(key, { key, thresholds: [], stats: [] });
+        threshold = ev; group = groups.get(key); group.thresholds.push(ev);
+      }
+      if (!group) continue;
+      byEvent.set(ev, { group, threshold });
+      if (ev.type === 'stat_change' && /^mana_threshold/.test(ev.reason || '') && ev.sourceId === threshold.unitId)
+        group.stats.push(ev);
+    }
+    cached = { length: events.length, byEvent }; _presentManaWaveLists.set(events, cached);
+  }
+  return cached.byEvent.get(events[index]) || null;
+}
+function presentManaStatChangeEvents(ev, events, index) {
+  const info = presentManaWaveInfo(events, index);
+  return info && info.group.stats.includes(ev)
+    ? info.group.stats.filter(e => e.reason === ev.reason) : [ev];
 }
 // 同じ瞬間に発動するマナ効果イベントを、イベント列から拾う（先読み）。
 // 間に挟まる stat_change などは読み飛ばし、別の発動回に当たったら止める。
@@ -2075,8 +2109,17 @@ function presentStatChangeRun(ev,events,index) {
   if(!Array.isArray(events))return {key:`${ev.sourceId}:${ev.reason}`,repeat:false};
   let context=_presentEffectRuns.get(events);
   if(context?.stats.has(ev))return context.stats.get(ev);
-  const run=presentEffectRun(events,index,`stat:${ev.sourceId}:${ev.reason}`);
+  const mana = presentManaWaveInfo(events,index);
+  const peers = presentManaStatChangeEvents(ev,events,index);
+  const key = mana && mana.group.stats.includes(ev)
+    ? `stat:mana:${mana.threshold.side}:${presentManaEffectKey(mana.threshold)}:${ev.reason}`
+    : `stat:${ev.sourceId}:${ev.reason}`;
+  const run=presentEffectRun(events,index,key);
   context=_presentEffectRuns.get(events);
+  if (mana && mana.group.stats.includes(ev)) {
+    peers.forEach(e => context.stats.set(e,run));
+    return run;
+  }
   const targets=new Set();
   for(let i=index;i<events.length;i++) {
     const next=events[i],target=`${next?.side}:${next?.unitId}`;
@@ -2185,6 +2228,8 @@ if (typeof window !== 'undefined') {
   window.presentManaEffectKey = presentManaEffectKey;
   window.presentManaWaveKey = presentManaWaveKey;
   window.presentManaWaveEvents = presentManaWaveEvents;
+  window.presentManaWaveInfo = presentManaWaveInfo;
+  window.presentManaStatChangeEvents = presentManaStatChangeEvents;
   window.presentBreaksManaRun = presentBreaksManaRun;
   window.presentBreaksEffectRun = presentBreaksEffectRun;
   window.presentBeginPlayback = presentBeginPlayback;
@@ -2249,7 +2294,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentIsProjectileEffect, presentEffectDamageEvents,
     presentDamageVfxSource, presentStatChangeVfxAllowed, presentStatChangeVfxCode,
     PRESENT_CARD_EFFECT_VFX_MS, presentIsScreenBottomVfx,
-    presentManaEffectKey, presentManaWaveKey, presentManaWaveEvents,
+    presentManaEffectKey, presentManaWaveKey, presentManaWaveEvents, presentManaWaveInfo, presentManaStatChangeEvents,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,
     presentKeepsOnBoard, presentCharacterVfxScale, PRESENT_VFX_SCALE,
     presentShownAtk, presentShownHp, presentShownMaxHp, presentShownShield,

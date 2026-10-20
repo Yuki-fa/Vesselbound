@@ -34,10 +34,11 @@ let _presentLabClaims = new WeakMap();
 let _presentLabContacts = new WeakMap();
 let _presentContactHits = new WeakSet();
 let _presentDamageImpacts = new WeakSet();
+let _presentStatChangesShown = new WeakSet();
 let _presentLabOrigins = {death:new Map(),shield:new Map()};
 function presentLabEventHandled(ev) { const plan=ev&&_presentLabClaims.get(ev); return !!(plan&&!plan.hitReactions?.has(ev)); }
 function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C078'); }
-function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
+function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentStatChangesShown = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
 // 2026-10-11: 予測や接触からの固定遅延を使わず、確定ダメージを表示する瞬間に共通の振動を始める。
 // 通常・反撃・効果・範囲・飛び道具ともこの入口。強さ／閾値／尺は既存の振動設定が決める。
 // 2026-10-12 利用者指定：画面が振動するのは「攻撃で実際に高いダメージを与えた時」だけ。
@@ -135,7 +136,8 @@ function presentLabManaGainVfx(ev,unit,side){
 }
 function _presentLabManaAfter(plan,unit,side){
   if(!unit||typeof playManaGainVfx!=='function')return false;
-  let finish;plan.after=new Promise(resolve=>{finish=resolve;});
+  let finish;const after=new Promise(resolve=>{finish=resolve;});
+  plan.after=plan.after?Promise.all([plan.after,after]):after;
   const shown=playManaGainVfx(unit,side,{rect:plan.sourceRect,onDone:finish});if(!shown)finish();return !!shown;
 }
 // 陣の中央にカード1枚分の起点を作る（field）。大きさは陣のカードに合わせる（無い時は陣の高さから）。
@@ -228,6 +230,28 @@ function _presentLabPlan(ev, events, index, api, context) {
   _presentLabClaimHitReactions(plan,events);
   return plan;
 }
+// 同じマナ到達で発動した固有VFXも、発動元ごとの尺を直列に足さない。
+// 発動元と対象は各planに保持し、全員を同時に開始してから1組として完了を待つ。
+function _presentLabManaWavePlan(plan, ev, events, index, api, context) {
+  if (ev.type !== 'mana_threshold') return plan;
+  const info = presentManaWaveInfo(events,index);
+  if (!info || info.group.thresholds.length < 2) return plan;
+  const plans = [plan];
+  for (const next of info.group.thresholds) {
+    if (next === ev || _presentLabClaims.has(next)) continue;
+    const peer = _presentLabPlan(next,events,events.indexOf(next),api,context);
+    if (peer) plans.push(peer);
+  }
+  if (plans.length < 2) return plan;
+  const group = { ...plan, manaPlans: plans, started: false, done: null, gains: [], impact: new Map(),
+    members: plans.flatMap(p => p.members), targets: [...new Set(plans.flatMap(p => p.targets))] };
+  for (const peer of plans) {
+    for (const member of peer.members) _presentLabClaims.set(member,group);
+    for (const reaction of peer.hitReactions || []) _presentLabClaims.set(reaction,group);
+  }
+  group.hitReactions = new Set(plans.flatMap(p => [...p.hitReactions || []])); group.hitGains = [];
+  return group;
+}
 function _presentLabClaimHitReactions(plan,events){
   // 命中に付随する毒・邪眼・衝撃は固有効果の終了後へ貯めない。
   // ダメージの直後にコアが出した同じ命中のイベントだけを、その着弾へ結び付ける。
@@ -245,10 +269,26 @@ function _presentLabClaimHitReactions(plan,events){
     }
   }
 }
-function _presentLabStart(plan) {
+function _presentLabStart(plan, options) {
   if (!plan || plan.started || typeof playBattleLabFx !== 'function') return;
   plan.started = true;
-  plan.repeat=presentEffectRun(plan.events,plan.index,`lab:${plan.side}:${plan.owner?.id||''}:${plan.code}`).repeat;
+  const mana = plan.events[plan.index]?.type === 'mana_threshold' ? plan.events[plan.index] : null;
+  plan.repeat = options && options.repeat != null ? options.repeat
+    : presentEffectRun(plan.events,plan.index,mana
+      ? `lab:${plan.side}:mana:${presentManaEffectKey(mana)}`
+      : `lab:${plan.side}:${plan.owner?.id||''}:${plan.code}`).repeat;
+  if (plan.manaPlans) {
+    plan.eventImpact = new WeakMap();
+    plan.manaPlans.forEach((peer,i) => {
+      _presentLabStart(peer,{repeat:plan.repeat,silent:i>0});
+      for (const ev of peer.members) {
+        const impact = peer.eventImpact?.get(ev) || peer.impact.get(String(ev.unitId));
+        if (impact) plan.eventImpact.set(ev,impact);
+      }
+    });
+    plan.done = Promise.all(plan.manaPlans.map(p => p.done));
+    return;
+  }
   const resolvers = [],statEvents=plan.members.filter(e=>e.type==='stat_change');
   plan.eventImpact=new WeakMap();
   plan.targets.forEach((u,i)=>{
@@ -264,7 +304,7 @@ function _presentLabStart(plan) {
     durationMs:plan.repeat
       ? presentEffectRunDuration(true)/((plan.code==='C009'?PRESENT_LAB_REACTION_AURA_END:1)*(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1))
       : plan.code==='C009'?PRESENT_LAB_REACTION_FLASH_MS/PRESENT_LAB_REACTION_AURA_END/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
-    value:plan.value,colors:plan.colors,
+    value:plan.value,colors:plan.colors,silent:!!(options && options.silent),
     impactTimes:plan.code==='C095'?plan.targets.map((_,i)=>.43+.49*i/Math.max(1,plan.targets.length-1)):null,
     cueTimes,onCue:i=>(pulseResolvers[i]||[]).forEach(resolve=>resolve()),
     onImpact:i=>{ if(resolvers[i])resolvers[i](); }});
@@ -356,8 +396,9 @@ async function presentLabBeginEvent(ev, events, index, api) {
     }
     return;
   }
-  const plan = _presentLabPlan(ev,events,index,api,context);
+  let plan = _presentLabPlan(ev,events,index,api,context);
   if (!plan) return;
+  plan = _presentLabManaWavePlan(plan,ev,events,index,api,context);
   // 割り込んだ別効果の前でマナVFXを閉じる。repeatの発動記録は保持する。
   if(ev.type!=='mana_threshold'&&typeof api.finishEffect==='function')await api.finishEffect();
   if(plan.contactEvent){const pending=_presentLabContacts.get(plan.contactEvent)||[];pending.push(plan);_presentLabContacts.set(plan.contactEvent,pending);return;}
@@ -693,6 +734,26 @@ async function presentAttackContactHits(events, index, api) {
 //   trace(info)           … 記録（不要なら省略）
 async function presentStatChangeEvent(ev, api) {
   if (!ev || !api) return false;
+  if (_presentStatChangesShown.has(ev)) return true;
+  // 固有VFXが命中時刻を管理する変化は、そのイベントの着弾を待つ。
+  const members = (presentLabEventHandled(ev) ? [ev]
+    : presentManaStatChangeEvents(ev,api.events,api.eventIndex).filter(e => !presentLabEventHandled(e)))
+    .filter(e => !_presentStatChangesShown.has(e));
+  const vfx = new Map();
+  const groupedApi = { ...api, render: null, playVfx: (code, target, options) => {
+    const key = `${code}:${options.hitDuration}`;
+    if (!vfx.has(key)) vfx.set(key, { code, targets: [], options });
+    vfx.get(key).targets.push(target);
+  } };
+  // 数値は全員ぶん先に同じ瞬間へ進め、VFX入口のgateも束につき1回だけ待つ。
+  members.forEach(e => _presentStatChangesShown.add(e));
+  const shown = members.map(e => _presentStatChangeEvent(e,groupedApi));
+  await Promise.all([...vfx.values()].map(v => _playCardEffectVfx(v.code,v.targets,v.options)));
+  if (typeof api.render === 'function') api.render();
+  return shown.some(Boolean);
+}
+function _presentStatChangeEvent(ev, api) {
+  if (!ev || !api) return false;
   const target = api.findUnit(ev.side, ev.unitId);
   if (!target) return false;
   const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
@@ -729,15 +790,22 @@ async function presentStatChangeEvent(ev, api) {
         if (typeof api.trace === 'function') {
           api.trace({ sourceId: source.id, targetId: target.id, reason: String(ev.reason || ''), code: code.toUpperCase() });
         }
+        // マナの合図が同じ音声を既に鳴らしていれば重ねない（素材キーの別名も含む）。
+        const mana = presentManaWaveInfo(api.events,api.eventIndex);
+        const manaCode = mana && typeof _effectFxCodeByNo === 'function' ? _effectFxCodeByNo(mana.threshold.effectNo) : '';
+        const pulsed = mana && mana.group.stats.includes(ev) && !presentIsBuffVfxCode(manaCode) && !presentLabFx(manaCode)
+          && typeof getEffectSfxKey === 'function' && getEffectSfxKey(manaCode)
+          && typeof Assets !== 'undefined' && Assets.sfx && Assets.sfx[manaCode] === Assets.sfx[code.toUpperCase()];
         // SEのピークをVFXの山場へ合わせる（2026-10-15）。尺は下のVFXと同じ PRESENT_CARD_EFFECT_VFX_MS。
-        if (typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(code.toUpperCase(), duration);
-        else if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
+        if (!pulsed) {
+          if (typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(code.toUpperCase(), duration);
+          else if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
+        }
       }
-      // 開始しただけで次のイベントへ進むと、連続効果中に再描画・召喚・攻撃モーションが
-      // 重なってVFXが欠ける。同じ効果の表示完了を待ってから次へ進める。
+      // 全員ぶんを束へ積み、共通入口でVFXを同時に開始してから待つ。
       if (api.vfxGate && api.vfxGate.shouldPlay(`${cueKey}:${target.id}`)) {
         // 尺は present.js が唯一の定義（ゴーレムの負傷エフェクトと同じ長さ）。
-        await _playCardEffectVfx(code, [target], { gateMs: 0,
+        api.playVfx(code, target, { gateMs: 0,
           hitDuration: duration });
       }
     }
@@ -1112,12 +1180,12 @@ async function presentManaThresholdEvent(ev, api) {
   const source = api.findUnit(ev.side, ev.unitId);
   // 発光はマナ効果VFXが出る瞬間に合わせる（ここで光らせると、前の効果の演出を
   // 待っている間ずっと光ったままになり、絵より大きく先行して見える）。
-  if (source) {
-    presentQueueEffectFlash({ unit: source, side: ev.side === 'p2' ? 'enemy' : 'ally', color: 'green', count: 1 });
-  }
   // 飛び道具はdamageイベントで一発ずつ着弾まで待つ。その直後の数値・キーワードを
   // 処理し終えてから次へ進むため、同じwaveの将来の矢をここで先に飛ばさない。
-  if(typeof presentIsProjectileEffect==='function'&&presentIsProjectileEffect(ev.effectNo)) return true;
+  if(typeof presentIsProjectileEffect==='function'&&presentIsProjectileEffect(ev.effectNo)) {
+    if (source) presentQueueEffectFlash({ unit: source, side: ev.side === 'p2' ? 'enemy' : 'ally', color: 'green', count: 1 });
+    return true;
+  }
   // 同じ発動回の2体目以降は、1体目の演出でまとめて見せている。ここでは待たない。
   if (api.waveGate && typeof presentManaWaveKey === 'function'
     && !api.waveGate.shouldPlay(presentManaWaveKey(ev))) return true;
@@ -1137,6 +1205,8 @@ async function presentManaThresholdEvent(ev, api) {
   });
   const units = [...byUnit.values()];
   if (!units.length && source) units.push({ unit: source, isEnemySide: ev.side === 'p2', targets: [] });
+  // 発光も全員を一緒に予約する。2体目以降で予約し直すと、合図から遅れて光る。
+  units.forEach(({unit,isEnemySide}) => presentQueueEffectFlash({unit,side:isEnemySide?'enemy':'ally',color:'green',count:1}));
   if (typeof api.playCue === 'function') {
     const actionBannerWave = typeof actionBannerBeginManaWave === 'function' ? actionBannerBeginManaWave(wave) : null;
     try { await api.playCue(units, { repeat, effectNo: String(ev.effectNo || '') }); }
