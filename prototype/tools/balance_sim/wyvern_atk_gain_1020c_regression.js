@@ -255,13 +255,16 @@ function battle(api, options, stepped = false) {
     const context = { module: { exports: {} } }; vm.createContext(context);
     vm.runInContext(cp.execFileSync('git', ['show', BASE_REF + ':prototype/js/battle/core.js'], { encoding: 'utf8', maxBuffer: 2e6 }), context);
     const baseline = context.module.exports;
-    for (const row of h.sheetRows('card').filter(r => r['No.'] !== 'C058')) for (const side of ['p1', 'p2']) {
+    // 結界を持つ・与えるキャラは 2026-10-21 の結界ルール変更（重ならない）で結果が変わるので外す。
+    const shieldRule = r => /結界/.test(Object.values(r).join(' '));
+    for (const row of h.sheetRows('card').filter(r => r['No.'] !== 'C058' && !shieldRule(r))) for (const side of ['p1', 'p2']) {
       const u = h.unit(row['No.'], row['No.']);
       const options = { sides: { [side]: { units: [u] }, [other(side)]: { units: [h.unit('foe0'), h.unit('foe1')] } },
         resources: { [side]: { mana: 6, gold: 20 } }, ...rings(side, 'R001', 'R032', 'R034'),
         ...items(side, 'bond_scroll'), summonDefs: h.sheetRows('card').filter(r => r['No.'] !== 'C058').map(r => h.unit(r['No.'], r['No.'])) };
       // _copyFrame はコピーの枠を決める見た目だけの印（2026-10-20 に後から追加）。結果・乱数の比較からは外す。
-      const visualOnly = value => JSON.parse(JSON.stringify(value, (key, v) => key === '_copyFrame' ? undefined : v));
+      // 結界のキーワードは新ルールで「結界」と書く（眷属の「結界1」など）。表記だけ揃えて比べる。
+      const visualOnly = value => JSON.parse(JSON.stringify(value, (key, v) => key === '_copyFrame' ? undefined : typeof v === 'string' && /^結界\d+$/.test(v) ? '結界' : v));
       assert.deepEqual(visualOnly(battle(global, options)), visualOnly(battle(baseline, options)), row['No.'] + '/' + side);
     }
   });

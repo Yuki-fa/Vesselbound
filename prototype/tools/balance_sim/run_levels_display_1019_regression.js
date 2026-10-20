@@ -213,11 +213,14 @@ async function testRunLevelDisplay(api){
       const old=execFileSync('git',['show','647d175:prototype/js/engine/render.js'],{encoding:'utf8'});
       const raw=baselineFunction(old,'_rawSubstitutedDesc'),mk=baselineFunction(old,'mkCardEl');
       const collection=baselineFunction(execFileSync('git',['show','647d175:prototype/js/engine/collection.js'],{encoding:'utf8'}),'_collectionDescriptionHtml');
+      // 結界は数を出さない（2026-10-21 利用者指定）。変更前の「結界N」だけ「結界」に読み替えて比べる。
+      const shieldText=v=>v==null?v:String(v).replace(/結界\d+/g,'結界');
       for(const card of [...PANEL_POOL,...RING_POOL,...ITEM_POOL]){
-        assert.equal(_rawSubstitutedDesc(card),raw(card),card.name);
-        const a=mkCardEl(card,0,'reward'),b=mk(card,0,'reward');assert.equal(a.innerHTML,b.innerHTML,card.name);
-        assert.equal(a.getAttribute('data-preview'),b.getAttribute('data-preview'),card.name);
-        assert.equal(_collectionDescriptionHtml(card),collection(card),card.name);
+        assert.equal(_rawSubstitutedDesc(card),shieldText(raw(card)),card.name);
+        const a=mkCardEl(card,0,'reward'),b=mk(card,0,'reward');assert.equal(a.innerHTML,shieldText(b.innerHTML),card.name);
+        // ホバーの属性は元の本文のまま持ち、描く時（_formatPreviewHtml）に「結界」へ直す。
+        assert.equal(shieldText(a.getAttribute('data-preview')),shieldText(b.getAttribute('data-preview')),card.name);
+        assert.equal(_collectionDescriptionHtml(card),shieldText(collection(card)),card.name);
       }
       const oldBattle=execFileSync('git',['show','647d175:prototype/js/engine/battle.js'],{encoding:'utf8'});
       const oldSpec=baselineFunction(oldBattle,'_panelSummonSpec'),oldUnit=baselineFunction(oldBattle,'_makePanelSummonUnit');

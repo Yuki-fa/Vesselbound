@@ -215,7 +215,8 @@ async function run() {
         const base = side === 'p2' ? { atk: live._baseAtk, hp: live._baseMaxHp } : { atk: def.atk, hp: def.maxHp };
         assert.equal(ev.unit.atk, base.atk + 10 + 5 + per, '召喚時ATK');
         assert.equal(ev.unit.maxHp, base.hp + 10 + 5 + per, '召喚時最大HP');
-        assert.equal(ev.unit.shield, core.coreUnitShieldValue(core.createCoreUnit(def, side, 0)) + 1, '光の指輪');
+        // 結界は重ならない（2026-10-21 利用者指定）：元の結界の有無にかかわらず1。
+        assert.equal(ev.unit.shield, 1, '光の指輪');
         assert.ok(ev.unit.keywords.includes('眷属'));
       }
     });

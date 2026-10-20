@@ -136,7 +136,7 @@ const stats = events => events.filter(e => e.type === 'stat_change');
       const pairs = texts.map(text => text.match(/\+(\d+)\/\+(\d+)/));
       assert.deepEqual([child.atk-child._baseAtk,child.hp-child._baseMaxHp],
         [pairs.reduce((n,m)=>n+Number(m[1]),0),pairs.reduce((n,m)=>n+Number(m[2]),0)]);
-    } else if (no === 'E069') assert.equal(child.shield,texts.reduce((n,text)=>n+Number(text.match(/結界(\d+)/)[1]),0));
+    } else if (no === 'E069') assert.equal(child.shield,1); // 結界は重ならない（2026-10-21 利用者指定）
     else {
       child.hp=0;coreApplyDeathEffects(child,run.state,run.rng,run.emit,run.hit);
       assert.equal(run.events.filter(e=>e.type==='damage').reduce((n,e)=>n+e.amount,0),

@@ -63,7 +63,7 @@ async function check(name, run) {
       .filter(r => /(?:ATK|HP|能力).*(?:得るたび|増えた時|増加した時)/.test(r['効果'] || ''));
     assert.deepEqual(same.map(r => r['No.']), ['C058']);
   });
-  await check('作業前コアと214ケースの戦闘結果・数値イベント・最終状態・乱数進行が一致する',()=>{
+  await check('作業前コアと結界を含まない全キャラの戦闘結果・数値イベント・最終状態・乱数進行が一致する',()=>{
     const vm=require('node:vm'),cp=require('node:child_process');
     const context={module:{exports:{}}};vm.createContext(context);
     vm.runInContext(cp.execFileSync('git',['show','c5880af:prototype/js/battle/core.js'],{encoding:'utf8',maxBuffer:2e6}),context);
@@ -75,7 +75,10 @@ async function check(name, run) {
     });
     let count=0;
     const clean=value=>JSON.parse(JSON.stringify(value,(key,v)=>key==='_coreOpeningEffectsState'?'<state>':v));
-    for(const def of defs)for(const side of ['p1','p2']){
+    // 結界を持つ・与えるキャラは 2026-10-21 の結界ルール変更（重ならない）で結果が変わるので外す。
+    const shieldRule=r=>/結界/.test(Object.values(r).join(' '));
+    const cases=defs.filter((d,i)=>!shieldRule(h.sheetRows('card')[i]));
+    for(const def of cases)for(const side of ['p1','p2']){
       const u=h.clone(def);
       if(def.no==='C058')Object.assign(u,{manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:h.card('E045').desc.replace(/^1マナ毎：/,'')});
       const options={sides:{[side]:{units:[u]},[side==='p1'?'p2':'p1']:{units:[h.unit('foe0'),h.unit('foe1')]}},
@@ -87,11 +90,11 @@ async function check(name, run) {
           events.push(e.type==='damage'&&e.sourceId==='C058'&&e.effectNo==='E045'?{...e,effectNo:null}:e);
         }});
         // _copyFrame はコピーの枠を決める見た目だけの印（2026-10-20 に後から追加）。比較から外す。
-        return clean(JSON.parse(JSON.stringify({result,events,final:api.battleCoreFinalState(state),rngNext:rng.next()},(k,v)=>k==='_copyFrame'?undefined:v)));
+        return clean(JSON.parse(JSON.stringify({result,events,final:api.battleCoreFinalState(state),rngNext:rng.next()},(k,v)=>k==='_copyFrame'?undefined:typeof v==='string'&&/^結界\d+$/.test(v)?'結界':v)));
       });
       assert.deepEqual(results[1],results[0],`${def.no}/${side}`);count++;
     }
-    assert.equal(count,defs.length*2);
+    assert.equal(count,cases.length*2);
   });
   if (failed) process.exitCode = 1;
 })().catch(e => { console.error(e.stack); process.exitCode = 1; });

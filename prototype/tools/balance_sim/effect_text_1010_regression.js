@@ -87,7 +87,8 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
       const h = harness([plain('ミノタウロス', { desc: text, atk: 1, hp: 500, maxHp: 500 })], [plain('e0', { atk: 0, hp: 500, maxHp: 500 })]);
       coreApplyInjuryEffects(h.p1[0], 1, h.state, h.rng, h.emit, h.hit, h.p2[0], undefined, 'effect');
       const order = h.events.filter(e => (e.type === 'keyword_effect' && e.effect === 'shield') || e.type === 'attack').map(e => e.type);
-      assert.deepEqual(order, Array(times).fill(['keyword_effect', 'attack']).flat());
+      // 結界は重ならない（2026-10-21 利用者指定）：反撃0で結界が残る2回目以降は獲得を出さない。
+      assert.deepEqual(order, ['keyword_effect', ...Array(times).fill('attack')]);
       const h2 = harness([plain('ミノタウロス', { desc: text })], [plain('e0')]);
       coreApplyInjuryEffects(h2.p1[0], 1, h2.state, h2.rng, h2.emit, h2.hit, h2.p2[0], undefined, 'combat');
       assert.ok(!h2.events.some(e => e.type === 'attack'), '戦闘ダメージでは発動しない');

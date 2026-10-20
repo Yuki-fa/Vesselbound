@@ -1385,8 +1385,9 @@ function coreUnitSnapshot(unit) {
 function coreInitializeBattleState(state) {
   BATTLE_CORE_SIDES.forEach(side => (state.units[side] || []).filter(Boolean).forEach(unit => {
     Object.assign(unit, coreApplyUnitRunLevels(unit, state.runLevels && state.runLevels[side]));
-    unit.shield = coreNormalizeShieldValue(unit.shield);
-    unit.keywords = coreNormalizeShieldKeywords(unit.keywords);
+    // 結界の値を持たない体（保存された死亡体など）へ shield:0 を書き足さない。
+    if (unit.shield != null) unit.shield = coreNormalizeShieldValue(unit.shield);
+    if (Array.isArray(unit.keywords)) unit.keywords = coreNormalizeShieldKeywords(unit.keywords);
   }));
   state.turn = 0;
   state.lane = { p1: { lane: 'front', attacked: new Set() }, p2: { lane: 'front', attacked: new Set() } };
@@ -5289,7 +5290,7 @@ function coreTryRevive(unit, state, emit, rng, applyHit) {
   if (ring || keyword === '復活') {
     const applyPassives = trackedEmit => {
       const reviveShield = coreUnitShieldValue(unit);
-      if (reviveShield > 0) coreGrantShield(unit, trackedEmit, {}, 'shield_set');
+      if (reviveShield > 0) { unit.shield = 1; trackedEmit({ type: 'shield_set', side: unit.side, unitId: unit.id, amount: 1 }); }
       else unit.shield = 0;
       // 初期配置・眷属・指輪復活とも、半分の本体へ常時指輪を掛け直す。
       coreApplyRevivalSelfPassives(state, unit, trackedEmit, rng, applyHit);
@@ -6528,7 +6529,9 @@ function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
     });
     coreOpeningUnits(state).filter(u => u.hp > 0 && !coreIsSealed(u)).forEach(u => {
       const shield = coreUnitShieldValue(u);
-      if (shield > 0) coreGrantShield(u, emit, {}, 'shield_set');
+      // shield_set は「今の値に揃える」通知。PvE は編成時に結界を持たせ、オンラインは持たせないため、
+      // 増えたかどうかで出し分けると PvE とオンラインのイベント列がずれる。
+      if (shield > 0) { u.shield = 1; emit({ type: 'shield_set', side: u.side, unitId: u.id, amount: 1 }); }
       const repeats = 1 + coreExtraTriggerTimes(u, '開戦', coreEffectCount(u, '恩寵'))
         + Math.max(0, Number(u._effectRepeatBonus) || 0);
       for (let i = 0; i < repeats && u.hp > 0 && !coreIsSealed(u); i++) {

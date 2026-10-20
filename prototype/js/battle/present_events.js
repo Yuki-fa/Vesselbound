@@ -327,7 +327,7 @@ async function _presentLabFinish(plan) {
     // 結界・復活の獲得の音は残す（スプリガン等は獲得SEへつなげる）。
     const silent = code===getKeywordAssetKey('弱体') || code===getKeywordAssetKey('邪眼');
     // グレムリンの弱体だけは、調和する音として今の即死の音（K001）を鳴らす案（2026-10-21 利用者指定。LAB の gremlin-weaken と同じ）。
-    if (units.length && silent && plan.code==='C083' && typeof playSfx==='function') playSfx('K001',{group:'combat',guardKey:`gremlin-weaken:${Date.now()}`,guardMs:0});
+    if (units.length && silent && plan.code==='C083' && typeof playSfx==='function') playSfx(getKeywordAssetKey('即死'),{group:'combat',guardKey:`gremlin-weaken:${Date.now()}`,guardMs:0});
     if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0]),silent,
       durationMs:plan.repeat?presentEffectRunDuration(true)/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined});
   }

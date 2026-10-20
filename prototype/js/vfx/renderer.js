@@ -966,7 +966,7 @@ var VbFxRenderer = (function () {
       var rm=mote(f.job,f.copy+(s.moteOffset||0)),ra=f.copy/f.copies*TAU+rm.angle*value(f,'angleJitter',0),rl=(value(f,'radius',1)+rm.size*value(f,'radiusSize',0))*dimension(f,s.radiusSpace),rs=value(f,'segments',5),rin=value(f,'innerRadius',0);
       // innerRadius：線を中心からではなく、半径の rin 倍の所から引く（集中線の中心の空き。2026-10-21）。
       points=[rin>0?{x:f.p.x+Math.cos(ra)*rl*rin,y:f.p.y+Math.sin(ra)*rl*rin}:f.p];
-      for(var ri=1;ri<=rs;ri++){var jit=(mote(f.job,f.copy*(s.segmentMoteStride||0)+ri+(s.segmentMoteOffset||0)).angle/TAU-.5)*value(f,'segmentJitter',0),rr0=rl*(rin+(1-rin)*ri/rs);points.push({x:f.p.x+Math.cos(ra+jit)*rr0,y:f.p.y+Math.sin(ra+jit)*rr0});}
+      for(var ri=1;ri<=rs;ri++){var jit=(mote(f.job,f.copy*(s.segmentMoteStride||0)+ri+(s.segmentMoteOffset||0)).angle/TAU-.5)*value(f,'segmentJitter',0);if(rin>0){var rr0=rl*(rin+(1-rin)*ri/rs);points.push({x:f.p.x+Math.cos(ra+jit)*rr0,y:f.p.y+Math.sin(ra+jit)*rr0});}else points.push({x:f.p.x+Math.cos(ra+jit)*rl*ri/rs,y:f.p.y+Math.sin(ra+jit)*rl*ri/rs});}
     }
     if(s.geometry==='grid'){
       var ge=s.gridExtent||6,gsp=s.gridSpacing||[.15,.173],go=s.gridOffset||[0,.0866],period=s.gridPeriod||2,gr=value(f,'radius',1)*dimension(f,s.radiusSpace),cell=value(f,'cellRadius',.1)*f.unit,sides=s.cellSides||6;

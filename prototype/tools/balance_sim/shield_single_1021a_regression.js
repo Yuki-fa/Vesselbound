@@ -81,7 +81,13 @@ function mana(f, text, amount = 4) {
       assert.equal(gains(f.events).length, 0, '指輪の付け直し');
       f.unit.keywords = ['結界9'];
       coreRunOpening(f.state, f.rng, f.emit, f.hit, () => {});
-      assert.equal(gains(f.events).length, 0, '初期結界のshield_setを重複通知しない');
+      // 開戦の shield_set は「今の値に揃える」通知なので、持っていても1件・量1で出す（PvE とオンラインの一致のため）。
+      const opening = f.events.filter(e => e.type === 'shield_set');
+      assert.ok(opening.some(e => e.unitId === f.unit.id), '結界を持つ体の状態通知');
+      assert.equal(new Set(opening.map(e => e.unitId)).size, opening.length, '1体につき1件');
+      assert.ok(opening.every(e => e.amount === 1), '量は常に1');
+      assert.equal(f.unit.shield, 1);
+      assert.equal(f.events.filter(e => e.type === 'keyword_effect' && e.effect === 'shield').length, 0, '初期結界を獲得として通知しない');
     });
     check(side + ' 召喚・栄光の歌・光の指輪・復活・変身でも1', () => {
       const f = fixture({ desc: '常時：このキャラクターが召喚したキャラクターは結界9を得る。' }, side, {
