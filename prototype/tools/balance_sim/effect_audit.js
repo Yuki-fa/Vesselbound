@@ -794,6 +794,21 @@ function audit() {
     recordDirect('ワイバーン', liveFoe.hp === 18 && es.some(e => e.type === 'damage' && e.sourceId === 'wyvern'), `敵HP=${liveFoe.hp}`);
   }
   {
+    // 1020c：数値変更の入口から通し、指輪のATK獲得でも共通誘発へ届くことを守る。
+    const wyvern = makeDirectUnit('ワイバーン', 'p1', { id: 'wyvern-ring' });
+    const s = makeDirectState([wyvern], [{ id: 'wyvern-ring-foe', name: '敵', atk: 1, hp: 20, maxHp: 20 }]);
+    const colorRing = sheetData.sheetRows('ring').find(row =>
+      String(row['効果'] || '').includes(`全ての${wyvern.color}の味方は+10/+10`));
+    assert(colorRing, 'ワイバーンと同色の瞳の指輪がシートにない');
+    s.rings.p1 = [{ name: colorRing['名前'], desc: colorRing['効果'] }];
+    const es = [], rng = createSeededRng(1020), emit = event => es.push(event);
+    const hit = (a, t, n) => core.coreResolveHit(s, a, t, n, false, rng, emit);
+    core.coreApplyOpeningRings(s, rng, emit, hit);
+    recordDirect('ワイバーン', s.units.p2[0].hp === 18
+      && es.filter(event => event.type === 'damage' && event.sourceId === 'wyvern-ring').length === 1,
+    `指輪獲得の誘発、敵HP=${s.units.p2[0].hp}`);
+  }
+  {
     const behemoth = makeDirectUnit('ベヒーモス', 'p1', { id: 'behemoth' });
     const s = makeDirectState([behemoth], [], { p1: { mana: 3, gold: 0 }, p2: { mana: 0, gold: 0 } }); const es = [];
     core.coreApplyReleaseEffects(behemoth, [], s, createSeededRng(83), e => es.push(e), () => ({ amount: 0, died: false }));

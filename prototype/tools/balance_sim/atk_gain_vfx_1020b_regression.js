@@ -22,7 +22,9 @@ async function check(name, run) {
       const before = h.clone(x.state.resources);
       coreApplyManaThresholdEffects(x.state, x.rng, x.emit, x.hit);
       const hits = x.events.filter(e => e.type === 'damage' && e.sourceId === 'wyvern');
-      assert.equal(hits.length, 4, '現行コアの命中回数を演出修正で変えない');
+      // 1020c：別の効果を接続しても、強化本文の「もう一度」を独立して読む。
+      const repeats = require('./sheet_data').effectRepetitions(enhanced ? row['強化効果'] : row['効果']);
+      assert.equal(hits.length, 4 * repeats, 'ATK獲得2回×敵2体×本文の反復回数');
       const activations = new Set(hits.map(e => e.batch)).size;
       assert.ok(hits.every(e => e.effectNo !== 'E045'), '誘発ダメージが活性化の番号を継承している');
       assert.deepEqual(x.state.resources, before, '演出修正で資源を変えない');
