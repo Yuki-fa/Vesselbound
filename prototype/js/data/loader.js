@@ -914,10 +914,7 @@ async function loadGameData() {
       if (row['キーワード'] !== undefined) {
         const kwStr = row['キーワード'].trim();
         unit.keywords = kwStr ? kwStr.split(/[\s、,，]+/).filter(Boolean) : [];
-        unit.shield = unit.keywords.reduce((sum, k) => {
-          if (!/^結界\s*\d*$/.test(k)) return sum;
-          return sum + Math.max(1, parseInt(String(k).replace('結界', '') || '1', 10) || 1);
-        }, 0);
+        unit.shield = coreUnitShieldValue(unit);
         unit.hate = false; unit.hateTurns = 0;
       }
     };

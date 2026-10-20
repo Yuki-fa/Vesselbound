@@ -117,13 +117,14 @@ function _battleFxValues(unit) {
   const keywords = typeof coreUnitKeywords === 'function' ? coreUnitKeywords(unit) : unit.keywords || [];
   // 本文由来の根性・復活は消費後に再び拾わない。後から明示的に付与された分は表示する。
   const hasRoot = keyword => (unit.keywords||[]).includes(keyword) || (!unit._starterRegenUsed && keywords.includes(keyword));
-  return {shield:typeof presentShownShield==='function'?presentShownShield(unit):unit.shield||0,
+  return {shield:Number(typeof presentShownShield==='function'?presentShownShield(unit):unit.shield)>0?1:0,
     poison:unit.poison||0,weaken:typeof presentShownWeaken==='function'?presentShownWeaken(unit):unit.weaken||0,
     guts:hasRoot('根性') ? 1:0,revive:hasRoot('復活') ? 1:0};
 }
 function battleFxAdvanceStates(unit, values) {
   const key = _battleFxKey(unit), entry = _battleFxStates.get(key);
   if (!entry) return;
+  if(Object.prototype.hasOwnProperty.call(values,'shield')) values={...values,shield:Number(values.shield)>0?1:0};
   Object.assign(entry.values,values);
   // 結界消失などは次のrAFを待たず、そのイベントの命中時刻に止める。
   Object.keys(values).forEach(state=>{

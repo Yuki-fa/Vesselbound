@@ -552,11 +552,11 @@ function _itemUsePromptText(pending){
   const step=_itemUseStep(pending);
   const list=_ITEM_USE_PROMPT_FALLBACK[pending.key]||[];
   const fallback=list[step-1]||list[0]||'対象を選んでください。';
-  if(typeof textMessage!=='function') return fallback;
+  if(typeof textMessage!=='function') return _shieldDisplayText(fallback);
   // 2段階のものは「使用時1」「使用時2」、1段階のものは「使用時」。
   const keys=(list.length>1)?[`「${name}」使用時${step}`,`「${name}」使用時`]:[`「${name}」使用時`];
-  for(const k of keys){ const v=textMessage(k,'').trim(); if(v) return v; }
-  return fallback;
+  for(const k of keys){ const v=textMessage(k,'').trim(); if(v) return _shieldDisplayText(v); }
+  return _shieldDisplayText(fallback);
 }
 // CSSの content へ入れる文字列リテラル。引用符とバックスラッシュを閉じないようにする。
 function _cssStringLiteral(text){
@@ -728,7 +728,7 @@ function _handlePendingItemBoardTarget(slotIdx){
   const key=pending.key;
   if(key==='shield_scroll'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
-    card.keywords.push('結界1');
+    card.keywords=[...card.keywords.filter(k=>!coreShieldValueFromKeyword(k)),'結界'];
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='giant_scroll'){

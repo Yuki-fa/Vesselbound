@@ -4611,7 +4611,7 @@ function _makePanelSummonUnit(spec, keywords){
     keywords:[...mergedKeywords],
     // シールドは通常onBattleStart()で戦闘開始時に付与されるが、パネル召喚キャラは
     // onBattleStart()より後に盤面へ現れるため、召喚時点で自前で付与しておく
-    shield:mergedKeywords.reduce((sum,k)=>sum+_shieldValueFromKeyword(k),0),
+    shield:coreUnitShieldValue({keywords:mergedKeywords}),
     sfxType:spec.sfxType||'',
     boardCards:[],
     _panelSummoned:true,
@@ -5759,7 +5759,7 @@ function onBattleStart(){
   G._freeItemPhase='battle';
   G._freeItemUsed=false;
 
-  // 結界X：戦闘開始時にX回分のダメージ無効化結界を得る。
+  // 結界：戦闘開始時に1回だけダメージを無効化する結界を得る。
   G.allies.forEach(a=>{
     if(!a||a.hp<=0||_isSealed(a)) return;
     const shieldValue=_unitShieldValue(a);

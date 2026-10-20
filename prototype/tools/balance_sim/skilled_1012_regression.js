@@ -101,7 +101,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
     coreApplyKeywordOnHit(u,foe,1,foe.hp,h.state,h.emit);
     assert.deepEqual([foe.atk,foe.poison,foe.weaken],[14,2,2]);
     const hp=u.hp;coreApplyPoisonBeforeTurn(u,h.emit);assert.equal(u.hp,hp-2);
-    u.desc='開戦：全ての味方に結界2を付与する。';coreApplyOpeningEffects(u,h.state,h.rng,h.emit,h.hit,0);assert.equal(u.shield,2);
+    u.desc='開戦：全ての味方に結界2を付与する。';coreApplyOpeningEffects(u,h.state,h.rng,h.emit,h.hit,0);assert.equal(u.shield,1,'結界Nは1つ、熟練の補正も受けない');
     const foeHp=foe.hp;h.hit(u,foe,3,false,true);assert.equal(foe.hp,foeHp-5,'ダメージは弱体2だけが加算、熟練は加算しない');checked++;
   }
   // 2体の開戦付与は値を加算する。旧常時は旧本文のある保存だけに残す。

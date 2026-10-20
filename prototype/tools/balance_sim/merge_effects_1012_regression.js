@@ -126,7 +126,7 @@ function concrete(row,merged,text,result) {
   }
   if((m=match(/このキャラクターは(\d+)ダメージを(\d+)回受ける/))) {assert.equal(score.damage,Number(m[1])*Number(m[2]));return;}
   if((m=match(/召喚したキャラクターは結界(\d+)を得る/))) {
-    assert.equal(events.find(e=>e.type==='summon').unit.shield,Number(m[1]));return;
+    assert.equal(events.find(e=>e.type==='summon').unit.shield,1,'結界Nも1つ');return;
   }
   if((m=match(/負傷している敵の数(?:の(\d+)倍|だけ)繰り返す/))) {
     const pair=match(/\+(\d+)\/\+(\d+)/),count=state.units[other].filter(x=>x.hp>0&&x.hp<x.maxHp).length*(Number(m[1])||1);
@@ -312,7 +312,7 @@ async function pveBridgeChecks() {
         const result=exercise(row,merged,desc,1,side);concrete(row,merged,desc,result);
         for(const k of kw) {
           const numeric=k.match(/^(衝撃|毒牙|邪眼|結界)(\d+)$/);
-          if(numeric) assert.ok(coreKeywordSum(result.u,numeric[1])>=Number(numeric[2]));
+          if(numeric) assert.ok(coreKeywordSum(result.u,numeric[1])>=(numeric[1]==='結界'?1:Number(numeric[2])));
         }
         const suffix=desc.match(/。(?:これ|この判定)を(?:(\d+)回|もう一度)繰り返す。$/);
         if(suffix&&!desc.includes('即死')) {

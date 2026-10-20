@@ -107,8 +107,8 @@ function runGenericFleeAndEnemyRingScenario() {
   assert.equal(keywordTargets.length, 3, '指輪回帰用の開戦召喚が成立していない');
   keywordTargets.forEach(unit => {
     assert.equal(core.coreAttackSpread(unit), 'tri', `${unit.id}へ三方向攻撃が付与されていない`);
-    assert.ok(core.coreUnitKeywords(unit).includes('結界1'), `${unit.id}へ結界1が付与されていない`);
-    assert.equal(unit.shield, 1, `${unit.id}の結界1が実効シールドへ反映されていない`);
+    assert.ok(core.coreUnitKeywords(unit).includes('結界'), `${unit.id}へ結界が付与されていない`);
+    assert.equal(unit.shield, 1, `${unit.id}の結界が実効シールドへ反映されていない`);
   });
   assert.equal(keywordEvents.filter(e => e.reason === 'opening_ring_enemy_keyword').length, 6,
     '敵全体キーワード指輪のイベント数が初期2体＋開戦召喚1体×2種と一致しない');
@@ -118,7 +118,7 @@ function runGenericFleeAndEnemyRingScenario() {
   core.runBattleCore(keywordContinued, createSeededRng(906), {turnLimit: 1, skipOpening: true});
   keywordContinued.units.p2.filter(Boolean).forEach(unit => {
     assert.notEqual(core.coreAttackSpread(unit), 'tri', 'skipOpeningで三方向攻撃が再付与されている');
-    assert.equal(core.coreUnitKeywords(unit).includes('結界1'), false, 'skipOpeningで結界1が再付与されている');
+    assert.equal(core.coreUnitKeywords(unit).includes('結界'), false, 'skipOpeningで結界が再付与されている');
     assert.equal(unit.shield, 0, 'skipOpeningで結界が再生成されている');
   });
 }
