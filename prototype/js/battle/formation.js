@@ -122,7 +122,7 @@ function buildBoardFormation(board, opts) {
     // コピーを1体生成する」＝ツインデビルと同じく、出撃は1体で、コピーはコアの開戦効果が召喚する。
     // ここで2体にすると、戦闘開始前から2体並んで見えていた（利用者報告 2026-09-22）。
     const baseCount = openingCopy ? 1 : rawCount;
-    const enh = (typeof _collectAdjacentEnhancements === 'function') ? _collectAdjacentEnhancements(board, idx) : null;
+    const enh = (typeof _collectAdjacentEnhancements === 'function') ? _collectAdjacentEnhancements(board, idx, stageNumber) : null;
     const contributingPanels = (typeof _collectEnhancementPanelsForSlot === 'function')
       ? _collectEnhancementPanelsForSlot(board, idx) : [];
     const openingCopyExtra = (baseCount > 1 && typeof _panelEffectKeywordCount === 'function')

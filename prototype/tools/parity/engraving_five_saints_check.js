@@ -28,6 +28,17 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
       }
       const keywordRows=Object.fromEntries(engravingNos.map(no=>[no,cards[no]?_enchantPreviewKeywords(cards[no]):[]]));
 
+      const fateFormation=(stage,value)=>{
+        const character=makePanel(PANEL_POOL.find(card=>card.no==='C003').id);
+        character.power=value;character.life=value;character.directions=['left'];
+        const fate=makePanel(defs.E066.id);fate.directions=['right'];
+        const board={boardCards:new Array(15).fill(null)};
+        board.boardCards[0]=fate;board.boardCards[1]=character;
+        const unit=buildBoardFormation(board,{persistEternal:false,stageNumber:stage}).ordered[0].unit;
+        unit.id='fate';
+        return unit;
+      };
+
       const stageEffects=stage=>{
         const make=(id,effects,extra={})=>({id,name:id,atk:100,hp:100,maxHp:100,
           // 再開データに古い値が残っていても、stateの現在ステージが優先されることも同時に見る。
@@ -36,12 +47,13 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
           const rng=createSeededRng(100+stage),events=[];
           const state=createBattleState({stageNumber:stage,
             resources:{p1:{mana:0,gold:200},p2:{mana:0,gold:0}},
-            sides:{p1:{units:[make('fate',['宿業の刻印'])]},p2:{units:[make('foe',[],{atk:1})]}}});
+            sides:{p1:{units:[fateFormation(stage,100)]},p2:{units:[make('foe',[],{atk:1})]}}});
           const emit=event=>events.push(event);
           const hit=(source,target,amount,counter,_a,_b,opt)=>coreResolveHit(state,source,target,amount,counter,rng,emit,opt||{});
           coreRunOpening(state,rng,emit,hit,()=>{});
           const unit=state.units.p1[0];
           return {atk:unit.atk,hp:unit.hp,maxHp:unit.maxHp,
+            initial:events.find(event=>event.type==='battle_start').sides.p1[0].atk,
             change:events.find(event=>event.reason==='fate_engraving')||null};
         };
         const runAttack=()=>{
@@ -77,7 +89,7 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
         resources:{p1:{mana:0,gold:200},p2:{mana:0,gold:0}},
         sides:{
           p1:{units:[
-            {id:'fate',name:'味方A',atk:80,hp:80,maxHp:80,effectData:{effectNames:['宿業の刻印'],effectTexts:[]}},
+            fateFormation(4,80),
             {id:'discipline',name:'味方B',atk:20,hp:80,maxHp:80,effectData:{effectNames:['修道の刻印'],effectTexts:[]}},
           ]},
           p2:{units:[{id:'enemy',name:'敵',atk:8,hp:160,maxHp:160}]},
@@ -181,10 +193,12 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
     check('ステージ4の説明文へXを数値展開',result.descriptions[4].E066.includes('-20/-20')
       &&result.descriptions[4].E077.includes('20ダメージ')&&result.descriptions[4].E078.includes('80ゴールド')
       &&result.descriptions[4].E079.includes('ATK-20')&&/封印20/.test(result.descriptions[4].E080),JSON.stringify(result.descriptions[4]));
-    check('宿業・受難・苦悶・修道・我慢がステージ1の値で解決',result.effects1.opening.atk===95
+    check('宿業は編成時、受難・苦悶・修道・我慢は各効果時にステージ1の値で解決',result.effects1.opening.atk===95
+      &&result.effects1.opening.initial===95&&result.effects1.opening.change===null
       &&result.effects1.opening.hp===95&&result.effects1.death.damage===5&&result.effects1.death.goldSpend===20
       &&result.effects1.attack.atk.every(value=>value===95)&&result.effects1.seal===5,JSON.stringify(result.effects1));
-    check('宿業・受難・苦悶・修道・我慢がステージ4の値で解決',result.effects4.opening.atk===80
+    check('宿業は編成時、受難・苦悶・修道・我慢は各効果時にステージ4の値で解決',result.effects4.opening.atk===80
+      &&result.effects4.opening.initial===80&&result.effects4.opening.change===null
       &&result.effects4.opening.hp===80&&result.effects4.death.damage===20&&result.effects4.death.goldSpend===80
       &&result.effects4.attack.atk.every(value=>value===80)&&result.effects4.seal===20,JSON.stringify(result.effects4));
     check('刻印戦闘効果の直接コア／オンライン経路が一致',result.parity);

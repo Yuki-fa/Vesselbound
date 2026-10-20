@@ -47,7 +47,7 @@
       name: snap.name || info.name || '',
       atk: snap.atk,
       hp: Math.max(0, snap.hp),
-      maxHp: Math.max(1, snap.maxHp || snap.hp || 1),
+      maxHp: Math.max(0, snap.maxHp != null ? snap.maxHp : (snap.hp || 1)),
       lane: snap.lane === 'rear' ? 'rear' : 'front',
       color: snap.color || info.color || '',
       race: snap.race || info.race || '',

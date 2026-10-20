@@ -4291,7 +4291,7 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
   return result.map(entry=>({...entry,panel:runLevelDisplayCard(entry.panel,unit)}));
 }
 
-function _collectAdjacentEnhancements(unit, slotIdx){
+function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
   const enh={atk:0,hp:0,keywords:[],abilities:[],strategyCount:0,strategyMultiplier:0,weakenOnHit:0,manaOnAttack:0,manaOnInjury:0,manaOnDeath:0,goldOnBattleEnd:0,goldOnDeath:0,randomItemOnBattleEnd:false,randomItemCost:0,effectRepeatBonus:0,uniteGroups:[],manaThresholds:[],effectNames:[],effectScales:{},effectTexts:[],permanentEffectCards:[],releaseAtkBonus:0,releaseHpBonus:0,engravingStages:{}};
   const panels=_collectEnhancementPanelsForSlot(unit,slotIdx);
   _recordBattleTrace('adjacent_enhancements_resolved',{slotIdx,unitId:unit&&unit.id||null,names:panels.map(x=>x&&x.panel&&x.panel.name||''),indices:panels.map(x=>x&&x.idx)});
@@ -4324,8 +4324,10 @@ function _collectAdjacentEnhancements(unit, slotIdx){
       for(let i=0;i<copies;i++) enh.effectNames.push(name);
       enh.effectScales[name]=Math.max(enh.effectScales[name]||1,copies);
     }
-    enh.atk+=panel.adjacentAtkBonus||0;
-    enh.hp+=panel.adjacentHpBonus||0;
+    const stats=corePanelStatBonuses(panel,{stageNumber:stageNumber
+      ||Number(typeof G!=='undefined'&&G&&G._wave)||1});
+    enh.atk+=stats.atk;
+    enh.hp+=stats.hp;
     enh.releaseAtkBonus=Math.max(enh.releaseAtkBonus,Number(panel.releaseAtkBonus)||0);
     enh.releaseHpBonus=Math.max(enh.releaseHpBonus,Number(panel.releaseHpBonus)||0);
     enh.manaOnAttack+=panel.manaOnAttack||0;

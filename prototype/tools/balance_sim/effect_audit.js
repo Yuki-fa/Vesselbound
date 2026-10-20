@@ -710,6 +710,19 @@ function audit() {
     if (ok) explicitCoverage.add(name); else ng++;
     directResults.push(`${name}=${detail || (ok ? 'OK' : 'NG')}${ok ? '' : ' [NG]'}`);
   };
+  // 宿業は常時の編成修正。開戦イベントとしてもう一度引かない（両陣営）。
+  for (const side of ['p1', 'p2']) {
+    const definition = sheetData.enchantCards().find(card => card.name === '宿業の刻印');
+    const bonus = core.corePanelStatBonuses({ ...definition, _engravingStage: 2 }, { stageNumber: 5 });
+    const raw = { id: 'fate-static', name: '常時修正の検査体', atk: 60 + bonus.atk, hp: 80 + bonus.hp,
+      effectData: { effectNames: [definition.name], effectTexts: [definition.desc] } };
+    const state = core.createBattleState({ stageNumber: 5, sides: { [side]: { units: [raw] } } });
+    const events = [];
+    core.createBattleRunner(state, createSeededRng(1020), event => events.push(event));
+    const unit = state.units[side][0];
+    recordDirect('宿業の刻印', bonus.atk === -10 && bonus.hp === -10 && unit.atk === 50 && unit.hp === 70
+      && !events.some(event => event.reason === 'fate_engraving'), `${side} 編成=${raw.atk}/${raw.hp} 開戦=${unit.atk}/${unit.hp}`);
+  }
   const plainDirectUnit = (id, side, extra = {}) => ({ id, name: '監査対象', side, atk: 2, hp: 10, maxHp: 10, color: '赤', keywords: [], desc: '', ...extra });
 
   // ナーガ：本文のHP修正が召喚1件につき1回、ゲーム中の累積値へ入る。

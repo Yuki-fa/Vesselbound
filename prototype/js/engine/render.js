@@ -4153,8 +4153,9 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
   });
   const charDescMap=new Map();
   list.filter(e=>e.panel&&e.panel.characterDesc&&e.panel.name!=='策士').forEach(e=>{
-    const key=`${e.panel._tripleMerged?'merged':'base'}::${e.panel.name}::${e.panel.characterDesc}`;
-    if(!charDescMap.has(key)) charDescMap.set(key,{name:_cardUiName(e.panel),text:e.panel.characterDesc,count:0});
+    const text=_stageEngravingDescription(e.panel,e.panel.characterDesc);
+    const key=`${e.panel._tripleMerged?'merged':'base'}::${e.panel.name}::${text}`;
+    if(!charDescMap.has(key)) charDescMap.set(key,{name:_cardUiName(e.panel),text,count:0});
     charDescMap.get(key).count++;
   });
   const normalTexts=[...normalMap.values()].map(g=>g.count>1?`${g.text}（×${g.count}）`:g.text);
@@ -5187,12 +5188,15 @@ function _stageEngravingDescription(card,desc){
   const stage=(typeof engravingCardStage==='function'&&engravingCardStage(card))
     ||Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
   let value=stage*(name==='苦悶の刻印'||no==='E078'?20:5);
-  if(name==='宿業の刻印'||name==='修道の刻印'||no==='E066'||no==='E079'){
+  if(name==='宿業の刻印'||no==='E066'){
+    value=-corePanelStatBonuses(card,{stageNumber:stage}).atk;
+  }else if(name==='修道の刻印'||no==='E079'){
     value=-coreBoonDynamicValue(card,card.desc,-value,'mod');
   }else if(name==='受難の刻印'||no==='E077') value=coreBoonDynamicValue(card,card.desc,value,'damage');
   let out=String(desc||'');
   if(name==='宿業の刻印'||no==='E066'){
     out=out.replace(/-\s*\d+\s*\/\s*-\s*\d+/,`-${value}/-${value}`);
+    out=out.replace(/「[^」]+」(?=の効果で)/,`「${_cardUiName(card)}」`);
   }
   return out.replace(/X/g,String(value));
 }
