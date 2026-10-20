@@ -5187,7 +5187,9 @@ function _summonNameAnnotation(name, owner, isSummon, context){
     atk=stats.atk;hp=stats.hp;
   }
   const head=kws.length?`${kws.join('・')}を持つ`:'';
-  const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${atk}/${hp}の`:'';
+  // シートの「∞」は内部では SHEET_INFINITY_VALUE（loader.js）。表示は ∞ に戻す（鬼神の指輪の赤イフリート）。
+  const shown=v=>typeof SHEET_INFINITY_VALUE!=='undefined'&&v>=SHEET_INFINITY_VALUE?'∞':v;
+  const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${shown(atk)}/${shown(hp)}の`:'';
   return `${head}${stat}`;
 }
 // 「〇〇」を召喚／「〇〇」に変身 の直前へ注釈を差し込む。
@@ -5199,6 +5201,12 @@ function _annotateSummonNames(desc, owner, context){
     const note=_summonNameAnnotation(name, owner,/^を\d*体?召喚/.test(whole.slice(offset+m.length)),context);
     return note?`${note}${m}`:m;
   });
+}
+// 指輪の説明文（表示用）。指輪が眷属を召喚する本文にも、キャラの説明文と同じく
+// 「〜を持つX/Xの「〇〇」」を添える（2026-10-21 利用者指定：不死の指輪）。効果の判定は元の本文（ring.desc）のまま。
+function ringDisplayDesc(ring){
+  const desc=String(ring&&(ring.desc||ring.description||ring.effectText||ring.effect)||'').trim();
+  return desc?_annotateSummonNames(desc,ring):'';
 }
 // 刻印カードに記録した取得時のステージ（無ければ0）。
 function engravingCardStage(card){

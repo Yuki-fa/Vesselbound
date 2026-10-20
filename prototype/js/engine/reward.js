@@ -1571,7 +1571,7 @@ function _syncRewardProductionRings(){
     slot._rewardRing=ring;
     slot.classList.toggle('ring-disabled',!!(ring&&ring._disabled));
     const title=String(ring&&ring.name||'').trim();
-    const desc=String(ring&&(ring.desc||ring.description||ring.effectText||ring.effect)||'').trim();
+    const desc=typeof ringDisplayDesc==='function'?ringDisplayDesc(ring):String(ring&&(ring.desc||ring.description||ring.effectText||ring.effect)||'').trim();
     slot.classList.remove('rarity-1','rarity-2','rarity-3','rarity-4','rarity-5');
     if(ring&&(title||desc)){
       slot.setAttribute('data-preview',[title||'指輪',desc].filter(Boolean).join('\n'));
@@ -1683,7 +1683,7 @@ function _openRingActionConfirm(idx,anchor){
   if(tip?.dataset.rewardLocked==='1'
     &&tip.dataset.rewardAnchorKind==='ring'
     &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
-  const ringDesc=ring.desc||ring.description||ring.effectText||ring.effect||'';
+  const ringDesc=typeof ringDisplayDesc==='function'?ringDisplayDesc(ring):(ring.desc||ring.description||ring.effectText||ring.effect||'');
   const cancel={label:_uiLabel('「やめる」ボタン','やめる'),onClick:()=>_closeItemUseConfirm()};
   const locked=typeof questRingActionsLocked==='function'&&questRingActionsLocked(ring);
   // 依頼品の指輪は、無効化・捨てるを消さずに暗くして押せなくする（2026-09-27 利用者指定）。
@@ -1943,7 +1943,7 @@ function _renderRingOfferCards(el){
       div.classList.add('ring-visual-filled');
       div.style.setProperty('--ring-art',`url("${path}")`);
     }
-    const preview=[ring.name||'指輪',ring.desc||''].filter(Boolean).join('\n');
+    const preview=[ring.name||'指輪',typeof ringDisplayDesc==='function'?ringDisplayDesc(ring):(ring.desc||'')].filter(Boolean).join('\n');
     div.setAttribute('data-preview',preview);
     if(!unlocked){
       div.classList.add('ring-offer-locked');

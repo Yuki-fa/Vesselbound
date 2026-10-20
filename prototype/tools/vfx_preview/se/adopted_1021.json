@@ -140,5 +140,15 @@
     "labWired": false,
     "duration": 1.95,
     "sha256": "7149545f4d97ff5163d01e7337f0b702e7396a95ea70e5849746505f0697d9fe"
+  },
+  "gremlinWeaken": {
+    "code": "gremlinWeaken",
+    "effect": "gremlin-weaken",
+    "candidate": "gremlin-weaken-1",
+    "file": "assets/sfx/gremlin_weaken.wav",
+    "source": "K001.wav",
+    "sourcePath": null,
+    "note": "2026-10-21 即死（K001）を death-mark 候補1へ差し替えたので、グレムリンの弱体に使う旧即死SEを別名で保持",
+    "sha256": "5f36fe2bd2f3497d85aaa2bf8cade6b013cce1d290c2b9856780864ad79778b7"
   }
 }
