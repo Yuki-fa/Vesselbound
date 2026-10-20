@@ -1209,7 +1209,8 @@ var VbFxRenderer = (function () {
     else if (s.anchor === 'board') {
       var b = job.board && job.board.getBoundingClientRect ? job.board.getBoundingClientRect() : { left: 0, top: 0, width: width, height: height };
       rects = [{ left: b.left - curShift.x, top: b.top - curShift.y, width: b.width, height: b.height, right: b.left + b.width - curShift.x, bottom: b.top + b.height - curShift.y }];
-    } else { rects = job[s.anchor] || []; rects = rects.length ? [box(rects)] : []; }
+    } else if (s.anchor === 'targets' && job.targetsBox) rects = [job.targetsBox];  // 呼び出し側が範囲を決めた時（全体攻撃の最大の大きさ）
+    else { rects = job[s.anchor] || []; rects = rects.length ? [box(rects)] : []; }
     return rects.map(function (r, index) { return { rect: r, index: index }; }).filter(function (entry) { return !s.indices || s.indices.indexOf(entry.index) >= 0; });
   }
   var blurCanvas = null;
@@ -1395,6 +1396,7 @@ var VbFxRenderer = (function () {
         });
         var speed = clamp(Number(options.speed) || settings.speed, def.playback.speedMin, def.playback.speedMax);
         job = { id: ++sequence, def: def, options: options, source: source, targets: targets, allies: allies, enemies: enemies,
+          targetsBox: options.targetsBox ? normalize(options.targetsBox) : null,
           from: from, angle: angle, spread: Math.min(Math.PI * .98, spread), reach: reach, start: null,
           ms: options.durationMs == null ? duration(name, speed) : options.durationMs,
           seed: Number.isFinite(options.seed) ? options.seed : Number.isFinite(settings.seed) ? settings.seed : sequence,

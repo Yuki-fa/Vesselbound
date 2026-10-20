@@ -94,7 +94,7 @@ function playBattleLabFx(code, source, targets, options) {
     allies:(G.allies||[]).filter(Boolean).map(u=>battleFxRect(u,'ally')).filter(Boolean),
     enemies:(G.enemies||[]).filter(Boolean).map(u=>battleFxRect(u,'enemy')).filter(Boolean),
     board:document.getElementById('battle-field')||document.querySelector('#scr-battle .battle-area'),
-    speed,durationMs:opt.durationMs,value:opt.value,seekMs,impactTimesMs:opt.impactTimes?opt.impactTimes.map(t=>t*ms):undefined,
+    speed,durationMs:opt.durationMs,value:opt.value,seekMs,...(opt.targetsBox?{targetsBox:opt.targetsBox}:{}),impactTimesMs:opt.impactTimes?opt.impactTimes.map(t=>t*ms):undefined,
     cueTimesMs:opt.cueTimes?opt.cueTimes.map(t=>t*ms):undefined,onCue:opt.onCue,
     dir:random[0]%2?1:-1,resolveElement:_battleFxResolveElement,
     // 召喚の登場など、出した後にカードの詰め直しで位置が動く演出は、カードの位置を毎コマ追いかける。

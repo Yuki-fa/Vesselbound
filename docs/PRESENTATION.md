@@ -721,6 +721,7 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - FIX（`tools/vfx_preview/lab_fixed.js`）：02・03・05・06・08・22・27・32・33・46・50・54・57・66・67・69・71・74・75・76・96・124・134〜138、SEを決めた19・23・26・51・55・65・103・130・132、62、129・131。
 - SE採用（`adopt_se.py`、台帳 adopted_1021.json）：sealed-power 候補3（E057）、steal-mark 候補3（C090）、penance-ring 候補2（R012）、shockwave 候補2（E071）、gold-loss 候補1（E078）、sleep-sheep・incubus 候補1（C042・C084）、all-ring・all-roar 候補2（未使用のため印だけ）。
 - SE選び直し：加護（ring-eye-*）の候補2・3、重圧（intimidate-ring）の候補1・3、即死（death-mark）の3候補。グレムリンの後に続く弱体の音は今の即死の音（K001）を当てる案（LAB の gremlin-weaken、ゲームも同じ）。
+- 全体攻撃の演出（131 交差する光刃・129 白い芯の横一閃）：攻撃キャラに追従させず、敵の数で大きさを変えない。範囲は相手の盤面の横幅いっぱい × 敵がいる列（前衛・後衛の両方なら盤面全体＝131、どちらかだけならその列＝129）（`render.js: _attackAllFxBox`、VbFx の `targetsBox`）。発生元は攻撃キャラの盤面の定位置を固定の四角で渡す（向きは従来どおり）。
 - ケンタウロスの矢（centaur-missile）：LAB の2.5倍速を標準に（定義の尺 672→269ms、ゲームの飛行時間も C019 だけ 269ms。`PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE`）。
 
 ## 2026-10-20 VFX・SEの調整（利用者指摘）

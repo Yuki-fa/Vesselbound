@@ -1198,6 +1198,16 @@ async function playEffectFlash(unit, side, color, count){
 // **ここが唯一の描画実装**（PvE・オンライン共通）。呼ぶのは接触した瞬間で、
 // 呼び出し側は完了を待たない（待つと複数対象のダメージ数値の時刻がずれる）。
 // 大きさ・位置のつまみは present.js（PRESENT_CONTACT_*）が唯一の定義。
+// 全体攻撃の範囲：相手の盤面の横幅いっぱい × 敵がいる列（前衛／後衛）の縦の範囲。敵の数・位置で変えない。
+function _attackAllFxBox(list,side){
+  const field=document.getElementById(side==='enemy'?'f-enemy':'f-ally');
+  if(!field||typeof _captureUnitDamageRect!=='function') return null;
+  const fr=field.getBoundingClientRect();
+  const rects=list.map(u=>_captureUnitDamageRect(u,side)).filter(r=>r&&r.width>0&&r.height>0);
+  if(!rects.length||!(fr.width>0)) return null;
+  const top=Math.min(...rects.map(r=>r.top)),bottom=Math.max(...rects.map(r=>r.top+r.height));
+  return {left:fr.left,top,width:fr.width,height:bottom-top};
+}
 async function playAttackContactVfx({attacker, targets, targetSide, mode, path, duration, fadeDuration, onPass}){
   _syncEffectFlashWithVfx();
   const list=(targets||[]).filter(Boolean);
@@ -1205,7 +1215,15 @@ async function playAttackContactVfx({attacker, targets, targetSide, mode, path, 
   if(mode==='all'){
     const lanes=new Set(list.map(u=>u&&u.lane==='rear'?'rear':'front'));
     const sweep=list.length>1&&lanes.size===1;
-    return playBattleLabFx(sweep?'K009_SWEEP':getKeywordAssetKey('全体攻撃'),attacker,list);
+    // 2026-10-21 利用者指定：攻撃キャラに追従させず、敵の数で大きさを変えない。
+    // 前衛・後衛がいれば相手の盤面全体（最大の大きさ）に交差する光刃、前衛か後衛だけならその列の最大の幅に横一閃。
+    const side=targetSide||((list[0]&&list[0].side==='p2')?'enemy':'ally');
+    const box=_attackAllFxBox(list,side);
+    // 発生元は攻撃キャラの盤面の定位置を固定の四角で渡す（向きは従来どおり、動く複製には付いていかない）。
+    const home=attacker&&typeof _captureUnitDamageRect==='function'
+      ?_captureUnitDamageRect(attacker,side==='enemy'?'ally':'enemy'):null;
+    return playBattleLabFx(sweep?'K009_SWEEP':getKeywordAssetKey('全体攻撃'),attacker,list,
+      {...(home?{sourceRect:{...home,element:null}}:{}),...(box?{targetsBox:box}:{})});
   }
   if(!list.length||!path||typeof playHitVfxAtRect!=='function') return false;
   const side=targetSide||((list[0].side==='p2')?'enemy':'ally');
