@@ -3059,6 +3059,8 @@ function refreshUnitPreviewUi(unit,side){
   if(!preview) return false;
   slot.setAttribute('data-preview',preview);
   slot.querySelectorAll('.unit-hit-layer').forEach(el=>el.setAttribute('data-preview',preview));
+  const description=slot.querySelector('.slot-desc');
+  if(description) description.outerHTML=_unitCombinedDescHtml(unit,plainDesc,_unitDescSlotIdx(unit,idx>=0?idx:0));
   return true;
 }
 
@@ -5176,15 +5178,24 @@ function _summonNameAnnotation(name, owner, isSummon, context){
     ?coreApplyUnitRunLevels(def,owner._runLevelsApplied,{familiar:coreRunLevelIsFamiliar(context||owner)}):def;
   let atk=Number(form.power!=null?form.power:form.atk);
   let hp=Number(form.life!=null?form.life:form.hp);
-  // 敵カードの召喚文は、召喚先カードの基礎値ではなく、実戦と同じく
-  // 召喚元（敵）の現在ATK／最大HPの80%を表示する。
-  if(owner&&owner._sheetEnemy&&typeof coreEnemySummonStats==='function'){
-    const actual=coreEnemySummonStats(owner);
-    if(actual){ atk=actual.atk; hp=actual.hp; }
-  }
   if(isSummon&&owner){
-    const stats=coreApplySummonBoon({atk,hp},owner.boon);
+    const summoner=context||owner;
+    const side=summoner.side||(summoner._sheetEnemy||(G.enemies||[]).includes(summoner)?'p2':'p1');
+    const playing=presentIsPlaying()||G.phase==='battle'||G.phase==='enemy';
+    const shown=playing&&presentSummonPreviewState();
+    const state=shown||{gameSummonBuff:{p1:G.gameSummonBuff},
+      rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},items:{p1:playing?G.activeBattleItems||[]:[],p2:[]}};
+    const units=sideUnits=>(playing?sideUnits:[]).filter(Boolean).map(u=>({...u,
+      atk:presentShownAtk(u),hp:presentShownHp(u),maxHp:presentShownMaxHp(u)}));
+    const source={...summoner,atk:summoner.atk??summoner.power,hp:summoner.hp??summoner.life,
+      maxHp:summoner.maxHp??summoner.life??summoner.hp};
+    const stats=corePreviewSummonStats({...state,units:{p1:units(G.allies||[]),p2:units(G.enemies||[])}},side,def,
+      {...source,atk:presentShownAtk(source),hp:presentShownHp(source),maxHp:presentShownMaxHp(source)},owner.boon);
     atk=stats.atk;hp=stats.hp;
+  }else if(owner&&owner._sheetEnemy){
+    // 変身の注釈は、従来どおり元の敵の現在戦力を使う。
+    const actual=coreEnemySummonStats(owner);
+    if(actual){atk=actual.atk;hp=actual.hp;}
   }
   const head=kws.length?`${kws.join('・')}を持つ`:'';
   const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${atk}/${hp}の`:'';

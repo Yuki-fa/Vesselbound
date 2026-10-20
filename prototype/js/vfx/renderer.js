@@ -269,9 +269,9 @@ var VbFxRenderer = (function () {
         // seekMs：演出の途中から始める（戦闘の結界消失は、ひびの溜めを飛ばして割れる瞬間から。2026-10-20 利用者指定）。
         job.start = now - Math.min(job.ms, Math.max(0, Number(job.options.seekMs) || 0));
         clearTimeout(job.watchdog);
-        if (!job.def.loop) job.watchdog = setTimeout(function () { finish(job, false); }, job.ms - (now - job.start) + 100);
+        if (!job.def.loop) job.watchdog = setTimeout(function () { finish(job, false); }, job.ms * job.endRatio - (now - job.start) + 100);
       }
-      var t = clamp((now - job.start) / job.ms);
+      var t = Math.min(job.endRatio, clamp((now - job.start) / job.ms));
       if (job.def.loop) {
         job.cycle = Math.floor((now - job.start) / job.ms);
         t = (now - job.start) / job.ms;  // ループは時間を折り返さない（動きが継ぎ目で飛ばないよう、連続した時間で描く）
@@ -349,7 +349,7 @@ var VbFxRenderer = (function () {
       } catch (e) { finish(job, false, e); }
       ctx = frameContext;
       frameContext.restore();
-      if (t >= 1 && !job.def.loop) finish(job, false);
+      if (t >= job.endRatio && !job.def.loop) finish(job, false);
     });
     inFrame = false;
     if (jobs.length && !raf) raf = requestAnimationFrame(tick);
@@ -1418,6 +1418,7 @@ var VbFxRenderer = (function () {
         if (!def) throw new Error('VbFx: 未知の演出 ' + name);
         options = options || {};
         if (options.durationMs != null && (!Number.isFinite(options.durationMs) || options.durationMs <= 0 || options.durationMs > 30000)) throw new TypeError('VbFx: durationMs は0超〜30000msの有限数');
+        if (options.endRatio != null && (!Number.isFinite(options.endRatio) || options.endRatio <= 0 || options.endRatio > 1)) throw new TypeError('VbFx: endRatio は0超〜1の有限数');
         ensureLayer();
         if (options.repeat) def = Object.assign({}, def, { loop: true });
         var allies = (options.allies || []).filter(Boolean).map(normalize), enemies = (options.enemies || []).filter(Boolean).map(normalize);
@@ -1461,6 +1462,7 @@ var VbFxRenderer = (function () {
           targetsBox: options.targetsBox ? normalize(options.targetsBox) : null,
           from: from, angle: angle, spread: Math.min(Math.PI * .98, spread), reach: reach, start: null,
           ms: options.durationMs == null ? duration(name, speed) : options.durationMs,
+          endRatio: options.endRatio == null || def.loop ? 1 : options.endRatio,
           seed: Number.isFinite(options.seed) ? options.seed : Number.isFinite(settings.seed) ? settings.seed : sequence,
           unit: source.width * (Number(options.size) || def.playback.baseSize || settings.size), size: Number(options.size) || def.playback.baseSize || settings.size,
           particles: clamp(settings.particles, .2, 2), hit: new Set(), cues:new Set(), hitAt: [], styles: [], nodes: [], sprites: {}, assetErrors: [],
@@ -1500,7 +1502,7 @@ var VbFxRenderer = (function () {
         targets.forEach(function(r,i){job.hitAt.push(impactAt(def,job,r,i));});
         jobs.push(job);
         // 非表示タブでも Promise と後片付けが終わる番人。描画開始時に実尺で掛け直す。
-        job.watchdog = setTimeout(function () { finish(job, false); }, job.ms + 200);
+        job.watchdog = setTimeout(function () { finish(job, false); }, job.ms * job.endRatio + 200);
         if (!raf && !inFrame) raf = requestAnimationFrame(tick);
       } catch (e) {
         if (job) finish(job, false, e);

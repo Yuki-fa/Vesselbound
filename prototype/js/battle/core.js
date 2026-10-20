@@ -2492,6 +2492,34 @@ function coreEnemySummonStats(source) {
   };
 }
 
+// 召喚の基礎値・眷属倍率。表示もここを呼び、ラン中の累積補正はこの後に掛ける。
+function coreSummonBaseStats(source, sourceUnit, side, spec, summonBoon) {
+  if (side === 'p2' && sourceUnit && !sourceUnit.boon && !summonBoon && !(spec && spec._revivedFromDead)) {
+    const enemyStats = coreEnemySummonStats(sourceUnit);
+    source = { ...source, atk: enemyStats.atk, hp: enemyStats.hp, maxHp: enemyStats.hp };
+  }
+  return coreApplySummonBoon(source, summonBoon);
+}
+
+// 表示のための写しだけへ、実際の召喚と同じ能力補正を適用する。
+// 盤面・累積値を複製し、イベント・乱数・召喚位置・戦闘の誘発を外へ出さない。
+function corePreviewSummonStats(state, side, definition, sourceUnit, summonBoon) {
+  const copy = value => value == null ? value : JSON.parse(JSON.stringify(value));
+  const preview = { ...state, units: { p1: copy(state.units && state.units.p1 || []), p2: copy(state.units && state.units.p2 || []) },
+    _summonBuff: copy(state._summonBuff), gameSummonBuff: copy(state.gameSummonBuff), _summonCount: { ...state._summonCount } };
+  const sourceId = sourceUnit && sourceUnit.id;
+  let owner = preview.units[side].find(u => u && u.id === sourceId);
+  if (!owner && sourceUnit) { owner = copy(sourceUnit); preview.units[side].push(owner); }
+  const source = coreSummonBaseStats({ ...copy(definition),
+    atk: Number(definition.power ?? definition.atk) || 0,
+    hp: Number(definition.life ?? definition.hp) || 1,
+    maxHp: Number(definition.life ?? definition.maxHp ?? definition.hp) || 1 }, owner, side, null, summonBoon);
+  const child = createCoreUnit(source, side, 0);
+  coreMarkBattleSummon(child);
+  coreApplySummonStatEffects(preview, child, null, owner, sourceId, () => {});
+  return { atk: child.atk, hp: child.hp };
+}
+
 // 旧PvEの直接生成入口も、この分類・眷属効果の実装を共有する。
 function coreMarkBattleSummon(unit) {
   unit.keywords = Array.isArray(unit.keywords) ? unit.keywords : [];
@@ -2572,6 +2600,72 @@ function coreApplyKenzokuBonuses(state, child, emit, sourceUnit, sourceId, { sta
   if (stats && (summonerBonus.atk || summonerBonus.hp)) addStats(summonerBonus.atk, summonerBonus.hp, 'summoner_ring');
 }
 
+// 召喚直後の能力補正。実際の召喚と説明文の試算が同じ順序・同じ計算を使う。
+// rng/applyHitを渡さない試算では、ATK獲得による攻撃等の後続誘発は起こさない。
+function coreApplySummonStatEffects(state, child, spec, sourceUnit, sourceId, emit, rng, applyHit) {
+  const side = child.side, list = state.units[side] || [];
+  // 紫修正は盤面ぜんぶを作り直す（召喚された体にも、既にいる体にも同じ値が乗る）。
+  child._voidWalkerBonus = child.color === '紫' ? corePurpleModifierBonus(state.units[side]) : 0;
+  // 召喚時の共通受動効果。カード名ではなく、現在の戦闘状態に存在する効果を参照する。
+  const summonCount = (state._summonCount = state._summonCount || {})[side] || 0;
+  const addStats = (target, atk, hp, reason) => {
+    atk = coreStatBonus(target, atk, sourceUnit); hp = coreStatBonus(target, hp, sourceUnit);
+    target.atk = Math.max(0, target.atk + atk); target.maxHp += hp; target.hp += hp;
+    emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason, sourceId: sourceId || null });
+    coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
+  };
+  const sideUnits = list.filter(x => x && x.hp > 0);
+  const activeItems = state.items && state.items[side] || [];
+  // **開戦中に召喚された体にも、盤面に居た体と同じ指輪・巻物を掛ける。**
+  // 開戦の指輪（coreApplyOpeningRings）と開戦のアイテム（coreApplyOpeningItems）は
+  // 開戦効果より前に走るので、開戦効果で召喚された体（複製・ミテーラ等）は
+  // そのままだと指輪のバフを1つも受け取れない。
+  // 配り終えた印（_openingRingsApplied／_openingItemsApplied）が立っていれば掛ける。
+  // **元の値を写したコピー（複製の力など）には掛けない。** 写した値に指輪の分が既に入っているため、
+  // 掛けると指輪が二重に乗り、コピーだけ元より大幅に強くなっていた（虹の瞳の指輪等。2026-09-25 利用者報告）。
+  if (spec && spec._inheritsStats) {
+    // 何も掛けない（下の色の指輪も同じ理由で掛けない）。
+  } else if (state._openingPhase) {
+    if (state._openingRingsApplied) {
+      coreApplyOpeningRingsToUnitEarly(state, child, emit, rng, applyHit);
+      const enemyOwnerSide = side === 'p1' ? 'p2' : 'p1';
+      coreResolvedRings(state, enemyOwnerSide)
+        .forEach(ring => coreApplyOpeningEnemyRingToUnit(ring, child, emit, state, rng, applyHit));
+      coreApplyOpeningRingsToUnitLate(state, child, emit);
+    }
+  } else {
+    coreApplySummonEyeRings(state, child, emit, sourceUnit, sourceId, rng, applyHit);
+  }
+  const bondCount = activeItems.filter(item => String(item && item.itemEffectKey || item && item.key || '') === 'bond_scroll').length;
+  if (bondCount && (!state._openingPhase || state._openingItemsApplied)) {
+    addStats(child, bondCount * 5, bondCount * 5, 'bond_scroll_summon');
+  }
+  const nextSummonCount = coreApplyKenzokuSummonEffects(state, child, emit, sourceId, { summonCount, sourceUnit, sideUnits }, rng, applyHit);
+  // ── 常時：このキャラクターが召喚したキャラクターは〜（進軍／栄光／報復の歌）──
+  // **召喚元だけを見る。** 陣営全体に効く「味方の眷属は〜」（ファントム）とは別物。
+  // 付ける中身は本文から読む（+X/+Y／結界N／「死亡：〜」の付与）。
+  if (sourceUnit) {
+    for (const songStats of coreTriggerEffectEntries(sourceUnit, '常時', /このキャラクターが召喚したキャラクターは\+(\d+)\/?\+(\d+)を得る/)) {
+      addStats(child, Number(songStats[1]) || 0, Number(songStats[2]) || 0, 'march_song');
+    }
+    for (const _songShield of coreTriggerEffectEntries(sourceUnit, '常時', /このキャラクターが召喚したキャラクターは結界\d*を得る/)) {
+      coreGrantShield(child, emit, { reason: 'glory_song' });
+    }
+    // 「死亡：〜」をそのまま効果文として持たせる。**中身は解釈しない**
+    // （死亡効果の解決は coreApplyDeathEffects が本文から読む唯一の実装）。
+    const songPattern=/このキャラクターが召喚したキャラクターは「(死亡：[^」]+)」を得る/;
+    const songDeaths=coreTriggerEffectEntries(sourceUnit,'常時',songPattern);
+    const deathTexts=songDeaths.map(m=>m[1]);
+    for (const deathText of deathTexts) {
+      const texts = (child.effectData && child.effectData.effectTexts) || [];
+      child.effectData = { ...(child.effectData || {}), effectTexts: [...texts, deathText] };
+      emit({ type: 'keyword_effect', effect: 'effect_gain', side, unitId: child.id,
+        text: deathText, reason: 'revenge_song' });
+    }
+  }
+  return { sideUnits, nextSummonCount };
+}
+
 function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect, rng, applyHit) {
   const list = state.units[side] || (state.units[side] = []);
   // 召喚上限は配列長ではなく、生存中の実ユニット数で判定する。
@@ -2618,13 +2712,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect, rng, ap
   const summonBoon = spec && spec._summonBoon || (summonEffect && coreBoonForEffect(sourceUnit, summonEffect));
   // 敵側の戦闘中召喚は、通常モードと同じく召喚元の現在戦力の80%にする。
   // 召喚元をIDで解決できない指輪由来などは、明示された値をそのまま使う。
-  if (side === 'p2' && sourceUnit && !sourceUnit.boon && !summonBoon && !(spec && spec._revivedFromDead)) {
-    const enemyStats = coreEnemySummonStats(sourceUnit);
-    source.atk = enemyStats.atk;
-    source.hp = enemyStats.hp;
-    source.maxHp = source.hp;
-  }
-  source = coreApplySummonBoon(source, summonBoon);
+  source = coreSummonBaseStats(source, sourceUnit, side, spec, summonBoon);
   // PvEの負傷・マナ効果は呼び出しごとに薄いコアstateを作り直すため、
   // state内の連番だけでは同じ召喚元から常に同じIDが再生成される。表示側が
   // 同一IDを既存ユニットとして再利用してしまうと、召喚数が増えず、召喚体の
@@ -2694,65 +2782,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect, rng, ap
     child._manaThresholdBaseline = Math.max(0, Number(state.resources
       && state.resources[side] && state.resources[side].mana) || 0);
   }
-  // 紫修正は盤面ぜんぶを作り直す（召喚された体にも、既にいる体にも同じ値が乗る）。
-  child._voidWalkerBonus = child.color === '紫' ? corePurpleModifierBonus(state.units[side]) : 0;
-  // 召喚時の共通受動効果。カード名ではなく、現在の戦闘状態に存在する効果を参照する。
-  const summonCount = (state._summonCount = state._summonCount || {})[side] || 0;
-  const addStats = (target, atk, hp, reason) => {
-    atk = coreStatBonus(target, atk, sourceUnit); hp = coreStatBonus(target, hp, sourceUnit);
-    target.atk = Math.max(0, target.atk + atk); target.maxHp += hp; target.hp += hp;
-    emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason, sourceId: sourceId || null });
-    coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
-  };
-  const sideUnits = list.filter(x => x && x.hp > 0);
-  const activeItems = state.items && state.items[side] || [];
-  // **開戦中に召喚された体にも、盤面に居た体と同じ指輪・巻物を掛ける。**
-  // 開戦の指輪（coreApplyOpeningRings）と開戦のアイテム（coreApplyOpeningItems）は
-  // 開戦効果より前に走るので、開戦効果で召喚された体（複製・ミテーラ等）は
-  // そのままだと指輪のバフを1つも受け取れない。
-  // 配り終えた印（_openingRingsApplied／_openingItemsApplied）が立っていれば掛ける。
-  // **元の値を写したコピー（複製の力など）には掛けない。** 写した値に指輪の分が既に入っているため、
-  // 掛けると指輪が二重に乗り、コピーだけ元より大幅に強くなっていた（虹の瞳の指輪等。2026-09-25 利用者報告）。
-  if (spec && spec._inheritsStats) {
-    // 何も掛けない（下の色の指輪も同じ理由で掛けない）。
-  } else if (state._openingPhase) {
-    if (state._openingRingsApplied) {
-      coreApplyOpeningRingsToUnitEarly(state, child, emit, rng, applyHit);
-      const enemyOwnerSide = side === 'p1' ? 'p2' : 'p1';
-      coreResolvedRings(state, enemyOwnerSide)
-        .forEach(ring => coreApplyOpeningEnemyRingToUnit(ring, child, emit, state, rng, applyHit));
-      coreApplyOpeningRingsToUnitLate(state, child, emit);
-    }
-  } else {
-    coreApplySummonEyeRings(state, child, emit, sourceUnit, sourceId, rng, applyHit);
-  }
-  const bondCount = activeItems.filter(item => String(item && item.itemEffectKey || item && item.key || '') === 'bond_scroll').length;
-  if (bondCount && (!state._openingPhase || state._openingItemsApplied)) {
-    addStats(child, bondCount * 5, bondCount * 5, 'bond_scroll_summon');
-  }
-  const nextSummonCount = coreApplyKenzokuSummonEffects(state, child, emit, sourceId, { summonCount, sourceUnit, sideUnits }, rng, applyHit);
-  // ── 常時：このキャラクターが召喚したキャラクターは〜（進軍／栄光／報復の歌）──
-  // **召喚元だけを見る。** 陣営全体に効く「味方の眷属は〜」（ファントム）とは別物。
-  // 付ける中身は本文から読む（+X/+Y／結界N／「死亡：〜」の付与）。
-  if (sourceUnit) {
-    for (const songStats of coreTriggerEffectEntries(sourceUnit, '常時', /このキャラクターが召喚したキャラクターは\+(\d+)\/?\+(\d+)を得る/)) {
-      addStats(child, Number(songStats[1]) || 0, Number(songStats[2]) || 0, 'march_song');
-    }
-    for (const _songShield of coreTriggerEffectEntries(sourceUnit, '常時', /このキャラクターが召喚したキャラクターは結界\d*を得る/)) {
-      coreGrantShield(child, emit, { reason: 'glory_song' });
-    }
-    // 「死亡：〜」をそのまま効果文として持たせる。**中身は解釈しない**
-    // （死亡効果の解決は coreApplyDeathEffects が本文から読む唯一の実装）。
-    const songPattern=/このキャラクターが召喚したキャラクターは「(死亡：[^」]+)」を得る/;
-    const songDeaths=coreTriggerEffectEntries(sourceUnit,'常時',songPattern);
-    const deathTexts=songDeaths.map(m=>m[1]);
-    for (const deathText of deathTexts) {
-      const texts = (child.effectData && child.effectData.effectTexts) || [];
-      child.effectData = { ...(child.effectData || {}), effectTexts: [...texts, deathText] };
-      emit({ type: 'keyword_effect', effect: 'effect_gain', side, unitId: child.id,
-        text: deathText, reason: 'revenge_song' });
-    }
-  }
+  const { sideUnits, nextSummonCount } = coreApplySummonStatEffects(state, child, spec, sourceUnit, sourceId, emit, rng, applyHit);
   if (!child._openingDuplicate) {
     const wild = coreEffectCount(child, '野生の力');
     if (wild) {
@@ -6796,7 +6826,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced, coreGameSummonBuffFields, coreApplyDeathSummonGrantEvent,
     coreShieldValueFromKeyword, coreUnitShieldValue, coreUnitHasKeyword,
     coreUnitKeywordCount, coreIsSealed, coreCanAct, coreAttackDamage, coreCounterDamage,
-    coreSummonUnit, coreMarkBattleSummon, coreApplyKenzokuSummonEffects,
+    coreSummonUnit, corePreviewSummonStats, coreMarkBattleSummon, coreApplyKenzokuSummonEffects,
     coreStealUnit, coreFleesInsteadOfAttack, coreSweepAtkZeroFlee, coreFlushPendingLichSummons, coreTransformUnit, coreRestoreDeferredState,
     coreBeginSummonBatch, coreEndSummonBatch, coreApplyWargThreshold,
     corePickFirstSide, coreManaThresholdDescFromText, createBattleRunner, coreInsertSummonedUnit,
