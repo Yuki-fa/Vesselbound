@@ -173,6 +173,12 @@ function concrete(row,merged,text,result) {
     const formed=coreApplyFormationPassives(holders);assert.equal(formed.count,2);
     assert.ok(holders.every(x=>x.atk===20+2*Number(m[1])&&x.maxHp===40+2*Number(m[1])));return;
   }
+  // 宿業の刻印（常時：-X/-X）は 2026-10-20 から内なる大力などと同じく編成の時点で入る（戦闘中のイベントは出ない）。
+  if(text.includes('-X/-X')) {
+    const formed=subjectFor(row,merged).unit,base=PANEL_POOL.find(c=>c.no==='C064');
+    assert.ok(formed.atk<base.power||formed.atk===0,`ATKが編成で下がる ${formed.atk}/${base.power}`);
+    assert.ok(formed.maxHp<base.life||formed.maxHp===0,`HPが編成で下がる ${formed.maxHp}/${base.life}`);return;
+  }
   if(text.includes('ATKは常にHP')) {assert.equal(coreAttackDamage({...u,hp:13,atk:1},plain('target')),13);return;}
   if(text.includes('最もHPの低い敵')) {const foes=[plain('high'),plain('low','青',{hp:1})];assert.equal(coreSelectAttackTarget(u,foes,createSeededRng(4)).id,'low');return;}
   if(text.includes('分散される')) {assert.ok(u._uniteGroups?.length,'団結の接続が入力へ渡る');return;}

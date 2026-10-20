@@ -728,6 +728,7 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - コピー（ツインデビル・複製の力）の枠はコピー元と同じ（`core.js` の `_copyFrame`：見た目だけの印。`assets.js: applyUnitVisual`・`render.js` が見る。検査 copy_frame_1020_regression.js）。
 - 説明文で「」に括ったカード名は、キーワードを含んでも太字にしない（「宿業の刻印」の刻印など。括った中身がキーワードそのもの「毒牙」は太字。`render.js: _previewKeywordMatchAllowed`）。
 - 祝福の炎の強化は、カード合体と同じ merge.wav を白光の開始で鳴らす。
+- 複数キャラの同じマナ効果（2026-10-20 利用者指定）：同じ発動回・同じ効果の能力更新・VFXは体数によらず同時に見せ、SEは重ねない（`present.js`・`present_events.js`）。20マナ・活性化×2の盤面で1体／3体／6体とも待ち時間の合計6.57秒（修正前は6体で20.95秒）。尺（PRESENT_MANA_RUN_GAP_MS・PRESENT_CARD_EFFECT_VFX_MS）と順番は据え置き。検査 multi_unit_mana_speed_1020f_regression.js。
 - 召喚の登場（S001）：光をカードの位置に毎コマ追従させる（followGeometry）。召喚後の詰め直しでカードが動くと光だけ元の位置に残っていた。
 - 魔導板のマスの変化（board-summon／board-enchant）：入れ物をマスと同じ大きさにし（旧画像素材の頃の「マス×2.6・16:9」をやめる）、魔法陣・ルーンの輪をカードに収める。枠の光はカード枠に沿う。
 - 生命の光（map-life）：HPなのでピンク系にし、ハートは花びらの紋に替えた。スキュラの毒のしずくは毒の状態と同じ深い緑に。石化（medusa-gaze）の広がる石の板はカードの縦横比に。

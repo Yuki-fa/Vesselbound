@@ -86,7 +86,8 @@ async function check(name, run) {
           // 今回直す演出番号1項目だけを正規化する。他のダメージ・番号は全て比較する。
           events.push(e.type==='damage'&&e.sourceId==='C058'&&e.effectNo==='E045'?{...e,effectNo:null}:e);
         }});
-        return clean({result,events,final:api.battleCoreFinalState(state),rngNext:rng.next()});
+        // _copyFrame はコピーの枠を決める見た目だけの印（2026-10-20 に後から追加）。比較から外す。
+        return clean(JSON.parse(JSON.stringify({result,events,final:api.battleCoreFinalState(state),rngNext:rng.next()},(k,v)=>k==='_copyFrame'?undefined:v)));
       });
       assert.deepEqual(results[1],results[0],`${def.no}/${side}`);count++;
     }
