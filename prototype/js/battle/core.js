@@ -5104,11 +5104,22 @@ function coreApplyRingManaEffects(state, rng, emit, applyHit) {
   if (!count) return;
   const progress = Math.floor((Number(state.resources.p1.mana) || 0) / 10);
   while ((state._stormRingFireCount || 0) < progress) {
+    const foes = (state.units.p2 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
+    // 敵が全滅したら、残りの到達分は発動済みとして捨てる（次の戦闘へ持ち越さない。2026-10-20 利用者指定）。
+    if (!foes.length) { state._stormRingFireCount = progress; break; }
     state._stormRingFireCount = (state._stormRingFireCount || 0) + 1;
     const amount = (Number(state.resources.p1.mana) || 0) * 5;
-    coreHitAll(state, rng, emit, applyHit, null, (state.units.p2 || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)), amount);
+    coreHitAll(state, rng, emit, applyHit, null, foes, amount);
     emit({ type: 'ring_effect', ring: '嵐の指輪', side: 'p1', amount });
   }
+}
+// 闘技場の継戦の開始時：持ち越したマナで到達済みの閾値（味方のマナ効果・嵐の指輪）は発動済みにする。
+// 前の戦闘で敵が全滅して処理されなかった効果を、次の戦闘の開始時に発動させない（2026-10-20 利用者指定）。
+function coreConsumeCarriedManaEffects(state) {
+  if (!state) return;
+  coreApplyManaThresholdEffects(state, null, () => {}, () => null, { consumeOnly: true });
+  state._stormRingFireCount = Math.max(Number(state._stormRingFireCount) || 0,
+    Math.floor((Number(state.resources && state.resources.p1 && state.resources.p1.mana) || 0) / 10));
 }
 function coreRevivalRingAvailable(unit, state) {
   const used = unit.side === 'p2' ? state._revivalRingUsedP2 : state._revivalRingUsed;
@@ -5487,6 +5498,10 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
   const deferAll = !!state.deferManaThresholdEffects;
   const forcedUnitId = options && options.force ? String(options.onlyUnitId || '') : '';
   let forcedTriggered = false;
+  // consumeOnly：到達済みの閾値を「発動済み」に数えるだけで、効果は起こさない。
+  // 闘技場の継戦で、前の戦闘で処理されなかったマナ効果を次の戦闘の開始時に持ち越さないために使う
+  // （2026-10-20 利用者指定：マナ効果や他の未処理効果はwaveを跨がない）。
+  const consumeOnly = !!(options && options.consumeOnly);
   // **どちらかの陣営が全滅していたら、もう何も発動させない。**
   // 勝敗が付いた後もマナ効果が走ると、開戦で敵が全滅したのに炎の矢が飛び続け、
   // 誰もいない所へ向かった演出が画面に残る（利用者報告）。
@@ -5496,7 +5511,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
     const arr = (state.units[side] || []).filter(u => u && !u._isObject && !u._isSoul);
     return arr.length > 0 && !arr.some(u => u.hp > 0);
   };
-  if (coreSideWipedOut('p1') || coreSideWipedOut('p2')) return;
+  if (!consumeOnly && (coreSideWipedOut('p1') || coreSideWipedOut('p2'))) return;
   let changed = true;
   // 1パスで発動するのは (ユニット×閾値) ごとに1回のため、
   // 「1マナ毎」に高マナで到達している場合は到達回数分のパスが要る。
@@ -5508,7 +5523,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
     // 同じ効果を持つ複数のキャラクターを1体ずつ順にではなく同時に見せる。
     // 通し番号は戦闘全体で増やす。パス番号のままだと、攻撃・負傷など別の機会に
     // 起きた発動が同じ番号になり、再生側が「同じ瞬間」と誤認する。
-    state._coreManaWaveSeq = (Number(state._coreManaWaveSeq) || 0) + 1;
+    if (!consumeOnly) state._coreManaWaveSeq = (Number(state._coreManaWaveSeq) || 0) + 1;
     const wave = state._coreManaWaveSeq;
     // ── 発動順 ──────────────────────────────────────
     // **シートの「マナ順位」が小さいものから処理する。**
@@ -5623,6 +5638,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
         fireCounts[t.key] = fired + 1;
         // 閾値到達回数が残っている間は、次のパスでも同じ効果を発火する。
         changed = true;
+        if (consumeOnly) return;
         const outputThresholdEmit = emit;
         const resolveThreshold = (emit = outputThresholdEmit) => {
         const text = t.desc;
@@ -6767,7 +6783,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreApplyDeathEffects,
     coreApplyDeathObservers, coreApplyAttackObservers, coreApplyAttackRing,
     coreApplyShieldLostEffects,
-    coreApplyRingManaEffects,
+    coreApplyRingManaEffects, coreConsumeCarriedManaEffects,
     coreApplyInjuryEffects,
     coreApplyReleaseEffects,
     coreApplyOpeningItems,

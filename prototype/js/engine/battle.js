@@ -44,6 +44,8 @@ function _syncCoreResourcesToG(state){
 function _syncCoreManaToG(state){
   if(!state||!state.resources||!state.resources.p1) return;
   G.mana=Math.max(0,Number(state.resources.p1.mana)||0);
+  // 嵐の指輪の発動済み回数も戻す（継戦の次の戦闘へ引き継ぐ）。
+  if(state._stormRingFireCount!=null) G._stormRingFireCount=Math.max(0,Number(state._stormRingFireCount)||0);
 }
 function _syncCoreBloodToG(state){
   if(!state||!state.blood) return;
@@ -2350,6 +2352,15 @@ async function startBattle(){
   G._revivalRingUsed=false;
   G._oniRingAttackCount=0;
   G._stormRingFireCount=0;
+  // 闘技場などの継戦：持ち越したマナで到達済みのマナ効果・嵐の指輪は発動済みにする。
+  // 前の戦闘で敵が全滅して処理されなかった効果を、この戦闘の開始時に発動させない（2026-10-20 利用者指定）。
+  if(carryBattle&&typeof coreConsumeCarriedManaEffects==='function'){
+    const carried={units:{p1:(G.allies||[]).slice(),p2:[]},resources:{p1:{mana:Math.max(0,Number(G.mana)||0),gold:0},p2:{mana:0,gold:0}},
+      rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},items:{p1:[],p2:[]}};
+    (carried.units.p1||[]).forEach((u,i)=>{ if(u){ u.side='p1'; u.slot=i; } });
+    coreConsumeCarriedManaEffects(carried);
+    G._stormRingFireCount=Number(carried._stormRingFireCount)||0;
+  }
   G._enemyDeathsThisBattle=0;
 
   const waveEnemyKey=`${Number(G._wave)||1}:${Number(G._waveStage)||1}:${String(G._waveBattleType||'')}`;
@@ -2600,6 +2611,8 @@ function _createPveCoreState(){
     life:{p1:_currentBattleLife(),p2:0},
     maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
     blood:{p1:Math.max(0,Number(G._blood)||0),p2:Math.max(0,Number(G._enemyBlood)||0)},
+    // 嵐の指輪の発動済み回数（継戦では前の戦闘から引き継ぐ。通常の戦闘は開始時に0）。
+    _stormRingFireCount:Math.max(0,Number(G._stormRingFireCount)||0),
     ..._pveCoreStageFields(),
     maxUnits:{p1:(typeof MAX_ALLIES==='number'&&MAX_ALLIES)||14,
       p2:(typeof MAX_ENEMIES==='number'&&MAX_ENEMIES)||14},
