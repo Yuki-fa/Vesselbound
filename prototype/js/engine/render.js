@@ -1194,7 +1194,12 @@ async function playEffectFlash(unit, side, color, count){
 async function playAttackContactVfx({attacker, targets, targetSide, mode, path, duration, fadeDuration, onPass}){
   _syncEffectFlashWithVfx();
   const list=(targets||[]).filter(Boolean);
-  if(mode==='all') return playBattleLabFx(getKeywordAssetKey('全体攻撃'),attacker,list);
+  // 2026-10-20 利用者指定：敵が前衛だけ・後衛だけの時は、列を交差する光刃ではなく「白い芯の横一閃」（同じSE）。
+  if(mode==='all'){
+    const lanes=new Set(list.map(u=>u&&u.lane==='rear'?'rear':'front'));
+    const sweep=list.length>1&&lanes.size===1;
+    return playBattleLabFx(sweep?'K009_SWEEP':getKeywordAssetKey('全体攻撃'),attacker,list);
+  }
   if(!list.length||!path||typeof playHitVfxAtRect!=='function') return false;
   const side=targetSide||((list[0].side==='p2')?'enemy':'ally');
   const rectOf=unit=>typeof _captureUnitDamageRect==='function'?_captureUnitDamageRect(unit,side):null;
@@ -2770,7 +2775,8 @@ function playSummonAppearVfx(unit, side){
   return new Promise(resolve=>{
     let shown=false;
     const reveal=()=>{ if(shown) return; shown=true; slot.style.removeProperty('visibility'); resolve(); };
-    playBattleLabFx('S001',unit,[unit],{side,onImpact:reveal}).finally(reveal);
+    // 2026-10-20 利用者指摘：召喚後の詰め直しでカードが動くと、光だけ元の位置に残っていた。カードに追従させる。
+    playBattleLabFx('S001',unit,[unit],{side,onImpact:reveal,follow:true}).finally(reveal);
   });
 }
 

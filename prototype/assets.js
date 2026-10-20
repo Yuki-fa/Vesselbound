@@ -317,6 +317,7 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    K009_SWEEP: 'assets/sfx/K009.wav', // 全体攻撃（敵が1列だけの時の白い芯の横一閃。音は全体攻撃と同じ）
     C055: 'assets/sfx/C055.wav', // LAB採用（2026-10-20 hydra-reward 候補1）
     'map:life': 'assets/sfx/map_life.wav', // LAB採用（2026-10-20 map-life 候補1）
     E030: 'assets/sfx/E030.wav', // LAB採用（2026-10-20 alchemy 候補2）

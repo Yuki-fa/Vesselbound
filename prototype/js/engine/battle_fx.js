@@ -95,6 +95,8 @@ function playBattleLabFx(code, source, targets, options) {
     speed,durationMs:opt.durationMs,value:opt.value,impactTimesMs:opt.impactTimes?opt.impactTimes.map(t=>t*ms):undefined,
     cueTimesMs:opt.cueTimes?opt.cueTimes.map(t=>t*ms):undefined,onCue:opt.onCue,
     dir:random[0]%2?1:-1,resolveElement:_battleFxResolveElement,
+    // 召喚の登場など、出した後にカードの詰め直しで位置が動く演出は、カードの位置を毎コマ追いかける。
+    ...(opt.follow?{followGeometry:true}:{}),
     onImpact:i=>{ if(typeof opt.onImpact==='function') opt.onImpact(located[i]?located[i].index:i); }});
   if(!opt.silent)_battleFxSound(code,speed,ms,spec[2] === 'howl',opt.cueTimes&&opt.cueTimes.length?opt.cueTimes[0]*ms:undefined);
   // 効果は直列。再描画で発生元DOMが替わっても遠吠えの区間で確実に閉じる。

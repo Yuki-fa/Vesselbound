@@ -6219,6 +6219,11 @@ function coreBattleStepInner(ctx) {
       if (spread) contactModes.push(spread);
       // **貫く相手がいない時は、貫通の演出も出さない**（利用者指定）。
       if (coreUnitHasKeyword(attacker, '貫通') && pierceVictimIds.size) contactModes.push('pierce');
+      // 2026-10-20 利用者指定：敵が1体しかいない時は、全体攻撃・三方向攻撃・貫通を無効にする（演出・SEとも通常の攻撃）。
+      // 対象が1体なので与えるダメージは変わらない。
+      const aliveFoes = (state.units[side === 'p1' ? 'p2' : 'p1'] || [])
+        .filter(u => u && u.hp > 0 && !u._fled && !u._isObject && !u._isSoul).length;
+      if (aliveFoes <= 1) contactModes.length = 0;
       const hitOpts = { deferTriggers: true, collect: pending,
         suppressAttackHitSfx: contactModes.length > 0 };
       coreWithDamageKind(state, 'combat', () => {

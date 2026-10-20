@@ -149,6 +149,7 @@ const SFX_SETTINGS={
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    K009_SWEEP: {group:'magic',volume:.70,maxPlayMs:0}, // 白い芯の横一閃（全体攻撃と同じ音）
     C055: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 hydra-reward 候補1）
     'map:life': {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 map-life 候補1）
     E030: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 alchemy 候補2）

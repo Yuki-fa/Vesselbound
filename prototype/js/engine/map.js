@@ -3225,15 +3225,15 @@ async function _playMapBoardChangeVfx(isSummon,targetSlotIdx,onMidpoint){
   await new Promise(resolve=>{
     const host=document.createElement('div');
     host.className='map-board-change-vfx';
-    // 対象マスの中心へ重ねる。
+    // 対象マスとぴったり同じ大きさで重ねる（2026-10-20 利用者指摘：魔法陣が大きく枠がカード枠に合わない）。
+    // 旧画像素材の頃の「マス×2.6・16:9」の入れ物だと、枠の輪が横長になり魔法陣も大きすぎた。
     if(rect&&rect.width&&rect.height){
-      const size=Math.max(rect.width,rect.height)*2.6;
-      host.style.left=`${rect.left+rect.width/2}px`;
-      host.style.top=`${rect.top+rect.height*0.5}px`;
-      host.style.width=`${size}px`;
+      host.style.left=`${rect.left}px`;
+      host.style.top=`${rect.top}px`;
+      host.style.width=`${rect.width}px`;
       host.style.maxWidth='none';
-      host.style.height=`${size*1080/1920}px`;
-      host.style.transform='translate(-50%,-50%)';
+      host.style.height=`${rect.height}px`;
+      host.style.transform='none';
     }
     if(!rect||!rect.width||!rect.height){
       // 旧画像の既定640px・上限70vwと16:9を保ち、空のdivでも有効な矩形を作る。

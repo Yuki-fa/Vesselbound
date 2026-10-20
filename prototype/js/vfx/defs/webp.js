@@ -17511,11 +17511,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.8
+                  0.6
                 ],
                 [
                   1,
-                  0.6
+                  0.46
                 ]
               ],
               "interpolation": "ease-out"
@@ -17544,7 +17544,7 @@ VbFxDefs.register({
           "color": "#5ad87a",
           "texture": "magic-circle",
           "blend": "add",
-          "radius": 0.62,
+          "radius": 0.46,
           "time": [
             0,
             0.85
@@ -17589,15 +17589,15 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.95
+                  0.66
                 ],
                 [
                   0.5,
-                  0.55
+                  0.42
                 ],
                 [
                   1,
-                  0.58
+                  0.44
                 ]
               ],
               "interpolation": "ease-out"
@@ -17614,7 +17614,7 @@ VbFxDefs.register({
           "color": "#5ad87a",
           "light": "#e8ffe8",
           "shadow": "#0a3a14",
-          "radius": 0.5,
+          "radius": 0.38,
           "time": [
             0.05,
             0.8
@@ -17658,15 +17658,15 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.8
+                  0.56
                 ],
                 [
                   0.55,
-                  0.45
+                  0.34
                 ],
                 [
                   1,
-                  0.48
+                  0.36
                 ]
               ],
               "interpolation": "ease-out"
@@ -17682,12 +17682,12 @@ VbFxDefs.register({
           "motion": "orbit",
           "count": 16,
           "countScale": "none",
-          "orbit": 0.6,
+          "orbit": 0.45,
           "orbitVelocity": 0.12,
           "angleSpeed": 1.6,
           "color": "#e8ffe8",
           "time": [
-            0.0,
+            0,
             0.4166666666666667
           ],
           "radialCurve": {
@@ -17842,11 +17842,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.25
+                  0.2
                 ],
                 [
                   1,
-                  0.8
+                  0.6
                 ]
               ],
               "interpolation": "ease-out"
@@ -17862,7 +17862,7 @@ VbFxDefs.register({
           "motion": "radial-drag",
           "color": "#e8ffe8",
           "count": 14,
-          "radius": 0.8,
+          "radius": 0.55,
           "afterglow": true,
           "glint": true,
           "time": [
@@ -17910,7 +17910,7 @@ VbFxDefs.register({
             0.92
           ],
           "riseY": [
-            1.0,
+            1,
             -0.2
           ],
           "sway": 0.03,
@@ -18019,11 +18019,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.8
+                  0.6
                 ],
                 [
                   1,
-                  0.6
+                  0.46
                 ]
               ],
               "interpolation": "ease-out"
@@ -18052,7 +18052,7 @@ VbFxDefs.register({
           "color": "#5aa8ff",
           "texture": "magic-circle",
           "blend": "add",
-          "radius": 0.62,
+          "radius": 0.46,
           "time": [
             0,
             0.85
@@ -18097,15 +18097,15 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.95
+                  0.66
                 ],
                 [
                   0.5,
-                  0.55
+                  0.42
                 ],
                 [
                   1,
-                  0.58
+                  0.44
                 ]
               ],
               "interpolation": "ease-out"
@@ -18122,7 +18122,7 @@ VbFxDefs.register({
           "color": "#5aa8ff",
           "light": "#e8f4ff",
           "shadow": "#0a2a5a",
-          "radius": 0.5,
+          "radius": 0.38,
           "time": [
             0.05,
             0.8
@@ -18166,15 +18166,15 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.8
+                  0.56
                 ],
                 [
                   0.55,
-                  0.45
+                  0.34
                 ],
                 [
                   1,
-                  0.48
+                  0.36
                 ]
               ],
               "interpolation": "ease-out"
@@ -18190,12 +18190,12 @@ VbFxDefs.register({
           "motion": "orbit",
           "count": 16,
           "countScale": "none",
-          "orbit": 0.6,
+          "orbit": 0.45,
           "orbitVelocity": 0.12,
           "angleSpeed": 1.6,
           "color": "#e8f4ff",
           "time": [
-            0.0,
+            0,
             0.4166666666666667
           ],
           "radialCurve": {
@@ -18350,11 +18350,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.25
+                  0.2
                 ],
                 [
                   1,
-                  0.8
+                  0.6
                 ]
               ],
               "interpolation": "ease-out"
@@ -18370,7 +18370,7 @@ VbFxDefs.register({
           "motion": "radial-drag",
           "color": "#e8f4ff",
           "count": 14,
-          "radius": 0.8,
+          "radius": 0.55,
           "afterglow": true,
           "glint": true,
           "time": [
@@ -18418,7 +18418,7 @@ VbFxDefs.register({
             0.92
           ],
           "riseY": [
-            1.0,
+            1,
             -0.2
           ],
           "sway": 0.03,

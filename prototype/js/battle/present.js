@@ -1822,7 +1822,7 @@ const PRESENT_LAB_FX = {
   R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.45,'foes'],
   'map:life':['map-life',0.243979,'friends'], 'map:resonance':['map-resonance',0.072292,'friends'], 'map:duplicate':['map-duplicate',0.45,'self'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
-  [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
+  [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], K009_SWEEP:['all-sweep',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
   [getKeywordAssetKey('結界','gain')]:['shield-gain',.22,'target'], [getKeywordAssetKey('復活','gain')]:['revive-gain',.24,'target'],
   shield_break:['shield-break',0.318812,'target'],
