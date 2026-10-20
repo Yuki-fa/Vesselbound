@@ -154,7 +154,46 @@ const SaveRun=(()=>{
     state.location={scene:G._wave,stage:G._waveStage,node:G._mapBattle?.nodeId||null,screen:G._waveVillage?'village':'battle'};
     return state;
   }
+  // ── 戦闘イベント列の保存形（2026-10-20） ──────────────────────────────
+  // マナ効果が何百回も重なる盤面では1戦で数万件のイベントになり（同じ体への+1/+1が連続で7件並ぶ等）、
+  // current/backup の2世代でブラウザの保存上限を超えて「セーブに失敗しました」になった。
+  // 保存する時だけ、手番（frame）の中で**全く同じイベントが続く所**を {type:'__run',n,e} の1件にまとめ、読む時に元へ戻す。
+  // 戦闘の中身・順番は変えない（戻した列は元と完全に一致する）。
+  function packBattleEvents(p){
+    if(!p||!Array.isArray(p.events)||!Array.isArray(p.frames)||p.eventsPacked) return p;
+    const events=[],frames=[];
+    for(const f of p.frames){
+      const from=events.length;
+      for(let i=f.from;i<f.to;){
+        const key=JSON.stringify(p.events[i]);let j=i+1;
+        while(j<f.to&&JSON.stringify(p.events[j])===key) j++;
+        events.push(j-i>1?{type:'__run',n:j-i,e:p.events[i]}:p.events[i]);
+        i=j;
+      }
+      frames.push({...f,from,to:events.length});
+    }
+    return {...p,events,frames,eventsPacked:1};
+  }
+  function unpackBattleEvents(p){
+    if(!p||!p.eventsPacked||!Array.isArray(p.events)||!Array.isArray(p.frames)) return p;
+    const events=[],frames=[];
+    for(const f of p.frames){
+      const from=events.length;
+      for(let i=f.from;i<f.to;i++){
+        const e=p.events[i];
+        if(e&&e.type==='__run'){ for(let k=0;k<e.n;k++) events.push(k?JSON.parse(JSON.stringify(e.e)):e.e); }
+        else events.push(e);
+      }
+      frames.push({...f,from,to:events.length});
+    }
+    const {eventsPacked,...rest}=p;
+    return {...rest,events,frames};
+  }
+  function unpackRunSave(raw){
+    return raw&&raw.pendingBattle&&raw.pendingBattle.eventsPacked?{...raw,pendingBattle:unpackBattleEvents(raw.pendingBattle)}:raw;
+  }
   function validate(raw){
+    raw=unpackRunSave(raw);
     const save=SaveMigrations.migrate('run',raw),a=SaveMigrations.assert,s=save.state;
     a(typeof save.runId==='string'&&s,'ラン状態がありません');
     a(save.checkpoint&&CHECKPOINT_TYPES.has(save.checkpoint.type),'保存地点が不正です');
@@ -243,7 +282,10 @@ const SaveRun=(()=>{
   function saveRun(save){
     // 表示は不可逆操作を確定する10契機からだけ明示的に呼ぶ。
     // ここで出すと、会話済み印などの表示不要な保存まで画面へ出てしまう。
-    return SaveStorage.write('run',save,validate);
+    // 保存するのはまとめた形。validate は戻してから検査する。呼び出し側へは元の形を返す。
+    const packed=save&&save.pendingBattle?{...save,pendingBattle:packBattleEvents(save.pendingBattle)}:save;
+    SaveStorage.write('run',packed,validate);
+    return save;
   }
   function loadRun(){
     if(!catalogReady) return null;
@@ -613,7 +655,7 @@ const SaveRun=(()=>{
       try{saveRun(retryBattle);retryBattle=null;btn.onclick=continueRun;await continueRun();}catch(failure){error(failure);}
     };}
   }
-  return {enabled,begin,cancelResume,random,keyedRandom,keyedPick,withKeyedRandom,lockInput,copy,validate,validateBattle,serializeRunState,restoreRunState,buildRunSave,saveRun,loadRun,deleteRunSave,checkpoint,checkpointFacilityTalk,showAutoSaveIndicator,finish,refreshContinue,continueRun,showBattleResume,computeBattle,prepareBattle,installSetup,replay,applyEnd,recordDeath,failedBattle,ready(){catalogReady=true;refreshContinue();},takeResume(){const p=resume;resume=null;return p;}};
+  return {enabled,begin,cancelResume,random,keyedRandom,keyedPick,withKeyedRandom,lockInput,copy,validate,validateBattle,packBattleEvents,unpackBattleEvents,serializeRunState,restoreRunState,buildRunSave,saveRun,loadRun,deleteRunSave,checkpoint,checkpointFacilityTalk,showAutoSaveIndicator,finish,refreshContinue,continueRun,showBattleResume,computeBattle,prepareBattle,installSetup,replay,applyEnd,recordDeath,failedBattle,ready(){catalogReady=true;refreshContinue();},takeResume(){const p=resume;resume=null;return p;}};
 })();
 function runRandom(){return typeof SaveRun==='undefined'?Math.random():SaveRun.random();}
 // 順番に依存しない抽選。SaveRunが無い場面（デバッグ等）では通常の乱数へ落とす。
