@@ -637,7 +637,9 @@ function presentShieldLostEvent(ev, api) {
     // 結界の音は防いだ瞬間に残す。消失の絵はLABだけにし、死亡などの後続は待たせない。
     const sound = typeof getKeywordEffectSfxKey === 'function' ? getKeywordEffectSfxKey('結界') : '';
     if (sound && typeof playSfx === 'function') playSfx(sound,{group:'combat',guardMs:0});
-    if (nextShield===0 && typeof playBattleLabFx === 'function') void playBattleLabFx('shield_break',unit,[unit],{side:fxSide});
+    // 割れる瞬間（全尺の30%）は接触の直後に出す。ひびの溜め（0〜30%）は戦闘では飛ばし、割れる直前（26%）から始める
+    // （2026-10-20 利用者指摘：攻撃したカードが元の位置へ戻ってから割れて見えた）。
+    if (nextShield===0 && typeof playBattleLabFx === 'function') void playBattleLabFx('shield_break',unit,[unit],{side:fxSide,seekRatio:.26});
   }
   // 結界のエフェクトを消すため、盤面も描き直す。
   if (typeof api.render === 'function') api.render();

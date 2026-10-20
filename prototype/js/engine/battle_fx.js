@@ -77,6 +77,8 @@ function playBattleLabFx(code, source, targets, options) {
   if (!from && !rects.length) return Promise.resolve(false);
   VbFx.settings.layer = _battleFxLayer;
   const speed = battleFxSpeed(code), ms = opt.durationMs || VbFx.duration(spec[0],speed);
+  // seekRatio：演出の途中（全尺に対する割合）から始める。SEの山も同じだけ前へ寄せる。
+  const seekMs = Math.max(0, Math.min(.95, Number(opt.seekRatio) || 0)) * ms;
   const side = opt.side || _battleFxSide(source || targets[0]);
   // 戦闘用の乱数を消費しない。旋回だけの独立した乱数。
   const random = new Uint32Array(1);
@@ -92,13 +94,15 @@ function playBattleLabFx(code, source, targets, options) {
     allies:(G.allies||[]).filter(Boolean).map(u=>battleFxRect(u,'ally')).filter(Boolean),
     enemies:(G.enemies||[]).filter(Boolean).map(u=>battleFxRect(u,'enemy')).filter(Boolean),
     board:document.getElementById('battle-field')||document.querySelector('#scr-battle .battle-area'),
-    speed,durationMs:opt.durationMs,value:opt.value,impactTimesMs:opt.impactTimes?opt.impactTimes.map(t=>t*ms):undefined,
+    speed,durationMs:opt.durationMs,value:opt.value,seekMs,impactTimesMs:opt.impactTimes?opt.impactTimes.map(t=>t*ms):undefined,
     cueTimesMs:opt.cueTimes?opt.cueTimes.map(t=>t*ms):undefined,onCue:opt.onCue,
     dir:random[0]%2?1:-1,resolveElement:_battleFxResolveElement,
     // 召喚の登場など、出した後にカードの詰め直しで位置が動く演出は、カードの位置を毎コマ追いかける。
     ...(opt.follow?{followGeometry:true}:{}),
     onImpact:i=>{ if(typeof opt.onImpact==='function') opt.onImpact(located[i]?located[i].index:i); }});
-  if(!opt.silent)_battleFxSound(code,speed,ms,spec[2] === 'howl',opt.cueTimes&&opt.cueTimes.length?opt.cueTimes[0]*ms:undefined);
+  const cueMs = opt.cueTimes&&opt.cueTimes.length ? opt.cueTimes[0]*ms
+    : seekMs ? VbFx.impactMs(spec[0],speed)*ms/VbFx.duration(spec[0],speed) - seekMs : undefined;
+  if(!opt.silent)_battleFxSound(code,speed,ms - seekMs,spec[2] === 'howl',cueMs);
   // 効果は直列。再描画で発生元DOMが替わっても遠吠えの区間で確実に閉じる。
   if (spec[2] === 'howl') _battleFxTimer(() => VbFx.stop({name:spec[0]}),ms*.46);
   const done = Promise.resolve(promise).catch(err=>{ console.error('[battle LAB VFX]',code,err); return false; }).finally(()=>marker.remove());

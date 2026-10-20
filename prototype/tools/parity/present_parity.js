@@ -291,7 +291,7 @@ const WATCHER = `
       window.playBattleLabFx = function (code, source, targets) {
         const spec = presentLabFx(code);
         if (code === 'shield_break') window.__watch.shieldBreaks.push({ unitId: source && source.id,
-          contact: window.__watch.contact, shield: source && battleFxStateValues(source).shield });
+          contact: window.__watch.contact, shield: source && battleFxStateValues(source).shield, t: performance.now() });
         window.__watch.calls.push('LAB:' + (spec ? spec[0] : code) + ':' + (source && source.id || '')
           + '→' + (targets || []).map(u => u && u.id).join('/'));
         return origLab.apply(this, arguments);
@@ -311,7 +311,7 @@ const WATCHER = `
     if (typeof window._recordBattleTrace === 'function') {
       const origTrace = window._recordBattleTrace;
       window._recordBattleTrace = function (type, data) {
-        if (type === 'attack_motion_contact') window.__watch.contact = data;
+        if (type === 'attack_motion_contact') window.__watch.contact = { ...data, t: performance.now() };
         if (type === 'attack_motion_end') window.__watch.contact = null;
         try { if (/^attack_motion/.test(String(type))) (window.__watch.trace = window.__watch.trace || []).push(String(type) + ':' + ((data && data.attackerId) || '') + '>' + ((data && data.targetId) || '')); } catch (e) {}
         return origTrace.apply(this, arguments);
@@ -736,7 +736,9 @@ function lab1012ParityScript(code,trigger,online){
     const only = String(process.env.VB_ONLY || '');
     const wanted = only ? only.split('|') : [];
     for (const sc of SCENARIOS.filter(x => !wanted.length || wanted.some(w => x.name.includes(w)))) {
+      const recording = process.env.VB_RECORD_DIR ? b.record(process.env.VB_RECORD_DIR, 70, 30) : null;
       const pve = await b.eval(pveScript(sc));
+      if (recording) await recording;
       const online = await b.eval(onlineScript(sc));
       [pve, online].forEach(r => {
         if (!r || r.エラー) return;
@@ -755,6 +757,7 @@ function lab1012ParityScript(code,trigger,online){
         console.log(`${tag}${k} calls=${(r && r.calls || []).join(' ')}`);
         console.log(`${tag}${k} lines=${(r && r.lines || []).join(' ')}`);
         console.log(`${tag}${k} trace=${(r && r.trace || []).join(' ')}`);
+        console.log(`${tag}${k} shieldBreaks=${JSON.stringify((r && r.shieldBreaks || []).map(b => ({ id: b.unitId, after: b.contact ? Math.round(b.t - b.contact.t) : null })))}`);
       });
       if (!pve || pve.エラー) { check(`${tag}PvEの再生が動く`, false, (pve && pve.エラー) || '結果が返らない'); continue; }
       if (!online || online.エラー) { check(`${tag}オンラインの再生が動く`, false, (online && online.エラー) || '結果が返らない'); continue; }

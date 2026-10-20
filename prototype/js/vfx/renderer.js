@@ -266,9 +266,10 @@ var VbFxRenderer = (function () {
       try { rebound = rebindElements(job); } catch (e) { finish(job, false, e); return; }
       if ((job.def.loop || job.options.followGeometry) && (!job.source.element || !job.source.element.isConnected)) { finish(job, true); return; }
       if (job.start == null) {
-        job.start = now;
+        // seekMs：演出の途中から始める（戦闘の結界消失は、ひびの溜めを飛ばして割れる瞬間から。2026-10-20 利用者指定）。
+        job.start = now - Math.min(job.ms, Math.max(0, Number(job.options.seekMs) || 0));
         clearTimeout(job.watchdog);
-        if (!job.def.loop) job.watchdog = setTimeout(function () { finish(job, false); }, job.ms + 100);
+        if (!job.def.loop) job.watchdog = setTimeout(function () { finish(job, false); }, job.ms - (now - job.start) + 100);
       }
       var t = clamp((now - job.start) / job.ms);
       if (job.def.loop) {
