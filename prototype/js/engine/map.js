@@ -21,7 +21,7 @@ window.MAP_PANEL_POWERS=MAP_PANEL_POWERS;
 function _applyMapPanelPowerSheetRows(){
   const rows=Array.isArray(window.MAP_PANEL_POWER_SHEET_ROWS)?window.MAP_PANEL_POWER_SHEET_ROWS:[];
   if(!rows.length) return;
-  const idByNo={M001:'summon',M002:'life',M003:'eternal',M004:'resonance',M005:'duplicate'};
+  const idByNo=typeof PRESENT_MAP_POWER_NO!=='undefined'?Object.fromEntries(Object.entries(PRESENT_MAP_POWER_NO).map(([id,no])=>[no,id])):{};
   const idByName=Object.fromEntries(MAP_PANEL_POWERS.map(p=>[p.name,p.id]));
   rows.forEach(row=>{
     if(!row) return;

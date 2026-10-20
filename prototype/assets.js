@@ -392,7 +392,7 @@ const Assets = {
     // 巻物・旗を魔導板のキャラクターに使った時（盾・幻視・巨大化・魔力の巻物、鼓舞の旗）。2026-10-17 利用者指定：SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03（LAB候補 scroll-shield-3）。
     itemScroll: 'assets/sfx/item_scroll.wav',
     shield_break: 'assets/sfx/shield_break.wav', // LAB採用（2026-10-18 shield-break 候補2）
-    R016: 'assets/sfx/R016.wav', // LAB採用（2026-10-18 intimidate-ring 候補2）
+    R016: 'assets/sfx/R016.wav', // LAB採用（2026-10-21 intimidate-ring 候補1・長めに切り直した候補）
     'map:resonance': 'assets/sfx/map_resonance.wav', // LAB採用（2026-10-18 map-resonance 候補1）
     E032: 'assets/sfx/E032.wav', // LAB採用（2026-10-18 rage-shards 候補2）
     R017: 'assets/sfx/R017.wav', // LAB採用（2026-10-18 undying-ring 候補3）
@@ -412,7 +412,8 @@ const Assets = {
 
     // キーワード発動のSE。キーワードシートのNo.（KXXX）で引く。
     C043: 'assets/sfx/C043.wav', // アラッサス（全体へ広がる効果ダメージ）
-    K001: 'assets/sfx/K001.wav', // 即死（即死効果を受けた瞬間）
+    K001: 'assets/sfx/K001.wav', // LAB採用（2026-10-21 death-mark 候補1）
+    gremlinWeaken: 'assets/sfx/gremlin_weaken.wav', // グレムリンの弱体（2026-10-21 利用者指定：即死の旧SE。即死は death-mark 候補1へ差し替え）
     K003: 'assets/sfx/K003.wav', // 毒牙（毒のデバフを受けた瞬間）
     K017: 'assets/sfx/K017.wav', // LAB採用（2026-10-20 poison-tick 候補1）
     K018: 'assets/sfx/K018.wav', // 結界（結界がダメージを防いだ瞬間）

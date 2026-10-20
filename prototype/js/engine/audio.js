@@ -90,7 +90,7 @@ const SFX_SETTINGS={
     buy2:       {group:'reward', volume: .86},  // 道具屋購入
     attack:     {group:'combat', volume: .46, guardMs:80},  // -4.3
     K018:       {group:'combat', volume: .63, guardMs:80},  // 結界（旧 shield.wav）-7.0
-    K001:       {group:'combat', volume: .63, guardMs:80},  // 即死
+    gremlinWeaken: {group:'combat', volume: .63, guardMs:0},  // グレムリンの弱体（即死の旧SE）
     poison:     {group:'combat', volume: .48, guardMs:80},  // -4.7
     effectDamage:{group:'magic', volume: .78, guardMs:90},  // 効果ダメージ（旧 fire.wav）-8.8
     C043: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 flame-sweep 候補1）
@@ -115,7 +115,6 @@ const SFX_SETTINGS={
     S001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 battle-summon 候補2）
     itemScroll: {group:'magic',volume:.70,maxPlayMs:0},
     shield_break: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 shield-break 候補2）
-    R016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 intimidate-ring 候補2）
     'map:resonance': {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 map-resonance 候補1）
     E032: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 rage-shards 候補2）
     R017: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 undying-ring 候補3）
@@ -149,6 +148,8 @@ const SFX_SETTINGS={
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    K001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 death-mark 候補1）
+    R016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 intimidate-ring 候補1・長めに切り直した候補）
     E078: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 gold-loss 候補1）
     R012: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 penance-ring 候補2）
     C090: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 steal-mark 候補3）

@@ -59,6 +59,22 @@ var VbFxLabModel = (function () {
       });
       if(c.kind==='keyword' && states[c.name]===name) add(c,'状態','battle_fx.js / _battleFxValues',keywordKeys[c.name]);
     });
+    // 番号の後ろに「_種類」が付く置換（K009_SWEEP＝1列だけの全体攻撃など）も、その番号の持ち主の割り振り。
+    cards.forEach(function (c) {
+      var code = c.kind==='keyword' ? keywordKeys[c.name] : c.no;
+      if (code) Object.keys(labFx).forEach(function (k) { if (k.indexOf(code + '_')===0 && labFx[k][0]===name) add(c,null,'PRESENT_LAB_FX（'+k+'）',k); });
+    });
+    // 番号で引かない演出（present.js：巻物の使用・マップの力・開戦の登場）。
+    var itemFx = typeof PRESENT_ITEM_USE_FX !== 'undefined' ? PRESENT_ITEM_USE_FX : {};
+    Object.keys(itemFx).forEach(function (no) { if (itemFx[no]!==name) return; var c=cards.find(function(x){return x.kind==='item'&&x.no===no;}); if (c) add(c,'使用','PRESENT_ITEM_USE_FX',no); });
+    var mapNo = typeof PRESENT_MAP_POWER_NO !== 'undefined' ? PRESENT_MAP_POWER_NO : {};
+    Object.keys(labFx).forEach(function (k) {
+      var m=/^map:(.+)$/.exec(k); if (!m || labFx[k][0]!==name) return;
+      var c=cards.find(function(x){return x.kind==='mapPanelPower'&&x.no===mapNo[m[1]];}); if (c) add(c,null,'PRESENT_LAB_FX / PRESENT_MAP_POWER_NO',k);
+    });
+    (typeof PRESENT_DIRECT_LAB_FX !== 'undefined' ? PRESENT_DIRECT_LAB_FX : []).forEach(function (d) {
+      if (d.effect===name && !result.some(function(x){return x.kind==='other'&&x.id===d.id;})) result.push({kind:'other',id:d.id,name:d.name,trigger:d.trigger,se:'game',basis:d.basis,code:d.id,scale:null});
+    });
     if (labFx.shield_break && labFx.shield_break[0]===name) {var shield=cards.find(function(c){return c.kind==='keyword'&&c.name==='結界';});if(shield)add(shield,'消失','PRESENT_LAB_FX','shield_break');}
     return result;
   }

@@ -4111,7 +4111,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": true,
+      "adopted": false,
       "provisional": false,
       "reason": "威圧の指輪：暗い紅の重圧がのしかかる（暗い鐘の一撃・邪悪な気配・蝕む魔法）",
       "sha256": "7af058b816c5f22c7c776d839d739ff41c4a1a8326343ad0aba08c176cf1a8d5"
@@ -4748,13 +4748,13 @@ var VbFxSeCatalog = {
       "originalDuration": 3.12,
       "start": 2.0,
       "trimmed": true,
-      "peak": 0.043958,
+      "peak": 0.22,
       "tailFadeMs": 60,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": true,
       "provisional": false,
-      "reason": "幾重にも広がる超音波：利用者指定。初期のSE（原音の2秒の位置から）（2026-10-20）",
+      "reason": "幾重にも広がる超音波：利用者指定。初期のSE（原音の2秒の位置から）（2026-10-20）（2026-10-21 利用者指摘：SEの始まりをもう少し前へ。peak 0.044→0.22）",
       "edit": {
         "maxSec": 3.0,
         "tailMs": 400
@@ -4810,22 +4810,22 @@ var VbFxSeCatalog = {
       "filename": "Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav",
       "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav",
       "url": "vfx_preview/se/intimidate-ring-4.wav",
-      "duration": 1.95,
+      "duration": 3.4,
       "originalDuration": 60.0625,
-      "start": 9.238812,
+      "start": 9.238792,
       "trimmed": true,
-      "peak": 0.45,
-      "tailFadeMs": 400,
+      "peak": 0.450021,
+      "tailFadeMs": 1200,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
-      "reason": "2026-10-21 利用者指定：のしかかる重圧の候補1",
+      "reason": "2026-10-21 利用者指定：のしかかる重圧の候補1（2026-10-21b 途中で切れた感じがしたので長めに切り、末尾を1.2秒で消した）",
       "edit": {
-        "maxSec": 1.95,
-        "tailMs": 400
+        "maxSec": 3.4,
+        "tailMs": 1200
       },
-      "sha256": "88a6efbb199da6b7dbeb6ce44b888f287cbfb37235bda95d79614e3f2203a555"
+      "sha256": "fc7a0623f8bea0faa6c252d55a3a36ef50c69973c5ec8c49e926457b14bb50d7"
     },
     "intimidate-ring-5": {
       "id": "intimidate-ring-5",
@@ -4862,7 +4862,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "2026-10-21 利用者指定：死の印の選び直し",
       "edit": {
@@ -4925,6 +4925,160 @@ var VbFxSeCatalog = {
       "adopted": false,
       "reason": "2026-10-21 利用者指定：グレムリンの弱体の音（K001を流用する案）",
       "sha256": "5f36fe2bd2f3497d85aaa2bf8cade6b013cce1d290c2b9856780864ad79778b7"
+    },
+    "ring-eye-red-2b": {
+      "id": "ring-eye-red-2b",
+      "filename": "RPG3_LightMagic_Buff03_P1v2.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/WOW Sound - ASFX - RPG Magic 3 Freebies/RPG Magic SFX Pack 3 – Elemental/RPG3_LightMagic_Buff03_P1v2.wav",
+      "url": "vfx_preview/se/ring-eye-red-2b.wav",
+      "duration": 1.95,
+      "originalDuration": 3.279562,
+      "start": 0.282729,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21b 利用者指定：加護の選び直し（柔らかい光）（RPG3_LightMagic_Buff03）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "f27ebfe525da1131db0ffc35ee084154aa96ecda6c3ce6fd4656369625af3031"
+    },
+    "ring-eye-red-3b": {
+      "id": "ring-eye-red-3b",
+      "filename": "18 BOOM Celestial Ember_Db.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/18 BOOM Celestial Ember_Db.wav",
+      "url": "vfx_preview/se/ring-eye-red-3b.wav",
+      "duration": 1.95,
+      "originalDuration": 12.849875,
+      "start": 0.427542,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21b 利用者指定：加護の選び直し（柔らかい光）（18 BOOM Celestial Ember）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "e559df2dd713895aa380e98e918acd9920c5962994484c3db25243177c57acea"
+    },
+    "speed-ring-1b": {
+      "id": "speed-ring-1b",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Aether Strike_RTSB_COL-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Aether Strike_RTSB_COL-02.wav",
+      "url": "vfx_preview/se/speed-ring-1b.wav",
+      "duration": 1.95,
+      "originalDuration": 7.33,
+      "start": 1.599687,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21b 利用者指定：神速の候補3（Sonic Strike）の系統で選び直し（DSGNImpt-DS_WHOOSH HIT-Aether Strike）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "cf5761bebad1d0c9823660f85bc63d0cb9b3da0752efbcfef4b41dcb15140fb5"
+    },
+    "speed-ring-2b": {
+      "id": "speed-ring-2b",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav",
+      "url": "vfx_preview/se/speed-ring-2b.wav",
+      "duration": 1.95,
+      "originalDuration": 5.43,
+      "start": 1.39925,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21b 利用者指定：神速の候補3（Sonic Strike）の系統で選び直し（DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "a0448113df77d36ba2c5d84483ed5c713a88a5eaaf8b08dccb53b15ea4ebb955"
+    },
+    "revive-burst-1b": {
+      "id": "revive-burst-1b",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-01.wav",
+      "url": "vfx_preview/se/revive-burst-1b.wav",
+      "duration": 1.708458,
+      "originalDuration": 2.05,
+      "start": 0.341542,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21b 利用者指定：復活の光球と渦の輪の選び直し（MAGIC WHITE Cast Medium 05-01）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "e7d6a82c34a64b7f7159b018b3be4bc03f017e54ddc7f8b91cc4c663fd6d4f8f"
+    },
+    "revive-burst-2b": {
+      "id": "revive-burst-2b",
+      "filename": "Portal Opening 2.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/Technology/Device Electronic/Portal Opening 2.wav",
+      "url": "vfx_preview/se/revive-burst-2b.wav",
+      "duration": 1.95,
+      "originalDuration": 10.25,
+      "start": 4.2475,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21b 利用者指定：復活の光球と渦の輪の選び直し（Portal Opening 2）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "6e00353924665f026e2b35467393c40837ef0171487e9e9332237f4fd6ef1223"
+    },
+    "revive-burst-3b": {
+      "id": "revive-burst-3b",
+      "filename": "RPG3_PlasmaMagicBall_Cast01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/WOW Sound - ASFX - RPG Magic 3 Freebies/RPG Magic SFX Pack 3 – Elemental/RPG3_PlasmaMagicBall_Cast01.wav",
+      "url": "vfx_preview/se/revive-burst-3b.wav",
+      "duration": 1.261042,
+      "originalDuration": 1.261042,
+      "start": 0.0,
+      "trimmed": false,
+      "peak": 0.059667,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21b 利用者指定：復活の光球と渦の輪の選び直し（RPG3_PlasmaMagicBall_Cast01）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "88ab24000dd5cedd015a3525bd355ed54ed695cf595b3b97ddfb770d419ccc91"
     }
   },
   "effects": {
@@ -5296,8 +5450,8 @@ var VbFxSeCatalog = {
     ],
     "ring-eye-red": [
       "ring-eye-red-1",
-      "ring-eye-red-4",
-      "ring-eye-red-5"
+      "ring-eye-red-2b",
+      "ring-eye-red-3b"
     ],
     "paladin-ring": [
       "paladin-ring-1",
@@ -5305,8 +5459,8 @@ var VbFxSeCatalog = {
       "paladin-ring-3"
     ],
     "speed-ring": [
-      "speed-ring-4",
-      "speed-ring-5",
+      "speed-ring-1b",
+      "speed-ring-2b",
       "speed-ring-6"
     ],
     "curse-ring": [
@@ -5321,28 +5475,28 @@ var VbFxSeCatalog = {
     ],
     "ring-eye-blue": [
       "ring-eye-red-1",
-      "ring-eye-red-4",
-      "ring-eye-red-5"
+      "ring-eye-red-2b",
+      "ring-eye-red-3b"
     ],
     "ring-eye-green": [
       "ring-eye-red-1",
-      "ring-eye-red-4",
-      "ring-eye-red-5"
+      "ring-eye-red-2b",
+      "ring-eye-red-3b"
     ],
     "ring-eye-yellow": [
       "ring-eye-red-1",
-      "ring-eye-red-4",
-      "ring-eye-red-5"
+      "ring-eye-red-2b",
+      "ring-eye-red-3b"
     ],
     "ring-eye-purple": [
       "ring-eye-red-1",
-      "ring-eye-red-4",
-      "ring-eye-red-5"
+      "ring-eye-red-2b",
+      "ring-eye-red-3b"
     ],
     "ring-eye-rainbow": [
       "ring-eye-red-1",
-      "ring-eye-red-4",
-      "ring-eye-red-5"
+      "ring-eye-red-2b",
+      "ring-eye-red-3b"
     ],
     "toughness-ring": [
       "ring-eye-red-1",
@@ -5441,6 +5595,11 @@ var VbFxSeCatalog = {
     ],
     "gremlin-weaken": [
       "gremlin-weaken-1"
+    ],
+    "revive-burst": [
+      "revive-burst-1b",
+      "revive-burst-2b",
+      "revive-burst-3b"
     ]
   }
 };

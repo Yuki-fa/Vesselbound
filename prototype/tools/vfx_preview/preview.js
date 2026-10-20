@@ -355,7 +355,9 @@ var VbFxPreview = (function () {
       from = { x: (left+right)/2+w*PRESENT_CONTACT_TRI_OFFSET_X,
         y: top+Math.max.apply(null,targets.map(function(r){return r.height;}))/2 };
     } else if (conf.motion === 'board') {
-      w = Math.max(to.width,to.height)*2.6; h = w*1080/1920;
+      // ゲーム（map.js _playMapBoardChangeVfx）と同じく、対象マスとぴったり同じ大きさで重ねる
+      // （2026-10-21 利用者指摘：LABでは枠のサイズが直っていなかった。旧素材の「マス×2.6・16:9」の入れ物のままだった）。
+      w = to.width; h = to.height;
       from = { x: to.left+to.width/2, y: to.top+to.height/2 };
     } else if (conf.motion === 'rise') { w = h = source.width * .55; from.y -= source.height * PRESENT_MANA_GAIN_VFX_START_Y; }
     else if (conf.motion === 'opening') { w = source.width * 2.44; h = source.height * 2.44; }

@@ -23,13 +23,17 @@ async function baselineChecks(){
   assert.equal(before.fx.effects.length,82);
   // 描画命令の完全一致は元の50種（effects.js）だけ。置換32種（webp.js）は2026-10-14から作り直している。
   const original=new Set(literalDefinition(read('js/vfx/defs/effects.js'),'effects').effects.map(d=>d.name));assert.equal(original.size,50);
-  for(const d of before.fx.effects.filter(d=>original.has(d.name)&&!REDRAWN.has(d.name)))for(const speed of [1.5,3,4.5]){
+  // 2026-10-21 利用者指定：枠線の出る演出は、元の枠の形（枠画像から実測した角R）を少し大きくした形に描き直した。
+  // 枠の形の線・縁の光・枠の塗り・枠での切り抜きを持つ演出は描画命令が変わるので、完全一致の対象から外す。
+  const FRAME_OUTLINE=d=>(d.layers||[]).some(l=>['card','superellipse'].includes(l.geometry)||l.clip==='card');
+  const outlined=before.fx.effects.filter(d=>original.has(d.name)&&!REDRAWN.has(d.name)&&FRAME_OUTLINE(d)).length;
+  for(const d of before.fx.effects.filter(d=>original.has(d.name)&&!REDRAWN.has(d.name)&&!FRAME_OUTLINE(d)))for(const speed of [1.5,3,4.5]){
     const pending=[];for(const h of [before,after])pending.push(h.fx.play(d.name,{source:h.fx.rect(h.source),targets:[h.fx.rect(h.target),h.fx.rect(h.target2)],allies:[h.fx.rect(h.source)],enemies:[h.fx.rect(h.target),h.fx.rect(h.target2)],board:h.body,speed,seed:53,dir:1,value:3}));
     const ms=before.fx.duration(d.name,speed);assert.equal(after.fx.duration(d.name,speed),ms);
     for(let i=0;i<8;i++)assert.deepEqual(after.step(ms*i/8),before.step(ms*i/8),d.name+' speed='+speed+' frame='+i+'の描画命令');
     before.fx.stopAll();after.fx.stopAll();await Promise.all(pending);
   }
-  console.log('OK 元の50種（描き直した2種を除く48種）: 定義3ファイル一致 / 3速さ×8時刻のCanvas命令完全一致（画素は未確認）');
+  console.log(`OK 元の50種（描き直した${REDRAWN.size}種と枠線の${outlined}種を除く）: 定義3ファイル一致 / 3速さ×8時刻のCanvas命令完全一致（画素は未確認）`);
 }
 async function newDataChecks(){
   const {bundle,jsonBytes}=validatedBundle(),data=literalDefinition(read('js/vfx/defs/characters_1012.js'),'characters_1012');

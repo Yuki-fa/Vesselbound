@@ -1639,8 +1639,14 @@ function _battleOpeningLandingVfx(slot){
     const unit=(enemy?G.enemies:G.allies||[])[Number(slot.dataset.unitIdx)];
     actionBannerOpeningUnit(unit,enemy?'p2':'p1',fx);
   }
-  _playBattleOpeningAppearanceSfx();
-  const playing=_playDefinedVfx(fx,'vfx:appearance_sheet:opening-sigil',980,{presentationSpeed:true});
+  // 2026-10-21 利用者指摘：VFXとSEのタイミングが合っていない。砂煙は再生の40%（定義の impact）から出るので、
+  // SEの一番大きい所をそこへ合わせる（以前は滑り込み始めに鳴らしていた）。LABも同じ impact と PRESENT_SFX_PEAK_SEC で鳴らす。
+  const OPENING_DUST_MS=980;
+  const dustDef=typeof VbFx!=='undefined'&&VbFx.effects?VbFx.effects.find(d=>d.name==='opening-sigil'):null;
+  const dustAt=dustDef&&dustDef.impact&&dustDef.ms?OPENING_DUST_MS*dustDef.impact.atMs/dustDef.ms:OPENING_DUST_MS*.4;
+  const sfxPeak=typeof presentSfxPeakSec==='function'?presentSfxPeakSec('appearance')*1000:0;
+  battlePresentationSetTimeout(_playBattleOpeningAppearanceSfx,Math.max(0,dustAt-sfxPeak));
+  const playing=_playDefinedVfx(fx,'vfx:appearance_sheet:opening-sigil',OPENING_DUST_MS,{presentationSpeed:true});
   // 2026-10-21 利用者指定：砂煙は登場元（左）へ流れる。流れていく様子が見えるよう、薄れ始めを700ms、消すのを1200msにした
   // （以前の560ms／980msは、大きく広がる輪を見せないための値。今の定義に輪は無い）。
   battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),700);

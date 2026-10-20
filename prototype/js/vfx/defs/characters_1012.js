@@ -11860,7 +11860,14 @@ VbFxDefs.register({
             0,
             0.36
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 5
         },
         {
           "anchor": "each-target",
@@ -11929,7 +11936,14 @@ VbFxDefs.register({
             0.03,
             0.39
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 5
         },
         {
           "anchor": "each-target",
@@ -11998,7 +12012,14 @@ VbFxDefs.register({
             0.08,
             0.38
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 216
         },
         {
           "anchor": "each-target",
@@ -12067,7 +12088,14 @@ VbFxDefs.register({
             0.11,
             0.41000000000000003
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 216
         },
         {
           "anchor": "each-target",
@@ -12136,7 +12164,14 @@ VbFxDefs.register({
             0.16,
             0.52
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 427
         },
         {
           "anchor": "each-target",
@@ -12205,7 +12240,14 @@ VbFxDefs.register({
             0.19,
             0.55
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 427
         },
         {
           "anchor": "each-target",
@@ -12274,7 +12316,14 @@ VbFxDefs.register({
             0.24,
             0.56
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 638
         },
         {
           "anchor": "each-target",
@@ -12343,7 +12392,14 @@ VbFxDefs.register({
             0.27,
             0.5900000000000001
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 638
         },
         {
           "anchor": "each-target",
@@ -12412,7 +12468,14 @@ VbFxDefs.register({
             0.3,
             0.6
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 849
         },
         {
           "anchor": "each-target",
@@ -12481,7 +12544,14 @@ VbFxDefs.register({
             0.32999999999999996,
             0.63
           ],
-          "copies": 1
+          "copies": 1,
+          "jitter": 0.32,
+          "fromJitter": [
+            0.42,
+            0.22
+          ],
+          "timeJitter": 0.06,
+          "seedOffset": 849
         },
         {
           "anchor": "each-target",

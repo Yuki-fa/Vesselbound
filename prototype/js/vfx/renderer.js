@@ -429,13 +429,72 @@ var VbFxRenderer = (function () {
     ctx.save(); ctx.globalAlpha *= clamp(opacity); ctx.translate(p.x, p.y); ctx.rotate(rotation || 0);
     ctx.drawImage(texture(type, color, Math.abs(seed || 0) % 3), -radius * aspect[0], -radius * aspect[1], radius * 2 * aspect[0], radius * 2 * aspect[1]); ctx.restore();
   }
-  function roundedPath(r, pad) {
-    var x = r.left - pad, y = r.top - pad, w = r.width + pad * 2, h = r.height + pad * 2;
-    if (w <= 0 || h <= 0) return false;
-    var rad = Math.min(w, h) * .07;
-    ctx.beginPath(); ctx.moveTo(x + rad, y); ctx.arcTo(x + w, y, x + w, y + h, rad);
-    ctx.arcTo(x + w, y + h, x, y + h, rad); ctx.arcTo(x, y + h, x, y, rad); ctx.arcTo(x, y, x + w, y, rad); ctx.closePath(); return true;
+  // ── カードの枠の形（2026-10-21 利用者指定：枠線の出る演出は、元の枠の形を少し大きくした形にし、角Rを揃える） ──
+  // 枠の角Rは枠画像ごとに違い、assets.js が実測して要素の border-radius（--card-frame-r：横％ / 縦％）へ入れている。
+  // その要素（または直下の子）の角Rを読み、外へ pad 広げた形は「角R＋pad」の楕円角で描く（枠を一様に太らせた形）。
+  // 読めない時はゲームの既定値（708×1075 の枠で 40px ＝ 横5.65% / 縦3.721%）。
+  var FRAME_RADIUS_DEFAULT = [.0565, .03721], frameRadiusCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function frameRadiusOf(node) {
+    if (!node || node.nodeType !== 1 || !(node.offsetWidth > 0 && node.offsetHeight > 0)) return null;
+    var v = String(getComputedStyle(node).borderTopLeftRadius || '').trim().split(/\s+/), out = [];
+    for (var i = 0; i < 2; i++) {
+      var t = v[i] || v[0] || '', n = parseFloat(t);
+      if (!(n > 0)) return null;
+      out.push(/%$/.test(t) ? n / 100 : n / (i ? node.offsetHeight : node.offsetWidth));
+    }
+    return out;
   }
+  function frameRadiusRatio(el) {
+    if (!el || !frameRadiusCache) return FRAME_RADIUS_DEFAULT;
+    var now = Date.now(), hit = frameRadiusCache.get(el);
+    // 角Rの実測は枠画像の読み込み後に非同期で入るので、少し経ったら読み直す。
+    if (hit && now - hit.at < 1000) return hit.ratio;
+    var ratio = frameRadiusOf(el);
+    for (var c = el.firstElementChild; !ratio && c; c = c.nextElementSibling) ratio = frameRadiusOf(c);
+    ratio = ratio || FRAME_RADIUS_DEFAULT;
+    frameRadiusCache.set(el, { ratio: ratio, at: now });
+    return ratio;
+  }
+  // r を pad だけ外へ広げた枠の形（x, y, w, h と楕円の角 rx, ry）。pad が負なら内側へ縮める。
+  function frameShape(r, pad) {
+    var q = frameRadiusRatio(r && r.element), x = r.left - pad, y = r.top - pad, w = r.width + pad * 2, h = r.height + pad * 2;
+    return { x: x, y: y, w: w, h: h,
+      rx: Math.max(0, Math.min(w / 2, q[0] * r.width + pad)), ry: Math.max(0, Math.min(h / 2, q[1] * r.height + pad)) };
+  }
+  function framePath(r, pad) {
+    var k = frameShape(r, pad), x = k.x, y = k.y, w = k.w, h = k.h, rx = k.rx, ry = k.ry;
+    if (w <= 0 || h <= 0) return false;
+    ctx.beginPath(); ctx.moveTo(x + rx, y); ctx.lineTo(x + w - rx, y);
+    ctx.ellipse(x + w - rx, y + ry, rx, ry, 0, -Math.PI / 2, 0); ctx.lineTo(x + w, y + h - ry);
+    ctx.ellipse(x + w - rx, y + h - ry, rx, ry, 0, 0, Math.PI / 2); ctx.lineTo(x + rx, y + h);
+    ctx.ellipse(x + rx, y + h - ry, rx, ry, 0, Math.PI / 2, Math.PI); ctx.lineTo(x, y + ry);
+    ctx.ellipse(x + rx, y + ry, rx, ry, 0, Math.PI, Math.PI * 1.5); ctx.closePath(); return true;
+  }
+  // 枠の形に沿った点列（光の線用）。中心から見た揺らぎ wobble(角度) を掛けられる。
+  function framePoints(r, pad, steps, wobble) {
+    var k = frameShape(r, pad), x = k.x, y = k.y, w = k.w, h = k.h, rx = k.rx, ry = k.ry, cx = x + w / 2, cy = y + h / 2, pts = [];
+    var arc = Math.PI / 2 * Math.sqrt((rx * rx + ry * ry) / 2), seg = [w - 2 * rx, arc, h - 2 * ry, arc, w - 2 * rx, arc, h - 2 * ry, arc], per = 0;
+    seg.forEach(function (n) { per += Math.max(0, n); });
+    for (var j = 0; j <= steps; j++) {
+      var d = per * j / steps, i = 0;
+      while (i < 7 && d > seg[i]) { d -= Math.max(0, seg[i]); i++; }
+      var q = seg[i] > 0 ? Math.min(1, d / seg[i]) : 0, a = q * Math.PI / 2, p;
+      switch (i) {
+        case 0: p = { x: x + rx + d, y: y }; break;
+        case 1: p = { x: x + w - rx + Math.sin(a) * rx, y: y + ry - Math.cos(a) * ry }; break;
+        case 2: p = { x: x + w, y: y + ry + d }; break;
+        case 3: p = { x: x + w - rx + Math.cos(a) * rx, y: y + h - ry + Math.sin(a) * ry }; break;
+        case 4: p = { x: x + w - rx - d, y: y + h }; break;
+        case 5: p = { x: x + rx - Math.sin(a) * rx, y: y + h - ry + Math.cos(a) * ry }; break;
+        case 6: p = { x: x, y: y + h - ry - d }; break;
+        default: p = { x: x + rx - Math.cos(a) * rx, y: y + ry - Math.sin(a) * ry };
+      }
+      if (wobble) { var m = wobble(Math.atan2(p.y - cy, p.x - cx)); p = { x: cx + (p.x - cx) * m, y: cy + (p.y - cy) * m }; }
+      pts.push(p);
+    }
+    return pts;
+  }
+  function roundedPath(r, pad) { return framePath(r, pad); }
   function stroke(points, color, lineWidth, opacity, soft, core, crisp) {
     if (points.length < 2 || lineWidth <= 0 || opacity <= 0) return;
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = color;
@@ -514,6 +573,8 @@ var VbFxRenderer = (function () {
     var s = f.spec, a = endpoint(f, s.from || 'source'), b = endpoint(f, s.to || 'target');
     var ao = s.fromOffset || [0, 0], bo = s.toOffset || [0, 0];
     a.x += ao[0] * f.unit; a.y += ao[1] * f.unit; b.x += bo[0] * f.unit; b.y += bo[1] * f.unit;
+    // 出発点だけを再生ごとにずらす（落ちてくる角度が毎回変わる）。
+    if (s.fromJitter) { a.x += (random(41, f.seed) - .5) * 2 * s.fromJitter[0] * f.unit; a.y += (random(43, f.seed) - .5) * 2 * s.fromJitter[1] * f.unit; }
     return curvedPoint(a, b, progress, value(f, 'bend', s.pathBend || 0) * f.unit, f.job.dir * (f.index % 2 ? -1 : 1));
   }
   // TrailRenderer相当。幾何と減衰を固定処理で描く。部品を再呼び出ししない。
@@ -826,31 +887,12 @@ var VbFxRenderer = (function () {
     if (s.strokeProfile==='halo') {
       var pts=[],clock=f.clock*(s.noiseClock==null?1:s.noiseClock),seed=f.seed;
       if (s.geometry==='card') {
-        // カードの枠と同じ角丸の四角に沿う光の線（2026-10-21 利用者指定：魔導板のマスの変化の線を枠の形に）。
-        var cp=value(f,'pad',0)*f.unit, x0=f.r.left-cp, y0=f.r.top-cp, cw=f.r.width+cp*2, chh=f.r.height+cp*2;
-        var cr=Math.min(cw,chh)*(s.cornerRatio==null?.07:s.cornerRatio), per=2*(cw+chh-4*cr)+TAU*cr, steps=160;
-        var at=function(d){
-          var seg=[cw-2*cr,Math.PI*cr/2,chh-2*cr,Math.PI*cr/2,cw-2*cr,Math.PI*cr/2,chh-2*cr,Math.PI*cr/2],i=0;
-          while(i<seg.length&&d>seg[i]){d-=seg[i];i++;}
-          var q=Math.min(1,seg[i]?d/seg[i]:0);
-          switch(i){
-            case 0:return{x:x0+cr+d,y:y0};
-            case 1:return{x:x0+cw-cr+Math.sin(q*Math.PI/2)*cr,y:y0+cr-Math.cos(q*Math.PI/2)*cr};
-            case 2:return{x:x0+cw,y:y0+cr+d};
-            case 3:return{x:x0+cw-cr+Math.cos(q*Math.PI/2)*cr,y:y0+chh-cr+Math.sin(q*Math.PI/2)*cr};
-            case 4:return{x:x0+cw-cr-d,y:y0+chh};
-            case 5:return{x:x0+cr-Math.sin(q*Math.PI/2)*cr,y:y0+chh-cr+Math.cos(q*Math.PI/2)*cr};
-            case 6:return{x:x0,y:y0+chh-cr-d};
-            default:return{x:x0+cr-Math.cos(q*Math.PI/2)*cr,y:y0+cr-Math.sin(q*Math.PI/2)*cr};
-          }
-        };
-        for (var j=0;j<=steps;j++) pts.push(at(per*j/steps));
+        // カードの枠の形に沿う光の線（2026-10-21 利用者指定：魔導板のマスの変化の線を枠の形に）。
+        pts=framePoints(f.r,value(f,'pad',0)*f.unit,160);
       } else if (s.geometry==='superellipse') {
-        var pad=value(f,'pad',.04)*f.unit, rx=f.r.width/2+pad, ry=f.r.height/2+pad;
-        for (var j=0;j<=96;j++) {
-          var ang=j*TAU/96,c=Math.cos(ang),sn=Math.sin(ang),wob=1+(noise(c*4+clock,sn*4-clock,seed)-.5)*value(f,'noise',.037);
-          pts.push({x:f.p.x+Math.sign(c)*Math.pow(Math.abs(c),s.exponent||.22)*rx*wob,y:f.p.y+Math.sign(sn)*Math.pow(Math.abs(sn),s.exponent||.22)*ry*wob});
-        }
+        // 縁に宿る光も、枠の形を pad だけ広げた形に揺らぎを乗せる（2026-10-21 利用者指定：角Rを枠に揃える）。
+        var nz=value(f,'noise',.037);
+        pts=framePoints(f.r,value(f,'pad',.04)*f.unit,128,nz?function(ang){var c=Math.cos(ang),sn=Math.sin(ang);return 1+(noise(c*4+clock,sn*4-clock,seed)-.5)*nz;}:null);
       } else {
         if(!s.arc)seed=seed||13;
         var rad=Math.max(s.minRadiusPx||0,value(f,'radius',.5)*dimension(f,s.radiusSpace)+value(f,'radiusBounds',0)*dimension(f,s.radiusBoundsSpace||'diagonal')),arc0=s.arc||[0,TAU],rotate=(s.arc&&s.arcSpace!=='world'?f.job.angle:0)+value(f,'rotation',0)*(s.directedRotation?f.job.dir:1);
@@ -867,8 +909,7 @@ var VbFxRenderer = (function () {
     if (s.geometry === 'card') {
       ctx.save(); ctx.globalAlpha *= clamp(opacity); ctx.strokeStyle = color; ctx.lineWidth = lineWidth;
       if(s.strokeProfile==='single'){
-        var pd=value(f,'pad',0)*f.unit,rad0=s.cornerRadius==null?Math.min(f.r.width,f.r.height)*.07:s.cornerRadius*f.unit;
-        roundRect(f.r,rad0,pd);if(soft)ctx.filter='blur('+soft.toFixed(1)+'px)';ctx.stroke();ctx.restore();return;
+        framePath(f.r,value(f,'pad',0)*f.unit);if(soft)ctx.filter='blur('+soft.toFixed(1)+'px)';ctx.stroke();ctx.restore();return;
       }
       if (roundedPath(f.r, value(f, 'pad', .02) * f.unit)) { if (soft) { ctx.save(); ctx.filter = 'blur(' + soft + 'px)'; ctx.stroke(); ctx.restore(); } ctx.globalAlpha *= value(f, 'core', 1); ctx.stroke(); } ctx.restore(); return;
     }
@@ -892,10 +933,6 @@ var VbFxRenderer = (function () {
         stamp(s.texture, { x: f.p.x + Math.cos(a) * rr * aspect[0], y: f.p.y + Math.sin(a) * rr * aspect[1] }, lineWidth * (1.4 + n), color, opacity * (.4 + n * .4), a + f.clock, [1, 1.5], k);
       }
     }
-  }
-  function roundRect(r,rad,pad) {
-    var x=r.left-pad,y=r.top-pad,w=r.width+pad*2,h=r.height+pad*2;
-    ctx.beginPath();ctx.moveTo(x+rad,y);ctx.arcTo(x+w,y,x+w,y+h,rad);ctx.arcTo(x+w,y+h,x,y+h,rad);ctx.arcTo(x,y+h,x,y,rad);ctx.arcTo(x,y,x+w,y,rad);ctx.closePath();
   }
   function radial(p, radius, stops, opacity) {
     var gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, radius);
@@ -1122,8 +1159,8 @@ var VbFxRenderer = (function () {
         if(dark){col=VbFxCurves.gradientColor([[0,col],[1,dark[1]]],depth);al=mix(al,dark[2],depth);}
         var ap=s.stopAlpha&&s.stopAlpha[i];if(ap){if(ap.range)al=mix(ap.range[0],ap.range[1],depth);if(ap.intro)al*=f.intro;if(ap.modulation)al=modulated(f,ap.modulation,al);}
         g0.addColorStop(stop[0],rgba(col,al*(s.alphaPlacement==='stops'?alpha(f):1)));});ctx.fillStyle=g0;ctx.globalAlpha*=sweep;
-      var pad=value(f,'pad',0)*f.unit,rad=value(f,'cornerRadius',.07)*(s.cornerSpace==='min'?Math.min(f.r.width,f.r.height):f.unit);
-      if(s.geometry==='card'){roundRect(f.r,rad,pad);ctx.fill();}
+      var pad=value(f,'pad',0)*f.unit;
+      if(s.geometry==='card'){framePath(f.r,pad);ctx.fill();}
       else if(s.geometry==='square'){var fr=value(f,'fillRadius',1)*dimension(f,s.radiusSpace);ctx.fillRect(f.p.x-fr,f.p.y-fr,fr*2,fr*2);}
       else {var fp=value(f,'fillPad',0)*f.unit;ctx.fillRect(f.r.left-fp,f.r.top-fp,f.r.width+fp*2,f.r.height+fp*2);}
       ctx.restore();return;
@@ -1292,7 +1329,10 @@ var VbFxRenderer = (function () {
         var origin = s.at === 'impact' ? job.hitAt[Math.min(entry.index, job.hitAt.length - 1)] || 0 : 0;
         if(s.targetSpread)origin+=s.targetSpread*entry.index/Math.max(1,job.targets.length-1);
         if (s.at === 'reveal') origin = (job.summonMs || 0) / job.ms;
-        var time = s.time || [0, 1], delay = s.playbackDelay ? Math.min(s.playbackDelay.maxMs / job.ms, s.playbackDelay.maxRatio) : 0;
+        var time = s.time || [0, 1];
+        // 再生ごとに出る時刻をずらす（2026-10-21 利用者指摘：スキュラのしずくにランダム性がない）。乱数は再生の種から。
+        if (s.timeJitter) { var tj = (random(7, job.seed + (s.seedOffset == null ? layerIndex * 29 : s.seedOffset) + entry.index * 37) - .5) * 2 * s.timeJitter; time = [clamp(time[0] + tj), clamp(time[1] + tj)]; if (time[1] - time[0] < .02) time = s.time; }
+        var delay = s.playbackDelay ? Math.min(s.playbackDelay.maxMs / job.ms, s.playbackDelay.maxRatio) : 0;
         var clock = t - origin - time[0] - delay, length = time[1] - time[0];
         if (clock < 0&&!s.prewarmTransform || s.startExclusive&&clock===0 || !job.def.loop && t > origin + time[1]) return;
         if(s.endExclusive&&!job.def.loop&&t>=origin+time[1])return;
@@ -1339,7 +1379,7 @@ var VbFxRenderer = (function () {
           if(s.clip==='card'){
             var clipRect=s.clipFollowOffset===false?r:f.r;
             if(s.clipGeometry==='rect'){ctx.beginPath();ctx.rect(clipRect.left,clipRect.top,clipRect.width,clipRect.height);ctx.clip();}
-            else if(s.clipRadius!=null){roundRect(clipRect,s.clipRadius*dimension(f,s.clipRadiusSpace),(s.clipPad||0)*f.unit);ctx.clip();}
+            else if(s.clipRadius!=null){framePath(clipRect,(s.clipPad||0)*f.unit);ctx.clip();}
             else if(roundedPath(clipRect,0))ctx.clip();
           }
           var softness = value(f, 'softness', 0);

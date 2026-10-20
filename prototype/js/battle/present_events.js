@@ -224,7 +224,15 @@ function _presentLabPlan(ev, events, index, api, context) {
     });
   }
   const sourceRect = origin && origin.rect;
-  const plan = {code,spec,owner,targets,members,events,index,sourceRect:sourceRect && (spec[2]==='dead'?{...sourceRect,element:null}:sourceRect),
+  // 攻撃時の効果は、その体の攻撃の接触で始める（present.js PRESENT_LAB_AT_CONTACT）。攻撃が見えない時は今すぐ出す。
+  let contactEvent = null;
+  if (owner && typeof PRESENT_LAB_AT_CONTACT !== 'undefined' && PRESENT_LAB_AT_CONTACT.has(code)) {
+    for (let i=index+1;i<events.length;i++) {
+      const next=events[i];if(['turn_begin','battle_end'].includes(next.type))break;
+      if(next.type==='attack'&&next.attackerId===owner.id&&next.attackVisual!==false){contactEvent=next;break;}
+    }
+  }
+  const plan = {code,spec,owner,targets,members,events,index,sourceRect:sourceRect && (spec[2]==='dead'?{...sourceRect,element:null}:sourceRect),contactEvent,
     side:ownerSide==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
   members.forEach(e=>{ if (e.type!=='death' && e.type!=='revive') _presentLabClaims.set(e,plan); });
   _presentLabClaimHitReactions(plan,events);
@@ -326,8 +334,8 @@ async function _presentLabFinish(plan) {
     // 弱体・邪眼の付与は見た目だけ続ける。音は元の固有演出のSEで足り、重ねると調和しない（2026-10-18 利用者指摘：グレムリン・ウンディーネ）。
     // 結界・復活の獲得の音は残す（スプリガン等は獲得SEへつなげる）。
     const silent = code===getKeywordAssetKey('弱体') || code===getKeywordAssetKey('邪眼');
-    // グレムリンの弱体だけは、調和する音として今の即死の音（K001）を鳴らす案（2026-10-21 利用者指定。LAB の gremlin-weaken と同じ）。
-    if (units.length && silent && plan.code==='C083' && typeof playSfx==='function') playSfx(getKeywordAssetKey('即死'),{group:'combat',guardKey:`gremlin-weaken:${Date.now()}`,guardMs:0});
+    // グレムリンの弱体だけは、調和する音として即死の旧SE（gremlinWeaken）を鳴らす（2026-10-21 利用者指定。LAB の gremlin-weaken と同じ）。
+    if (units.length && silent && plan.code==='C083' && typeof playSfx==='function') playSfx('gremlinWeaken',{group:'combat',guardKey:`gremlin-weaken:${Date.now()}`,guardMs:0});
     if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0]),silent,
       durationMs:plan.repeat?presentEffectRunDuration(true)/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined});
   }

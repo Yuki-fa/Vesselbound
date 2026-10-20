@@ -86,6 +86,8 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | E078 | gold-loss | Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Coin Drop On Wood Platform 05.wav | 0.619667秒 | 0.242979 |
 | C042 | sleep-sheep | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav | 1.95秒 | 0.45 |
 | C084 | incubus | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav | 1.95秒 | 0.45 |
+| R016 | intimidate-ring | Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav | 3.4秒 | 0.450021 |
+| K001 | death-mark | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large-03.wav | 1.95秒 | 0.45 |
 
 ## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 
@@ -126,7 +128,6 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | C019 | centaur-missile | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-02.wav | 1.73929秒 | 0.45 |
 | E032 | rage-shards | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 01.wav | 3秒 | 0.450021 |
 | map:resonance | map-resonance | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Hit 10.wav | 1.95秒 | 0.072292 |
-| R016 | intimidate-ring | Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Ghostly Presences Vol. 1/AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav | 1.95秒 | 0.45 |
 | shield_break | shield-break | The Vault/Broken/Sounds/分割/BROKEN - DESIGNED - WINDSHIELD Glass Stress and Pop-01.wav | 1.2秒 | 0.318812 |
 
 ## 2026-10-12追加：仮（候補1・利用者未選択）

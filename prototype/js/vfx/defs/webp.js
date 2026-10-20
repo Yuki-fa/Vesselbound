@@ -2924,7 +2924,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  1.2
+                  0.9
                 ]
               ],
               "interpolation": "ease-out"
@@ -17441,8 +17441,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 0,
-        "cueMs": 0
+        "atMs": 588,
+        "cueMs": 588
       },
       "layers": [
         {

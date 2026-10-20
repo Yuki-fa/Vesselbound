@@ -1905,7 +1905,7 @@ const PRESENT_LAB_FX = {
   // 第4弾（2026-10-17。汎用の演出で代わりに出していた）：レムレースの呼び戻し・召喚の指輪・魔導板の力・威圧／魔力の指輪。
   // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
   C031:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
-  R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.45,'foes'],
+  R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.450021,'foes'],
   'map:life':['map-life',0.243979,'friends'], 'map:resonance':['map-resonance',0.072292,'friends'], 'map:duplicate':['map-duplicate',0.45,'self'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], K009_SWEEP:['all-sweep',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
@@ -1921,6 +1921,21 @@ const PRESENT_LAB_FX = {
   C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.45,'friend'],
   C084:['incubus',0.45,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
 };
+// 攻撃時の効果のうち、攻撃の接触（動いたカードが相手に当たった瞬間）で演出を始めるもの。
+// コアは攻撃時の効果を attack イベントより先に出すため、そのまま再生するとキャラが動き出す前にVFXが出る
+// （2026-10-21 利用者指摘：衝撃波）。シルフ・ファミリア（C064・C089）と同じ待ち方をする。
+const PRESENT_LAB_AT_CONTACT = new Set(['E071']);
+// 番号で引かない演出の持ち主（2026-10-21 利用者指摘：FIXしてゲームで使っているのにLABで「未使用」と出ていた）。
+// ゲームはここを読んで再生し、LAB（tools/vfx_preview/lab_model.js currentUses）も同じ表から「現在の割り振り」を出す。
+// 巻物などを魔導板のキャラクターに使った時（アイテムの番号 → 演出。reward_items.js _playItemUseVfx）。
+// 2026-10-18 利用者指定：盾の巻物（I003）と幻視の巻物（I004）の演出を入れ替えている。
+const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'scroll-giant', I011:'scroll-mana', I012:'scroll-guts' };
+// マップの力（PRESENT_LAB_FX の 'map:<id>'）とシートの番号（map.js のシート読み込みも使う）。
+const PRESENT_MAP_POWER_NO = { summon:'M001', life:'M002', eternal:'M003', resonance:'M004', duplicate:'M005' };
+// 番号を持たない場面で直接再生する演出。
+const PRESENT_DIRECT_LAB_FX = [
+  { effect:'opening-sigil', id:'appearance', name:'開戦の登場（着地の砂煙）', trigger:'開戦', basis:'battle.js _battleOpeningLandingVfx' },
+];
 const PRESENT_LAB_1012_CODES=new Set(['C004','C020','C021','C060','C064','C071','C089','C099','C029','C034','C082','C083','C095','C097','C009','C042','C056','C066','C079','C084','C094']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
 // 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
@@ -1996,8 +2011,8 @@ function presentCharacterHitVfxMs(code) {
 // ゲームの効果音（assets/sfx）の一番大きい所の時刻（秒、ファイル先頭から。実測）。
 // 固有VFXと一緒に鳴らす時、このピークをVFXの山場（定義の impact）へ合わせる。LABも同じ表を使う。
 const PRESENT_SFX_PEAK_SEC = {
-  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: 0.043958, C017: 0.45, C019: 0.45, C019_HIT: 0.196729, C043: 0.45,
-  C090: .130, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
+  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: 0.22 /* 2026-10-21 利用者指摘：SEの始まりをもう少し前へ（0.044→0.22） */, C017: 0.45, C019: 0.45, C019_HIT: 0.196729, C043: 0.45,
+  C090: .130, appearance: .029 /* 開戦の砂煙の着地音（実測） */, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
   [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
 };
 function presentSfxPeakSec(key) {

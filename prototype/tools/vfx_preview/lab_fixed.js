@@ -24,9 +24,11 @@ var VbFxLabFixed = {
   'rage-shards':'2026-10-21','storm-ring':'2026-10-21','scroll-revive':'2026-10-21','scroll-giant':'2026-10-21','scroll-guts':'2026-10-21',
   'fate-sever':'2026-10-21','suffering-brand':'2026-10-21','map-resonance':'2026-10-21','map-duplicate':'2026-10-21','arch-demon':'2026-10-21',
   'minotaur':'2026-10-21','spriggan':'2026-10-21','hit-burst':'2026-10-21','fire-arrow':'2026-10-21','fire-arrow-impact':'2026-10-21',
-  'fang-poison':'2026-10-21','tri-streak':'2026-10-21','shield-contact':'2026-10-21','seal-release':'2026-10-21','revive-burst':'2026-10-21',
+  'fang-poison':'2026-10-21','tri-streak':'2026-10-21','shield-contact':'2026-10-21','seal-release':'2026-10-21',
   'shield-break':'2026-10-21','baron':'2026-10-21','revive-state':'2026-10-21','shield-state':'2026-10-21','poison-state':'2026-10-21',
   'weaken-state':'2026-10-21','guts-state':'2026-10-21','sealed-power':'2026-10-21','steal-mark':'2026-10-21','penance-ring':'2026-10-21',
   'shockwave':'2026-10-21','all-ring':'2026-10-21','all-roar':'2026-10-21','gold-loss':'2026-10-21','sleep-sheep':'2026-10-21',
   'incubus':'2026-10-21','centaur-missile':'2026-10-21','all-sweep':'2026-10-21','all-cross':'2026-10-21',
+  // 2026-10-21 2回目：FIX（31・70・80・84、SE1を採用した68）。76 は SE を選び直すので外す
+  'map-life':'2026-10-21','piercing-streak':'2026-10-21','mana-gain':'2026-10-21','mana-buff':'2026-10-21','death-mark':'2026-10-21',
 };

@@ -706,9 +706,10 @@ function handlePendingItemBoardTarget(slotIdx){
 // 巻物などを魔導板のキャラクターに使った時の演出（2026-10-17 新規。見た目は js/vfx/defs/additions_1017.js）。
 // 効果の適用・保存には関わらない。素材が無い時・描画できない時は何もしない。
 // 2026-10-18 利用者指定：盾の巻物と幻視の巻物の演出を入れ替える（盾＝光輪と光の柱、幻視＝結晶片の結界）。
-const ITEM_USE_VFX={shield_scroll:'scroll-revive',vision_scroll:'scroll-shield',giant_scroll:'scroll-giant',mana_scroll:'scroll-mana',inspire_flag:'scroll-guts'};
+// 対応表は present.js の PRESENT_ITEM_USE_FX（アイテムの番号で引く。LABも同じ表を読む）。
 function _playItemUseVfx(key,slotIdx){
-  const name=ITEM_USE_VFX[key];
+  const def=typeof ITEM_POOL!=='undefined'?ITEM_POOL.find(i=>i.itemEffectKey===key):null;
+  const name=def&&typeof PRESENT_ITEM_USE_FX!=='undefined'?PRESENT_ITEM_USE_FX['I'+def.no]:'';
   if(!name||typeof VbFx==='undefined'||!VbFx.effects.some(d=>d.name===name)) return;
   const el=typeof getBoardSlotElement==='function'?getBoardSlotElement(slotIdx)
     :document.querySelector(`#hand-slots [data-board-idx="${slotIdx}"]`);
