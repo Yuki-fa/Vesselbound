@@ -312,6 +312,12 @@ const WATCHER = `
       const origTrace = window._recordBattleTrace;
       window._recordBattleTrace = function (type, data) {
         if (type === 'attack_motion_contact') window.__watch.contact = { ...data, t: performance.now() };
+        // 攻撃中のVFXが動くカード（body直下 z=10000）の下へ回り込まないこと（2026-10-20 利用者指摘）。
+        if (type === 'attack_motion_contact' && typeof _vfxClipLayer === 'function') {
+          const layer = _vfxClipLayer(), clone = document.querySelector('.attack-motion-clone');
+          (window.__watch.layerAtContact = window.__watch.layerAtContact || []).push({
+            body: layer.parentNode === document.body, z: Number(layer.style.zIndex), cloneZ: clone ? Number(clone.style.zIndex) : null });
+        }
         if (type === 'attack_motion_end') window.__watch.contact = null;
         try { if (/^attack_motion/.test(String(type))) (window.__watch.trace = window.__watch.trace || []).push(String(type) + ':' + ((data && data.attackerId) || '') + '>' + ((data && data.targetId) || '')); } catch (e) {}
         return origTrace.apply(this, arguments);
@@ -479,6 +485,7 @@ const COLLECT = `
     damageHits: window.__watch.damageHits.slice(),
     hitSounds: window.__watch.hitSounds.slice(),
     shieldBreaks: window.__watch.shieldBreaks.slice(),
+    layerAtContact: (window.__watch.layerAtContact || []).slice(),
     shieldSounds: window.__watch.shieldSounds.slice(),
     returns: window.__watch.returns,
     summons: (window.__coreEvents || []).filter(e => e.type === 'summon').map(e => e.unit),
@@ -637,7 +644,7 @@ const onlineScript = sc => `
     window.__watch.onCard.length = 0; window.__watch.offCard.length = 0;
     window.__watch.hp = {}; window.__watch.hpEarly.length = 0; window.__watch.hpZero.length = 0; window.__watch.transformed = {};
     window.__watch.contact = null; window.__watch.damageHits.length = 0; window.__watch.hitSounds.length = 0;
-    window.__watch.shieldBreaks.length = 0; window.__watch.shieldSounds.length = 0; window.__watch.returns = {};
+    window.__watch.shieldBreaks.length = 0; window.__watch.shieldSounds.length = 0; window.__watch.returns = {}; window.__watch.layerAtContact = [];
   };
   try {
     await Promise.race([
@@ -736,6 +743,7 @@ function lab1012ParityScript(code,trigger,online){
     const only = String(process.env.VB_ONLY || '');
     const wanted = only ? only.split('|') : [];
     for (const sc of SCENARIOS.filter(x => !wanted.length || wanted.some(w => x.name.includes(w)))) {
+      if (process.env.VB_PROGRESS) console.error(`[${new Date().toISOString().slice(11, 19)}] ${sc.name}`);
       const recording = process.env.VB_RECORD_DIR ? b.record(process.env.VB_RECORD_DIR, 70, 30) : null;
       const pve = await b.eval(pveScript(sc));
       if (recording) await recording;
@@ -783,6 +791,10 @@ function lab1012ParityScript(code,trigger,online){
         pveCalls === onCalls ? `${(pve.calls || []).length}回`
           : `PvE=${pveCalls || 'なし'}\n\tオンライン=${onCalls || 'なし'}`);
 
+      for (const [label, r] of [['PvE', pve], ['オンライン', online]]) {
+        const bad = (r.layerAtContact || []).filter(x => x.cloneZ != null && !(x.body && x.z > x.cloneZ));
+        check(`${tag}${label}接触時、VFXの層が動くカードより上`, bad.length === 0, `${(r.layerAtContact || []).length}回中 ${bad.length}回が下：${JSON.stringify(bad[0] || null)}`);
+      }
       if (sc.shieldAtContact) {
         for (const [label, r] of [['PvE', pve], ['オンライン', online]]) {
           const breaks = (r.shieldBreaks || []).filter(b => new RegExp(sc.shieldAtContact).test(b.unitId));

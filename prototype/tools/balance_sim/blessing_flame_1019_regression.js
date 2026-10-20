@@ -90,13 +90,23 @@ function simulate(units){
       assert.deepEqual(_rewCards,[],'プレビューを取得可能な報酬配列に入れない');
     }finally{document.createElement=create;}
   });
-  check('右下：立ち去る・元に戻す・実行、選択前は実行不可',()=>{
+  check('右下：祝福を離れる・元に戻す。実行・キャンセルはプレビュー中だけ（2026-10-20）',()=>{
     blessingFlameReset();
     const row=element();blessingFlameRenderControls(row);
-    assert.deepEqual(row.children.map(b=>b.children[0].textContent),['立ち去る','元に戻す','実行']);
-    assert.equal(row.children[2].disabled,true);
+    assert.deepEqual(row.children.map(b=>b.children[0].textContent),['祝福を離れる','元に戻す']);
     blessingFlameSelect(1);const selected=element();blessingFlameRenderControls(selected);
+    assert.deepEqual(selected.children.map(b=>b.children[0].textContent),['祝福を離れる','元に戻す','実行','キャンセル']);
+    assert.ok(selected.children[2].className.includes('rew-move-btn'));assert.ok(selected.children[3].className.includes('rew-reset-btn'));
     assert.equal(selected.children[2].disabled,false);
+    // プレビュー中は説明文を出さない。キャンセルは選択だけを外す。
+    const previewRow=element(),create=document.createElement;
+    try{document.createElement=element;blessingFlameRenderPreview(previewRow,element());}finally{document.createElement=create;}
+    assert.equal(previewRow.children.some(c=>c.className==='blessing-flame-instruction'),false);
+    const board=clone(G.mainBoard);assert.equal(blessingFlameCancel(),true);
+    assert.equal(_blessingFlameVisit.selected,-1);assert.deepEqual(G.mainBoard,board);
+    const helpRow=element();blessingFlameRenderPreview(helpRow,element());
+    assert.equal(helpRow.children.filter(c=>c.className==='blessing-flame-instruction').length,1);
+    blessingFlameSelect(1);
   });
   await checkAsync('実行：基礎ATK/HP2倍の後に正負の修正、強化効果・キーワード・旧合体枠、1枚だけ',async()=>{
     G.mainBoard[1].power+=7;G.mainBoard[1].life-=2;
@@ -121,10 +131,12 @@ function simulate(units){
     assert.equal(G.mainBoard[1]._tripleMerged,undefined);
     assert.equal(blessingFlameSelect(3),true);assert.equal(blessingFlameUsed(),false);
   });
-  check('強化不可：空欄・エンチャント・依頼/NPC・荷物・強化済みを暗くし、選択しない',()=>{
+  check('強化不可：空欄・強化後の無いエンチャント・依頼/NPC・荷物・強化済みを暗くし、選択しない。エンチャントは強化できる',()=>{
     const raw=card('C003');
+    assert.equal(blessingFlameCardEligible(card('E002')),true,'エンチャントも強化できる（2026-10-20）');
+    const enchant=enhancedPanelCopy(card('E001'));assert.ok(enchant&&enchant._tripleMerged&&enchant.desc!==card('E001').desc);
     const cases=[null,{...raw,_mergedSource:{desc:'',keywords:''}},
-      {...raw,mergedForm:null},card('E002'),{...raw,_npcCard:true},{...raw,_npcDeployOnly:true},
+      {...raw,mergedForm:null},card('E010'),{...raw,_npcCard:true},{...raw,_npcDeployOnly:true},
       {...raw,_questOfferCard:true},{...raw,_questTransportId:'Q005'},{...raw,no:'BC001'},
       {...raw,keywords:['荷物']},enhancedPanelCopy(raw),{...raw,_merged:true}];
     for(const invalid of cases){
@@ -149,17 +161,29 @@ function simulate(units){
     assert.deepEqual(event('click','#reward-move-btns'),[false,false]);
     assert.deepEqual(event('click','#battle-options-btn'),[false,false]);
   });
-  await checkAsync('退場：強化を確定し、再入場不可・別ステージの炎は1回使える',async()=>{
+  await checkAsync('退場：強化を確定。祭壇と同じく再入場でき、使用済みの炎では選べない。未実行の退場は使用済みにしない（2026-10-20）',async()=>{
     assert.equal(await blessingFlameExecute(),true);
+    // 強化後は全てのカードを明るくする（強化できないカードも）。
+    G.mainBoard[5]=card('E010');const dim=element();blessingFlameWireCard(dim,G.mainBoard[5],5);
+    assert.equal(dim.classList.contains('blessing-flame-unavailable'),false);G.mainBoard[5]=null;
     const upgraded=clone(G.mainBoard[3]);
     assert.equal(await blessingFlameLeave(),true);
     assert.equal(blessingFlameUsed(1),true);assert.equal(G._isWaveAltar,true);
     assert.equal(G._isBlessingFlame,false);assert.deepEqual(G.mainBoard[3],upgraded);
-    assert.equal(openBlessingFlame(),false);
-    assert.equal(_villageFacilityDisabled({key:BLESSING_FLAME_CONFIG.key}),true);
+    assert.equal(_villageFacilityDisabled({key:BLESSING_FLAME_CONFIG.key}),false);
+    assert.equal(openBlessingFlame(),true);
+    assert.equal(blessingFlameSelect(1),false);assert.equal(_blessingFlameVisit.executed,true);
+    const help=element();blessingFlameRenderPreview(help,element());
+    assert.equal(help.children[0].textContent,BLESSING_FLAME_CONFIG.text.used);
+    assert.equal(blessingFlameReset(),true);assert.equal(blessingFlameSelect(1),false,'入り直して元に戻しても使用済みのまま');
+    assert.deepEqual(G.mainBoard[3],upgraded);
+    assert.equal(await blessingFlameLeave(),true);
     G._wave=2;assert.equal(blessingFlameUsed(),false);assert.equal(openBlessingFlame(),true);
-    assert.equal(await blessingFlameLeave(),true,'未実行でも退場は使用済み');
-    assert.equal(openBlessingFlame(),false);assert.equal(blessingFlameUsed(2),true);
+    assert.equal(await blessingFlameLeave(),true);
+    assert.equal(blessingFlameUsed(2),false,'未実行の退場は使用済みにしない');
+    assert.equal(openBlessingFlame(),true);assert.equal(blessingFlameSelect(1),true);
+    assert.equal(await blessingFlameExecute(),true);assert.equal(await blessingFlameLeave(),true);
+    assert.equal(blessingFlameUsed(2),true);
   });
   check('セーブ→ロード：強化した姿と使用済み、古いセーブの既定値、選択/VFXは保存しない',()=>{
     const upgraded=clone(G.mainBoard[3]);
@@ -167,7 +191,8 @@ function simulate(units){
     SaveRun.ready();const loaded=SaveRun.loadRun();assert.ok(loaded);
     SaveRun.restoreRunState(loaded);assert.deepEqual(G.mainBoard[3],upgraded);
     assert.equal(blessingFlameUsed(1),true);assert.equal(blessingFlameUsed(2),true);
-    assert.equal(blessingFlameActive(),false);assert.equal(openBlessingFlame(),false);
+    assert.equal(blessingFlameActive(),false);assert.equal(openBlessingFlame(),true);
+    assert.equal(blessingFlameSelect(1),false);blessingFlameClear();
     assert.equal(JSON.stringify(save).includes('_blessingFlameVisit'),false);
     const old=clone(save);delete old.state.choices._blessingFlameUsed;
     SaveRun.restoreRunState(old);assert.deepEqual(G._blessingFlameUsed,{});
@@ -194,7 +219,7 @@ function simulate(units){
     assert.equal(received.atk,online.state.units.p1[0].atk);assert.equal(received.desc,upgraded.desc);
     assert.equal(received._tripleMerged,true);
   });
-  check('実際の描画入口：報酬枠にはプレビューだけ、魔導板クリックは選択、右下は専用の3ボタン',()=>{
+  check('実際の描画入口：報酬枠にはプレビューだけ、魔導板クリックは選択、プレビュー中は実行・キャンセルが加わる',()=>{
     blessingFlameReset();
     const render=renderRewCards,get=document.getElementById,create=document.createElement;
     const section=element(),row=element(),buttons=element();
@@ -206,7 +231,8 @@ function simulate(units){
       renderMoveSlotsInEnemy();
       assert.equal(row.children.filter(c=>c.classList.contains('blessing-flame-preview')).length,1);
       assert.equal(section.style.getPropertyValue('--title-reward'),'"強化後のカード"');
-      assert.equal(buttons.children.at(-1).children[0].textContent,'実行');
+      // 検査用の要素は innerHTML='' で子を消さないので、最後に描いた4つを見る。
+      assert.deepEqual(buttons.children.slice(-4).map(b=>b.children[0].textContent),['祝福を離れる','元に戻す','実行','キャンセル']);
       const wired=element();_wireHeCardControls(wired,G.mainBoard[1],'boardCards',1);
       assert.equal(wired.draggable,false);wired.onclick({stopPropagation(){}});
       assert.equal(wired.classList.contains('blessing-flame-selected'),true);
@@ -237,7 +263,8 @@ function simulate(units){
       assert.equal(save.state.choices._blessingFlameUsed[1],true);
       assert.equal(save.state.player.mainBoard[1]._mergedFormApplied,true);
       assert.equal(save.state.place._isVillageMenu,true);
-      SaveRun.restoreRunState(save);assert.equal(openBlessingFlame(),false);
+      SaveRun.restoreRunState(save);assert.equal(openBlessingFlame(),true);
+      assert.equal(blessingFlameSelect(1),false);blessingFlameClear();
     }finally{SaveRun.enabled=enabled;}
   });
   check('個体の祝福と同名/色の修正：元からある倍率は維持し、加算分を倍にしない',()=>{

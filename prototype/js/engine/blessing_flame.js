@@ -1,31 +1,34 @@
-// 祝福の炎：各塔で一度、カード1枚をシートの強化後の姿へ変える。
+// 祝福の炎：各塔で一度、魔導板のキャラクターかエンチャント1枚をシートの強化後の姿へ変える。
 const BLESSING_FLAME_CONFIG={
   key:'blessingFlame',name:'祝福の炎',
   position:{x:1621,y:1402},
   flashMs:760,
   // シート未収録の仮文言。施設には会話を挟まず、この説明を表示する。
-  text:{description:'魔導板のキャラクター1枚を強化する。',
+  text:{description:'魔導板のキャラクターかエンチャント1枚を強化する。',
     used:'この炎の祝福は、すでに失われた。',
-    instruction:'強化するキャラクターを1枚選んでください。立ち去ると、この炎は使えなくなります。',
+    instruction:'強化するカードを1枚選んでください。',
     completed:'強化しました。「元に戻す」で選び直せます。',
-    execute:'実行',leave:'立ち去る',preview:'強化後のカード'},
+    execute:'実行',cancel:'キャンセル',leave:'祝福を離れる',preview:'強化後のカード'},
 };
-// 選択・演出は画面内だけの一時状態。使用済みだけを G に保存する。
+// 選択・演出は画面内だけの一時状態。使用済み（強化して立ち去った）だけを G に保存する。
+// 祭壇と同じく、実行の有無にかかわらず何度でも入れる。使用済みの炎では選択・実行できない（2026-10-20 利用者指定）。
 let _blessingFlameVisit=null;
 function blessingFlameUsed(key){
   return !!((G._blessingFlameUsed||{})[key??_waveFacilityCacheKey()]);
 }
 function blessingFlameActive(){ return !!(G&&G._isBlessingFlame&&_blessingFlameVisit); }
 function blessingFlameCardEligible(card){
-  if(!card||String(card.category||'')!=='キャラクター'||!panelHasEnhancementForm(card)
+  // エンチャントも強化できる（2026-10-20 利用者指定）。
+  if(!card||!['キャラクター','エンチャント'].includes(String(card.category||''))||!panelHasEnhancementForm(card)
     ||card._merged||card._tripleMerged||card._mergedFormApplied
     ||card._npcCard||card._npcDeployOnly||card._questOfferCard||card._questTransportId) return false;
   return !(typeof questShopExchangeState==='function'&&questShopExchangeState(card)!=='allow');
 }
 function openBlessingFlame(){
-  if(blessingFlameActive()||!G._isWaveAltar||blessingFlameUsed()) return false;
+  if(blessingFlameActive()||!G._isWaveAltar) return false;
   G._facilityCacheKey=_waveFacilityCacheKey();
-  _blessingFlameVisit={key:G._facilityCacheKey,selected:-1,preview:null,executed:false,busy:false};
+  const spent=blessingFlameUsed(G._facilityCacheKey);
+  _blessingFlameVisit={key:G._facilityCacheKey,selected:-1,preview:null,executed:spent,spent,busy:false};
   G._isBlessingFlame=true;
   G._isShop=G._isItemShop=G._isForge=G._isTavern=G._isFiveSaints=G._isLibrary=G._isLibraryMenu=G._isRingExchange=G._isVillageMenu=false;
   G._ringOfferPhase=false;
@@ -56,7 +59,15 @@ function blessingFlameSelect(index){
   visit.preview=enhancedPanelCopy(card);
   if(!visit.preview) return false;
   visit.selected=index;
-  renderRewCards();renderHandEditor();
+  renderRewCards();renderHandEditor();renderMoveSlotsInEnemy();
+  return true;
+}
+// プレビュー中の「キャンセル」：選択だけを外す（盤面は変えない）。
+function blessingFlameCancel(){
+  if(!blessingFlameActive()||_blessingFlameVisit.busy||_blessingFlameVisit.selected<0) return false;
+  _blessingFlameVisit.selected=-1;
+  _blessingFlameVisit.preview=null;
+  renderRewCards();renderHandEditor();renderMoveSlotsInEnemy();
   return true;
 }
 async function blessingFlameExecute(){
@@ -77,16 +88,17 @@ async function blessingFlameExecute(){
   // ページ内のデバッグ切替などで施設が閉じられた時は古い参照を戻さない。
   if(!blessingFlameActive()||_blessingFlameVisit!==visit) return false;
   G.mainBoard[index]=upgraded;
-  visit.executed=true;visit.busy=false;visit.preview=null;
+  visit.executed=true;visit.busy=false;visit.preview=null;visit.selected=-1;
   if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
-  renderRewCards();renderHandEditor();
+  renderRewCards();renderHandEditor();renderMoveSlotsInEnemy();
   return true;
 }
 function blessingFlameReset(){
   if(!blessingFlameActive()||_blessingFlameVisit.busy) return false;
   _blessingFlameVisit.selected=-1;
   _blessingFlameVisit.preview=null;
-  _blessingFlameVisit.executed=false;
+  // 入場時点へ戻す。使用済みの炎へ入り直した時は、入場時点が強化後なので使用済みのまま。
+  _blessingFlameVisit.executed=!!_blessingFlameVisit.spent;
   resetRewardToStart();
   return true;
 }
@@ -94,8 +106,11 @@ async function blessingFlameLeave(){
   if(!blessingFlameActive()||_blessingFlameVisit.busy) return false;
   if(!guardFormationLeave()) return false;
   _blessingFlameVisit.busy=true;
-  G._blessingFlameUsed=G._blessingFlameUsed||{};
-  G._blessingFlameUsed[_blessingFlameVisit.key]=true;
+  // 強化して立ち去った時だけ使用済みにする（実行せずに立ち去った炎は、そのまま使える）。
+  if(_blessingFlameVisit.executed&&!_blessingFlameVisit.spent){
+    G._blessingFlameUsed=G._blessingFlameUsed||{};
+    G._blessingFlameUsed[_blessingFlameVisit.key]=true;
+  }
   if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});
   await fadeScreenSwitch(()=>{
     openMapVillage({tower:true});
@@ -118,9 +133,11 @@ function blessingFlameRenderPreview(el,section){
     const card=_mkRewDiv(visit.preview,null,null);
     card.classList.add('blessing-flame-preview');card.draggable=false;
     el.appendChild(card);
+    return;  // プレビュー中は説明文を出さない（2026-10-20 利用者指定）。
   }
+  // 説明文は報酬枠の中心（プレビューのカードが置かれる位置の中心）に揃える。
   const help=document.createElement('div');help.className='blessing-flame-instruction';
-  help.textContent=visit&&visit.executed?text.completed:text.instruction;
+  help.textContent=visit&&visit.spent?text.used:visit&&visit.executed?text.completed:text.instruction;
   el.appendChild(help);
 }
 function blessingFlameRenderControls(el){
@@ -130,14 +147,19 @@ function blessingFlameRenderControls(el){
     const span=document.createElement('span');span.className='rew-btn-label';span.textContent=label;b.appendChild(span);
     b.onclick=action;el.appendChild(b);
   };
-  button(text.leave,'rew-reset-btn',()=>void blessingFlameLeave(),!visit||visit.busy);
+  // 右下は「祝福を離れる」「元に戻す」。実行・キャンセルはプレビュー中だけ、報酬枠のカードの左右に出す（2026-10-20 利用者指定）。
+  button(_uiLabel('「祝福を離れる」ボタン',text.leave),'rew-move-btn blessing-flame-leave-btn',()=>void blessingFlameLeave(),!visit||visit.busy);
   button(_uiLabel('「元に戻す」ボタン','元に戻す'),'rew-reset-btn',blessingFlameReset,!visit||visit.busy);
-  button(_uiLabel('「実行」ボタン',text.execute),'rew-move-btn',()=>void blessingFlameExecute(),!visit||visit.busy||visit.executed||visit.selected<0);
+  if(visit&&visit.preview&&!visit.executed){
+    button(_uiLabel('「実行」ボタン',text.execute),'rew-move-btn blessing-flame-execute-btn',()=>void blessingFlameExecute(),visit.busy);
+    button(_uiLabel('「キャンセル」ボタン',text.cancel),'rew-reset-btn blessing-flame-cancel-btn',blessingFlameCancel,visit.busy);
+  }
 }
 function blessingFlameWireCard(el,card,index){
   const visit=_blessingFlameVisit;
   el.draggable=false;
-  el.classList.toggle('blessing-flame-unavailable',!blessingFlameCardEligible(card)||!!visit.executed);
+  // 強化できないカードだけ暗くする。強化した後（使用済みの炎も）は全て明るい（2026-10-20 利用者指定）。
+  el.classList.toggle('blessing-flame-unavailable',!visit.executed&&!blessingFlameCardEligible(card));
   el.classList.toggle('blessing-flame-selected',visit.selected===index&&!visit.executed);
   if(visit.selected===index&&!visit.executed){
     const glow=document.createElement('span');glow.className='blessing-flame-selection-glow';

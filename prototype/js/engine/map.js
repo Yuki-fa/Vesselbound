@@ -711,7 +711,8 @@ function _firstRunVargaInnLocked(){
 }
 function _villageFacilityDisabled(fac){
   if(!fac) return true;
-  if(fac.key===BLESSING_FLAME_CONFIG.key) return blessingFlameUsed();
+  // 祝福の炎は祭壇と同じく、使用済みでも入れる（中では選択・実行できない。2026-10-20 利用者指定）。
+  if(fac.key===BLESSING_FLAME_CONFIG.key) return false;
   // 酒場はクエストのある街だけ開く（地域情報の「クエスト」列。quest.js）。
   // 酒場はクエストのある街だけ開き、そのクエストを達成した後は入れない。
   if(fac.key==='tavern'){

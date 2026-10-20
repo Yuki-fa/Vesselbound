@@ -1645,14 +1645,18 @@ function _vfxClipLayer(){
       pointerEvents:'none',zIndex:'10035'});
   }
   const screen=document.getElementById('scr-battle');
-  if(screen&&screen.classList.contains('active')){
+  // 攻撃の動く複製（.attack-motion-clone）は body 直下の z=10000 にいる。戦闘画面の中（z=9999）に置いたままだと、
+  // 攻撃中のVFXが動くカードの下へ回り込む（2026-10-20 利用者指摘）。複製がある間だけ body 直下でその上に出す。
+  // 描画側（VbFx）は毎コマこの関数を呼ぶので、複製が消えれば戦闘画面の中へ戻る。
+  const motionClone=!!document.querySelector('.attack-motion-clone');
+  if(screen&&screen.classList.contains('active')&&!motionClone){
     // 結果カットイン(z=10000)・行動表示(z=10002)より下。既存VFXの画面座標・寸法を保つ。
     const base=screen.getBoundingClientRect(),scale=_gameScale()||1;
     Object.assign(layer.style,{position:'absolute',left:`${-base.left/scale}px`,top:`${-base.top/scale}px`,
       width:`${window.innerWidth}px`,height:`${window.innerHeight}px`,zIndex:'9999',transformOrigin:'0 0',transform:`scale(${1/scale})`});
     if(layer.parentNode!==screen) screen.appendChild(layer);
   }else{
-    Object.assign(layer.style,{position:'fixed',left:'0',top:'0',width:'100%',height:'100%',zIndex:'10035',transform:'none'});
+    Object.assign(layer.style,{position:'fixed',left:'0',top:'0',width:'100%',height:'100%',zIndex:motionClone&&screen&&screen.classList.contains('active')?'10001':'10035',transform:'none'});
     if(layer.parentNode!==document.body) (document.body||document.documentElement).appendChild(layer);
   }
   const r=_battleVfxClipRect();
