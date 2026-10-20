@@ -167,6 +167,8 @@ CSSの後勝ちと !important の競合を前提に調べる。
 
 マスターの Vesselbound_data.xlsx は利用者管理。
 編集、移動、削除をしない。
+例外（利用者の許可済み）：prototype/Vesselbound_data.xlsx が無く「Vesselbound_data (1).xlsx」がある時は、
+確認せずに「Vesselbound_data.xlsx」へ改名してよい（ダウンロードし直した時に起きる）。
 反映は prototype/tools/update_local_xlsx_data.py を使う。
 更新対象のキーだけを指定する。
 

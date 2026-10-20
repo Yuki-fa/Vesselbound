@@ -303,6 +303,9 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 同じ瞬間（同じ発動回）に同じ効果が乗る分は、1体目の演出でまとめて見せる。
   const manaWaveGate=presentCreateOnceGate();
   for(const [eventIndex,e] of eventList.entries()){
+    // 戦闘を打ち切った（オプションからタイトルへ戻った等）後は、この手番の残りを再生しない。
+    // 開戦のマナ効果のように1手番に数百件ある時、タイトルでもSEが鳴り続けた（2026-10-20 利用者報告）。
+    if(G._debugFormationAbort)break;
     if(typeof presentSkipsEvent==='function'&&presentSkipsEvent(e))continue;
     if(!_preAttack&&(e.type==='turn_begin'||e.type==='battle_start'
       ||(typeof presentPreAttackActorId==='function'&&presentPreAttackActorId(e)!=null))){

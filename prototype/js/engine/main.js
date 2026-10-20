@@ -2270,6 +2270,9 @@ function showErrorOverlay(options){
       if(typeof opt.onClose==='function') opt.onClose();
     };
   }
+  // エラー画面は必ず操作できるようにする。保存中の入力止め（SaveRun.lockInput＝body.inert）が残っていると、
+  // 「タイトルに戻る」が押せなかった（2026-10-20 利用者報告：最終戦の保存失敗時）。
+  if(document.body) document.body.inert=false;
   if(document.body) document.body.classList.add('fatal-error-active');
   if(overlay) overlay.setAttribute('aria-hidden','false');
   try{ if(typeof playSfx==='function') playSfx('uiError',{group:'ui',guardKey:'ui:error-overlay'}); }catch(_e){}

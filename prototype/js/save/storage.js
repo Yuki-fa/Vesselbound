@@ -30,9 +30,20 @@ const SaveStorage=(()=>{
     let old=null;
     try{ old=read(kind,validate); }
     catch(error){ if(error.code==='SAVE_FUTURE') throw error; }
-    if(old&&old.generation==='current') media().setItem(key(kind,'backup'),JSON.stringify(old.data));
+    const quota=error=>!!error&&(error.name==='QuotaExceededError'||error.code===22||error.code===1014);
+    if(old&&old.generation==='current'){
+      // 保存上限に当たる時は、バックアップを諦めて現在の保存を優先する（2026-10-20：大きな戦闘の保存で失敗した）。
+      try{ media().setItem(key(kind,'backup'),JSON.stringify(old.data)); }
+      catch(error){ if(!quota(error)) throw error; media().removeItem(key(kind,'backup')); }
+    }
     // localStorageのsetItemは1キー単位で置換する。旧currentを先に消さない。
-    media().setItem(key(kind,'current'),raw);
+    try{ media().setItem(key(kind,'current'),raw); }
+    catch(error){
+      if(!quota(error)) throw error;
+      // 旧currentはバックアップへ写した後なので、バックアップを外して空きを作り、もう一度だけ試す。
+      media().removeItem(key(kind,'backup'));
+      media().setItem(key(kind,'current'),raw);
+    }
     return data;
   }
   function remove(kind){

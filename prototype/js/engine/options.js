@@ -141,6 +141,9 @@ function _optionReturnTitle(){
   if(battleActive){
     if(typeof abortBattleForDebug==='function')abortBattleForDebug();
     if(typeof _forceStopAllVfx==='function')_forceStopAllVfx();
+    // 鳴っている効果音（LAB演出の予約分を含む）も止める。
+    if(typeof stopBattleLabFx==='function')stopBattleLabFx();
+    if(typeof stopAllSfx==='function')stopAllSfx();
     if(typeof setBattlePresentationPlaying==='function')setBattlePresentationPlaying(false);
     // 開戦カットイン等の残骸は、VFX共通停止経路で消す。念のため要素が残った場合も除去する。
     document.getElementById('battle-start-intro')?.remove();
