@@ -825,7 +825,27 @@ var VbFxRenderer = (function () {
     if(opacity<=0)return;
     if (s.strokeProfile==='halo') {
       var pts=[],clock=f.clock*(s.noiseClock==null?1:s.noiseClock),seed=f.seed;
-      if (s.geometry==='superellipse') {
+      if (s.geometry==='card') {
+        // カードの枠と同じ角丸の四角に沿う光の線（2026-10-21 利用者指定：魔導板のマスの変化の線を枠の形に）。
+        var cp=value(f,'pad',0)*f.unit, x0=f.r.left-cp, y0=f.r.top-cp, cw=f.r.width+cp*2, chh=f.r.height+cp*2;
+        var cr=Math.min(cw,chh)*(s.cornerRatio==null?.07:s.cornerRatio), per=2*(cw+chh-4*cr)+TAU*cr, steps=160;
+        var at=function(d){
+          var seg=[cw-2*cr,Math.PI*cr/2,chh-2*cr,Math.PI*cr/2,cw-2*cr,Math.PI*cr/2,chh-2*cr,Math.PI*cr/2],i=0;
+          while(i<seg.length&&d>seg[i]){d-=seg[i];i++;}
+          var q=Math.min(1,seg[i]?d/seg[i]:0);
+          switch(i){
+            case 0:return{x:x0+cr+d,y:y0};
+            case 1:return{x:x0+cw-cr+Math.sin(q*Math.PI/2)*cr,y:y0+cr-Math.cos(q*Math.PI/2)*cr};
+            case 2:return{x:x0+cw,y:y0+cr+d};
+            case 3:return{x:x0+cw-cr+Math.cos(q*Math.PI/2)*cr,y:y0+chh-cr+Math.sin(q*Math.PI/2)*cr};
+            case 4:return{x:x0+cw-cr-d,y:y0+chh};
+            case 5:return{x:x0+cr-Math.sin(q*Math.PI/2)*cr,y:y0+chh-cr+Math.cos(q*Math.PI/2)*cr};
+            case 6:return{x:x0,y:y0+chh-cr-d};
+            default:return{x:x0+cr-Math.cos(q*Math.PI/2)*cr,y:y0+cr-Math.sin(q*Math.PI/2)*cr};
+          }
+        };
+        for (var j=0;j<=steps;j++) pts.push(at(per*j/steps));
+      } else if (s.geometry==='superellipse') {
         var pad=value(f,'pad',.04)*f.unit, rx=f.r.width/2+pad, ry=f.r.height/2+pad;
         for (var j=0;j<=96;j++) {
           var ang=j*TAU/96,c=Math.cos(ang),sn=Math.sin(ang),wob=1+(noise(c*4+clock,sn*4-clock,seed)-.5)*value(f,'noise',.037);

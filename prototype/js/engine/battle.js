@@ -1641,14 +1641,13 @@ function _battleOpeningLandingVfx(slot){
   }
   _playBattleOpeningAppearanceSfx();
   const playing=_playDefinedVfx(fx,'vfx:appearance_sheet:opening-sigil',980,{presentationSpeed:true});
-  // 素材は着地直後（約430〜630ms）が小さく明るい光で、その後は大きく薄い輪へ広がる。
-  // 700ms／1120msまで出していた時は、広がった輪まで見えて以前より大きく見えた（利用者報告）。
-  // 明るい光を出し切った所で薄れ始め、輪が広がり切る前に消す。
-  battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),560);
+  // 2026-10-21 利用者指定：砂煙は登場元（左）へ流れる。流れていく様子が見えるよう、薄れ始めを700ms、消すのを1200msにした
+  // （以前の560ms／980msは、大きく広がる輪を見せないための値。今の定義に輪は無い）。
+  battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),700);
   battlePresentationSetTimeout(()=>{
     playing.stop(); fx.remove();
     slot.classList.remove('battle-opening-appearance-active');
-  },980);
+  },1200);
 }
 
 function _animateBattleOpeningSlot(slot,delayMs){

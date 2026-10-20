@@ -2920,11 +2920,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.3
+                  0.76
                 ],
                 [
                   1,
-                  0.62
+                  1.2
                 ]
               ],
               "interpolation": "ease-out"
@@ -7487,7 +7487,7 @@ VbFxDefs.register({
           "anchor": "source",
           "basis": "unit",
           "intrinsicAlpha": true,
-          "color": "#72b4d1",
+          "color": "#4b9ccd",
           "points": [
             [
               0,
@@ -7502,10 +7502,146 @@ VbFxDefs.register({
               1.5
             ]
           ],
-          "width": 0.072,
-          "noise": 0.026,
+          "width": 0.428,
+          "noise": 0.067,
           "segments": 40,
-          "core": 0.2,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.06,
+                  0.5
+                ],
+                [
+                  1,
+                  0.5
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "geometry": "filament",
+          "strokeProfile": "ribbon",
+          "filamentClockRate": 3.5,
+          "taper": {
+            "keys": [
+              [
+                0,
+                0.7
+              ],
+              [
+                0.12,
+                1
+              ],
+              [
+                0.6,
+                0.55
+              ],
+              [
+                1,
+                0
+              ]
+            ],
+            "interpolation": "smooth"
+          }
+        },
+        {
+          "type": "beam",
+          "anchor": "source",
+          "basis": "unit",
+          "intrinsicAlpha": true,
+          "color": "#76b8dc",
+          "points": [
+            [
+              0,
+              -0.4
+            ],
+            [
+              0,
+              0.5
+            ],
+            [
+              0,
+              1.5
+            ]
+          ],
+          "width": 0.2819,
+          "noise": 0.0579,
+          "segments": 40,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.06,
+                  0.5
+                ],
+                [
+                  1,
+                  0.5
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "geometry": "filament",
+          "strokeProfile": "ribbon",
+          "filamentClockRate": 2.2,
+          "taper": {
+            "keys": [
+              [
+                0,
+                0.7
+              ],
+              [
+                0.12,
+                1
+              ],
+              [
+                0.6,
+                0.55
+              ],
+              [
+                1,
+                0
+              ]
+            ],
+            "interpolation": "smooth"
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "beam",
+          "points": [
+            [
+              0,
+              -0.4
+            ],
+            [
+              0,
+              0.5
+            ],
+            [
+              0,
+              1.5
+            ]
+          ],
+          "width": 0.1044,
+          "color": "#ffffff",
+          "blend": "add",
+          "core": 1,
+          "noise": 0.0304,
+          "segments": 24,
           "curves": {
             "alpha": {
               "keys": [
@@ -15346,7 +15482,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15358,7 +15494,7 @@ VbFxDefs.register({
                   0.28
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15367,7 +15503,7 @@ VbFxDefs.register({
             "radius": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   1
                 ],
                 [
@@ -15375,7 +15511,7 @@ VbFxDefs.register({
                   0.62
                 ],
                 [
-                  1.0,
+                  1,
                   0.6448
                 ]
               ],
@@ -15388,11 +15524,11 @@ VbFxDefs.register({
             "rotation": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
-                  1.0,
+                  1,
                   -0.6
                 ]
               ],
@@ -15414,7 +15550,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15430,7 +15566,7 @@ VbFxDefs.register({
                   0.4
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15439,7 +15575,7 @@ VbFxDefs.register({
             "radius": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   1.1
                 ],
                 [
@@ -15447,7 +15583,7 @@ VbFxDefs.register({
                   0.6
                 ],
                 [
-                  1.0,
+                  1,
                   0.624
                 ]
               ],
@@ -15474,7 +15610,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15490,7 +15626,7 @@ VbFxDefs.register({
                   0.2
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15499,7 +15635,7 @@ VbFxDefs.register({
             "radius": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0.72
                 ],
                 [
@@ -15507,7 +15643,7 @@ VbFxDefs.register({
                   0.3
                 ],
                 [
-                  1.0,
+                  1,
                   0.312
                 ]
               ],
@@ -15520,11 +15656,11 @@ VbFxDefs.register({
             "rotation": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
-                  1.0,
+                  1,
                   1.4
                 ]
               ],
@@ -15548,7 +15684,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15564,7 +15700,7 @@ VbFxDefs.register({
                   0.15
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15573,7 +15709,7 @@ VbFxDefs.register({
             "radius": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0.62
                 ],
                 [
@@ -15581,7 +15717,7 @@ VbFxDefs.register({
                   0.25
                 ],
                 [
-                  1.0,
+                  1,
                   0.26
                 ]
               ],
@@ -15594,11 +15730,11 @@ VbFxDefs.register({
             "rotation": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   2
                 ],
                 [
-                  1.0,
+                  1,
                   0.4
                 ]
               ],
@@ -15624,7 +15760,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15640,7 +15776,7 @@ VbFxDefs.register({
                   0.3
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15649,7 +15785,7 @@ VbFxDefs.register({
             "orbit": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0.66
                 ],
                 [
@@ -15657,7 +15793,7 @@ VbFxDefs.register({
                   0.27
                 ],
                 [
-                  1.0,
+                  1,
                   0.28080000000000005
                 ]
               ],
@@ -15701,7 +15837,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15717,7 +15853,7 @@ VbFxDefs.register({
                   0.4
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15726,7 +15862,7 @@ VbFxDefs.register({
             "radius": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0.66
                 ],
                 [
@@ -15734,7 +15870,7 @@ VbFxDefs.register({
                   0.27
                 ],
                 [
-                  1.0,
+                  1,
                   0.28080000000000005
                 ]
               ],
@@ -15763,11 +15899,11 @@ VbFxDefs.register({
           "radialCurve": {
             "keys": [
               [
-                0.0,
-                1.9
+                0,
+                1.15
               ],
               [
-                1.0,
+                1,
                 0.15
               ]
             ],
@@ -15781,7 +15917,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15797,7 +15933,7 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15839,7 +15975,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15855,7 +15991,7 @@ VbFxDefs.register({
                   0.8
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15864,7 +16000,7 @@ VbFxDefs.register({
             "radius": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0.1
                 ],
                 [
@@ -15872,7 +16008,7 @@ VbFxDefs.register({
                   0.28
                 ],
                 [
-                  1.0,
+                  1,
                   0.25
                 ]
               ],
@@ -15885,11 +16021,11 @@ VbFxDefs.register({
             "rotation": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
-                  1.0,
+                  1,
                   2.2
                 ]
               ],
@@ -15910,7 +16046,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15926,7 +16062,7 @@ VbFxDefs.register({
                   0.75
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -15935,7 +16071,7 @@ VbFxDefs.register({
             "radius": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0.16
                 ],
                 [
@@ -15943,7 +16079,7 @@ VbFxDefs.register({
                   0.36
                 ],
                 [
-                  1.0,
+                  1,
                   0.3
                 ]
               ],
@@ -15972,7 +16108,7 @@ VbFxDefs.register({
             "alpha": {
               "keys": [
                 [
-                  0.0,
+                  0,
                   0
                 ],
                 [
@@ -15988,7 +16124,7 @@ VbFxDefs.register({
                   0.6
                 ],
                 [
-                  1.0,
+                  1,
                   0
                 ]
               ],
@@ -16884,11 +17020,11 @@ VbFxDefs.register({
           "texture": "smoke",
           "variant": 0,
           "offset": [
-            0,
+            -0.16,
             0.27
           ],
           "aspect": [
-            2.1,
+            2.7,
             0.8
           ],
           "time": [
@@ -16904,15 +17040,15 @@ VbFxDefs.register({
                 ],
                 [
                   0.06,
-                  0.85
+                  1
                 ],
                 [
                   0.3,
-                  0.62
+                  0.837
                 ],
                 [
                   0.75,
-                  0.18
+                  0.243
                 ],
                 [
                   1,
@@ -16960,11 +17096,11 @@ VbFxDefs.register({
           "texture": "smoke",
           "variant": 2,
           "offset": [
-            0,
+            -0.2,
             0.295
           ],
           "aspect": [
-            2.5,
+            3.1,
             0.65
           ],
           "time": [
@@ -16980,11 +17116,11 @@ VbFxDefs.register({
                 ],
                 [
                   0.08,
-                  0.6
+                  0.81
                 ],
                 [
                   0.35,
-                  0.4
+                  0.54
                 ],
                 [
                   1,
@@ -17029,10 +17165,10 @@ VbFxDefs.register({
           "intrinsicAlpha": true,
           "type": "particles",
           "motion": "ballistic",
-          "count": 7,
+          "count": 13,
           "emission": "rect",
           "offset": [
-            -0.05,
+            -0.1,
             0.28
           ],
           "extent": [
@@ -17040,32 +17176,32 @@ VbFxDefs.register({
             0.015
           ],
           "direction": [
-            3.12,
-            3.55
+            3,
+            3.5
           ],
           "directionSpace": "absolute",
           "speed": [
-            0.28,
-            0.5
+            1.2,
+            2
           ],
-          "drag": 3.2,
+          "drag": 0.9,
           "gravity": [
             0,
             -0.05
           ],
           "lifeMs": [
-            480,
-            760
+            650,
+            1050
           ],
           "delayMs": [
             0,
             60
           ],
           "sizeRange": [
-            0.06,
-            0.095
+            0.1,
+            0.16
           ],
-          "sizeEnd": 2,
+          "sizeEnd": 2.6,
           "particleRotation": [
             0,
             6.28
@@ -17111,43 +17247,43 @@ VbFxDefs.register({
           "intrinsicAlpha": true,
           "type": "particles",
           "motion": "ballistic",
-          "count": 7,
+          "count": 10,
           "emission": "rect",
           "offset": [
-            0.05,
-            0.28
+            0.12,
+            0.29
           ],
           "extent": [
-            0.05,
+            0.08,
             0.015
           ],
           "direction": [
-            -0.41,
-            0.02
+            2.95,
+            3.3
           ],
           "directionSpace": "absolute",
           "speed": [
-            0.28,
-            0.5
+            1.5,
+            2.4
           ],
-          "drag": 3.2,
+          "drag": 0.9,
           "gravity": [
             0,
             -0.05
           ],
           "lifeMs": [
-            480,
-            760
+            650,
+            1050
           ],
           "delayMs": [
             0,
             60
           ],
           "sizeRange": [
-            0.06,
-            0.095
+            0.1,
+            0.16
           ],
-          "sizeEnd": 2,
+          "sizeEnd": 2.6,
           "particleRotation": [
             0,
             6.28
@@ -17193,7 +17329,7 @@ VbFxDefs.register({
           "intrinsicAlpha": true,
           "type": "particles",
           "motion": "ballistic",
-          "count": 9,
+          "count": 11,
           "emission": "rect",
           "offset": [
             0,
@@ -17204,15 +17340,15 @@ VbFxDefs.register({
             0.03
           ],
           "direction": [
-            -2.2,
-            -0.95
+            -2.95,
+            -2.05
           ],
           "directionSpace": "absolute",
           "speed": [
-            0.08,
-            0.16
+            0.35,
+            0.6
           ],
-          "drag": 1.4,
+          "drag": 0.7,
           "gravity": [
             0,
             -0.03
@@ -17226,8 +17362,8 @@ VbFxDefs.register({
             120
           ],
           "sizeRange": [
-            0.05,
-            0.085
+            0.08,
+            0.13
           ],
           "sizeEnd": 1.8,
           "particleRotation": [
@@ -17271,7 +17407,7 @@ VbFxDefs.register({
           "intrinsicAlpha": true,
           "type": "particles",
           "motion": "ballistic",
-          "count": 12,
+          "count": 16,
           "emission": "rect",
           "offset": [
             0,
@@ -17282,13 +17418,13 @@ VbFxDefs.register({
             0.01
           ],
           "direction": [
-            -2.75,
-            -0.4
+            -2.95,
+            -2.2
           ],
           "directionSpace": "absolute",
           "speed": [
-            0.35,
-            0.75
+            1,
+            1.8
           ],
           "drag": 1.6,
           "gravity": [
@@ -17304,8 +17440,8 @@ VbFxDefs.register({
             50
           ],
           "sizeRange": [
-            0.004,
-            0.0075
+            0.006,
+            0.011
           ],
           "particleRotation": [
             0,
@@ -17752,9 +17888,8 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "type": "ring",
-          "geometry": "superellipse",
-          "radius": 1,
-          "pad": 0.03,
+          "geometry": "card",
+          "pad": 0,
           "color": "#5ad87a",
           "width": 4,
           "widthSpace": "pixel",
@@ -18260,9 +18395,8 @@ VbFxDefs.register({
           "seedOffset": 0,
           "intrinsicAlpha": true,
           "type": "ring",
-          "geometry": "superellipse",
-          "radius": 1,
-          "pad": 0.03,
+          "geometry": "card",
+          "pad": 0,
           "color": "#5aa8ff",
           "width": 4,
           "widthSpace": "pixel",

@@ -8184,11 +8184,11 @@ VbFxDefs.register({
           "basis": "unit",
           "type": "shape",
           "shape": "halo-ray",
-          "color": "#e8f6ff",
+          "color": "#fff1c4",
           "blend": "add",
           "time": [
             0.45,
-            1.0
+            1
           ],
           "curves": {
             "alpha": {
@@ -8248,7 +8248,7 @@ VbFxDefs.register({
           "anchor": "source",
           "basis": "unit",
           "type": "ring",
-          "color": "#7ac8ff",
+          "color": "#ffc75a",
           "width": 1,
           "widthSpace": "pixel",
           "noise": 0,
@@ -8317,17 +8317,17 @@ VbFxDefs.register({
             ],
             [
               0.25,
-              "#e8f6ff",
+              "#fff1c4",
               0.75
             ],
             [
               0.6,
-              "#7ac8ff",
+              "#ffc75a",
               0.35
             ],
             [
               1,
-              "#1a3a5a",
+              "#5a3a0e",
               0
             ]
           ],
@@ -8379,10 +8379,10 @@ VbFxDefs.register({
           "orbitVelocity": 0,
           "angleSpeed": 0.35,
           "directedSpin": true,
-          "color": "#7ac8ff",
+          "color": "#ffc75a",
           "time": [
             0.45,
-            1.0
+            1
           ],
           "radialCurve": {
             "keys": [
@@ -8429,13 +8429,13 @@ VbFxDefs.register({
               "shape": "faceted-needle-short",
               "radiusAbsolute": 0.13,
               "rotationScale": 1,
-              "color": "#7ac8ff"
+              "color": "#ffc75a"
             },
             {
               "texture": "glow",
               "radiusAbsolute": 0.07,
               "blend": "add",
-              "color": "#e8f6ff"
+              "color": "#fff1c4"
             }
           ]
         },
@@ -8444,13 +8444,13 @@ VbFxDefs.register({
           "basis": "unit",
           "type": "shape",
           "shape": "rune-wheel",
-          "color": "#7ac8ff",
-          "light": "#e8f6ff",
-          "shadow": "#1a3a5a",
+          "color": "#ffc75a",
+          "light": "#fff1c4",
+          "shadow": "#5a3a0e",
           "radius": 0.22,
           "time": [
             0.45,
-            1.0
+            1
           ],
           "curves": {
             "alpha": {
@@ -8493,10 +8493,9 @@ VbFxDefs.register({
           "anchor": "source",
           "basis": "unit",
           "type": "ring",
-          "geometry": "superellipse",
-          "radius": 1,
-          "pad": 0.06,
-          "color": "#7ac8ff",
+          "geometry": "card",
+          "pad": 0,
+          "color": "#ffc75a",
           "width": 4,
           "widthSpace": "pixel",
           "noise": 0,
@@ -8553,7 +8552,7 @@ VbFxDefs.register({
           "size": 0.05,
           "sizeSize": 0.03,
           "sizePhase": -0.04,
-          "color": "#e8f6ff",
+          "color": "#fff1c4",
           "time": [
             0.58,
             1
@@ -8580,13 +8579,13 @@ VbFxDefs.register({
           "materials": [
             {
               "texture": "plasma",
-              "color": "#7ac8ff",
+              "color": "#ffc75a",
               "blend": "add",
               "rotationScale": 1
             },
             {
               "texture": "glow",
-              "color": "#e8f6ff",
+              "color": "#fff1c4",
               "radiusScale": 0.5,
               "blend": "add"
             }
