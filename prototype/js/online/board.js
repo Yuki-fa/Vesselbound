@@ -502,6 +502,7 @@
   async function _showDamage(ev, ctx) {
     await _awaitContactHold(ev);
     return presentDamageEvent(ev, {
+      events:ctx.events,eventIndex:ctx.events.indexOf(ev),
       findUnit: (side, id) => _find(side, id),
       findAnyUnit: id => _find('p1', id) || _find('p2', id),
       applyHp: (unit, hpAfter) => { unit.hp = Math.max(0, Number(hpAfter) || 0); },
@@ -594,6 +595,7 @@
   }
 
   async function _renderOnlineVersusEvent(ev, ctx, lab) {
+    if(presentSkipsEvent(ev))return;
     const board = (ctx && ctx.board) || { p1: [], p2: [] };
     _syncOnlineStatuses(board);
     // 二段・三段攻撃の各一撃で、効果列へ入る直前にモーションを始めて途中停止する。
@@ -761,6 +763,7 @@
         // 見せ方は present_events.js が唯一の実装（PvEと同じ）。
         // オンラインは実体の値がそのまま画面の値なので、ここで直接進める。
         await presentStatChangeEvent(ev, {
+          events:ctx.events,eventIndex:ctx.eventIndex,
           findUnit: (side, id) => _find(side, id),
           findAnyUnit: id => _find('p1', id) || _find('p2', id),
           applyStats: (unit, e0) => {

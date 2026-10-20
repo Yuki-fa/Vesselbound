@@ -21,6 +21,7 @@
 
 // 受け口の違いはカード情報の供給だけ。発動元の判定とDOMの終了監視は共通実装へ渡す。
 function presentBeginActionBannerEvent(ev, events, index) {
+  if (presentIsSilentEvent(ev)) return null;
   return typeof actionBannerEnterEvent === 'function' ? actionBannerEnterEvent(ev, events, index) : null;
 }
 function presentEndActionBannerEvent(scope) {
@@ -121,11 +122,12 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
     const next=events.slice(index+1).find(e=>e.type==='attack'&&e.reactionSourceId===owner.id);
     if(!next)return null;targets=[find(next.targetId)].filter(Boolean);members.push(next);
   }
-  const plan={code,spec:presentLabFx(code),owner,targets,members,value,colors,sourceRect,contactEvent,
+  const plan={code,spec:presentLabFx(code),owner,targets,members,value,colors,sourceRect,contactEvent,events,index,
     side:owner.side==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
   members.forEach(e=>_presentLabClaims.set(e,plan));_presentLabClaimHitReactions(plan,events);return plan;
 }
 function presentLabManaGainVfx(ev,unit,side){
+  if(presentIsSilentEvent(ev))return false;
   const plan=_presentLabClaims.get(ev);
   if(plan&&plan.contactEvent){plan.manaGain={unit,side};return false;}
   if(plan&&PRESENT_LAB_1012_CODES.has(plan.code))return _presentLabManaAfter(plan,unit,side);
@@ -220,7 +222,7 @@ function _presentLabPlan(ev, events, index, api, context) {
     });
   }
   const sourceRect = origin && origin.rect;
-  const plan = {code,spec,owner,targets,members,sourceRect:sourceRect && (spec[2]==='dead'?{...sourceRect,element:null}:sourceRect),
+  const plan = {code,spec,owner,targets,members,events,index,sourceRect:sourceRect && (spec[2]==='dead'?{...sourceRect,element:null}:sourceRect),
     side:ownerSide==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
   members.forEach(e=>{ if (e.type!=='death' && e.type!=='revive') _presentLabClaims.set(e,plan); });
   _presentLabClaimHitReactions(plan,events);
@@ -246,6 +248,7 @@ function _presentLabClaimHitReactions(plan,events){
 function _presentLabStart(plan) {
   if (!plan || plan.started || typeof playBattleLabFx !== 'function') return;
   plan.started = true;
+  plan.repeat=presentEffectRun(plan.events,plan.index,`lab:${plan.side}:${plan.owner?.id||''}:${plan.code}`).repeat;
   const resolvers = [],statEvents=plan.members.filter(e=>e.type==='stat_change');
   plan.eventImpact=new WeakMap();
   plan.targets.forEach((u,i)=>{
@@ -258,14 +261,16 @@ function _presentLabStart(plan) {
     const wave=Math.floor(i/plan.targets.length);(pulseResolvers[wave]||(pulseResolvers[wave]=[])).push(resolve);
   })));
   plan.done = playBattleLabFx(plan.code,plan.owner,plan.targets,{side:plan.side,sourceRect:plan.sourceRect,
-    durationMs:plan.code==='C009'?PRESENT_LAB_REACTION_FLASH_MS/PRESENT_LAB_REACTION_AURA_END/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
+    durationMs:plan.repeat
+      ? presentEffectRunDuration(true)/((plan.code==='C009'?PRESENT_LAB_REACTION_AURA_END:1)*(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1))
+      : plan.code==='C009'?PRESENT_LAB_REACTION_FLASH_MS/PRESENT_LAB_REACTION_AURA_END/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
     value:plan.value,colors:plan.colors,
     impactTimes:plan.code==='C095'?plan.targets.map((_,i)=>.43+.49*i/Math.max(1,plan.targets.length-1)):null,
     cueTimes,onCue:i=>(pulseResolvers[i]||[]).forEach(resolve=>resolve()),
     onImpact:i=>{ if(resolvers[i])resolvers[i](); }});
   // ミノタウロスの激怒は定義の前半（オーラ）だけを見せ、オーラが消えた時点で次へ進む（後半は value=1 では何も描かない）。
   if(plan.code==='C009'){const shown=plan.done;
-    plan.done=Promise.race([shown,new Promise(resolve=>battlePresentationSetTimeout(resolve,PRESENT_LAB_REACTION_FLASH_MS))]).then(()=>{VbFx.stop({name:plan.spec[0]});return true;});}
+    plan.done=Promise.race([shown,new Promise(resolve=>battlePresentationSetTimeout(resolve,presentEffectRunDuration(plan.repeat,PRESENT_LAB_REACTION_FLASH_MS)))]).then(()=>{VbFx.stop({name:plan.spec[0]});return true;});}
   plan.done.finally(()=>{resolvers.forEach(resolve=>resolve());pulseResolvers.flat().forEach(resolve=>resolve());});
 }
 async function _presentLabFinish(plan) {
@@ -281,7 +286,8 @@ async function _presentLabFinish(plan) {
     // 弱体・邪眼の付与は見た目だけ続ける。音は元の固有演出のSEで足り、重ねると調和しない（2026-10-18 利用者指摘：グレムリン・ウンディーネ）。
     // 結界・復活の獲得の音は残す（スプリガン等は獲得SEへつなげる）。
     const silent = code===getKeywordAssetKey('弱体') || code===getKeywordAssetKey('邪眼');
-    if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0]),silent});
+    if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0]),silent,
+      durationMs:plan.repeat?presentEffectRunDuration(true)/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined});
   }
   plan.gains.length=0;
   // 毒の付与も元の演出へ引き継ぐ。cloneイベントなので固有演出のclaimを受けない。
@@ -297,6 +303,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
   if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
   const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
   if (context.active && context.active !== claimed) { await _presentLabFinish(context.active); context.active = null; }
+  if(presentIsSilentEvent(ev))return;
   if (ev.type==='death' || ev.type==='shield_lost') {
     const u = api.findUnit(ev.side,ev.unitId);
     if (u) {
@@ -309,6 +316,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
   if(ev.type==='death'){
     for(let i=index+1;i<events.length;i++){
       const next=events[i];if(['attack','turn_begin','battle_end','death'].includes(next.type))break;
+      if(presentIsSilentEvent(next))continue;
       const ownerId=next.sourceId||next.unitId,owner=api.findUnit('p1',ownerId)||api.findUnit('p2',ownerId);
       const code=owner&&(owner.no||owner.artCode);
       if(!['C021','C029','C042','C084'].includes(code)||_presentLabClaims.has(next)||!presentLab1012EventMatches(code,next))continue;
@@ -339,7 +347,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
     if(claimed.code==='C009'&&ev.type==='attack'){
       await _presentLabFinish(claimed);
       await playBattleLabFx('C009',claimed.owner,claimed.targets,{side:claimed.side,value:2,silent:true,
-        durationMs:PRESENT_LAB_REACTION_AIM_MS/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1)});context.active=null;
+        durationMs:presentEffectRunDuration(claimed.repeat,PRESENT_LAB_REACTION_AIM_MS)/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1)});context.active=null;
       return;
     }
     if(claimed.code==='C041'&&ev.type==='summon'){ await _presentLabFinish(claimed); context.active=null; }
@@ -350,8 +358,9 @@ async function presentLabBeginEvent(ev, events, index, api) {
   }
   const plan = _presentLabPlan(ev,events,index,api,context);
   if (!plan) return;
+  // 割り込んだ別効果の前でマナVFXを閉じる。repeatの発動記録は保持する。
+  if(ev.type!=='mana_threshold'&&typeof api.finishEffect==='function')await api.finishEffect();
   if(plan.contactEvent){const pending=_presentLabContacts.get(plan.contactEvent)||[];pending.push(plan);_presentLabContacts.set(plan.contactEvent,pending);return;}
-  if(plan.code===getKeywordAssetKey('弱体')&&typeof api.finishEffect==='function') await api.finishEffect();
   context.active = plan;
   if (ev.type !== 'mana_threshold') _presentLabStart(plan);
   if(PRESENT_LAB_1012_CODES.has(plan.code)&&['mana_gain','mana_set'].includes(ev.type))await plan.done;
@@ -372,8 +381,9 @@ async function presentLabBeginEvent(ev, events, index, api) {
 }
 async function presentLabEndEvent(ev, events, index, api) {
   if (!ev || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
+  const silent=presentIsSilentEvent(ev);
   const context = _presentLabContext(events), plan = _presentLabClaims.get(ev);
-  if (ev.type==='mana_threshold' && plan) _presentLabStart(plan);
+  if (ev.type==='mana_threshold' && plan && !silent) _presentLabStart(plan);
   const unitId=ev.unitId!=null?ev.unitId:ev.type==='summon'&&ev.unit?ev.unit.id:null;
   const unit = unitId!=null ? api.findUnit(ev.side,unitId) : null;
   if (unit) {
@@ -396,6 +406,8 @@ async function presentLabEndEvent(ev, events, index, api) {
       battleFxAdvanceStates(unit,_battleFxValues(ev.unit||unit));
       battleFxReleaseForm(unit); if (api.render) api.render();
     }
+    // 演出を省く時も、結界・毒・弱体などの最終状態表示は進める。
+    if(silent)return;
     const gains = [];
     if(plan&&plan.code==='C056'&&ev.type==='keyword_effect'&&ev.effect==='poison'){
       (plan.keywordGains||(plan.keywordGains=[])).push({ev,api});
@@ -416,10 +428,15 @@ async function presentLabEndEvent(ev, events, index, api) {
       }
     }
   }
-  if(ev.type==='mana_set'&&plan&&plan.code==='C060'&&plan.owner&&Number(ev.gained)>0&&typeof playManaGainVfx==='function'){
+  if(!silent&&ev.type==='mana_set'&&plan&&plan.code==='C060'&&plan.owner&&Number(ev.gained)>0&&typeof playManaGainVfx==='function'){
     _presentLabManaAfter(plan,plan.owner,plan.side);
   }
   if (index === events.length-1 && context.active) { await _presentLabFinish(context.active); context.active = null; }
+}
+
+async function presentFinishLabEvents(events) {
+  const context=_presentLabLists.get(events);
+  if(context&&context.active){await _presentLabFinish(context.active);context.active=null;}
 }
 
 // 終戦など、数値を既に確定・書き戻し済みの出口。再計算せず同じ演出入口へ接続する。
@@ -496,6 +513,7 @@ async function presentDamageEvent(ev, api) {
     : '');
   const projectileSource = thresholdProjectileCode || fxProjectileCode ? source : vfxSource;
   if (projectileCode) {
+    const repeat=presentEffectRun(api.events,api.eventIndex,`projectile:${projectileSource.id}:${projectileCode}`).repeat;
     const srcSide = projectileSource.side === 'p2' ? 'enemy' : 'ally';
     if (typeof getEffectSfxKey === 'function' && typeof playSfx === 'function') {
       const key = getEffectSfxKey(projectileCode);
@@ -508,6 +526,7 @@ async function presentDamageEvent(ev, api) {
     const impact=new Promise(resolve=>{damageShown=resolve;});
     const flight=Promise.resolve(playProjectileEffectVfx(projectileSource, srcSide, target, fxSide, projectileCode, {
       amount,
+      flightMs:repeat?presentEffectRunDuration(true)/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
       onImpact: () => {
         presentDamageImpact(ev);
         if (damagesHp && typeof api.applyHp === 'function') api.applyHp(target, ev.hpAfter);
@@ -679,10 +698,11 @@ async function presentStatChangeEvent(ev, api) {
   const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
   // **効果の発光（負傷＝赤など）は、能力変化を見せるこの瞬間に始める。** 発光は次のVFXまで保留する仕組みだが、
   // グレムリンの「全ての敵はATK-1」のように同期の入口を通るVFXが無い効果では、安全弁の700ms後まで光らず遅れて見えた。
-  if (typeof presentFlushEffectFlashes === 'function') presentFlushEffectFlashes();
+  if (!presentIsSilentEvent(ev) && typeof presentFlushEffectFlashes === 'function') presentFlushEffectFlashes();
   // 変化を見せる瞬間に、画面に出すATK/HPもここまで進める。
   if (typeof api.applyStats === 'function') api.applyStats(target, ev);
   if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
+  if(presentIsSilentEvent(ev)) { if(typeof api.render==='function')api.render();return true; }
   const source = ev.sourceId != null && typeof api.findAnyUnit === 'function'
     ? api.findAnyUnit(ev.sourceId) : null;
   // どの理由で固有VFXを出すかは present.js が唯一の実装。
@@ -700,7 +720,9 @@ async function presentStatChangeEvent(ev, api) {
     const code = typeof presentStatChangeVfxCode === 'function'
       ? presentStatChangeVfxCode(ev, ownCode, { codes, enchantCode, ownEffectText }) : ownCode;
     if (/^[A-Z]\d{3}$/i.test(code)) {
-      const cueKey = `${source.id}:${String(ev.reason || '')}`;
+      const run=presentStatChangeRun(ev,api.events,api.eventIndex);
+      const cueKey = run.key;
+      const duration=presentEffectRunDuration(run.repeat,typeof PRESENT_CARD_EFFECT_VFX_MS==='number'?PRESENT_CARD_EFFECT_VFX_MS:700);
       // 固有SEは効果1回につき1回。VFXは対象ごとに1回。重複の単位を分ける。
       if (api.cueKeys && !api.cueKeys.has(cueKey)) {
         api.cueKeys.add(cueKey);
@@ -708,7 +730,7 @@ async function presentStatChangeEvent(ev, api) {
           api.trace({ sourceId: source.id, targetId: target.id, reason: String(ev.reason || ''), code: code.toUpperCase() });
         }
         // SEのピークをVFXの山場へ合わせる（2026-10-15）。尺は下のVFXと同じ PRESENT_CARD_EFFECT_VFX_MS。
-        if (typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(code.toUpperCase(), typeof PRESENT_CARD_EFFECT_VFX_MS === 'number' ? PRESENT_CARD_EFFECT_VFX_MS : 700);
+        if (typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(code.toUpperCase(), duration);
         else if (typeof _playCardEffectSfx === 'function') _playCardEffectSfx(code.toUpperCase());
       }
       // 開始しただけで次のイベントへ進むと、連続効果中に再描画・召喚・攻撃モーションが
@@ -716,7 +738,7 @@ async function presentStatChangeEvent(ev, api) {
       if (api.vfxGate && api.vfxGate.shouldPlay(`${cueKey}:${target.id}`)) {
         // 尺は present.js が唯一の定義（ゴーレムの負傷エフェクトと同じ長さ）。
         await _playCardEffectVfx(code, [target], { gateMs: 0,
-          hitDuration: (typeof PRESENT_CARD_EFFECT_VFX_MS === 'number' ? PRESENT_CARD_EFFECT_VFX_MS : 700) });
+          hitDuration: duration });
       }
     }
   }
@@ -754,6 +776,7 @@ function presentKeywordEffectEvent(ev, api) {
   }
   // **ホバー説明もこの瞬間に作り直す**（弱体・毒などは盤面を描き直すまで説明に出なかった）。
   if (typeof refreshUnitPreviewUi === 'function') refreshUnitPreviewUi(unit, fxSide);
+  if(presentIsSilentEvent(ev))return true;
   const keyword = String(ev.keyword || PRESENT_KEYWORD_EFFECT_NAMES[String(ev.effect || '')] || '');
   if (!keyword) return false;
   // 「復活」の絵は**実際に復活した瞬間**の演出。復活を得ただけ（ヴリコラカス）では出さない（利用者指定）。
@@ -894,6 +917,7 @@ function presentResetEffectFlashes() {
   }
 }
 async function presentEffectFlashEvent(ev, api) {
+  if(presentIsSilentEvent(ev))return false;
   if (!ev || !api || typeof api.findUnit !== 'function') return false;
   const unit = api.findUnit(ev.side, ev.unitId);
   if (!unit || typeof playEffectFlash !== 'function') return false;
@@ -1084,6 +1108,7 @@ async function presentReviveEvent(ev, api) {
 //      playCue(units[{unit,isEnemySide,targets}], { repeat, effectNo })
 async function presentManaThresholdEvent(ev, api) {
   if (!ev || !api) return false;
+  if(presentIsSilentEvent(ev))return true;
   const source = api.findUnit(ev.side, ev.unitId);
   // 発光はマナ効果VFXが出る瞬間に合わせる（ここで光らせると、前の効果の演出を
   // 待っている間ずっと光ったままになり、絵より大きく先行して見える）。

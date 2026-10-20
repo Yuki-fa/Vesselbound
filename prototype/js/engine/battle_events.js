@@ -198,9 +198,13 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     ?presentDropDeathsOfStolen(_reordered):_reordered;
   const eventList=typeof presentReorderDeathFlashesBeforeDeath==='function'
     ?presentReorderDeathFlashesBeforeDeath(_noStolenDeaths):_noStolenDeaths;
+  presentMarkBattleTail(eventList,Object.fromEntries(['p1','p2'].map(side=>[side,
+    [...new Set([...(state.units[side]||[]),...(beforeUnits||[])])]
+      .filter(u=>u&&u.side===side).map(u=>({...u,hp:presentShownHp(u)}))])));
   async function _showDamage(e) {
     await _awaitContactHold(e);
     return presentDamageEvent(e,{
+      events:eventList,eventIndex:eventList.indexOf(e),
       findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
       findAnyUnit:id=>findLiveUnit('p1',id,(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===id))
         ||findLiveUnit('p2',id,null),
@@ -299,6 +303,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   // 同じ瞬間（同じ発動回）に同じ効果が乗る分は、1体目の演出でまとめて見せる。
   const manaWaveGate=presentCreateOnceGate();
   for(const [eventIndex,e] of eventList.entries()){
+    if(presentSkipsEvent(e))continue;
     if(!_preAttack&&(e.type==='turn_begin'||e.type==='battle_start'
       ||(typeof presentPreAttackActorId==='function'&&presentPreAttackActorId(e)!=null))){
       _startPreAttackAt(eventIndex);
@@ -753,6 +758,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         continue;
       }
       await presentStatChangeEvent(e,{
+        events:eventList,eventIndex,
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
         findAnyUnit:id=>findLiveUnit('p1',id,findUnit('p1',id))||findLiveUnit('p2',id,findUnit('p2',id)),
         applyStats:(unit,ev)=>{
@@ -943,6 +949,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       if(typeof presentEndActionBannerEvent==='function') presentEndActionBannerEvent(_actionBannerEvent);
     }
   }
+  await presentFinishLabEvents(eventList);
   // 先出ししたモーションが解放されないまま残らないようにする
   // （attackイベントに到達せず抜けた場合の保険）。
   if(_preAttack){
