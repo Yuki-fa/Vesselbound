@@ -27,6 +27,9 @@
     // ここで独自に組み立て直さないこと（以前はレーン判定と出撃順がPvEと食い違っていた）。
     const formation = (typeof buildBoardFormation === 'function')
       ? buildBoardFormation(board, { persistEternal: !!(opts && opts.persistEternal) }) : { ordered: [] };
+    // 宿業の常時修正でHP0になった体も、そのままコアへ送る。
+    // 今回の利用者指定により、宿業を含まない編成の従来の送信値は変えない。
+    const preserveZeroHp = formation.ordered.some(entry => coreEffectCount(entry.unit, '宿業の刻印') > 0);
     const units = formation.ordered.map(entry => {
       const u = entry.unit;
       const panel = entry.panel;
@@ -39,7 +42,7 @@
         no: String(u.no || panel.no || ''),
         name: String(u.name || panel.name || ''),
         atk: Number(u.atk) || 0,
-        hp: Number(u.hp) || 1,
+        hp: Number(u.hp) || (preserveZeroHp ? 0 : 1),
         lane: entry.lane,
         color: String(u.color || panel.color || ''),
         race: String(u.race || panel.race || ''),

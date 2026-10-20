@@ -808,6 +808,19 @@ function coreEngravingStageValue(unit, name, state) {
   return coreEngravingStageNumber(unit, state, name) * scale;
 }
 
+// 接続カードの常時能力修正。Xも編成時に確定し、通常の正負修正と同じ入口へ渡す。
+// 取得時ステージ・祝福はカード個体ごとに使い、基礎能力のレベル倍率は掛けない。
+function corePanelStatBonuses(card, state) {
+  if (/(?:^|\n)\s*常時[：:]\s*(?:このキャラクターは\s*)?-X\s*\/\s*-Xを得る/.test(String(card && card.desc || ''))) {
+    const stage = Math.max(1, Math.floor(Number(card._engravingStage)
+      || coreEngravingStageNumber(card, state, coreEffectKey(card.name))));
+    const value = -coreEngravingStageValue({ _stageNumber: stage }, coreEffectKey(card.name));
+    const bonus = coreBoonDynamicValue(card, card.desc, value, 'mod');
+    return { atk: bonus, hp: bonus };
+  }
+  return { atk: Number(card && card.adjacentAtkBonus) || 0, hp: Number(card && card.adjacentHpBonus) || 0 };
+}
+
 // 封印X。∞なら Infinity（解放されない）。0なら封印されていない。
 // **封印は持っている分を合計する。** 例：封印3のキャラに「封印されしもの」（封印9）を付けると封印12
 // （2026-10-02 利用者指摘：最初の1つだけを使っていて、付けても増えなかった）。
@@ -5180,6 +5193,11 @@ function coreRevivalRingAvailable(unit, state) {
   return !used && coreRingCount(state, unit.side, '復活の指輪') > 0;
 }
 function coreFateEngravingPenalty(unit, state) {
+  const cards = (unit && unit.boardCards || []).filter(card => card
+    && /(?:^|\n)\s*常時[：:]\s*(?:このキャラクターは\s*)?-X\s*\/\s*-Xを得る/.test(String(card.desc || '')));
+  if (cards.length) return -cards.reduce((sum, card) => sum + corePanelStatBonuses(card,
+    { stageNumber: coreEngravingStageNumber(unit, state, coreEffectKey(card.name)) }).atk, 0);
+  // 接続カードの写しを持たない旧入力でも、復活時は同じ常時修正を復元する。
   const count = coreEffectCount(unit, '宿業の刻印');
   return count ? -coreBoonNamedValue(unit, '宿業の刻印', -coreEngravingStageValue(unit, '宿業の刻印', state), 'mod') * count : 0;
 }
@@ -5213,7 +5231,7 @@ function coreApplyRevivalSelfPassives(state, unit, emit, rng, applyHit) {
       add(value, value);
     });
   const fatePenalty = coreFateEngravingPenalty(unit, state);
-  if (fatePenalty) add(-fatePenalty, -fatePenalty, false);
+  if (fatePenalty) add(-fatePenalty, -fatePenalty);
   const texts = unit._adjacentPanelEffectTexts && unit._adjacentPanelEffectTexts.length
     ? unit._adjacentPanelEffectTexts : unit.effectData && unit.effectData.effectTexts || [];
   const strategy = coreKeywordCountBuff(coreUnitKeywords(unit), texts.map(desc => ({ desc })));
@@ -6485,32 +6503,6 @@ function coreOpeningUnits(state) {
   return sides.flatMap(side => state.units && state.units[side] || []).filter(Boolean);
 }
 
-// 宿業の刻印は、封印を含む初期配置が確定した直後に一度だけ適用する。
-// HP0は通常の戦闘修正死と同じ共通経路へ渡し、死亡効果・観測・復活を省略しない。
-function coreApplyEngravingOpening(state, rng, emit, applyHit) {
-  if (!state || state._engravingOpeningApplied) return;
-  state._engravingOpeningApplied = true;
-  const allUnits = coreOpeningUnits(state);
-  coreWithStatDeathResolution(state, rng, emit, applyHit, trackedEmit => {
-    allUnits.forEach(unit => {
-      const count = coreEffectCount(unit, '宿業の刻印');
-      if (count <= 0 || unit.hp <= 0 || coreIsSealed(unit) || coreUnitIsSilenced(unit)) return;
-      const amount = coreFateEngravingPenalty(unit, state);
-      const beforeAtk = Math.max(0, Number(unit.atk) || 0);
-      const beforeHp = Math.max(0, Number(unit.hp) || 0);
-      const beforeMaxHp = Math.max(0, Number(unit.maxHp) || beforeHp);
-      unit.atk = Math.max(0, beforeAtk - amount);
-      unit.maxHp = Math.max(0, beforeMaxHp - amount);
-      unit.hp = Math.max(0, Math.min(beforeHp - amount, unit.maxHp));
-      coreEmitPassiveFlash(trackedEmit, unit);
-      trackedEmit({ type: 'stat_change', side: unit.side, unitId: unit.id,
-        atk: unit.atk - beforeAtk, hp: unit.hp - beforeHp, maxHp: unit.maxHp - beforeMaxHp,
-        reason: 'fate_engraving', sourceId: unit.id });
-      coreSweepAtkZeroFlee(state, trackedEmit, [unit]);
-    });
-  });
-}
-
 // 開戦処理。**PvEもオンラインもここだけを通すこと。**
 // 以前はPvE（_finishNewPanelBattleStartEffects）とオンライン（runBattleCore）で
 // 同じ手順が別々に書かれており、「生命の力」のHP2倍のように片方にしか無い工程があった。
@@ -6525,9 +6517,6 @@ function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
     coreApplyMapPanelOpeningEffects(state, emit, rng, applyHit);
     coreApplyOpeningRings(state, rng, emit, applyHit);
     coreApplyOpeningItems(state, rng, emit, applyHit);
-    // 常時効果は開戦アイテム（静寂の巻物を含む）の後に解決する。
-    // これにより、既存の常時効果と同じく封印・静寂中は宿業の刻印も無効になる。
-    coreApplyEngravingOpening(state, rng, emit, applyHit);
     // **生命の力は開戦効果より先に効かせる。**
     // 「開戦時に場に出してHPを2倍にする」＝場に出た時点でもう2倍。
     // 後に回していたため、HPを読む開戦効果（ウェンディゴの「HP10につき1回」など）が
@@ -6740,6 +6729,7 @@ if (typeof window !== 'undefined') {
   window.coreUnitHasSacrifice = coreUnitHasSacrifice;
   window.coreEngravingStageNumber = coreEngravingStageNumber;
   window.coreEngravingStageValue = coreEngravingStageValue;
+  window.corePanelStatBonuses = corePanelStatBonuses;
   window.coreSealValue = coreSealValue;
   window.coreInitSealStates = coreInitSealStates;
   window.coreSacrificeUnits = coreSacrificeUnits;
@@ -6814,7 +6804,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreSnapshotDeferredState,
     coreSelectAttackTarget, corePierceRearTargets, coreTriDirectionTargets,
     coreToughValue, coreResolveIncomingDamage, coreConsumeWardCharge,
-    coreUnitHasSacrifice, coreEngravingStageNumber, coreEngravingStageValue, coreSealValue, coreInitSealStates,
+    coreUnitHasSacrifice, coreEngravingStageNumber, coreEngravingStageValue, corePanelStatBonuses, coreSealValue, coreInitSealStates,
     coreSacrificeUnits, coreSacrificeCount, coreSealRelease,
     coreNormalizeRunLevels, coreRunLevelIsFamiliar, coreApplyCardRunLevels, coreApplyUnitRunLevels, coreApplySummonBoon, coreNormalizeBoon, coreMergeBoons, coreApplyCardBoon, coreBoonText, coreBoonDisplayText,
     coreBoonForEffect, coreBoonDynamicValue, coreBoonFamiliarStats,

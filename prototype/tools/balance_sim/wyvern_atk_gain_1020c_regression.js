@@ -260,7 +260,9 @@ function battle(api, options, stepped = false) {
       const options = { sides: { [side]: { units: [u] }, [other(side)]: { units: [h.unit('foe0'), h.unit('foe1')] } },
         resources: { [side]: { mana: 6, gold: 20 } }, ...rings(side, 'R001', 'R032', 'R034'),
         ...items(side, 'bond_scroll'), summonDefs: h.sheetRows('card').filter(r => r['No.'] !== 'C058').map(r => h.unit(r['No.'], r['No.'])) };
-      assert.deepEqual(battle(global, options), battle(baseline, options), row['No.'] + '/' + side);
+      // _copyFrame はコピーの枠を決める見た目だけの印（2026-10-20 に後から追加）。結果・乱数の比較からは外す。
+      const visualOnly = value => JSON.parse(JSON.stringify(value, (key, v) => key === '_copyFrame' ? undefined : v));
+      assert.deepEqual(visualOnly(battle(global, options)), visualOnly(battle(baseline, options)), row['No.'] + '/' + side);
     }
   });
   console.log(`ワイバーンATK獲得: ${checked}件成功、${failed}件失敗`);
