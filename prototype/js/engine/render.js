@@ -291,9 +291,16 @@ function _escapePreviewHtml(s){
 function _lifeLabelText(){
   return typeof textMessage==='function'?textMessage('「ライフ枠」見出し','ライフ'):'ライフ';
 }
-// 説明文中の「（色文字）（数字）マナ」をマナ数分のマナアイコンに置き換える（数字・「マナ」の文字は表示しない）。
-// また色名（青・赤・緑・黄・紫・茶）が強化系キーワードに続く場合は、見た目・種族分類の色アイコンを添える（マナとは無関係）。
+// 旧シートの結界N／結界Xは表示時だけ数字を外す。効果のパース用本文は変えない。
+function _shieldDisplayText(text){
+  return String(text||'').replace(/結界[ \t　]*(?:\d+|X)/g,'結界');
+}
+function _shieldKeywordDescription(base,desc){
+  return base==='結界'?String(desc||'').replace(/X/g,'1'):desc;
+}
+// 説明文のマナ・色・血を、共通のアイコンへ置き換える。
 function _injectManaIcons(escapedText){
+  escapedText=_shieldDisplayText(escapedText);
   if(typeof _manaOrbPath!=='function') return escapedText;
   const manaIcon=()=>{
     const path=_manaOrbPath();
@@ -496,7 +503,7 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
   const sectionRule='<div class="preview-section-rule"></div>';
   // 通常カードと同じく、効果テキストの一番上にキーワードを「A / B」形式の太字で並べる
   // （_formatPreviewHtmlの「キーワード：」行と同じ見せ方。ラベル自体は表示しない）。
-  const kws=Array.isArray(data.keywords)?data.keywords.map(k=>String(k||'').trim()).filter(Boolean):[];
+  const kws=Array.isArray(data.keywords)?coreNormalizeShieldKeywords(data.keywords.map(k=>String(k||'').trim()).filter(Boolean)):[];
   // _boldKeywordsInHtml()は固定のキーワード一覧しか太字にしないため、敵のキーワードには
   // 当たらない。ここは「キーワードそのものを並べる」箇所なので無条件に太字にする。
   const kwHtml=kws.length
@@ -559,7 +566,7 @@ function _formatJourneyEnemyHtml(titleText,jsonStr){
 function _formatPreviewHtml(desc,opt){
   const plainTitle=!!(opt&&opt.plainTitle);
   const titleColor=String(opt&&opt.titleColor||'').trim();
-  const clean=_stripStrongMarkupText(desc).replace(/<[^>]*>/g,'');
+  const clean=_shieldDisplayText(_stripStrongMarkupText(desc).replace(/<[^>]*>/g,''));
   const sectionRule='<div class="preview-section-rule"></div>';
   // シート上では複数効果が改行ではなく「全角空白＋次のタイミング：」で
   // 連結されている場合があるため、旅の進捗と同じ規則で表示行へ分割する。
@@ -664,7 +671,7 @@ function _sortPreviewEffectLines(lines){
 // 数値そのものはキーワード欄（「邪眼2」）に出ているので、こちらは変数のまま。
 function _keywordDescLabel(base,desc){
   const name=String(base||'').trim();
-  return /X/.test(String(desc||''))?`${name}X`:name;
+  return name!=='結界'&&/X/.test(String(desc||''))?`${name}X`:name;
 }
 // **付与する状態異常の説明も続けて出す。**（利用者指定）
 // 「毒牙X」だけでは何が起きるか読み取れないので、その下に「毒X」の説明を並べる。
@@ -680,6 +687,7 @@ function _keywordDescLine(name,lookupKey){
   const key=lookupKey||base;
   let d=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[key]||KW_DESC_MAP[base]))||'';
   if(!d&&typeof _enchantKeywordDesc==='function') d=_enchantKeywordDesc(key)||'';
+  d=_shieldKeywordDescription(base,d);
   return d?`${_keywordDescLabel(base,d)}：${d}`:'';
 }
 function _keywordOnlyPreviewText(card,desc,slotIdx){
@@ -699,8 +707,7 @@ function _keywordOnlyPreviewText(card,desc,slotIdx){
   const tooltipKws=[...sourceKws];
   _findPreviewKeywordMatches(manaEffectText).forEach(hit=>tooltipKws.push(hit.name));
   // **説明は種類ごとに1回だけ、変数はXのまま出す。**
-  // 数値はキーワード欄（「結界1」）に出ているので、ここは一般的な説明でよい。
-  // 以前は「結界1：…1回…」と「結界：…X回…」が並んでいた。
+  // 結界は固定の1回として説明し、その他の数値キーワードは一般的な説明を出す。
   return tooltipKws.map(k=>String(k||'').trim()).filter(Boolean)
     .filter(k=>String(k||'').trim()!=='マナ効果')
     .filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k))
@@ -712,6 +719,7 @@ function _keywordOnlyPreviewText(card,desc,slotIdx){
       seen.add(base);
       let desc=(typeof KW_DESC_MAP!=='undefined'&&(KW_DESC_MAP[k]||KW_DESC_MAP[base]))||
         (typeof _enchantKeywordDesc==='function'?_enchantKeywordDesc(k):'');
+      desc=_shieldKeywordDescription(base,desc);
       // 変数を持つキーワードは名前の末尾にXを付ける（例：邪眼X）。
       const lines=[desc?`${_keywordDescLabel(base,desc)}：${desc}`:''];
       // 付与する状態異常（毒牙→毒、衝撃→弱体）の説明をすぐ下に続ける。
@@ -744,7 +752,7 @@ function _auxiliaryKeywordPreviewText(card,desc){
   return _keywordOnlyPreviewText({...card,keywords},rawDesc);
 }
 function _formatKeywordOnlyHtml(text){
-  return String(text||'').split('\n').filter(Boolean).map(line=>{
+  return _shieldDisplayText(text).split('\n').filter(Boolean).map(line=>{
     const m=line.match(/^([^：:]+)[：:](.*)$/);
     if(!m) return _injectManaIcons(_escapePreviewHtml(line));
     return `<strong class="effect-trigger-label">${_escapePreviewHtml(m[1])}</strong>：${_injectManaIcons(_escapePreviewHtml(m[2]))}`;
@@ -4048,7 +4056,7 @@ function _enchantPreviewKeywords(card){
   return [...new Set([
     ...(card.keywords||[]).filter(k=>String(k||'').trim()==='荷物'),
     ...(card.adjacentKeywords||[]),
-  ].map(k=>String(k||'').trim()).filter(Boolean))].filter(k=>{
+  ].map(k=>coreShieldValueFromKeyword(k)?'結界':String(k||'').trim()).filter(Boolean))].filter(k=>{
     if(internal.has(k)) return false;
     // 2026-10-12: 古いE052の自己参照名は残さず、数値付きの熟練Nだけを表示する。
     if(k==='熟練') return false;
@@ -4075,7 +4083,7 @@ function _enchantKeywordDesc(k){
     return `このキャラクターは敵から与えられる状態異常を${value}回無効化する。`;
   }
   if(_ENCHANT_KEYWORD_ONLY.has(s)) return s;
-  if(/^結界\d+$/.test(s)) return s;
+  if(/^結界\d*$/.test(s)) return '結界';
   if(/^封印\d+$/.test(s)) return s;
   if(s==='生贄') return '効果なし';
   if(/^毒牙\d+$/.test(s)){
@@ -4368,18 +4376,11 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // desc文と文字列としては一致しないため通常の重複除外に引っかからない）はUI上には表示しない
   const _isInternalOnlyKeyword=k=>/^[赤青緑黄紫茶]全体強化\d*(_\d+)?$/.test(k)||_INTERNAL_ONLY_ENCHANT_NAMES.has(k);
   const dynamicKws=[];
-  // 結界の数はunit.shield（盤面での合算値）を正とするが、盤面に無いカード
+  // 結界は有無だけ表示する。盤面に無いカード
   // （デバッグ一覧・報酬の提示など）ではshieldが0なので、カード自身のキーワードから拾う。
   // これが無いと、エルフのようにシートで結界を持つカードの表示が一覧だけ欠ける。
-  const _shieldFromKeywords=(unit.keywords||[]).reduce((n,k)=>{
-    const m=/^結界\s*(\d*)$/.exec(String(k||'').trim());
-    return m?n+Math.max(1,parseInt(m[1]||'1',10)||1):n;
-  },0);
-  const _shieldShown=Math.max(Number(unit.shield)||0,_shieldFromKeywords);
-  if(_shieldShown>0) dynamicKws.push(`結界${_shieldShown}`);
-  // unit.shieldは既に結界を持つ全ての発生源（強化パネル接続・キャラクター効果付与等）を合算した
-  // 最終値のため、unit.keywords側に残る「結界」「結界N」は表示上ここで除外し、dynamicKwsの
-  // 1エントリだけを正とする（両方を残すと_mergeCountedKeywordsで合算され「結界2」等に二重計上される）。
+  if(Number(unit.shield)>0||coreUnitShieldValue(unit)>0) dynamicKws.push('結界');
+  // 各発生源の旧表記は落とし、結界の表示を1エントリにまとめる。
   const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
   // **廃止済みキーワード（エリート・ボス・生贄など、CORE_REMOVED_KEYWORDS）は出さない。**（利用者指定）
   // battle.js はエリート戦／ボス戦の判定に keywords の「エリート」「ボス」を使うので、データからは消さず表示で除く。
@@ -4432,7 +4433,7 @@ function _unitPreviewText(unit, desc, slotIdx){
   const _inBattle=typeof G!=='undefined'&&G&&(G.phase==='player'||G.phase==='enemy');
   // 状態は名前と値だけの1行（キーワードの説明文は続けない。2026-09-27 利用者指定で元に戻した）。
   if(_inBattle&&unit.poison>0) lines.push(`状態異常：毒${unit.poison}`);
-  if(_inBattle&&unit.shield>0) lines.push(`状態：結界${unit.shield}`);
+  if(_inBattle&&unit.shield>0) lines.push('状態：結界');
   // descの中の単独キーワード行は、既にキーワード欄へ出しているためその行だけ除く。
   // スケルトンキングの「復活\n攻撃：…」は、復活だけが本文色で二重表示されていた。
   const shownKeywordNames=new Set([...(unit.keywords||[]),...kws]
@@ -5252,7 +5253,7 @@ function _rawSubstitutedDesc(card,owner){
   // **合体後の効果文はシートの「合体効果」列がそのまま入っている**（loader.js／pool.js）。
   // ここで数字を2倍にしてはいけない（シートには倍にしない値がある）。
   // シートに指定が無いカード（`_mergedFormApplied` が立たない）は、合体しても効果は変わらない。
-  return desc;
+  return _shieldDisplayText(desc);
 }
 function computeDesc(card,_mlOverride){
   let desc=_rawSubstitutedDesc(card);

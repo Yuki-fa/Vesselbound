@@ -142,7 +142,7 @@ function coreUnitKeywords(unit) {
     if (ownPassiveText.includes(k)) kws.push(k);
   });
   const shieldText = ownPassiveText.match(/(?:^|\n)\s*結界\s*(\d*)/);
-  if (shieldText) kws.push('結界' + (shieldText[1] || '1'));
+  if (shieldText) kws.push('結界');
   const sealText = ownPassiveText.match(/封印\s*(\d+)/);
   if (sealText) kws.push('封印' + (sealText[1] || '1'));
   // 注：unit.boardCards（接続強化パネルの複製）は再スキャンしない。既に unit.keywords へ
@@ -153,7 +153,7 @@ function coreUnitKeywords(unit) {
   if (kws.includes('全体攻撃')) {
     for (let i = kws.length - 1; i >= 0; i--) if (kws[i] === '三方向攻撃') kws.splice(i, 1);
   }
-  return kws;
+  return coreNormalizeShieldKeywords(kws);
 }
 
 // 祝福はカード個体の入力。定義やラン状態には触れず、表示と既存の本文パーサーへ
@@ -618,11 +618,50 @@ function coreUnsilenceUnit(unit) {
 function coreShieldValueFromKeyword(k) {
   const m = String(k || '').trim().match(/^結界\s*(\d*)$/);
   if (!m) return 0;
-  return Math.max(1, parseInt(m[1] || '1', 10) || 1);
+  return 1;
 }
-
+function coreNormalizeShieldValue(value) { return Number(value) > 0 ? 1 : 0; }
+function coreNormalizeShieldKeywords(keywords) {
+  let seen = false;
+  const result = [];
+  for (const keyword of keywords || []) {
+    if (!coreShieldValueFromKeyword(keyword)) result.push(keyword);
+    else if (!seen) { result.push('結界'); seen = true; }
+  }
+  return result;
+}
 function coreUnitShieldValue(unit) {
-  return coreUnitKeywords(unit).reduce((sum, k) => sum + coreShieldValueFromKeyword(k), 0);
+  return coreUnitKeywords(unit).some(k => coreShieldValueFromKeyword(k)) ? 1 : 0;
+}
+// 結界の付与はこの出口だけ。既所持なら状態を1へ揃え、獲得イベントは出さない。
+function coreGrantShield(target, emit, details = {}, type = 'keyword_effect') {
+  const hadShield = Number(target.shield) > 0;
+  target.shield = 1;
+  if (hadShield) return false;
+  emit({ type, ...(type === 'keyword_effect' ? { effect: 'shield' } : {}),
+    side: target.side, unitId: target.id, amount: 1, ...details });
+  return true;
+}
+const CORE_RANDOM_SHIELD_GRANT = /^ランダムな味方(?:(\d+)体)?(?:は|に|が)結界\d*を(?:付与|与え|得る)/;
+function coreGrantRandomShields(allies, count, source, rng, emit) {
+  const pool = (allies || []).filter(x => x && x.hp > 0 && !coreIsSealed(x) && !(Number(x.shield) > 0));
+  // 候補が空なら抽選関数自体を呼ばず、乱数を進めない。
+  if (!pool.length) return;
+  corePickDistinct(rng, pool, count).forEach(target => coreGrantShield(target, emit, { sourceId: source.id }));
+}
+// 開戦・負傷・死亡は同じ本文形式を使う。ATK比例の開戦付与は専用の回数計算へ任せる。
+function coreApplyTriggeredShieldGrants(unit, trigger, allies, rng, emit) {
+  for (const grant of coreTriggerEffectEntries(unit, trigger, CORE_RANDOM_SHIELD_GRANT)) {
+    if (/ATK\d+につき\d+回発生する/.test(grant.input)) continue;
+    coreGrantRandomShields(allies, Math.max(1, Number(grant[1]) || 1), unit, rng, emit);
+  }
+  for (const _grant of coreTriggerEffectEntries(unit, trigger, /^全ての味方(?:は|に)結界\d*を(?:付与|与え|得る)/)) {
+    (allies || []).filter(x => x && x.hp > 0 && !coreIsSealed(x))
+      .forEach(target => coreGrantShield(target, emit, { sourceId: unit.id }));
+  }
+  for (const _grant of coreTriggerEffectEntries(unit, trigger, /^(?:このキャラクターは)?結界\d*を得る(?:。|$)/)) {
+    coreGrantShield(unit, emit);
+  }
 }
 
 function coreUnitHasKeyword(unit, kw) {
@@ -685,6 +724,7 @@ function coreEmitCounterBlock(state, attacker, defender, notice, emit) {
 // fromKeywordsOnly=true の時は unit.keywords の生の値だけを見る（効果文からは拾わない）。
 function coreKeywordSum(unit, name, fromKeywordsOnly) {
   const list = fromKeywordsOnly ? (unit && unit.keywords || []) : coreUnitKeywords(unit);
+  if (name === '結界') return list.some(k => coreShieldValueFromKeyword(k)) ? 1 : 0;
   const re = new RegExp('^' + name + '(\\d+)$');
   return list.reduce((sum, k) => {
     const m = re.exec(String(k || ''));
@@ -1011,7 +1051,7 @@ function coreKeywordCountBuff(keywords, cards) {
   }, 0);
 }
 
-// 2026-10-12: 数値付きキーワードは既存の結界等と同じく値を加算する。
+// 数値付きキーワードは値を加算する。結界の有無は専用の付与出口で扱う。
 // コアが確定したキーワードの写しを再生側へ渡し、恩寵での重複付与も同じ表示にする。
 function coreGrantOpeningKeyword(target, keyword, source, emit, state, rng, applyHit) {
   const before = coreUnitKeywords(target);
@@ -1110,7 +1150,7 @@ function createCoreUnit(raw, side, index) {
     no: String((raw && (raw.no || raw.artCode)) || ''),
     art: String((raw && raw.art) || ''),
     imageNo: String((raw && (raw.imageNo || raw.artCode || raw.no)) || ''),
-    keywords: Array.isArray(raw && raw.keywords) ? raw.keywords.map(String) : [],
+    keywords: coreNormalizeShieldKeywords(Array.isArray(raw && raw.keywords) ? raw.keywords.map(String) : []),
     // 効果文もキーワード判定の入力になる（coreUnitKeywords が本文からも拾う）。
     desc: String((raw && raw.desc) || ''),
     ...(raw && raw.boon ? { boon: { ...raw.boon } } : {}),
@@ -1120,7 +1160,7 @@ function createCoreUnit(raw, side, index) {
     hate: !!(raw && raw.hate),
     hateTurns: Number(raw && raw.hateTurns) || 0,
     stealth: !!(raw && raw.stealth) || coreUnitHasKeyword(raw, '隠密'),
-    shield: Math.max(0, Number(raw && raw.shield) || 0) || coreUnitShieldValue(raw),
+    shield: coreNormalizeShieldValue(raw && raw.shield) || coreUnitShieldValue(raw),
     weaken: Math.max(0, Number(raw && raw.weaken) || 0),
     _sealed: !!(raw && raw._sealed),
     _panelSummoned: raw && raw._panelSummoned !== undefined ? !!raw._panelSummoned : true,
@@ -1345,6 +1385,8 @@ function coreUnitSnapshot(unit) {
 function coreInitializeBattleState(state) {
   BATTLE_CORE_SIDES.forEach(side => (state.units[side] || []).filter(Boolean).forEach(unit => {
     Object.assign(unit, coreApplyUnitRunLevels(unit, state.runLevels && state.runLevels[side]));
+    unit.shield = coreNormalizeShieldValue(unit.shield);
+    unit.keywords = coreNormalizeShieldKeywords(unit.keywords);
   }));
   state.turn = 0;
   state.lane = { p1: { lane: 'front', attacked: new Set() }, p2: { lane: 'front', attacked: new Set() } };
@@ -1488,7 +1530,7 @@ function coreApplyDamage(target, amount, emit, opts) {
   const raw = Math.max(0, Math.round(Number(amount) || 0));
   const res = coreResolveIncomingDamage(target, raw, opts);
   if (res.blocked) {
-    if (res.consumesShield) target.shield = Math.max(0, (target.shield || 0) - 1);
+    if (res.consumesShield) target.shield = 0;
     emit({ type: 'damage', side: target.side, unitId: target.id, amount: 0, hpAfter: target.hp,
       blockedBy: res.reason, sourceId: opts && opts.sourceId, counter: !!(opts && opts.counter),
       keywordEffect: opts && opts.keywordEffect || null,
@@ -2256,13 +2298,11 @@ function coreApplyOpeningEnemyRingToUnit(ring, unit, emit, state, rng, applyHit)
     coreTriggerAtkGainEffects(unit, bonus.atk, state, rng, emit, applyHit);
   }
   coreOpeningEnemyKeywordGrants(ring).forEach(keyword => {
-    unit.keywords = [...(unit.keywords || []), keyword];
-    // 初期配置は後段の shield_set でも同期される。開戦召喚はその後段を通らないため、
-    // ここで実効結界値も加算して召喚スナップショットへ載せる。
-    const shield = coreShieldValueFromKeyword(keyword);
-    if (shield > 0) unit.shield = (Number(unit.shield) || 0) + shield;
-    emit({ type: 'keyword_effect', effect: 'keyword_gain', side: unit.side, unitId: unit.id,
-      keyword, reason: 'opening_ring_enemy_keyword', ringName: String(ring.name || '') });
+    unit.keywords = coreNormalizeShieldKeywords([...(unit.keywords || []), keyword]);
+    const details = { reason: 'opening_ring_enemy_keyword', ringName: String(ring.name || '') };
+    if (coreShieldValueFromKeyword(keyword)) coreGrantShield(unit, emit, details);
+    else emit({ type: 'keyword_effect', effect: 'keyword_gain', side: unit.side, unitId: unit.id,
+      keyword, ...details });
   });
 }
 function coreRingCount(state, side, name) {
@@ -2520,12 +2560,8 @@ function coreApplyKenzokuBonuses(state, child, emit, sourceUnit, sourceId, { sta
   const summonBuff = coreSummonBuffOf(state, side);
   if (stats && (summonBuff.atk || summonBuff.hp)) addStats(summonBuff.atk, summonBuff.hp, 'summon_buff', {});
   const kenzokuRings = coreResolvedRings(state, side);
-  const lightRing = kenzokuRings.map(ring => coreUnitEffectText(ring).match(/味方の眷属は結界(\d+)を得る/)).find(Boolean);
-  if (lightRing) {
-    const amount = Number(lightRing[1]) || 0;
-    child.shield = (Number(child.shield) || 0) + amount;
-    emit({ type: 'keyword_effect', effect: 'shield', side, unitId: child.id, amount, reason: 'light_ring' });
-  }
+  const lightRing = kenzokuRings.some(ring => /味方の眷属は結界\d*を得る/.test(coreUnitEffectText(ring)));
+  if (lightRing) coreGrantShield(child, emit, { reason: 'light_ring' });
   // 召喚師の指輪：鏡の指輪も同じ本文を解決する。
   const summonerBonus = kenzokuRings.reduce((total, ring) => {
     const match = coreUnitEffectText(ring).match(/味方の眷属は\+(\d+)\/?\+(\d+)を得る/);
@@ -2701,10 +2737,8 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect, rng, ap
     for (const songStats of coreTriggerEffectEntries(sourceUnit, '常時', /このキャラクターが召喚したキャラクターは\+(\d+)\/?\+(\d+)を得る/)) {
       addStats(child, Number(songStats[1]) || 0, Number(songStats[2]) || 0, 'march_song');
     }
-    for (const songShield of coreTriggerEffectEntries(sourceUnit, '常時', /このキャラクターが召喚したキャラクターは結界(\d+)を得る/)) {
-      const amount = Math.max(1, Number(songShield[1]) || 1);
-      child.shield = (Number(child.shield) || 0) + amount;
-      emit({ type: 'keyword_effect', effect: 'shield', side, unitId: child.id, amount, reason: 'glory_song' });
+    for (const _songShield of coreTriggerEffectEntries(sourceUnit, '常時', /このキャラクターが召喚したキャラクターは結界\d*を得る/)) {
+      coreGrantShield(child, emit, { reason: 'glory_song' });
     }
     // 「死亡：〜」をそのまま効果文として持たせる。**中身は解釈しない**
     // （死亡効果の解決は coreApplyDeathEffects が本文から読む唯一の実装）。
@@ -2854,8 +2888,7 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
       coreTriggerAtkGainEffects(x, 5, state, rng, emit, applyHit);
     });
     if (key === 'shield_scroll') live(allies).filter(x => x.lane !== 'rear').forEach(x => {
-      x.shield = (Number(x.shield) || 0) + 1;
-      emit({ type: 'keyword_effect', effect: 'shield', side: x.side, unitId: x.id, amount: 1, sourceId: item.id });
+      coreGrantShield(x, emit, { sourceId: item.id });
     });
     if (key === 'giant_scroll') {
       const target = live(allies).sort((a, b) => b.maxHp - a.maxHp)[0];
@@ -3093,8 +3126,12 @@ function coreApplyOpeningScaledGrant(unit, openingText, allies, rng, emit, scale
   // 「+A/+B」が書かれていればそれ。無ければ結界N（既定1）。
   // スラッシュ抜け（「+2+2」）も受ける（シートの表記ゆれで効果が丸ごと不発になるため）。
   const stats = text.match(/ランダムな味方に\+(\d+)\/?\+(\d+)を付与する/);
-  const shield = text.match(/ランダムな味方に結界(\d*)を付与する/);
+  const shield = text.replace(/^\s*開戦\s*[：:]\s*/, '').match(CORE_RANDOM_SHIELD_GRANT);
   for (let i = 0; i < count; i++) {
+    if (!stats && shield) {
+      coreGrantRandomShields(allies, Math.max(1, Number(shield[1]) || 1), unit, rng, emit);
+      continue;
+    }
     const target = rng.pick((allies || []).filter(x => x && x.hp > 0 && !coreIsSealed(x)));
     if (!target) break;
     if (stats) {
@@ -3108,9 +3145,7 @@ function coreApplyOpeningScaledGrant(unit, openingText, allies, rng, emit, scale
       // 他のATK加算箇所は全て呼んでいたが、ここだけ抜けていた。
       if (atk > 0 && state && typeof applyHit === 'function') coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
     } else {
-      const amount = Math.max(1, Number(shield && shield[1]) || 1);
-      target.shield = (Number(target.shield) || 0) + amount;
-      emit({ type: 'keyword_effect', effect: 'shield', side: target.side, unitId: target.id, amount, sourceId: unit.id });
+      coreGrantShield(target, emit, { sourceId: unit.id });
     }
   }
   return count;
@@ -3252,10 +3287,7 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
     x.poison = (Number(x.poison) || 0) + 12;
     emit({ type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, amount: 12, sourceId: unit.id });
   });
-  if (coreHasEffect(unit, '古王"フォルセティ"')) allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
-    x.shield = (Number(x.shield) || 0) + 1;
-    emit({ type: 'keyword_effect', effect: 'shield', side: x.side, unitId: x.id, amount: 1, sourceId: unit.id });
-  });
+  coreApplyTriggeredShieldGrants(unit, '開戦', allies, rng, emit);
   // **効果は文ごとに見る。**（同じトリガの効果は複数あり得る＝本体＋強化カード）
   const openingTexts = coreTriggerTextParts(unit, '開戦');
   // 開戦時のコピーは、他の開戦効果（召喚・バフ・マナ）より先に解決する。
@@ -3329,14 +3361,6 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
   for (let textRun = 0; textRun < coreMatchRepeatCount(teamBuff); textRun++) if (teamBuff) {
     const atk = Number(teamBuff[1]) || 0, hp = Number(teamBuff[2]) || 0;
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, atk, hp, 'opening_team_buff'));
-  }
-  const teamShield = coreTriggerMatch(openingTexts, /全ての味方に結界(\d*)を(?:付与|与え)/);
-  for (let textRun = 0; textRun < coreMatchRepeatCount(teamShield); textRun++) if (teamShield && !coreHasEffect(unit, '古王"フォルセティ"')) {
-    const amount = Number(teamShield[1]) || 1;
-    allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
-      x.shield = (Number(x.shield) || 0) + amount;
-      emit({ type: 'keyword_effect', effect: 'shield', side: x.side, unitId: x.id, amount, sourceId: unit.id });
-    });
   }
   // 「HP◯につき△回発生する」の△も本文から読む（合体後は2回）。
   const openingEnemyDebuff = coreTriggerMatch(openingTexts, /^全ての敵は-([0-9]+)\/-([0-9]+)を得る。この効果は、このキャラクターのHP(\d+)につき(\d+)回発生する/);
@@ -4028,15 +4052,8 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   }
   const brownieHp = Math.max(0, coreEffectNumbers(unit, '負傷', /全ての仲間のHPが\+(\d+)される/, [2])[0]);
   for (let i = 0; i < coreEffectRepeatCount(unit, 'ブラウニー'); i++) allies.filter(x => x.hp > 0).forEach(x => addStats(x, 0, brownieHp, 'brownie'));
-  // エルフ：結界の数は本文から読む（合体後は結界2）。
-  const elfShield = Math.max(1, coreEffectNumbers(unit, '負傷', /結界(\d+)を得る/, [1])[0]);
-  // 本文に負傷の結界獲得がある時だけ（2026-10-10 にエルフは「先制 結界1」のキーワードだけになった。
-  // 名前だけで数えると、負傷のたびに結界を得続けていた）。
-  const elfHasInjuryShield = /結界\d*を得る/.test(coreUnitTriggerText(unit, '負傷') || '');
-  for (let i = 0; elfHasInjuryShield && i < coreEffectRepeatCount(unit, 'エルフ'); i++) {
-    unit.shield = (Number(unit.shield) || 0) + elfShield;
-    emit({ type: 'keyword_effect', effect: 'shield', side: unit.side, unitId: unit.id, amount: elfShield });
-  }
+  // 旧エルフの自己付与とランダム付与も、本文を読む共通出口で処理する。
+  coreApplyTriggeredShieldGrants(unit, '負傷', allies, rng, emit);
   const redBonus = coreEffectRepeatCount(unit, 'コボルド');
   // 加算値は本文から読む（合体後は+2/+2）。**カード名に数を直書きしないこと。**
   const kobold = coreEffectNumbers(unit, '負傷', /全ての赤(?:の味方|の?キャラクター)は\+(\d+)\/?\+(\d+)を得る/, [1, 1]);
@@ -4106,8 +4123,7 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   for (let i = 0; injuredByEffectDamage && i < coreEffectRepeatCount(unit, 'ミノタウロス') * minoTimes; i++) {
     if (unit.hp <= 0) break;
     if (minoShield > 0) {
-      unit.shield = (Number(unit.shield) || 0) + minoShield;
-      emit({ type: 'keyword_effect', effect: 'shield', side: unit.side, unitId: unit.id, amount: minoShield, sourceId:unit.id });
+      coreGrantShield(unit, emit, { sourceId: unit.id });
     }
     const target = rng.pick(foes.filter(x => x.hp > 0 && !coreIsSealed(x)));
     if (target) {
@@ -4304,14 +4320,13 @@ function coreApplyReleaseEffects(unit, sacrificed, state, rng, emit, applyHit) {
           ev=>emit({...ev,retriggerSourceId:observer.id,retriggerTargetId:target.id,retriggerKey}),applyHit,retriggerKey);
       }
     });
-    coreTriggerEffectEntries(observer, '常時', /味方が解放された時、このキャラクターは\+X\/\+Xと結界(\d+)を得る。Xは血(?:の(\d+)倍)?に等しい/).forEach(m => {
+    coreTriggerEffectEntries(observer, '常時', /味方が解放された時、このキャラクターは\+X\/\+Xと結界(\d*)を得る。Xは血(?:の(\d+)倍)?に等しい/).forEach(m => {
       const blood = Math.max(0, Number(state.blood && state.blood[unit.side]) || 0) * (Number(m[2]) || 1);
       const amount = coreBoonDynamicValue(observer, m, blood, 'mod');
       const atk = coreStatBonus(observer, amount, observer), hp = coreStatBonus(observer, amount, observer);
       observer.atk = Math.max(0, observer.atk + atk); observer.maxHp += hp; observer.hp += hp;
-      observer.shield = (Number(observer.shield) || 0) + Number(m[1]);
       emit({ type: 'stat_change', side: observer.side, unitId: observer.id, atk, hp, reason: 'fanatic_blood', sourceId: observer.id });
-      emit({ type: 'keyword_effect', effect: 'shield', side: observer.side, unitId: observer.id, amount: Number(m[1]), sourceId: observer.id });
+      coreGrantShield(observer, emit, { sourceId: observer.id });
       coreTriggerAtkGainEffects(observer, atk, state, rng, emit, applyHit);
     });
   });
@@ -4829,17 +4844,8 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       });
     }
   }
-  // 死亡：ランダムな味方（N体）は結界Mを得る（強化「結界」、2026-10-10。N体は別々の体）。
-  for (const deathAllyShield of coreTriggerEffectEntries(unit, '死亡', /^ランダムな味方(?:(\d+)体)?は結界(\d*)を得る/)) {
-    const amount = Math.max(1, Number(deathAllyShield[2]) || 1);
-    for (let i = 0; i < repeats; i++) {
-      corePickDistinct(rng, allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), Math.max(1, Number(deathAllyShield[1]) || 1))
-        .forEach(x => {
-          x.shield = (Number(x.shield) || 0) + amount;
-          emit({ type: 'keyword_effect', effect: 'shield', side: x.side, unitId: x.id, amount, sourceId: unit.id });
-        });
-    }
-  }
+  // 反復ごとに未所持の味方を抽選し直す。死亡した本人は候補に含めない。
+  for (let i = 0; i < repeats; i++) coreApplyTriggeredShieldGrants(unit, '死亡', allies.filter(x => x !== unit), rng, emit);
   // 対象が「味方」か「キャラクター」かも本文から読む（旧保存の文も同じ入口）。
   for (const deathAllAtk of coreTriggerEffectEntries(unit, '死亡', /^全ての(味方|キャラクター)はATK\+(\d+)を得る/)) {
     for (let i = 0; i < repeats; i++) {
@@ -5283,8 +5289,8 @@ function coreTryRevive(unit, state, emit, rng, applyHit) {
   if (ring || keyword === '復活') {
     const applyPassives = trackedEmit => {
       const reviveShield = coreUnitShieldValue(unit);
-      unit.shield = reviveShield;
-      if (reviveShield > 0) trackedEmit({ type: 'shield_set', side: unit.side, unitId: unit.id, amount: reviveShield });
+      if (reviveShield > 0) coreGrantShield(unit, trackedEmit, {}, 'shield_set');
+      else unit.shield = 0;
       // 初期配置・眷属・指輪復活とも、半分の本体へ常時指輪を掛け直す。
       coreApplyRevivalSelfPassives(state, unit, trackedEmit, rng, applyHit);
       coreApplySummonEyeRings(state, unit, trackedEmit, null, null, rng, applyHit);
@@ -5829,18 +5835,9 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
         // 「「X」に変身する。」（ドラゴネット）。**変身先は本文の名前をそのまま使う。**
         const manaTransform = text.match(/^「([^」]+)」に変身する/);
         if (manaTransform) coreTransformUnit(state, unit, manaTransform[1], emit);
-        // **結界の数は本文から読む。** 1で固定していたため、合体後のスプリガン
-        // （「結界2を得る」）は数が合わないどころか、文にも当たらず何も起きなかった。
-        const manaShield = text.match(/^ランダムな味方(?:は|に)結界(\d*)を(?:付与|与える|得る)/);
-        if (manaShield) {
-          const pool = (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
-          const target = pool.length ? rng.pick(pool) : null;
-          if (target) {
-            const amount = Number(manaShield[1]) || 1;
-            target.shield = (Number(target.shield) || 0) + amount;
-            emit({ type: 'keyword_effect', effect: 'shield', side: target.side, unitId: target.id, amount, sourceId: unit.id });
-          }
-        }
+        // 結界Nも数字なしも同じ1つ。未所持の体だけから必要な人数を抽選する。
+        const manaShield = text.match(CORE_RANDOM_SHIELD_GRANT);
+        if (manaShield) coreGrantRandomShields(state.units[side], Math.max(1, Number(manaShield[1]) || 1), unit, rng, emit);
         const weaken = text.match(/^全ての敵に弱体(\d+)を(?:付与|与える|得る)/);
         if (weaken) {
           const amount = Number(weaken[1]) || 0;
@@ -5995,7 +5992,8 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
         // 「結界1を得る」のようなキーワードだけを拾う。「このキャラクターは+1/+1を得る」（活性化）や
         // 「ランダムな味方が復活を得る」まで一語として拾い、謎のキーワードとして付いていた（利用者報告）。
         const gain = text.match(/^([^\s、。はがの+＋\/]+)を得る/);
-        if (gain && !/マナ$/.test(gain[1])) {
+        if (/^(?:このキャラクターは)?結界\d*を得る/.test(text)) coreGrantShield(unit, emit, { sourceId: unit.id });
+        else if (gain && !/マナ$/.test(gain[1])) {
           unit.keywords = coreUnitKeywords(unit).concat(unit.keywords.includes(gain[1]) ? [] : [gain[1]]);
           emit({ type: 'keyword_effect', effect: 'keyword_gain', side, unitId: unit.id, sourceId: unit.id, keyword: gain[1] });
         }
@@ -6530,7 +6528,7 @@ function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
     });
     coreOpeningUnits(state).filter(u => u.hp > 0 && !coreIsSealed(u)).forEach(u => {
       const shield = coreUnitShieldValue(u);
-      if (shield > 0) { u.shield = Math.max(Number(u.shield) || 0, shield); emit({ type: 'shield_set', side: u.side, unitId: u.id, amount: shield }); }
+      if (shield > 0) coreGrantShield(u, emit, {}, 'shield_set');
       const repeats = 1 + coreExtraTriggerTimes(u, '開戦', coreEffectCount(u, '恩寵'))
         + Math.max(0, Number(u._effectRepeatBonus) || 0);
       for (let i = 0; i < repeats && u.hp > 0 && !coreIsSealed(u); i++) {

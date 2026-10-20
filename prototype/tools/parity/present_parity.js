@@ -78,8 +78,8 @@ const SCENARIOS = [
   },
   {
     name: 'ケットシー：負傷召喚と指輪', seed: 100705, requires: ['summon'],
-    summonStats: { name: 'ナイトキャット', atk: 21, hp: 19, shield: 2 },
-    // 元の結界1と光の結界1を区別し、負傷経路でも色・虹・召喚師を受け取る。
+    summonStats: { name: 'ナイトキャット', atk: 21, hp: 19, shield: 1 },
+    // 元の結界と光の指輪は重複せず、負傷経路でも色・虹・召喚師を受け取る。
     rings: { p1: ['神速の指輪', '黄の瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪'] },
     p1: [['ケットシー', 'A0', { color: '黄', hp: 40, maxHp: 40 }]],
     p2: [['オーク', 'E0', { atk: 2, hp: 100, maxHp: 100, keywords: [], desc: '' }]],

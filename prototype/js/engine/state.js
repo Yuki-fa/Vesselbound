@@ -61,7 +61,8 @@ function _mergeCountedKeywords(list){
   const sums=new Map();
   const isNum=new Map();
   (list||[]).forEach(raw=>{
-    const s=String(raw||'').trim();
+    const rawKeyword=String(raw||'').trim();
+    const s=coreShieldValueFromKeyword(rawKeyword)?'結界':rawKeyword;
     if(!s) return;
     const m=/^(\D+?)(\d+)$/.exec(s);
     if(m){

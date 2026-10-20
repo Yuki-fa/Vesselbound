@@ -1022,7 +1022,15 @@ function audit() {
     const s = makeDirectState([spriggan, ally], [], { p1: { mana: 4, gold: 0 }, p2: { mana: 0, gold: 0 } }); const es = [];
     core.coreApplyManaThresholdEffects(s, createSeededRng(102), e => es.push(e), () => ({ amount: 0, died: false }));
     const stateAlly = s.units.p1.find(x => x.shield > 0);
-    recordDirect('スプリガン', !!stateAlly && es.some(e => e.type === 'keyword_effect' && e.effect === 'shield'), `結界=${stateAlly && stateAlly.shield || 0}`);
+    recordDirect('スプリガン', stateAlly && stateAlly.shield === 1
+      && es.some(e => e.type === 'keyword_effect' && e.effect === 'shield' && e.amount === 1), `結界=${stateAlly && stateAlly.shield || 0}`);
+    // 全員所持なら獲得イベントも抽選も出さない。結界以外の乱数処理を混ぜず直接閾値を進める。
+    s.units.p1.forEach(u => { u.shield = 1; }); s.resources.p1.mana = 8; es.length = 0;
+    const noDraw = { next() { throw new Error('結界の候補が空なのに乱数を消費した'); },
+      int() { return this.next(); }, pick() { return this.next(); } };
+    core.coreApplyManaThresholdEffects(s, noDraw, e => es.push(e), () => ({ amount: 0, died: false }));
+    recordDirect('結界の重複防止', s.units.p1.every(u => u.shield === 1)
+      && !es.some(e => e.type === 'keyword_effect' && e.effect === 'shield'), '全員所持なら獲得・乱数なし');
   }
   {
     // エレメンタル：全ての色の味方がそろえばATKとHPが2倍になる。

@@ -203,10 +203,10 @@ async function extraChecks() {
   const s=fixture('C003');s.units.p1[0].keywords=['結界2','根性','復活'];s.units.p1[0].shield=2;setup(s);
   const u=s.units.p1[0];_battleFxFollowStates();const started=calls.length;
   _battleFxFollowStates();assert.equal(calls.length,started,'状態ループを二重に開始しない');
-  assert.ok(calls.some(c=>c.name==='shield-state'&&c.opts.value===2),'最初から持つ結界のループ');
+  assert.ok(calls.some(c=>c.name==='shield-state'&&c.opts.value===1),'旧い結界2も1つ分のループ');
   assert.ok(!calls.some(c=>c.name==='shield-gain'||c.name==='revive-gain'),'初期状態に獲得演出を出さない');
   battleFxAdvanceStates(u,{shield:3,poison:4,weaken:2});_battleFxFollowStates();
-  assert.equal(calls.filter(c=>c.name==='shield-state').at(-1).opts.value,3,'結界値を更新');
+  assert.equal(calls.filter(c=>c.name==='shield-state').at(-1).opts.value,1,'結界3を渡しても重ね数は1');
   assert.equal(calls.filter(c=>c.name==='poison-state'&&c.source===u.id).at(-1).opts.value,4,'毒値を更新');
   const old=slots.get(u.id),next=element(u.id,rect(3,'p1'));next.dataset.unitId=u.id;slots.set(u.id,next);_battleFxFollowStates();
   await playBattleLabFx('K016',u,[u]);
@@ -236,12 +236,12 @@ async function extraChecks() {
   presentResetEffectFlashes();
   console.log('OK 共通の結果暗転／進む：状態停止・再描画で復帰しない・次戦で再開');
 
-  setup(s);u.shield=2;battleFxAdvanceStates(u,{shield:2});
-  const shieldEvents=[{type:'shield_lost',side:'p1',unitId:u.id,shield:1},{type:'shield_lost',side:'p1',unitId:u.id,shield:0}];
+  setup(s);u.shield=1;battleFxAdvanceStates(u,{shield:1});
+  const shieldEvents=[{type:'shield_lost',side:'p1',unitId:u.id,shield:0}];
   await _flushCorePveHitEvents(s,shieldEvents,new Set([...s.units.p1,...s.units.p2]));
   assert.equal(calls.filter(c=>c.name==='shield-break').length,1,'結界0になった時だけ消失を1回');
   assert.equal(legacy.filter(c=>c.opts?.keywordEffect==='結界').length,0,'旧K018の絵を重ねない');
-  assert.equal(sounds.filter(c=>c.code===getKeywordEffectSfxKey('結界')).length,2,'防いだ瞬間のK018.wavは残す');
+  assert.equal(sounds.filter(c=>c.code===getKeywordEffectSfxKey('結界')).length,1,'1回防いだ瞬間にK018.wavを1回鳴らす');
   assert.ok(sounds.some(c=>c.code==='shield_break'),'結界消失にはSEを鳴らす（2026-10-18 利用者が選んだ候補2）');
   const revived=s.units.p1[1];revived.keywords=['復活'];revived.hp=0;
   const reviveEvents=[];coreTryRevive(revived,s,e=>reviveEvents.push(e));
