@@ -380,6 +380,13 @@ function _previewKeywordEntries(){
 }
 function _previewKeywordMatchAllowed(text,match,index,entry){
   const rest=String(text||'').slice(index+match.length);
+  // 「」で括ったカード名の一部はキーワードにしない（「宿業の刻印」の刻印など。2026-10-20 利用者指定）。
+  // 「毒牙」「先制」のように括った中身がキーワードそのものの時は従来どおり太字にする。
+  const source=String(text||''),open=source.lastIndexOf('「',index),close=source.lastIndexOf('」',index);
+  if(open>close){
+    const end=source.indexOf('」',index);
+    if(end>=0&&source.slice(open+1,end)!==match) return false;
+  }
   // 「封印される」のような動詞はキーワードではない。カード名「衝撃波」も同様に除外する。
   if(entry.base==='封印'&&/^(?:される|する|した|し|させる)/.test(rest)) return false;
   if(entry.base==='衝撃'&&/^波/.test(rest)) return false;
@@ -4998,7 +5005,8 @@ function renderField(id,units,isEnemy,_lane){
     // 判定は assets.js の applyUnitVisual() と揃えること（`_useEnemyVisualFrame` を見る）。
     // 揃えないと、下の「自軍キャラは characterFrame」でボス枠へ上書きされ、
     // 奪った瞬間に敵の枠が本来のものからボス枠へ変わる。
-    const _isPlayerHero=!!(u&&!isEnemy&&!u._panelSummoned&&!u._useEnemyVisualFrame);
+    const _copyFrame=u&&u._copyFrame||null;
+    const _isPlayerHero=!!(u&&!isEnemy&&(!u._panelSummoned||_copyFrame&&_copyFrame.hero)&&!u._useEnemyVisualFrame&&!(_copyFrame&&_copyFrame.enemyVisual));
     const _hasGuardPanel=u&&!_isPlayerHero&&((isEnemy||u._panelSummoned)&&u.guardian);
     if(u&&_visualHp(u)>0&&_hasGuardPanel) slot.classList.add('is-defender','uses-hate-frame');
     if(u&&_visualHp(u)>0&&!_isPlayerHero&&u.hate&&u.hateTurns>0) slot.classList.add('is-defender');

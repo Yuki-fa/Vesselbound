@@ -724,6 +724,10 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - ATK獲得の誘発（ワイバーン）：活性化などマナ効果の途中で誘発したダメージに、外側の演出番号（E045 等）が継承されてワイバーンのVFXが出なかった。`core.js: coreTriggerAtkGainEffects()` で誘発の間だけ演出用の番号を退避する（数値・乱数は不変。検査 atk_gain_vfx_1020b_regression.js）。
 - 全滅後の省略：最後の死亡・逃走から、復活・召喚で戦闘が再開しない区間の余分な合図（発光・マナ効果の合図・攻撃の踏み込み・能力変化のVFX等）を省く（`present.js: presentMarkBattleTail()`／`presentIsSilentEvent()`。数値・状態表示・復活・報酬は残す。PvE・オンライン共通。検査 wipe_tail_1020b_regression.js）。
 - 同じ処理の繰り返し：同じ手番内の同じ効果の2回目以降は、マナの繰り返しと同じ間隔（PRESENT_MANA_RUN_GAP_MS）で見せる（`present.js: presentEffectRun()`。激怒・執念・懺悔・二段／三段攻撃・マナ閾値・解放、LAB演出・飛び道具も対象。検査 repeat_speed_1020b_regression.js）。
+- 処理落ち（ツインデビル＋活性化など、マナ20以上・結界／根性／復活を持つ体が多い盤面）：CSS の `body:has(#battle-start-intro…)` が、演出用の要素を出し入れするたびに body 以下の全体（約560要素）のスタイル再計算を起こしていた（トレースで約1,400回・8.7秒）。`battle.js: _syncBattleCutinBodyClasses()` がカットインの有無・種類を body のクラス（battle-intro-present／-victory／-retreat）へ映し、CSS はそれを見る。再計算は約1秒に。計測は `tools/parity/perf_twin_devil_1020d_check.js`（VB_PERF_TRACE で無効化の記録）。body:has() は新しく書かないこと。
+- コピー（ツインデビル・複製の力）の枠はコピー元と同じ（`core.js` の `_copyFrame`：見た目だけの印。`assets.js: applyUnitVisual`・`render.js` が見る。検査 copy_frame_1020_regression.js）。
+- 説明文で「」に括ったカード名は、キーワードを含んでも太字にしない（「宿業の刻印」の刻印など。括った中身がキーワードそのもの「毒牙」は太字。`render.js: _previewKeywordMatchAllowed`）。
+- 祝福の炎の強化は、カード合体と同じ merge.wav を白光の開始で鳴らす。
 - 召喚の登場（S001）：光をカードの位置に毎コマ追従させる（followGeometry）。召喚後の詰め直しでカードが動くと光だけ元の位置に残っていた。
 - 魔導板のマスの変化（board-summon／board-enchant）：入れ物をマスと同じ大きさにし（旧画像素材の頃の「マス×2.6・16:9」をやめる）、魔法陣・ルーンの輪をカードに収める。枠の光はカード枠に沿う。
 - 生命の光（map-life）：HPなのでピンク系にし、ハートは花びらの紋に替えた。スキュラの毒のしずくは毒の状態と同じ深い緑に。石化（medusa-gaze）の広がる石の板はカードの縦横比に。

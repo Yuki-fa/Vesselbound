@@ -1305,6 +1305,20 @@ function playBattleHitImpact(){
   },BATTLE_HIT_IMPACT_IN_MS+BATTLE_HIT_IMPACT_HOLD_MS);
 }
 
+// 開始・結果カットイン（#battle-start-intro）の有無と種類を body のクラスへ映す。
+// CSS で body:has(#battle-start-intro…) と書くと、演出用の要素を出し入れするたびに Chrome が body 以下を丸ごと
+// スタイル再計算し、マナ効果が続く盤面で処理落ちした（2026-10-20 利用者報告・トレースで確認）。消し方が各所にあるので、DOMの変化を見て揃える。
+function _syncBattleCutinBodyClasses(){
+  const body=document.body;if(!body) return;
+  const intro=document.getElementById('battle-start-intro');
+  const set=(name,on)=>{ if(body.classList.contains(name)!==on) body.classList.toggle(name,on); };
+  set('battle-intro-present',!!intro);
+  set('battle-intro-victory',!!(intro&&intro.classList.contains('cutin-victory')));
+  set('battle-intro-retreat',!!(intro&&intro.classList.contains('cutin-retreat')));
+}
+if(typeof MutationObserver==='function'&&typeof document!=='undefined'&&document.body){
+  new MutationObserver(_syncBattleCutinBodyClasses).observe(document.body,{childList:true,subtree:true});
+}
 // start は _playBattleStartIntro が背景スクロールと退場タイミングを管理する。
 function showBattleCutin(type='start',options={}){
   const host=_battleCutinHost();

@@ -247,6 +247,7 @@ function simulate(units){
       const pending=blessingFlameExecute();
       assert.equal(delay,BLESSING_FLAME_CONFIG.flashMs);assert.equal(delay,760);
       assert.equal(slot.children[0].className,'blessing-flame-flash triple-merge-white-flash');
+      assert.match(fs.readFileSync(path.resolve(__dirname,'../../js/engine/blessing_flame.js'),'utf8'),/playFileSfx\('assets\/sfx\/merge\.wav'\)/,'強化はカード合体と同じSE（2026-10-20）');
       assert.deepEqual(G.mainBoard[1],before);assert.equal(await blessingFlameExecute(),false);
       assert.equal(blessingFlameReset(),false);assert.equal(await blessingFlameLeave(),false);
       assert.equal(blessingFlameSelect(1),false);

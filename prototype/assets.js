@@ -528,7 +528,7 @@ const TRIPLE_MERGED_FRAME_MAP = Object.freeze({
   [Assets.cards.enemyFrame]: Assets.cards.characterFrame,
 });
 function _tripleMergedFrameAsset(frame, card){
-  return card&&card._tripleMerged
+  return card&&(card._tripleMerged||(card._copyFrame&&card._copyFrame.merged))
     ?(TRIPLE_MERGED_FRAME_MAP[frame]||frame)
     :frame;
 }
@@ -888,14 +888,16 @@ function panelDirectionMarksHtml(card, connectivity){
 
 function applyUnitVisual(el, unit){
   if(!el) return;
-  const isEnemyEl=el.classList.contains('enemy')||!!(unit&&unit._useEnemyVisualFrame);
-  const isPlayerHero=!!(unit&&!isEnemyEl&&!unit._panelSummoned);
+  // コピー（ツインデビル等）はコピー元の枠を使う（core.js の _copyFrame。2026-10-20 利用者指定）。
+  const copyFrame=unit&&unit._copyFrame||null;
+  const isEnemyEl=el.classList.contains('enemy')||!!(unit&&(unit._useEnemyVisualFrame||copyFrame&&copyFrame.enemyVisual));
+  const isPlayerHero=!!(unit&&!isEnemyEl&&(!unit._panelSummoned||copyFrame&&copyFrame.hero));
   // 守護／ヘイト専用の枠は素材ごと廃止した。
   // 判定に使っていた hasGuard / unitGuard / classGuard / isDefender も参照先が無くなったので消してある。
   // **味方でもボス枠のカード（BC「ディナ」など）は戦闘中もボス枠。** 味方は色で召喚枠を選ぶため、
   // 黒（召喚枠の無い色）は既定の緑枠になり、戦闘に入ると枠が変わって見えた（2026-09-24 利用者指摘）。
   // 戦闘中の体には _npcCard／boss の印が引き継がれないので、カード番号（BC002 など）でも見る。
-  const _isNpcUnit=!!(unit&&(unit._npcCard||/^(?:NPC|BC)\d+$/i.test(String(unit.no||unit.artCode||''))));
+  const _isNpcUnit=!!(unit&&(unit._npcCard||copyFrame&&copyFrame.npc||/^(?:NPC|BC)\d+$/i.test(String(unit.no||unit.artCode||''))));
   const frame=((isEnemyEl&&_isEliteOrBossCard(unit))||(!isEnemyEl&&unit&&(_isNpcUnit||_isEliteOrBossCard(unit))))
     ? Assets.cards.characterFrame
     : isEnemyEl

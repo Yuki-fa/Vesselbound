@@ -1118,6 +1118,7 @@ function createCoreUnit(raw, side, index) {
     summonCount: Math.max(1, Number(raw && raw.summonCount) || 1),
     _mapPanelPower: String((raw && raw._mapPanelPower) || ''),
     _openingDuplicate: !!(raw && raw._openingDuplicate),
+    ...(raw && raw._copyFrame ? { _copyFrame: { ...raw._copyFrame } } : {}),
     poison: Math.max(0, Number(raw && raw.poison) || 0),
     manaOnAttack: Math.max(0, Number(raw && raw.manaOnAttack) || 0),
     manaOnInjury: Math.max(0, Number(raw && raw.manaOnInjury) || 0),
@@ -1314,6 +1315,7 @@ function coreUnitSnapshot(unit) {
     _merged: !!u._merged,
     _mapPanelPower: String(u._mapPanelPower || ''),
     _openingDuplicate: !!u._openingDuplicate,
+    ...(u._copyFrame ? { _copyFrame: { ...u._copyFrame } } : {}),
     summonCount: Math.max(1, Number(u.summonCount) || 1),
     boss: !!u.boss,
     _terrainMapNo: Number(u._terrainMapNo) || 0,
@@ -2615,6 +2617,8 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect, rng, ap
     _tripleMerged: !!source._tripleMerged,
     _merged: !!source._merged,
     _openingDuplicate: !!source._openingDuplicate,
+    // コピーの枠（見た目だけ）。コピー元と同じ枠で出す（2026-10-20 利用者指定）。
+    ...(source._copyFrame ? { _copyFrame: { ...source._copyFrame } } : {}),
     boss: !!source.boss,
     // サキュバスで敵カードを味方化した場合は、名前・数値だけでなく
     // 敵側カード枠の表示指定も召喚イベントへ引き継ぐ。
@@ -3259,6 +3263,14 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
       // つながっている強化カード（ホバー説明の強化の効果文はここから引く）。
       // 渡さないとコピーの説明に強化カードの効果文が出なかった（2026-09-25 利用者報告）。
       boardCards: Array.isArray(unit.boardCards) ? unit.boardCards.map(c => (c && typeof c === 'object' ? { ...c } : c)) : undefined,
+      // 枠はコピー元と同じにする（2026-10-20 利用者指定）。見た目だけの印で、効果・数値の判定には使わない。
+      // コピーは召喚体（_panelSummoned）なので、印が無いと色の召喚枠になっていた。
+      _copyFrame: {
+        hero: !(unit._panelSummoned && !(unit._copyFrame && unit._copyFrame.hero)) && !unit._useEnemyVisualFrame,
+        merged: !!(unit._tripleMerged || (unit._copyFrame && unit._copyFrame.merged)),
+        enemyVisual: !!unit._useEnemyVisualFrame,
+        npc: !!(unit._npcCard || /^(?:NPC|BC)\d+$/i.test(String(unit.no || unit.artCode || '')) || (unit._copyFrame && unit._copyFrame.npc)),
+      },
     };
     coreCopyUnitEffectState(copySpec, unit);
     if (fixedAtk != null) { copySpec.atk = fixedAtk; copySpec._baseAtk = fixedAtk; }

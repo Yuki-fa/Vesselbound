@@ -83,6 +83,8 @@ async function blessingFlameExecute(){
     const flash=document.createElement('span');
     flash.className='blessing-flame-flash triple-merge-white-flash';
     el.appendChild(flash);
+    // カード合体（3枚合体の白光）と同じSE（2026-10-20 利用者指定）。
+    if(typeof playFileSfx==='function') playFileSfx('assets/sfx/merge.wav');
     await new Promise(resolve=>setTimeout(resolve,BLESSING_FLAME_CONFIG.flashMs));
   }
   // ページ内のデバッグ切替などで施設が閉じられた時は古い参照を戻さない。
