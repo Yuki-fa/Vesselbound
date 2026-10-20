@@ -572,6 +572,13 @@ const SaveRun=(()=>{
     if(!end.applied){
       const f=end.pending.frames.at(-1);applyFrame(f,state);
       G._battleCoreEvents.push(...copy(end.pending.events.slice(f.from,f.to)));
+      // 終戦の「永久に+X/+Y」（レプラコーン等）を魔導板のカードへ書き込む。終戦の区間は再生（_flushCorePveHitEvents）を通らないので、
+      // ここで書かないと演出だけ出て魔導板は上がらない（2026-10-20 利用者報告）。闘技場は入場前の盤面へ戻すので書かない（戦闘中と同じ）。
+      if(!(typeof arenaIsActive==='function'&&arenaIsActive())&&typeof _persistPermanentStatOrWarn==='function'&&typeof _getPartyBoardUnit==='function'){
+        for(const event of end.pending.events.slice(f.from,f.to)){
+          if(event&&event.type==='stat_change'&&event.persistent&&event.side==='p1') _persistPermanentStatOrWarn(_getPartyBoardUnit(),event);
+        }
+      }
       // 消耗値は絶対値。途中再生済みの分も含め、確定した最後の値をカードへ残す。
       for(const event of end.pending.events){
         if(event.type==='keyword_effect'&&event.effect==='effect_value'){

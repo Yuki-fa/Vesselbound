@@ -275,6 +275,8 @@ node prototype/tools/balance_sim/offline_online_regression.js
 - キーワード番号は K023 眷属／K024 マナ効果（旧K023。素材 assets/vfx/K024.webp・assets/sfx/K024.wav）／K025 荷物／K026 刻印。
 - 検査：tools/balance_sim/kenzoku_regression.js。
 
+- 終戦の「永久に+X/+Y」（レプラコーン等）は魔導板のカードへ書き込む。戦闘中の分は再生（`battle_events.js`）で、終戦の分はセーブ有効の保存済み戦闘なら `run_save.js: applyEnd()`、セーブ無しなら `battle.js: _applyCoreBattleEndEffectsLive()` で書く（2026-10-20：保存済み戦闘の終戦で書いておらず、演出だけ出て魔導板が上がらなかった。検査 leprechaun_save_1020_regression.js）。闘技場では書かない。
+
 ## 永久に変化する効果ダメージ（魔族の魂。2026-10-07）
 - E075 魔族の魂「攻撃：全ての敵に12ダメージを与える。発動するたびにこのダメージは永久に1減少する。」現在値でダメージを与えてから1減らす（下限0）。値はカード（エンチャント1枚）ごとに `_permanentEffectDamage` へ保存し、SaveRun のカード保存で復元、オンラインの編成には `_permanentEffectCards` で現在値を送る。同じ1枚を複数体へ接続した場合は値を共有。書き戻しは絶対値（保存再生で二重に減らない）。
 - 0になったらダメージ・命中VFX/SEは出さず、攻撃時の発光だけ。説明・ホバーは本文の数値を現在値に置き換えて表示する。
