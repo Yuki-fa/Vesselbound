@@ -11888,14 +11888,13 @@ VbFxDefs.register({
         {
           "anchor": "each-target",
           "basis": "unit",
-          "type": "shape",
-          "shape": "crystal",
+          "type": "glow",
+          "texture": "glow",
           "color": "#ff4a3a",
-          "light": "#ffd8d0",
-          "shadow": "#5a0a0a",
-          "offset": [
-            0,
-            -0.42
+          "blend": "add",
+          "aspect": [
+            0.658,
+            1
           ],
           "time": [
             0.1,
@@ -11909,12 +11908,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.2,
-                  1
+                  0.25,
+                  0.55
                 ],
                 [
-                  0.75,
-                  0.9
+                  0.7,
+                  0.4
                 ],
                 [
                   1,
@@ -11927,15 +11926,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
-                ],
-                [
-                  0.3,
-                  0.15
+                  0.5
                 ],
                 [
                   1,
-                  0.12
+                  0.78
                 ]
               ],
               "interpolation": "ease-out"
@@ -11951,7 +11946,7 @@ VbFxDefs.register({
           "blend": "add",
           "offset": [
             0,
-            -0.42
+            0
           ],
           "time": [
             0.1,
@@ -11966,7 +11961,7 @@ VbFxDefs.register({
                 ],
                 [
                   0.25,
-                  1
+                  0.4
                 ],
                 [
                   1,
@@ -11979,11 +11974,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
+                  0.45
                 ],
                 [
                   1,
-                  0.32
+                  0.9
                 ]
               ],
               "interpolation": "ease-out"
@@ -12196,14 +12191,13 @@ VbFxDefs.register({
         {
           "anchor": "each-target",
           "basis": "unit",
-          "type": "shape",
-          "shape": "crystal",
+          "type": "glow",
+          "texture": "glow",
           "color": "#4a9aff",
-          "light": "#d8ecff",
-          "shadow": "#0a2a5a",
-          "offset": [
-            0,
-            -0.42
+          "blend": "add",
+          "aspect": [
+            0.658,
+            1
           ],
           "time": [
             0.1,
@@ -12217,12 +12211,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.2,
-                  1
+                  0.25,
+                  0.55
                 ],
                 [
-                  0.75,
-                  0.9
+                  0.7,
+                  0.4
                 ],
                 [
                   1,
@@ -12235,15 +12229,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
-                ],
-                [
-                  0.3,
-                  0.15
+                  0.5
                 ],
                 [
                   1,
-                  0.12
+                  0.78
                 ]
               ],
               "interpolation": "ease-out"
@@ -12259,7 +12249,7 @@ VbFxDefs.register({
           "blend": "add",
           "offset": [
             0,
-            -0.42
+            0
           ],
           "time": [
             0.1,
@@ -12274,7 +12264,7 @@ VbFxDefs.register({
                 ],
                 [
                   0.25,
-                  1
+                  0.4
                 ],
                 [
                   1,
@@ -12287,11 +12277,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
+                  0.45
                 ],
                 [
                   1,
-                  0.32
+                  0.9
                 ]
               ],
               "interpolation": "ease-out"
@@ -12504,14 +12494,13 @@ VbFxDefs.register({
         {
           "anchor": "each-target",
           "basis": "unit",
-          "type": "shape",
-          "shape": "crystal",
+          "type": "glow",
+          "texture": "glow",
           "color": "#4ad86a",
-          "light": "#dcffe4",
-          "shadow": "#0a4a1a",
-          "offset": [
-            0,
-            -0.42
+          "blend": "add",
+          "aspect": [
+            0.658,
+            1
           ],
           "time": [
             0.1,
@@ -12525,12 +12514,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.2,
-                  1
+                  0.25,
+                  0.55
                 ],
                 [
-                  0.75,
-                  0.9
+                  0.7,
+                  0.4
                 ],
                 [
                   1,
@@ -12543,15 +12532,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
-                ],
-                [
-                  0.3,
-                  0.15
+                  0.5
                 ],
                 [
                   1,
-                  0.12
+                  0.78
                 ]
               ],
               "interpolation": "ease-out"
@@ -12567,7 +12552,7 @@ VbFxDefs.register({
           "blend": "add",
           "offset": [
             0,
-            -0.42
+            0
           ],
           "time": [
             0.1,
@@ -12582,7 +12567,7 @@ VbFxDefs.register({
                 ],
                 [
                   0.25,
-                  1
+                  0.4
                 ],
                 [
                   1,
@@ -12595,11 +12580,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
+                  0.45
                 ],
                 [
                   1,
-                  0.32
+                  0.9
                 ]
               ],
               "interpolation": "ease-out"
@@ -12812,14 +12797,13 @@ VbFxDefs.register({
         {
           "anchor": "each-target",
           "basis": "unit",
-          "type": "shape",
-          "shape": "crystal",
+          "type": "glow",
+          "texture": "glow",
           "color": "#ffd040",
-          "light": "#fff6d0",
-          "shadow": "#5a4a0a",
-          "offset": [
-            0,
-            -0.42
+          "blend": "add",
+          "aspect": [
+            0.658,
+            1
           ],
           "time": [
             0.1,
@@ -12833,12 +12817,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.2,
-                  1
+                  0.25,
+                  0.55
                 ],
                 [
-                  0.75,
-                  0.9
+                  0.7,
+                  0.4
                 ],
                 [
                   1,
@@ -12851,15 +12835,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
-                ],
-                [
-                  0.3,
-                  0.15
+                  0.5
                 ],
                 [
                   1,
-                  0.12
+                  0.78
                 ]
               ],
               "interpolation": "ease-out"
@@ -12875,7 +12855,7 @@ VbFxDefs.register({
           "blend": "add",
           "offset": [
             0,
-            -0.42
+            0
           ],
           "time": [
             0.1,
@@ -12890,7 +12870,7 @@ VbFxDefs.register({
                 ],
                 [
                   0.25,
-                  1
+                  0.4
                 ],
                 [
                   1,
@@ -12903,11 +12883,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
+                  0.45
                 ],
                 [
                   1,
-                  0.32
+                  0.9
                 ]
               ],
               "interpolation": "ease-out"
@@ -13120,14 +13100,13 @@ VbFxDefs.register({
         {
           "anchor": "each-target",
           "basis": "unit",
-          "type": "shape",
-          "shape": "crystal",
+          "type": "glow",
+          "texture": "glow",
           "color": "#b060ff",
-          "light": "#f0e0ff",
-          "shadow": "#3a0a5a",
-          "offset": [
-            0,
-            -0.42
+          "blend": "add",
+          "aspect": [
+            0.658,
+            1
           ],
           "time": [
             0.1,
@@ -13141,12 +13120,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.2,
-                  1
+                  0.25,
+                  0.55
                 ],
                 [
-                  0.75,
-                  0.9
+                  0.7,
+                  0.4
                 ],
                 [
                   1,
@@ -13159,15 +13138,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
-                ],
-                [
-                  0.3,
-                  0.15
+                  0.5
                 ],
                 [
                   1,
-                  0.12
+                  0.78
                 ]
               ],
               "interpolation": "ease-out"
@@ -13183,7 +13158,7 @@ VbFxDefs.register({
           "blend": "add",
           "offset": [
             0,
-            -0.42
+            0
           ],
           "time": [
             0.1,
@@ -13198,7 +13173,7 @@ VbFxDefs.register({
                 ],
                 [
                   0.25,
-                  1
+                  0.4
                 ],
                 [
                   1,
@@ -13211,11 +13186,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
+                  0.45
                 ],
                 [
                   1,
-                  0.32
+                  0.9
                 ]
               ],
               "interpolation": "ease-out"
@@ -13551,14 +13526,13 @@ VbFxDefs.register({
         {
           "anchor": "each-target",
           "basis": "unit",
-          "type": "shape",
-          "shape": "crystal",
+          "type": "glow",
+          "texture": "glow",
           "color": "#f4f0ff",
-          "light": "#ffffff",
-          "shadow": "#2a2a3a",
-          "offset": [
-            0,
-            -0.42
+          "blend": "add",
+          "aspect": [
+            0.658,
+            1
           ],
           "time": [
             0.1,
@@ -13572,12 +13546,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.2,
-                  1
+                  0.25,
+                  0.55
                 ],
                 [
-                  0.75,
-                  0.9
+                  0.7,
+                  0.4
                 ],
                 [
                   1,
@@ -13590,15 +13564,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
-                ],
-                [
-                  0.3,
-                  0.15
+                  0.5
                 ],
                 [
                   1,
-                  0.12
+                  0.78
                 ]
               ],
               "interpolation": "ease-out"
@@ -13614,7 +13584,7 @@ VbFxDefs.register({
           "blend": "add",
           "offset": [
             0,
-            -0.42
+            0
           ],
           "time": [
             0.1,
@@ -13629,7 +13599,7 @@ VbFxDefs.register({
                 ],
                 [
                   0.25,
-                  1
+                  0.4
                 ],
                 [
                   1,
@@ -13642,11 +13612,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  0.05
+                  0.45
                 ],
                 [
                   1,
-                  0.32
+                  0.9
                 ]
               ],
               "interpolation": "ease-out"
@@ -14450,14 +14420,14 @@ VbFxDefs.register({
           "anchor": "each-target",
           "basis": "unit",
           "geometry": "radial",
-          "copies": 14,
+          "copies": 18,
           "segments": 2,
-          "moteOffset": 300,
-          "angleJitter": 0.25,
+          "moteOffset": 760,
+          "angleJitter": 0.8,
           "ribbonSeedFromCopy": true,
           "strokeProfile": "ribbon",
-          "width": 0.035,
-          "color": "#fff2c0",
+          "width": 0.04,
+          "color": "#ffe39a",
           "clockSpace": "life",
           "time": [
             0.05,
@@ -14468,11 +14438,11 @@ VbFxDefs.register({
               "keys": [
                 [
                   0,
-                  1.8
+                  2.3
                 ],
                 [
                   1,
-                  0.55
+                  1.3
                 ]
               ],
               "interpolation": "power-in",
@@ -14485,8 +14455,12 @@ VbFxDefs.register({
                   0
                 ],
                 [
-                  0.2,
-                  0.9
+                  0.15,
+                  0.4
+                ],
+                [
+                  0.6,
+                  0.3
                 ],
                 [
                   1,
@@ -14495,7 +14469,67 @@ VbFxDefs.register({
               ],
               "interpolation": "smooth"
             }
-          }
+          },
+          "radiusSize": 0.4,
+          "innerRadius": 0.62
+        },
+        {
+          "type": "beam",
+          "anchor": "each-target",
+          "basis": "unit",
+          "geometry": "radial",
+          "copies": 36,
+          "segments": 2,
+          "moteOffset": 300,
+          "angleJitter": 0.6,
+          "ribbonSeedFromCopy": true,
+          "strokeProfile": "ribbon",
+          "width": 0.014,
+          "color": "#fff2c0",
+          "clockSpace": "life",
+          "time": [
+            0.05,
+            0.6
+          ],
+          "curves": {
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  2.1
+                ],
+                [
+                  1,
+                  1.15
+                ]
+              ],
+              "interpolation": "power-in",
+              "exponent": 1.6
+            },
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.12,
+                  0.95
+                ],
+                [
+                  0.6,
+                  0.7
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "radiusSize": 0.35,
+          "innerRadius": 0.5
         },
         {
           "anchor": "each-target",

@@ -11777,7 +11777,7 @@ VbFxDefs.register({
       "label": "スキュラ",
       "sourceCode": "C056",
       "ms": 1050,
-      "color": "#3caa1e",
+      "color": "#2f8a1e",
       "light": "#c6f26a",
       "playback": {
         "maxMs": 6000,
@@ -11801,9 +11801,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#2a6a10",
-          "light": "#9fe04a",
-          "shadow": "#0e1e04",
+          "color": "#1e5410",
+          "light": "#5aa42e",
+          "shadow": "#06120a",
           "spread": [
             0.2,
             0
@@ -11811,8 +11811,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.46,
             "width": 0.032,
-            "color": "#3f8f1c",
-            "alpha": 0.5,
+            "color": "#1f5a14",
+            "alpha": 0.45,
             "segments": 14
           },
           "curves": {
@@ -11849,16 +11849,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            -0.081,
-            -0.942
+            -0.42,
+            -1.3
           ],
           "toOffset": [
-            0.04,
-            -0.021
+            -0.18,
+            0.12
           ],
           "time": [
-            0.128,
-            0.482
+            0,
+            0.36
           ],
           "copies": 1
         },
@@ -11870,9 +11870,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#4cba22",
-          "light": "#d8ff9a",
-          "shadow": "#163a08",
+          "color": "#2f7a18",
+          "light": "#74bc44",
+          "shadow": "#0c2208",
           "spread": [
             0.2,
             0
@@ -11880,8 +11880,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.35,
             "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
+            "color": "#4c9a2a",
+            "alpha": 0.45,
             "segments": 12
           },
           "curves": {
@@ -11918,16 +11918,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            -0.081,
-            -0.942
+            -0.39,
+            -1.25
           ],
           "toOffset": [
-            0.04,
-            -0.021
+            -0.18,
+            0.12
           ],
           "time": [
-            0.128,
-            0.482
+            0.03,
+            0.39
           ],
           "copies": 1
         },
@@ -11939,9 +11939,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#2a6a10",
-          "light": "#9fe04a",
-          "shadow": "#0e1e04",
+          "color": "#1e5410",
+          "light": "#5aa42e",
+          "shadow": "#06120a",
           "spread": [
             0.2,
             0
@@ -11949,8 +11949,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.46,
             "width": 0.032,
-            "color": "#3f8f1c",
-            "alpha": 0.5,
+            "color": "#1f5a14",
+            "alpha": 0.45,
             "segments": 14
           },
           "curves": {
@@ -11987,16 +11987,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            0.18,
-            -1.175
+            0.3,
+            -0.95
           ],
           "toOffset": [
-            -0.005,
-            0.088
+            0.2,
+            -0.18
           ],
           "time": [
-            0.095,
-            0.455
+            0.08,
+            0.38
           ],
           "copies": 1
         },
@@ -12008,9 +12008,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#4cba22",
-          "light": "#d8ff9a",
-          "shadow": "#163a08",
+          "color": "#2f7a18",
+          "light": "#74bc44",
+          "shadow": "#0c2208",
           "spread": [
             0.2,
             0
@@ -12018,8 +12018,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.35,
             "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
+            "color": "#4c9a2a",
+            "alpha": 0.45,
             "segments": 12
           },
           "curves": {
@@ -12056,16 +12056,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            0.18,
-            -1.175
+            0.32999999999999996,
+            -0.8999999999999999
           ],
           "toOffset": [
-            -0.005,
-            0.088
+            0.2,
+            -0.18
           ],
           "time": [
-            0.095,
-            0.455
+            0.11,
+            0.41000000000000003
           ],
           "copies": 1
         },
@@ -12077,9 +12077,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#2a6a10",
-          "light": "#9fe04a",
-          "shadow": "#0e1e04",
+          "color": "#1e5410",
+          "light": "#5aa42e",
+          "shadow": "#06120a",
           "spread": [
             0.2,
             0
@@ -12087,8 +12087,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.46,
             "width": 0.032,
-            "color": "#3f8f1c",
-            "alpha": 0.5,
+            "color": "#1f5a14",
+            "alpha": 0.45,
             "segments": 14
           },
           "curves": {
@@ -12125,16 +12125,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            -0.294,
-            -0.965
+            -0.1,
+            -1.4
           ],
           "toOffset": [
-            -0.062,
-            -0.064
+            -0.04,
+            0.22
           ],
           "time": [
-            0.143,
-            0.505
+            0.16,
+            0.52
           ],
           "copies": 1
         },
@@ -12146,9 +12146,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#4cba22",
-          "light": "#d8ff9a",
-          "shadow": "#163a08",
+          "color": "#2f7a18",
+          "light": "#74bc44",
+          "shadow": "#0c2208",
           "spread": [
             0.2,
             0
@@ -12156,8 +12156,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.35,
             "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
+            "color": "#4c9a2a",
+            "alpha": 0.45,
             "segments": 12
           },
           "curves": {
@@ -12194,16 +12194,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            -0.294,
-            -0.965
+            -0.07,
+            -1.3499999999999999
           ],
           "toOffset": [
-            -0.062,
-            -0.064
+            -0.04,
+            0.22
           ],
           "time": [
-            0.143,
-            0.505
+            0.19,
+            0.55
           ],
           "copies": 1
         },
@@ -12215,9 +12215,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#2a6a10",
-          "light": "#9fe04a",
-          "shadow": "#0e1e04",
+          "color": "#1e5410",
+          "light": "#5aa42e",
+          "shadow": "#06120a",
           "spread": [
             0.2,
             0
@@ -12225,8 +12225,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.46,
             "width": 0.032,
-            "color": "#3f8f1c",
-            "alpha": 0.5,
+            "color": "#1f5a14",
+            "alpha": 0.45,
             "segments": 14
           },
           "curves": {
@@ -12263,16 +12263,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            -0.087,
-            -1.017
+            0.46,
+            -1.18
           ],
           "toOffset": [
-            -0.008,
-            -0.003
+            0.06,
+            0.02
           ],
           "time": [
-            0.162,
-            0.539
+            0.24,
+            0.56
           ],
           "copies": 1
         },
@@ -12284,9 +12284,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#4cba22",
-          "light": "#d8ff9a",
-          "shadow": "#163a08",
+          "color": "#2f7a18",
+          "light": "#74bc44",
+          "shadow": "#0c2208",
           "spread": [
             0.2,
             0
@@ -12294,8 +12294,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.35,
             "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
+            "color": "#4c9a2a",
+            "alpha": 0.45,
             "segments": 12
           },
           "curves": {
@@ -12332,16 +12332,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            -0.087,
-            -1.017
+            0.49,
+            -1.13
           ],
           "toOffset": [
-            -0.008,
-            -0.003
+            0.06,
+            0.02
           ],
           "time": [
-            0.162,
-            0.539
+            0.27,
+            0.5900000000000001
           ],
           "copies": 1
         },
@@ -12353,9 +12353,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.11,
-          "color": "#2a6a10",
-          "light": "#9fe04a",
-          "shadow": "#0e1e04",
+          "color": "#1e5410",
+          "light": "#5aa42e",
+          "shadow": "#06120a",
           "spread": [
             0.2,
             0
@@ -12363,8 +12363,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.46,
             "width": 0.032,
-            "color": "#3f8f1c",
-            "alpha": 0.5,
+            "color": "#1f5a14",
+            "alpha": 0.45,
             "segments": 14
           },
           "curves": {
@@ -12401,16 +12401,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            0.367,
-            -1.207
+            -0.3,
+            -0.88
           ],
           "toOffset": [
-            0.087,
-            0.022
+            -0.22,
+            -0.26
           ],
           "time": [
-            0.009,
-            0.359
+            0.3,
+            0.6
           ],
           "copies": 1
         },
@@ -12422,9 +12422,9 @@ VbFxDefs.register({
           "to": "target",
           "shape": "blood-drop",
           "radius": 0.075,
-          "color": "#4cba22",
-          "light": "#d8ff9a",
-          "shadow": "#163a08",
+          "color": "#2f7a18",
+          "light": "#74bc44",
+          "shadow": "#0c2208",
           "spread": [
             0.2,
             0
@@ -12432,8 +12432,8 @@ VbFxDefs.register({
           "trail": {
             "length": 0.35,
             "width": 0.05,
-            "color": "#a8e860",
-            "alpha": 0.55,
+            "color": "#4c9a2a",
+            "alpha": 0.45,
             "segments": 12
           },
           "curves": {
@@ -12470,16 +12470,16 @@ VbFxDefs.register({
             }
           },
           "fromOffset": [
-            0.367,
-            -1.207
+            -0.27,
+            -0.83
           ],
           "toOffset": [
-            0.087,
-            0.022
+            -0.22,
+            -0.26
           ],
           "time": [
-            0.009,
-            0.359
+            0.32999999999999996,
+            0.63
           ],
           "copies": 1
         },
@@ -12491,7 +12491,7 @@ VbFxDefs.register({
             1
           ],
           "type": "glow",
-          "color": "#b8f060",
+          "color": "#5aa83a",
           "texture": "glow",
           "blend": "add",
           "curves": {
@@ -12654,7 +12654,7 @@ VbFxDefs.register({
             1
           ],
           "type": "glow",
-          "color": "#6cc02a",
+          "color": "#3f8a25",
           "texture": "plasma-soft",
           "blend": "add",
           "variant": 2,
@@ -12716,7 +12716,7 @@ VbFxDefs.register({
             1
           ],
           "type": "ring",
-          "color": "#9fe04a",
+          "color": "#6ab83a",
           "width": 1,
           "widthSpace": "pixel",
           "noise": 0.35,
@@ -12798,8 +12798,8 @@ VbFxDefs.register({
             40
           ],
           "shape": "blood-drop",
-          "color": "#3caa1e",
-          "light": "#c6f26a",
+          "color": "#2f8a1e",
+          "light": "#6cb43c",
           "shadow": "#0e1e04",
           "emissionArc": [
             3.4,
@@ -12838,7 +12838,7 @@ VbFxDefs.register({
           ],
           "type": "particles",
           "motion": "radial-drag",
-          "color": "#b9ff7a",
+          "color": "#8ad86a",
           "count": 18,
           "vortex": 0.3,
           "radius": 0.6,

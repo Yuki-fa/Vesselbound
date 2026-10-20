@@ -140,7 +140,7 @@ var VbFxDefs = (function () {
       progress: n(0, 1), core: n(0, 1), taper: { form: 'curve', min: 0, max: 2 },
       geometry:e(['polyline','filament','trail','spiral','branch','sin-wave','radial','grid']),strokeProfile:e(['single','halo','ribbon','taper']),pointSpace:e(['unit','bounds']),inset:n(-32,32),
       gridExtent:n(0,32,true),gridSpacing:v(-32,32),gridOffset:v(-32,32),gridPeriod:n(1,32,true),cellRadius:n(0,32),cellSides:n(3,32,true),
-      radius:n(0,32),radiusSize:n(-32,32),angleJitter:n(-32,32),segmentJitter:n(-32,32),segmentMoteOffset:n(0,100000,true),segmentMoteStride:n(0,100000,true),moteOffset:n(0,100000,true),ribbonSeedFromCopy:{form:'boolean'},
+      radius:n(0,32),radiusSize:n(-32,32),innerRadius:n(0,1),angleJitter:n(-32,32),segmentJitter:n(-32,32),segmentMoteOffset:n(0,100000,true),segmentMoteStride:n(0,100000,true),moteOffset:n(0,100000,true),ribbonSeedFromCopy:{form:'boolean'},
       stops:{form:'stops'},gradientFrom:v(-32,32),gradientTo:v(-32,32),widthSpace:e(['unit','pixel']),
       sparkCount:n(0,128,true),sparkRate:n(-100,100),sparkPhase:n(-100,100),sparkRadius:n(0,32),sparkAlpha:n(0,8),sparkColor:{form:'color'},
       tailStep:n(-32,32),tailSway:n(-32,32),tailFrequency:n(-100,100),tailRate:n(-1000,1000),tailPhase:n(-100,100),tailFan:n(-32,32),headRamp:v(.0001,1),
