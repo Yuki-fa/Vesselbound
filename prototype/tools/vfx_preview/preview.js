@@ -105,10 +105,11 @@ var VbFxPreview = (function () {
     }
     refreshSourceSelect();refreshSelection();
   }
-  function layoutSummonRow(el) {
+  // includeHidden：まだ見えない召喚体（summon-slot）も並びに入れる。登場の光をその最終の位置に出すため（2026-10-21 利用者指摘：ダイアウルフ）。
+  function layoutSummonRow(el, includeHidden) {
     var side = el.dataset.side;
     var row = Array.from(document.querySelectorAll('.lab-card[data-side="' + side + '"][data-lane="front"]'));
-    var visible = row.filter(function (card) { return !card.classList.contains('summon-slot') || card.classList.contains('is-summoned'); });
+    var visible = row.filter(function (card) { return includeHidden || !card.classList.contains('summon-slot') || card.classList.contains('is-summoned'); });
     visible.forEach(function (card, index) { VbFxLabGeometry.applyCard(card, side, 'front', visible.length, index); });
   }
   function chooseDefaultTargets() {
@@ -399,7 +400,7 @@ var VbFxPreview = (function () {
     if (!VbFx.activeCount()) {
       if (effect === 'dragonnet' || effect === 'bandersnatch') targetIds.forEach(function (id) { applyPortrait(card(id), config().source); });
       if (effect === 'direwolf') targetIds.forEach(function (id) { card(id).classList.remove('is-summoned'); });
-      if (effect === 'direwolf') targetIds.forEach(function (id) { layoutSummonRow(card(id)); });
+      if (effect === 'direwolf') targetIds.forEach(function (id) { layoutSummonRow(card(id), true); });
     }
     var name = effect, conf = config(name), sound = Object.prototype.hasOwnProperty.call(options,'sound')?options.sound:selectedSound(name), token = generation;
     var targetColors=PRESENT_LAB_CARD_COLORS;
@@ -591,7 +592,7 @@ var VbFxPreview = (function () {
   window.addEventListener('resize', scaleBoard); scaleBoard();
   if (typeof MutationObserver === 'function') {
     new MutationObserver(function (changes) {
-      changes.forEach(function (change) { if (change.target.classList.contains('summon-slot')) layoutSummonRow(change.target); });
+      changes.forEach(function (change) { if (change.target.classList.contains('summon-slot')) layoutSummonRow(change.target, effect === 'direwolf'); });
     }).observe($('cards'), { subtree: true, attributes: true, attributeFilter: ['class'] });
   }
   select(effect);
