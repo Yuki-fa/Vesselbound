@@ -36,9 +36,19 @@ let _presentContactHits = new WeakSet();
 let _presentDamageImpacts = new WeakSet();
 let _presentStatChangesShown = new WeakSet();
 let _presentLabOrigins = {death:new Map(),shield:new Map()};
+let _presentDeathOrigins = new WeakMap();
 function presentLabEventHandled(ev) { const plan=ev&&_presentLabClaims.get(ev); return !!(plan&&!plan.hitReactions?.has(ev)); }
 function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C078'); }
-function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentStatChangesShown = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; }
+function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentStatChangesShown = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; _presentDeathOrigins=new WeakMap(); presentResetSummonPreview(); }
+// 死亡位置は生きていたDOMを消す前に、イベントごとに固定する。
+// 束の後半が既に盤面から消えていても、以前倒れた別の体の位置へ戻さない。
+function _presentRememberDeathOrigin(ev, unit) {
+  if (_presentDeathOrigins.has(ev)) return _presentDeathOrigins.get(ev);
+  const rect = unit && typeof battleFxRect==='function' ? battleFxRect(unit,ev.side==='p2'?'enemy':'ally',ev.lastVisualRect) : null;
+  const entry = unit && rect ? {unit,rect:{...rect,element:null}} : null;
+  _presentDeathOrigins.set(ev,entry);
+  return entry;
+}
 // 2026-10-11: 予測や接触からの固定遅延を使わず、確定ダメージを表示する瞬間に共通の振動を始める。
 // 通常・反撃・効果・範囲・飛び道具ともこの入口。強さ／閾値／尺は既存の振動設定が決める。
 // 2026-10-12 利用者指定：画面が振動するのは「攻撃で実際に高いダメージを与えた時」だけ。
@@ -353,13 +363,15 @@ async function presentLabBeginEvent(ev, events, index, api) {
   if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
   const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
   if (context.active && context.active !== claimed) { await _presentLabFinish(context.active); context.active = null; }
+  presentAdvanceSummonPreview(ev);
   if(presentIsSilentEvent(ev))return;
   if (ev.type==='death' || ev.type==='shield_lost') {
     const u = api.findUnit(ev.side,ev.unitId);
-    if (u) {
-      const entry = {unit:u,rect:battleFxRect(u,ev.side==='p2'?'enemy':'ally',ev.lastVisualRect)};
-      _presentLabOrigins[ev.type==='death'?'death':'shield'].set(ev.side,entry);
-    }
+    const origins = _presentLabOrigins[ev.type==='death'?'death':'shield'];
+    const entry = ev.type==='death' ? _presentRememberDeathOrigin(ev,u)
+      : u && {unit:u,rect:battleFxRect(u,ev.side==='p2'?'enemy':'ally',ev.lastVisualRect)};
+    if (entry) origins.set(ev.side,entry);
+    else origins.delete(ev.side);
   }
   // 死亡位置の絵が残っている間に、実際の死亡効果／撃破の血を開始する。
   // 空の合図だけでは始めず、先読みした実体イベントを同じclaimsへ結び付ける。
@@ -432,6 +444,10 @@ async function presentLabBeginEvent(ev, events, index, api) {
 }
 async function presentLabEndEvent(ev, events, index, api) {
   if (!ev || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
+  if (ev.type==='summon_buff' && typeof refreshUnitPreviewUi==='function') {
+    // 場に眷属がいない発動でも、召喚する側のカード説明・ホバーをすぐ更新する。
+    for (const unit of api.units(ev.side).filter(Boolean)) refreshUnitPreviewUi(unit,ev.side==='p2'?'enemy':'ally');
+  }
   const silent=presentIsSilentEvent(ev);
   const context = _presentLabContext(events), plan = _presentLabClaims.get(ev);
   if (ev.type==='mana_threshold' && plan && !silent) _presentLabStart(plan);
@@ -1313,6 +1329,7 @@ async function presentDeathBatch(evs, api) {
     // （オンラインは1手ずつ進めるので焼失→復活。戦闘中に召喚されたスケルトンで食い違った。2026-09-29）。
     const shownHp = typeof presentShownHp === 'function' ? presentShownHp(unit) : Number(unit.hp);
     if (Number(shownHp) > 0) return;
+    _presentRememberDeathOrigin(ev,unit);
     if (typeof api.markDone === 'function') api.markDone(ev);
     entries.push({ ev, unit });
   });

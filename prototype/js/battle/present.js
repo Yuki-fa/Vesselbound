@@ -574,9 +574,52 @@ const _presentSilentEvents = new WeakSet();
 const PRESENT_TAIL_CUE_TYPES = new Set(['effect_flash','mana_threshold','turn_begin','attack_contact_vfx','sweep_vfx','ring_effect','attack']);
 function presentIsSilentEvent(ev) { return !!ev && _presentSilentEvents.has(ev); }
 function presentSkipsEvent(ev) { return presentIsSilentEvent(ev) && PRESENT_TAIL_CUE_TYPES.has(ev.type); }
+
+// 説明文も、コアの先の最終値ではなく今見せた眷属強化の合計を読む。
+// 戦闘用の表示状態だけを持ち、G・保存データ・コアの状態を書き換えない。
+let _presentSummonPreview = null;
+let _presentSummonPreviewEvents = new WeakSet();
+function presentResetSummonPreview() { _presentSummonPreview=null; _presentSummonPreviewEvents=new WeakSet(); }
+function presentSummonPreviewState() { return _presentSummonPreview; }
+function presentSetSummonPreviewState(state, events) {
+  const previous = _presentSummonPreview;
+  _presentSummonPreview = { rings:state.rings, items:state.items, _summonBuff:{}, _summonCount:{},
+    _openingPhase:state._openingPhase, _openingRingsApplied:state._openingRingsApplied, _openingItemsApplied:state._openingItemsApplied };
+  for (const side of ['p1','p2']) {
+    const first = (events || []).find(e=>e.type==='summon_buff'&&e.side===side);
+    _presentSummonPreview._summonBuff[side] = first
+      ? {atk:first.totalAtk-first.atk,hp:first.totalHp-first.hp} : coreSummonBuffOf(state,side);
+    const count = Number(state._summonCount && state._summonCount[side]);
+    _presentSummonPreview._summonCount[side] = Number.isFinite(count)
+      ? Math.max(0,count-(events||[]).filter(e=>e.type==='summon'&&e.side===side).length)
+      : previous && previous._summonCount[side] || 0;
+  }
+}
+function presentSetSummonPreviewFromResult(result, ownFormation) {
+  presentResetSummonPreview();
+  const formations = result && result.formations || {};
+  const sides = {p1:ownFormation || formations.p1 || {},p2:formations.p2 || {}};
+  const list = (side,kind) => {
+    const value = sides[side][kind];
+    return Array.isArray(value) ? value : value && value[side] || [];
+  };
+  presentSetSummonPreviewState({ ...(result && result.finalState),
+    gameSummonBuff:result && result.finalState && result.finalState.gameSummonBuff || {
+      p1:sides.p1.gameSummonBuff && sides.p1.gameSummonBuff.p1,
+      p2:sides.p2.gameSummonBuff && (sides.p2.gameSummonBuff.p2 || sides.p2.gameSummonBuff.p1) },
+    rings:{p1:list('p1','rings'),p2:list('p2','rings')}, items:{p1:list('p1','items'),p2:list('p2','items')},
+  },result && result.events);
+}
+function presentAdvanceSummonPreview(ev) {
+  if (!_presentSummonPreview || _presentSummonPreviewEvents.has(ev)) return;
+  _presentSummonPreviewEvents.add(ev);
+  if (ev.type==='summon_buff') _presentSummonPreview._summonBuff[ev.side]={atk:ev.totalAtk,hp:ev.totalHp};
+  if (ev.type==='summon') _presentSummonPreview._summonCount[ev.side]++;
+}
 function presentMarkBattleTail(events, initialUnits) {
-  const list = events || [], alive = {p1:new Set(),p2:new Set()};
+  const list = events || [], alive = {p1:new Set(),p2:new Set()}, units = new Map();
   const enter = (side,u) => {
+    if (u) units.set(`${side}:${u.id}`,u);
     if (alive[side] && u && !u._isObject && !u._isSoul && !u._sealed && Number(u.hp)>0) alive[side].add(String(u.id));
   };
   for (const side of ['p1','p2']) for (const u of initialUnits && initialUnits[side] || []) enter(side,u);
@@ -593,6 +636,7 @@ function presentMarkBattleTail(events, initialUnits) {
     if(exit && alive[ev.side]) alive[ev.side].delete(key);
     if(ev.type==='revive'||ev.type==='seal_release')alive[ev.side]?.add(key);
     if(ev.type==='summon'&&ev.unit)enter(ev.side,ev.unit);
+    if(ev.type==='transform'&&ev.unit)units.set(`${ev.side}:${ev.unitId}`,ev.unit);
     if(ev.type==='unit_stolen') {
       alive[ev.side]?.delete(key);alive[ev.toSide || (ev.side==='p1'?'p2':'p1')]?.add(key);
     }
@@ -600,15 +644,24 @@ function presentMarkBattleTail(events, initialUnits) {
     else if(started && after<0 && (exit||ev.type==='unit_stolen'))after=i;
   }
   if(after<0)return;
+  // 次の戦闘にも残る眷属強化は、対象が今いなくても固有VFXを見せる。
+  // 通常の死亡・負傷・常時バフの省略範囲は広げない。
+  const keepsKenzokuFx = ev => {
+    const source = units.get(`${ev.side}:${ev.sourceId}`);
+    return ev.type==='summon_buff' && ev.persistent && ev.effectSource!==false
+      && source && ['C029','C034'].includes(source.no || source.artCode);
+  };
   const effects=new Set(['stat_change','keyword_effect','mana_gain','mana_set','summon_buff',...PRESENT_TAIL_CUE_TYPES]);
   for(let i=after+1;i<end;i++) {
     const ev=list[i];if(!ev||!effects.has(ev.type)||ev.type==='attack'&&ev.effectOnly)continue;
+    if(keepsKenzokuFx(ev))continue;
     // 決着を変え得る死亡効果等の開始合図は、その実体と一緒に見せる。
     if(ev.type==='effect_flash'||ev.type==='mana_threshold') {
       let consequential=false;
       for(let j=i+1;j<end;j++) {
         const next=list[j];
         if(['effect_flash','mana_threshold','turn_begin'].includes(next.type))break;
+        if(keepsKenzokuFx(next)&&next.sourceId===ev.unitId){consequential=true;break;}
         if(['damage','death','fled','summon','revive','seal_release','unit_stolen','life_set','life_gain'].includes(next.type)){consequential=true;break;}
       }
       if(consequential)continue;
@@ -1955,6 +2008,13 @@ function presentLab1012EventMatches(code,ev){
   return false;
 }
 const PRESENT_LAB_SPEED = 1.5;
+// ファントム／エイドロンは最後の層が消えた後に空白がある。絵の速さは保ち、空白だけ省く。
+const PRESENT_LAB_TRIM_TAIL_CODES = new Set(['C029','C034']);
+function presentLabPlaybackEndRatio(code, definition, hasTargets = true) {
+  if (!PRESENT_LAB_TRIM_TAIL_CODES.has(code) || !definition) return 1;
+  const layers=definition.layers.filter(layer=>hasTargets||layer.anchor!=='each-target');
+  return Math.min(1, Math.max(...layers.map(layer => (layer.time || [0,1])[1])));
+}
 // 2026-10-12: 怒りの閃光と照準の尺。間の結界獲得は既存の尺を保つ。
 // 2026-10-15 利用者指摘「ミノタウロスは激怒を感じさせるオーラに」：怒りの閃光をオーラにして見える時間を延ばす（240→560ms）。
 // 定義（minotaur）のオーラは全尺の0〜PRESENT_LAB_REACTION_AURA_END。その区間だけを FLASH_MS で見せ、終わったら次（結界獲得）へ進む。

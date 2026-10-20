@@ -389,6 +389,7 @@
     // 共通初期化関数で揃える。盤面は BATTLE_START でサーバー確定値を入れる。
     if (typeof initializeBattlePresentationState === 'function') initializeBattlePresentationState();
     if (typeof actionBannerSetFormations === 'function') actionBannerSetFormations(result && result.formations, ownFormation);
+    presentSetSummonPreviewFromResult(result,ownFormation);
     // 通常の戦闘画面と同じ状態にする。編成画面用の表示は body.online-versus-active 側の
     // CSSでまとめて隠すので、ここで個々の要素の display は触らない
     // （触ると編成画面へ戻った時に元へ戻す責任がこちらに移ってしまう）。

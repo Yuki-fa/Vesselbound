@@ -30,11 +30,11 @@ async function _flushCorePveHitEvents(state, events, beforeUnits){
   }
 }
 async function _flushCorePveHitEventsInner(state, events, beforeUnits){
-  if(typeof actionBannerSetBattleData==='function') actionBannerSetBattleData({
-    units:state.units,
+  const presentationState={...state,
     rings:state.rings||{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
     items:state.items||{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
-  },beforeUnits);
+  };
+  if(typeof actionBannerSetBattleData==='function') actionBannerSetBattleData(presentationState,beforeUnits);
   // コアがライフを変えた場合（我慢の指輪・負傷:ライフが+Nされる 等）の唯一の反映点。
   // 血は死亡イベントの発行時点でコア側へ加算される。マナ・ゴールドの表示反映を
   // 先行させないため、資源全体ではなく血だけをここでGへ戻す。
@@ -198,6 +198,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     ?presentDropDeathsOfStolen(_reordered):_reordered;
   const eventList=typeof presentReorderDeathFlashesBeforeDeath==='function'
     ?presentReorderDeathFlashesBeforeDeath(_noStolenDeaths):_noStolenDeaths;
+  presentSetSummonPreviewState(presentationState,eventList);
   if(typeof presentMarkBattleTail==='function')presentMarkBattleTail(eventList,Object.fromEntries(['p1','p2'].map(side=>[side,
     [...new Set([...(state.units[side]||[]),...(beforeUnits||[])])]
       .filter(u=>u&&u.side===side).map(u=>({...u,hp:presentShownHp(u)}))])));

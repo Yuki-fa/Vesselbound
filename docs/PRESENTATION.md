@@ -717,6 +717,12 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 - SE は各3候補（巻物5種・瞳と強靭の指輪7種はそれぞれ共有。シンドリ・ウルズ・第3弾の5つも3候補ずつ）を `tools/vfx_preview/se/` に置いた。利用者が LAB で選ぶまでゲームは無音（`PRESENT_LAB_FX` の第2要素が null）。
 - 品質は実際の戦闘画面の大きさで10コマを撮って確認した（手本はフィーンド・カオス・インプ）。
 
+## 2026-10-21 戦闘の表示の不具合（Codex tasks-1021b を統合。検査 battle_end_fx_1021b_regression.js）
+- 死んだキャラの残像：死亡をまとめて処理した後、以前に倒れた別の体の位置（_presentLabOrigins）が残り、後の死亡演出がそこへ出ていた（エインセルに限らず全般）。死亡位置は生きていたDOMを消す前にイベントごとに固定する（`_presentRememberDeathOrigin`）。
+- 勝敗が決まった後の演出の省略から、ファントム（C029）とエイドロン（C034）の固有VFXは外す（「このゲーム中」の効果は次の戦闘へ残るため）。PvE・オンライン共通。
+- 説明文の眷属の数値（デスナイトの「青スケルトン」など）に「このゲーム中、味方の眷属は〜」の累積（ファントム・エイドロン・ナーガ）を反映する。実際の召喚と同じ計算（core.js `coreApplySummonStatEffects`／`corePreviewSummonStats`）を使い、戦闘中は見せた分までの累積（present.js `presentSetSummonPreviewState`）で出す。
+- ファントム・エイドロンのVFXの後の間：定義の末尾の空白まで待っていた。`PRESENT_LAB_TRIM_TAIL_CODES` の効果は見える区間が終わったら次へ進む。続けて2回発動した時は、見える区間全体へ `PRESENT_MANA_RUN_GAP_MS`（150ms）を割り当てて最後まで見せる（2回目が途中で切れていた）。
+
 ## 2026-10-21 VFX LAB の指摘への対応（2回目）
 - 枠線の形の統一（`js/vfx/renderer.js` の frameShape／framePath／framePoints）：枠線の出る演出（縁の光 superellipse・枠の線 card・枠の塗り・枠での切り抜き）は、カード要素の border-radius（枠画像から実測した `--card-frame-r`、横％／縦％の楕円の角）を読み、外へ pad 広げた形（角R＝元の角R＋pad）で描く。読めない時は既定 5.65%／3.721%。旧来の「短い辺の7〜9%」の円い角・spec の cornerRadius／cornerRatio／clipRadius は使わない。
 - LAB の魔導板の入れ物（`motion:'board'`）をゲーム（map.js）と同じくマスの大きさに（87・88。旧素材の「マス×2.6・16:9」のままだった）。
