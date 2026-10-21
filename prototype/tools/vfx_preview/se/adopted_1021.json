@@ -122,10 +122,10 @@
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav",
     "peak": 0.450021,
     "gainDb": null,
-    "note": "長めに切り直した候補",
+    "note": "長めに切り直した候補・倍音とざらつきを重ねて聞こえるように",
     "labWired": true,
     "duration": 3.4,
-    "sha256": "fc7a0623f8bea0faa6c252d55a3a36ef50c69973c5ec8c49e926457b14bb50d7"
+    "sha256": "d376f6f4d013b31c6f4935f732d1ea82a211d07b981ccee20340e539c220865e"
   },
   "K001": {
     "code": "K001",
@@ -146,9 +146,9 @@
     "effect": "gremlin-weaken",
     "candidate": "gremlin-weaken-1",
     "file": "assets/sfx/gremlin_weaken.wav",
-    "source": "K001.wav",
+    "source": "Production Element Title Transition Electrical Power Down 01.wav",
     "sourcePath": null,
-    "note": "2026-10-21 即死（K001）を death-mark 候補1へ差し替えたので、グレムリンの弱体に使う旧即死SEを別名で保持",
-    "sha256": "5f36fe2bd2f3497d85aaa2bf8cade6b013cce1d290c2b9856780864ad79778b7"
+    "note": "2026-10-21 利用者指摘「ATK減少の音が良くない」：機械が力を失う音の3候補を作り、仮に候補1をゲームへ（旧：即死の旧SE）",
+    "sha256": "f5e476419ab28d01449c574f0849c33841d88ff145d87beb1c2e945e0af28340"
   }
 }

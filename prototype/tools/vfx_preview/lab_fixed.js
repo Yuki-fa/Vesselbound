@@ -34,4 +34,6 @@ var VbFxLabFixed = {
   // 2026-10-21 3回目：FIX（04・07・86・87・88・78・52・61）
   'scroll-shield':'2026-10-21','scroll-mana':'2026-10-21','opening-sigil':'2026-10-21','board-summon':'2026-10-21','board-enchant':'2026-10-21',
   'summon-sigil':'2026-10-21','scylla':'2026-10-21','medusa-gaze':'2026-10-21',
+  // 2026-10-21 4回目：FIX（34・60・126）
+  'intimidate-ring':'2026-10-21','siren-wave':'2026-10-21','direwolf':'2026-10-21',
 };

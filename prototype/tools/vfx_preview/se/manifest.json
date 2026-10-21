@@ -4576,12 +4576,13 @@
       "peakMode": "envelope20ms",
       "adopted": true,
       "provisional": false,
-      "reason": "2026-10-21 利用者指定：のしかかる重圧の候補1（2026-10-21b 途中で切れた感じがしたので長めに切り、末尾を1.2秒で消した）",
+      "reason": "2026-10-21 利用者指定：のしかかる重圧の候補1（2026-10-21b 途中で切れた感じがしたので長めに切り、末尾を1.2秒で消した）（2026-10-21 ゲームで聞こえなかった：40Hz未満が9割の重低音だったので、軽い歪みの倍音と同じうねりの中低域のざらつきを重ねた）",
       "edit": {
         "maxSec": 3.4,
-        "tailMs": 1200
+        "tailMs": 1200,
+        "audible": "tanh2.8 0.7 + noise150-900Hz×env 0.5"
       },
-      "sha256": "fc7a0623f8bea0faa6c252d55a3a36ef50c69973c5ec8c49e926457b14bb50d7"
+      "sha256": "d376f6f4d013b31c6f4935f732d1ea82a211d07b981ccee20340e539c220865e"
     },
     "intimidate-ring-5": {
       "id": "intimidate-ring-5",
@@ -4890,6 +4891,182 @@
         "tailMs": 400
       },
       "sha256": "ef9f7d8537162bcd7df9dbc7597beddc0267f7b591bbfabeb489bbfd8e4e0373"
+    },
+    "speed-ring-1d": {
+      "id": "speed-ring-1d",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Aether Strike_RTSB_COL-03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Aether Strike_RTSB_COL-03.wav",
+      "url": "vfx_preview/se/speed-ring-1d.wav",
+      "duration": 1.4,
+      "originalDuration": 7.33,
+      "start": 2.192375,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21d 利用者指定：神速の指輪（回転しながら寄る線）の選び直し2回目（DSGNImpt-DS_WHOOSH HIT-Aether Strike_RTSB_COL-03）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "daf0de80350bbc293ce782b2435ce48bead7ae9e93cda508327d8c76563ea3b6"
+    },
+    "speed-ring-2d": {
+      "id": "speed-ring-2d",
+      "filename": "Module Production Element Title Imaging Electronic Whoosh Digital Swooshing Beats Reverse Fadeout 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/演出用SE・ロゴ音・スウィッシュ・アクセント音など/Module Production Element Title Imaging Electronic Whoosh Digital Swooshing Beats Reverse Fadeout 01.wav",
+      "url": "vfx_preview/se/speed-ring-2d.wav",
+      "duration": 1.4,
+      "originalDuration": 20.137646,
+      "start": 1.081083,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21d 利用者指定：神速の指輪（回転しながら寄る線）の選び直し2回目（Swoosh）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "518887d77887a292ad68edc60a12bed7a5e441df618151f066aee644b0ae7374"
+    },
+    "speed-ring-3d": {
+      "id": "speed-ring-3d",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-02.wav",
+      "url": "vfx_preview/se/speed-ring-3d.wav",
+      "duration": 1.4,
+      "originalDuration": 5.11,
+      "start": 1.236604,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21d 利用者指定：神速の指輪（回転しながら寄る線）の選び直し2回目（Hypersonic Missile）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "81aea3e17cdb11eba6ce8336f29f9ef10957f35731a2f9d82006ee926fd0d4ea"
+    },
+    "revive-burst-2d": {
+      "id": "revive-burst-2d",
+      "filename": "Production Element Title Transition Bell Chime 03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Chime 03.wav",
+      "url": "vfx_preview/se/revive-burst-2d.wav",
+      "duration": 1.95,
+      "originalDuration": 4.736,
+      "start": 0.539333,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21d 利用者指定：復活の光球の候補2・3の選び直し（Production Element Title Transition Bell Chime 03）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "31218652e3ff1f0c9e00aef7453d53d86c304797bc99bb96401a4cd229887449"
+    },
+    "revive-burst-3d": {
+      "id": "revive-burst-3d",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 04-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 04-02.wav",
+      "url": "vfx_preview/se/revive-burst-3d.wav",
+      "duration": 1.95,
+      "originalDuration": 5.93,
+      "start": 1.310563,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21d 利用者指定：復活の光球の候補2・3の選び直し（MAGIC WHITE Cast Medium 04-02）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "b3b4e5cdc076c3f81bd41075a55b6c24d1c88488a401de432079bc1d90541a46"
+    },
+    "gremlin-weaken-1": {
+      "id": "gremlin-weaken-1",
+      "filename": "Production Element Title Transition Electrical Power Down 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Electrical Power Down 01.wav",
+      "url": "vfx_preview/se/gremlin-weaken-1.wav",
+      "duration": 1.4,
+      "originalDuration": 2.256458,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.437937,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": true,
+      "reason": "2026-10-21d 利用者指定：グレムリンのATK減少（機械が力を失って止まる）（Electrical Power Down 01）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "f5e476419ab28d01449c574f0849c33841d88ff145d87beb1c2e945e0af28340"
+    },
+    "gremlin-weaken-2": {
+      "id": "gremlin-weaken-2",
+      "filename": "Module Production Element Title Imaging Pitch Drop Power Down 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/演出用SE・ロゴ音・スウィッシュ・アクセント音など/Module Production Element Title Imaging Pitch Drop Power Down 01.wav",
+      "url": "vfx_preview/se/gremlin-weaken-2.wav",
+      "duration": 1.4,
+      "originalDuration": 31.243771,
+      "start": 12.892396,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21d 利用者指定：グレムリンのATK減少（機械が力を失って止まる）（Pitch Drop Power Down 01）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "b4a690899c0d9bc4c3e766fe086ac8c1eb0bd65cb12067764f68f686c47f236d"
+    },
+    "gremlin-weaken-3": {
+      "id": "gremlin-weaken-3",
+      "filename": "Production Element Title Transition Electrical Power Down 03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Electrical Power Down 03.wav",
+      "url": "vfx_preview/se/gremlin-weaken-3.wav",
+      "duration": 1.4,
+      "originalDuration": 2.134479,
+      "start": 0.0045,
+      "trimmed": true,
+      "peak": 0.592729,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21d 利用者指定：グレムリンのATK減少（機械が力を失って止まる）（Electrical Power Down 03）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "327fbc418b7d7dd5ace3c7e0d531a1434d100f052f416d17f6ed82e0e1f72498"
     }
   },
   "effects": {
@@ -5302,9 +5479,9 @@
       "paladin-ring-3"
     ],
     "speed-ring": [
-      "speed-ring-1c",
-      "speed-ring-2c",
-      "speed-ring-3c"
+      "speed-ring-1d",
+      "speed-ring-2d",
+      "speed-ring-3d"
     ],
     "curse-ring": [
       "curse-ring-1",
@@ -5448,8 +5625,13 @@
     ],
     "revive-burst": [
       "revive-burst-1b",
-      "revive-burst-2b",
-      "revive-burst-3b"
+      "revive-burst-2d",
+      "revive-burst-3d"
+    ],
+    "gremlin-weaken": [
+      "gremlin-weaken-1",
+      "gremlin-weaken-2",
+      "gremlin-weaken-3"
     ]
   }
 }

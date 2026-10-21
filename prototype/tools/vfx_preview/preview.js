@@ -260,6 +260,20 @@ var VbFxPreview = (function () {
       var button = document.createElement('button'); button.textContent = 'この候補を聴く'; button.addEventListener('click', function () { choices[effect] = id; saveChoices(); refreshSound(); audition(id); });
       row.append(strong, info, path, button); $('candidate-details').appendChild(row);
     });
+    // 続く演出の専用の音（グレムリンのATK減少＝gremlin-weaken）も、ここで聴き比べて選べるようにする（2026-10-21）。
+    var then = config().thenSound, thenIds = then ? VbFxSeCatalog.effects[then] || [] : [];
+    if (thenIds.length) {
+      var thenHead = document.createElement('strong'); thenHead.textContent = '続く演出の音（' + then + '）· 選んだ候補で演出の後に鳴らす';
+      $('candidate-details').appendChild(thenHead);
+      var thenSelected = selectedSound(then);
+      thenIds.forEach(function (id, i) {
+        var sound = VbFxSeCatalog.sounds[id], row = document.createElement('div'); row.className = 'candidate';
+        var strong = document.createElement('strong'); strong.textContent = (thenSelected && thenSelected.id === id ? '▶ ' : '') + (i + 1) + '. ' + sound.filename + (sound.provisional ? '【仮・ゲーム】' : '');
+        var info = document.createElement('span'); info.textContent = 'コピー ' + sound.duration.toFixed(3) + '秒 / ' + sound.reason;
+        var button = document.createElement('button'); button.textContent = 'この候補を聴く'; button.addEventListener('click', function () { choices[then] = id; saveChoices(); refreshSound(); audition(id); });
+        row.append(strong, info, button); $('candidate-details').appendChild(row);
+      });
+    }
     renderGameSound();
     if (!ids || !ids.length) {
       $('sound-name').textContent = selected.filename; $('sound-duration').textContent = ''; $('sound-source').textContent = selected.source; $('sound-reason').textContent = selected.reason;
