@@ -69,7 +69,7 @@ var VbFxDefs = (function () {
     targetSpread: n(0, 1), cycles: n(1, 128), colorFrom: e(['anchor']),
     layout: e(['center', 'orbit', 'line']), orbit: n(0, 32), spread: v(0, 32), cycle: n(.001, 100),
     align: e(['fixed', 'tangent','trajectory']), mirror: { form: 'boolean' }, followMove: { form: 'boolean' },
-    pathBend: n(-32, 32), playbackDuration: { form: 'playbackTime' }, playbackDelay: { form: 'playbackTime' },
+    pathBend: n(-32, 32), playbackDuration: { form: 'playbackTime' }, playbackDelay: { form: 'playbackTime' }, playbackDurationMode: e(['remaining']), remainingRatio: n(.001, 4),
     indices: { form: 'indices' }, curves: { form: 'curves' }, bind: { form: 'bind' },
     radiusSpace: e(['unit', 'width', 'height', 'diagonal', 'max', 'min', 'reach']),
     seedOffset: n(-100000, 100000, true), clockRate: n(-100, 100), continuous: { form: 'boolean' },

@@ -14333,6 +14333,20 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  6.5
+                ]
+              ],
+              "interpolation": "power-in",
+              "exponent": 1.2
             }
           }
         },
@@ -14391,6 +14405,20 @@ VbFxDefs.register({
                 ]
               ],
               "interpolation": "smooth"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  5.5
+                ]
+              ],
+              "interpolation": "power-in",
+              "exponent": 1.2
             }
           }
         },

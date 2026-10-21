@@ -31,4 +31,7 @@ var VbFxLabFixed = {
   'incubus':'2026-10-21','centaur-missile':'2026-10-21','all-sweep':'2026-10-21','all-cross':'2026-10-21',
   // 2026-10-21 2回目：FIX（31・70・80・84、SE1を採用した68）。76 は SE を選び直すので外す
   'map-life':'2026-10-21','piercing-streak':'2026-10-21','mana-gain':'2026-10-21','mana-buff':'2026-10-21','death-mark':'2026-10-21',
+  // 2026-10-21 3回目：FIX（04・07・86・87・88・78・52・61）
+  'scroll-shield':'2026-10-21','scroll-mana':'2026-10-21','opening-sigil':'2026-10-21','board-summon':'2026-10-21','board-enchant':'2026-10-21',
+  'summon-sigil':'2026-10-21','scylla':'2026-10-21','medusa-gaze':'2026-10-21',
 };

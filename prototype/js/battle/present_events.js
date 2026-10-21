@@ -234,15 +234,7 @@ function _presentLabPlan(ev, events, index, api, context) {
     });
   }
   const sourceRect = origin && origin.rect;
-  // 攻撃時の効果は、その体の攻撃の接触で始める（present.js PRESENT_LAB_AT_CONTACT）。攻撃が見えない時は今すぐ出す。
-  let contactEvent = null;
-  if (owner && typeof PRESENT_LAB_AT_CONTACT !== 'undefined' && PRESENT_LAB_AT_CONTACT.has(code)) {
-    for (let i=index+1;i<events.length;i++) {
-      const next=events[i];if(['turn_begin','battle_end'].includes(next.type))break;
-      if(next.type==='attack'&&next.attackerId===owner.id&&next.attackVisual!==false){contactEvent=next;break;}
-    }
-  }
-  const plan = {code,spec,owner,targets,members,events,index,sourceRect:sourceRect && (spec[2]==='dead'?{...sourceRect,element:null}:sourceRect),contactEvent,
+  const plan = {code,spec,owner,targets,members,events,index,sourceRect:sourceRect && (spec[2]==='dead'?{...sourceRect,element:null}:sourceRect),
     side:ownerSide==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
   members.forEach(e=>{ if (e.type!=='death' && e.type!=='revive') _presentLabClaims.set(e,plan); });
   _presentLabClaimHitReactions(plan,events);

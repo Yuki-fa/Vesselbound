@@ -284,8 +284,9 @@ const ARENA_ROUND_SPECS=Object.freeze([
   null,
   {kind:'elite',statWave:1,frontName:'ゴブリン',leaderName:'オーク'},
   {kind:'boss',statWave:1,frontName:'ポルターガイスト'},
-  {kind:'elite',statWave:2,frontName:'カースドアーマー',leaderName:'グレーターデーモン'},
-  {kind:'boss',statWave:2,frontName:'ダークエルフ'},
+  // 2026-10-21 利用者指定：R3 と R4 の前衛を入れ替え（カースドアーマーはグレード3で基礎値が高く、R3 が R4 より強く出ていた）。
+  {kind:'elite',statWave:2,frontName:'ダークエルフ',leaderName:'グレーターデーモン'},
+  {kind:'boss',statWave:2,frontName:'カースドアーマー'},
   {kind:'elite',statWave:3,frontName:'カトブレパス',leaderName:'レッドキャップ'},
   {kind:'boss',statWave:5,leaderName:ARENA_CHAMPION_ENEMY_NAME},
 ]);

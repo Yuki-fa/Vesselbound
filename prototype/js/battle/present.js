@@ -1072,8 +1072,10 @@ function presentCreateDamageGate(labelDurationMs) {
 // 受けたダメージ（毒・カード効果）は本人の効果ではない。PvE側はここを見ておらず、
 // **ミノタウロス（負傷：効果ダメージを受けたら直ちに攻撃）が、ダメージを受けるより
 // 先に動き出していた**。オンライン側は最初から発生元を見ていた（片側だけの実装だった）。
+// keyword_effect：弱体・毒などの付与も本人の攻撃効果（2026-10-21 利用者指摘：衝撃波「攻撃：全ての敵に弱体1」が
+// 数えられず、キャラが動き出す前にVFXが出ていた。攻撃効果はキャラが少し動いた時に出す）。
 const PRESENT_PRE_ATTACK_EFFECT_TYPES = new Set(['effect_flash', 'damage', 'sweep_vfx', 'stat_change', 'summon',
-  'mana_gain', 'mana_threshold']);
+  'mana_gain', 'mana_threshold', 'keyword_effect']);
 function presentIsAttackManaGain(ev) {
   if (!ev || ev.type !== 'mana_gain') return false;
   const reason = String(ev.reason || '');
@@ -1974,10 +1976,6 @@ const PRESENT_LAB_FX = {
   C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.45,'friend'],
   C084:['incubus',0.45,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
 };
-// 攻撃時の効果のうち、攻撃の接触（動いたカードが相手に当たった瞬間）で演出を始めるもの。
-// コアは攻撃時の効果を attack イベントより先に出すため、そのまま再生するとキャラが動き出す前にVFXが出る
-// （2026-10-21 利用者指摘：衝撃波）。シルフ・ファミリア（C064・C089）と同じ待ち方をする。
-const PRESENT_LAB_AT_CONTACT = new Set(['E071']);
 // 番号で引かない演出の持ち主（2026-10-21 利用者指摘：FIXしてゲームで使っているのにLABで「未使用」と出ていた）。
 // ゲームはここを読んで再生し、LAB（tools/vfx_preview/lab_model.js currentUses）も同じ表から「現在の割り振り」を出す。
 // 巻物などを魔導板のキャラクターに使った時（アイテムの番号 → 演出。reward_items.js _playItemUseVfx）。
@@ -2071,7 +2069,7 @@ function presentCharacterHitVfxMs(code) {
 // ゲームの効果音（assets/sfx）の一番大きい所の時刻（秒、ファイル先頭から。実測）。
 // 固有VFXと一緒に鳴らす時、このピークをVFXの山場（定義の impact）へ合わせる。LABも同じ表を使う。
 const PRESENT_SFX_PEAK_SEC = {
-  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: 0.22 /* 2026-10-21 利用者指摘：SEの始まりをもう少し前へ（0.044→0.22） */, C017: 0.45, C019: 0.45, C019_HIT: 0.196729, C043: 0.45,
+  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: 0 /* 2026-10-21 利用者指定：「SEだけ聴く」と同じく頭から鳴らす（命中が0msなのでピークを合わせると頭を飛ばしていた） */, C017: 0.45, C019: 0.45, C019_HIT: 0.196729, C043: 0.45,
   C090: .130, appearance: .029 /* 開戦の砂煙の着地音（実測） */, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
   [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
 };

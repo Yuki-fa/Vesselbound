@@ -4504,13 +4504,13 @@
       "originalDuration": 3.12,
       "start": 2.0,
       "trimmed": true,
-      "peak": 0.22,
+      "peak": 0,
       "tailFadeMs": 60,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": true,
       "provisional": false,
-      "reason": "幾重にも広がる超音波：利用者指定。初期のSE（原音の2秒の位置から）（2026-10-20）（2026-10-21 利用者指摘：SEの始まりをもう少し前へ。peak 0.044→0.22）",
+      "reason": "幾重にも広がる超音波：利用者指定。初期のSE（原音の2秒の位置から）（2026-10-20）（2026-10-21 利用者指定：「SEだけ聴く」と同じく頭から鳴らす。peak 0）",
       "edit": {
         "maxSec": 3.0,
         "tailMs": 400
@@ -4824,6 +4824,72 @@
         "tailMs": 400
       },
       "sha256": "88ab24000dd5cedd015a3525bd355ed54ed695cf595b3b97ddfb770d419ccc91"
+    },
+    "speed-ring-1c": {
+      "id": "speed-ring-1c",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 03-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 03-04.wav",
+      "url": "vfx_preview/se/speed-ring-1c.wav",
+      "duration": 1.6,
+      "originalDuration": 9.69,
+      "start": 3.292292,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21c 利用者指定：神速の指輪（回転しながら寄る線）の選び直し（SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 03-04）",
+      "edit": {
+        "maxSec": 1.6,
+        "tailMs": 400
+      },
+      "sha256": "ba7fdd8993a4bfca541274b48d04e9985d4046453ecfcbfdd959af385814cf74"
+    },
+    "speed-ring-2c": {
+      "id": "speed-ring-2c",
+      "filename": "Drone Production Element Imaging Flange Square Wave Vortex 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Flange Square Wave Vortex 01.wav",
+      "url": "vfx_preview/se/speed-ring-2c.wav",
+      "duration": 1.6,
+      "originalDuration": 60.0625,
+      "start": 12.496479,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21c 利用者指定：神速の指輪（回転しながら寄る線）の選び直し（Drone Production Element Imaging Flange Square Wave Vortex 01）",
+      "edit": {
+        "maxSec": 1.6,
+        "tailMs": 400
+      },
+      "sha256": "fa78e20bf96f9273298b9f50a0b0d85e32926c11b1e69a65cabef3aa83205386"
+    },
+    "speed-ring-3c": {
+      "id": "speed-ring-3c",
+      "filename": "Rise Up 1.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/SFX/Risers/Rise Up 1.wav",
+      "url": "vfx_preview/se/speed-ring-3c.wav",
+      "duration": 1.6,
+      "originalDuration": 5.25,
+      "start": 1.979104,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21c 利用者指定：神速の指輪（回転しながら寄る線）の選び直し（Rise Up 1）",
+      "edit": {
+        "maxSec": 1.6,
+        "tailMs": 400
+      },
+      "sha256": "ef9f7d8537162bcd7df9dbc7597beddc0267f7b591bbfabeb489bbfd8e4e0373"
     }
   },
   "effects": {
@@ -5236,9 +5302,9 @@
       "paladin-ring-3"
     ],
     "speed-ring": [
-      "speed-ring-1b",
-      "speed-ring-2b",
-      "speed-ring-6"
+      "speed-ring-1c",
+      "speed-ring-2c",
+      "speed-ring-3c"
     ],
     "curse-ring": [
       "curse-ring-1",
