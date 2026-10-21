@@ -90,7 +90,7 @@ const SFX_SETTINGS={
     buy2:       {group:'reward', volume: .86},  // 道具屋購入
     attack:     {group:'combat', volume: .46, guardMs:80},  // -4.3
     K018:       {group:'combat', volume: .63, guardMs:80},  // 結界（旧 shield.wav）-7.0
-    gremlinWeaken: {group:'magic', volume: .70, guardMs:0},  // グレムリンのATK減少（LAB gremlin-weaken の仮・候補1）
+    gremlinWeaken: {group:'magic', volume: .70, guardMs:0},  // グレムリンのATK減少（LAB gremlin-weaken の仮・候補1。歯車の音）
     poison:     {group:'combat', volume: .48, guardMs:80},  // -4.7
     effectDamage:{group:'magic', volume: .78, guardMs:90},  // 効果ダメージ（旧 fire.wav）-8.8
     C043: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 flame-sweep 候補1）

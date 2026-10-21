@@ -336,7 +336,7 @@ async function _presentLabFinish(plan) {
     // 弱体・邪眼の付与は見た目だけ続ける。音は元の固有演出のSEで足り、重ねると調和しない（2026-10-18 利用者指摘：グレムリン・ウンディーネ）。
     // 結界・復活の獲得の音は残す（スプリガン等は獲得SEへつなげる）。
     const silent = code===getKeywordAssetKey('弱体') || code===getKeywordAssetKey('邪眼');
-    // グレムリンの弱体だけは、調和する音（gremlinWeaken＝LAB gremlin-weaken の仮・候補1。機械が力を失う音）を鳴らす（2026-10-21 利用者指定）。
+    // グレムリンの弱体だけは、調和する音（gremlinWeaken＝LAB gremlin-weaken の仮・候補1。本体に合わせた歯車の音）を鳴らす（2026-10-21 利用者指定）。
     if (units.length && silent && plan.code==='C083' && typeof playSfx==='function') playSfx('gremlinWeaken',{group:'combat',guardKey:`gremlin-weaken:${Date.now()}`,guardMs:0});
     if (units.length) await playBattleLabFx(code,units[0],units,{side:_battleFxSide(units[0]),silent,
       durationMs:plan.repeat?presentEffectRunDuration(true)/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined});

@@ -5311,6 +5311,182 @@ var VbFxSeCatalog = {
         "tailMs": 300
       },
       "sha256": "327fbc418b7d7dd5ace3c7e0d531a1434d100f052f416d17f6ed82e0e1f72498"
+    },
+    "speed-ring-1e": {
+      "id": "speed-ring-1e",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-02.wav",
+      "url": "vfx_preview/se/speed-ring-1e.wav",
+      "duration": 1.2,
+      "originalDuration": 5.11,
+      "start": 0.4,
+      "trimmed": true,
+      "peak": 1.037813,
+      "tailFadeMs": 220,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（02.wav）",
+      "edit": {
+        "maxSec": 1.2,
+        "tailMs": 220
+      },
+      "sha256": "b32ddbffcbf92d6d7cce49255ff84c71942896271e6c5a50fdc5ea1b49e031ce"
+    },
+    "speed-ring-2e": {
+      "id": "speed-ring-2e",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav",
+      "url": "vfx_preview/se/speed-ring-2e.wav",
+      "duration": 1.04,
+      "originalDuration": 5.43,
+      "start": 0.37,
+      "trimmed": true,
+      "peak": 0.802021,
+      "tailFadeMs": 220,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（04.wav）",
+      "edit": {
+        "maxSec": 1.04,
+        "tailMs": 220
+      },
+      "sha256": "ee56ae0b083c6c7b4b22ced9067d5675586f7f6b9281a17a89574a6123c29e8d"
+    },
+    "speed-ring-3e": {
+      "id": "speed-ring-3e",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-01.wav",
+      "url": "vfx_preview/se/speed-ring-3e.wav",
+      "duration": 1.2,
+      "originalDuration": 5.33,
+      "start": 0.44,
+      "trimmed": true,
+      "peak": 0.990083,
+      "tailFadeMs": 260,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（01.wav）",
+      "edit": {
+        "maxSec": 1.2,
+        "tailMs": 260
+      },
+      "sha256": "3ec3a874830f711289d607f4f31195b599b97baecc0ba7f38b689e5a3c86d7f2"
+    },
+    "revive-burst-2e": {
+      "id": "revive-burst-2e",
+      "filename": "Production Element Title Transition Bell Swell 08.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Swell 08.wav",
+      "url": "vfx_preview/se/revive-burst-2e.wav",
+      "duration": 1.95,
+      "originalDuration": 3.776417,
+      "start": 0.011312,
+      "trimmed": true,
+      "peak": 0.339125,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21e 利用者指定：復活の光球。候補2（Bell Chime 03）のベルの雰囲気で鳴り方を変える（Production Element Title Transition Bell Swell 08.wav）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "64da9f28f9d1c6622eebfe0fe96799b204f9894febdcd475919849a266c8aa0d"
+    },
+    "revive-burst-3e": {
+      "id": "revive-burst-3e",
+      "filename": "Production Element Title Transition Bell Chime 04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Chime 04.wav",
+      "url": "vfx_preview/se/revive-burst-3e.wav",
+      "duration": 1.95,
+      "originalDuration": 2.907417,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.028188,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21e 利用者指定：復活の光球。候補2（Bell Chime 03）のベルの雰囲気で鳴り方を変える（Production Element Title Transition Bell Chime 04.wav）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "0da6aa95c19ce5d1123fcafcedd2c0b21857084d587f8b1499602042ca4bb66e"
+    },
+    "gremlin-weaken-1b": {
+      "id": "gremlin-weaken-1b",
+      "filename": "Industry Metal Clink Gear Slow 13.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/工業・工場・機械系/Industry Metal Clink Gear Slow 13.wav",
+      "url": "vfx_preview/se/gremlin-weaken-1b.wav",
+      "duration": 0.891458,
+      "originalDuration": 0.951167,
+      "start": 0.059708,
+      "trimmed": true,
+      "peak": 0.153792,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": true,
+      "reason": "2026-10-21e 利用者指定：グレムリンのATK減少の選び直し（本体の歯車の音に合わせる。Industry Metal Clink Gear Slow 13）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "68fd3b3eace42330644109e642a68b7fa07778f333d8d2ea22f49b1a58965362"
+    },
+    "gremlin-weaken-2b": {
+      "id": "gremlin-weaken-2b",
+      "filename": "Broken Gears .wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/Technology/Device Mechanical/Broken Gears .wav",
+      "url": "vfx_preview/se/gremlin-weaken-2b.wav",
+      "duration": 1.4,
+      "originalDuration": 3.161792,
+      "start": 0.432229,
+      "trimmed": true,
+      "peak": 0.034479,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21e 利用者指定：グレムリンのATK減少の選び直し（本体の歯車の音に合わせる。Broken Gears）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "a633a4b2585913e99985ed4758fd54188da09c5293342a739f655068d7c03704"
+    },
+    "gremlin-weaken-3b": {
+      "id": "gremlin-weaken-3b",
+      "filename": "MACHMech_Steampunk Small Gadget 07_DDUMAIS_NONE.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/David Dumais - ASFX - Steampunk Mech Freebies/Steampunk Mech SFX - Free Samples/MACHMech_Steampunk Small Gadget 07_DDUMAIS_NONE.wav",
+      "url": "vfx_preview/se/gremlin-weaken-3b.wav",
+      "duration": 1.4,
+      "originalDuration": 1.993042,
+      "start": 0.017979,
+      "trimmed": true,
+      "peak": 0.180812,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21e 利用者指定：グレムリンのATK減少の選び直し（本体の歯車の音に合わせる。MACHMech_Steampunk Small Gadget 07）",
+      "edit": {
+        "maxSec": 1.4,
+        "tailMs": 300
+      },
+      "sha256": "2b2f522627e4a451cc957cf02c358fd3a432cfc21874b106af13f3673758626b"
     }
   },
   "effects": {
@@ -5691,9 +5867,9 @@ var VbFxSeCatalog = {
       "paladin-ring-3"
     ],
     "speed-ring": [
-      "speed-ring-1d",
-      "speed-ring-2d",
-      "speed-ring-3d"
+      "speed-ring-1e",
+      "speed-ring-2e",
+      "speed-ring-3e"
     ],
     "curse-ring": [
       "curse-ring-1",
@@ -5826,14 +6002,14 @@ var VbFxSeCatalog = {
       "death-mark-3"
     ],
     "gremlin-weaken": [
-      "gremlin-weaken-1",
-      "gremlin-weaken-2",
-      "gremlin-weaken-3"
+      "gremlin-weaken-1b",
+      "gremlin-weaken-2b",
+      "gremlin-weaken-3b"
     ],
     "revive-burst": [
       "revive-burst-1b",
-      "revive-burst-2d",
-      "revive-burst-3d"
+      "revive-burst-2e",
+      "revive-burst-3e"
     ]
   }
 };

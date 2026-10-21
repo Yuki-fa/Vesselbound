@@ -144,11 +144,11 @@
   "gremlinWeaken": {
     "code": "gremlinWeaken",
     "effect": "gremlin-weaken",
-    "candidate": "gremlin-weaken-1",
+    "candidate": "gremlin-weaken-1b",
     "file": "assets/sfx/gremlin_weaken.wav",
-    "source": "Production Element Title Transition Electrical Power Down 01.wav",
+    "source": "Industry Metal Clink Gear Slow 13.wav",
     "sourcePath": null,
-    "note": "2026-10-21 利用者指摘「ATK減少の音が良くない」：機械が力を失う音の3候補を作り、仮に候補1をゲームへ（旧：即死の旧SE）",
-    "sha256": "f5e476419ab28d01449c574f0849c33841d88ff145d87beb1c2e945e0af28340"
+    "note": "2026-10-21 利用者指摘で選び直し：本体の歯車の音に合わせた3候補のうち、仮に候補1をゲームへ",
+    "sha256": "68fd3b3eace42330644109e642a68b7fa07778f333d8d2ea22f49b1a58965362"
   }
 }

@@ -413,7 +413,7 @@ const Assets = {
     // キーワード発動のSE。キーワードシートのNo.（KXXX）で引く。
     C043: 'assets/sfx/C043.wav', // アラッサス（全体へ広がる効果ダメージ）
     K001: 'assets/sfx/K001.wav', // LAB採用（2026-10-21 death-mark 候補1）
-    gremlinWeaken: 'assets/sfx/gremlin_weaken.wav', // グレムリンのATK減少（2026-10-21 利用者指定：LAB gremlin-weaken の仮・候補1。機械が力を失う音）
+    gremlinWeaken: 'assets/sfx/gremlin_weaken.wav', // グレムリンのATK減少（2026-10-21 利用者指定：LAB gremlin-weaken の仮・候補1。本体の歯車の音に合わせた歯車の音）
     K003: 'assets/sfx/K003.wav', // 毒牙（毒のデバフを受けた瞬間）
     K017: 'assets/sfx/K017.wav', // LAB採用（2026-10-20 poison-tick 候補1）
     K018: 'assets/sfx/K018.wav', // 結界（結界がダメージを防いだ瞬間）

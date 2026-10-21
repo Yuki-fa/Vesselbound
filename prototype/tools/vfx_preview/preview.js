@@ -260,19 +260,19 @@ var VbFxPreview = (function () {
       var button = document.createElement('button'); button.textContent = 'この候補を聴く'; button.addEventListener('click', function () { choices[effect] = id; saveChoices(); refreshSound(); audition(id); });
       row.append(strong, info, path, button); $('candidate-details').appendChild(row);
     });
-    // 続く演出の専用の音（グレムリンのATK減少＝gremlin-weaken）も、ここで聴き比べて選べるようにする（2026-10-21）。
+    // 続く演出の専用の音（グレムリンのATK減少＝gremlin-weaken）。SEの選択欄のすぐ下で選んで聴ける（2026-10-21 利用者指摘：閉じた比較欄の中では見つからなかった）。
     var then = config().thenSound, thenIds = then ? VbFxSeCatalog.effects[then] || [] : [];
+    $('then-sound-controls').hidden = !thenIds.length;
+    $('then-sound-select').replaceChildren();
     if (thenIds.length) {
-      var thenHead = document.createElement('strong'); thenHead.textContent = '続く演出の音（' + then + '）· 選んだ候補で演出の後に鳴らす';
-      $('candidate-details').appendChild(thenHead);
-      var thenSelected = selectedSound(then);
+      var thenNames = { 'atk-down': 'ATK減少', weaken: '弱体', 'revive-gain': '復活獲得', 'battle-summon': '召喚' };
+      $('then-sound-label').textContent = '続く演出の音（' + (thenNames[config().then] || config().then || then) + '）';
       thenIds.forEach(function (id, i) {
-        var sound = VbFxSeCatalog.sounds[id], row = document.createElement('div'); row.className = 'candidate';
-        var strong = document.createElement('strong'); strong.textContent = (thenSelected && thenSelected.id === id ? '▶ ' : '') + (i + 1) + '. ' + sound.filename + (sound.provisional ? '【仮・ゲーム】' : '');
-        var info = document.createElement('span'); info.textContent = 'コピー ' + sound.duration.toFixed(3) + '秒 / ' + sound.reason;
-        var button = document.createElement('button'); button.textContent = 'この候補を聴く'; button.addEventListener('click', function () { choices[then] = id; saveChoices(); refreshSound(); audition(id); });
-        row.append(strong, info, button); $('candidate-details').appendChild(row);
+        var sound = VbFxSeCatalog.sounds[id], option = document.createElement('option');
+        option.value = id; option.textContent = (sound.adopted ? '【採用】' : sound.provisional ? '【仮・ゲーム】' : '') + (i + 1) + '. ' + sound.filename + ' / ' + sound.duration.toFixed(3) + '秒';
+        $('then-sound-select').appendChild(option);
       });
+      $('then-sound-select').value = (selectedSound(then) || {}).id || thenIds[0];
     }
     renderGameSound();
     if (!ids || !ids.length) {
@@ -549,6 +549,8 @@ var VbFxPreview = (function () {
   $('play-all').addEventListener('click', function () { playAll().catch(function (err) { message(err.message); }); });
   $('stop').addEventListener('click', stop);
   $('sound-select').addEventListener('change', function () { choices[effect] = this.value; saveChoices(); refreshSound(); audition(this.value); });
+  $('then-sound-select').addEventListener('change', function () { var then = config().thenSound; if (!then) return; choices[then] = this.value; saveChoices(); refreshSound(); audition(this.value); });
+  $('then-sound-only').addEventListener('click', function () { var then = config().thenSound; if (then) audition((selectedSound(then) || {}).id); });
   $('sound-only').addEventListener('click', function () { audition(selectedSound().id); });
   $('export').addEventListener('click', exportChoices);
   $('volume').addEventListener('input', function () { $('volume-value').textContent = Math.round(Number(this.value) * 100) + '%'; audioVoices.forEach(function (a) { a.volume = Number($('volume').value); }); });
