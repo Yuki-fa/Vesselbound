@@ -147,6 +147,7 @@ const SFX_SETTINGS={
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    R031: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 speed-ring 候補2）
     K001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 death-mark 候補1）
     R016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 intimidate-ring 候補1・長めに切り直した候補）
     E078: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 gold-loss 候補1）
@@ -181,7 +182,7 @@ const SFX_SETTINGS={
     C029: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
     C034: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
     C082: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 arch-demon 候補1）
-    C083: {group:'magic',volume:.70,maxPlayMs:0},
+    C083: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 gremlin 候補2）
     C095: {group:'magic',volume:.70,maxPlayMs:0},
     C097: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 overlord 候補1）
     C009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 minotaur 候補2）

@@ -5347,7 +5347,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 450,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（04.wav）（2026-10-21f 最後が切れて聞こえたので末尾0.45秒をなめらかに消し、VFXの始まりから頭から鳴らす）",
       "edit": {
@@ -5523,7 +5523,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 350,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "2026-10-21f 利用者指定：グレムリン（煤と歯車の煙の筋）の選び直し（MACHMech_Steampunk Gadget Open Close 10）",
       "edit": {
@@ -5553,6 +5553,50 @@ var VbFxSeCatalog = {
         "tailMs": 350
       },
       "sha256": "8b6a3c76f05cf62056907b4cf74f79760a436f6429c930c65be125c8bdae7b5f"
+    },
+    "toughness-ring-1": {
+      "id": "toughness-ring-1",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-04.wav",
+      "url": "vfx_preview/se/toughness-ring-1.wav",
+      "duration": 1.95,
+      "originalDuration": 6.62,
+      "start": 0.309708,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21g 利用者指定：強靭の指輪（刻まれる緑の生命の紋）の候補1・3の選び直し（SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-04）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "b448fa7116c7ca1e2716779a17704ae7ee79dab8ad5a4cea67194ce35fa1cd8e"
+    },
+    "toughness-ring-3": {
+      "id": "toughness-ring-3",
+      "filename": "49 BOOM Dandelion Glow_B.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/49 BOOM Dandelion Glow_B.wav",
+      "url": "vfx_preview/se/toughness-ring-3.wav",
+      "duration": 1.95,
+      "originalDuration": 12.071333,
+      "start": 0.000271,
+      "trimmed": true,
+      "peak": 0.035375,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21g 利用者指定：強靭の指輪（刻まれる緑の生命の紋）の候補1・3の選び直し（49 BOOM Dandelion Glow）",
+      "edit": {
+        "maxSec": 1.95,
+        "tailMs": 400
+      },
+      "sha256": "938d00c35eb39f8cee497bcc23d49daa5310db1d495aa56d6238c4f8c673bb3f"
     }
   },
   "effects": {
@@ -5973,9 +6017,9 @@ var VbFxSeCatalog = {
       "ring-eye-red-3b"
     ],
     "toughness-ring": [
-      "ring-eye-red-1",
+      "toughness-ring-1",
       "ring-eye-red-2",
-      "ring-eye-red-3"
+      "toughness-ring-3"
     ],
     "void-mastery": [
       "void-mastery-1",

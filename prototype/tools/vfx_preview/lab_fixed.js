@@ -38,4 +38,6 @@ var VbFxLabFixed = {
   'intimidate-ring':'2026-10-21','siren-wave':'2026-10-21','direwolf':'2026-10-21',
   // 2026-10-21 5回目：FIX（76 速度150%を標準・SE3）
   'revive-burst':'2026-10-21',
+  // 2026-10-21 6回目：FIX（47 グレムリン SE2）
+  'gremlin':'2026-10-21',
 };

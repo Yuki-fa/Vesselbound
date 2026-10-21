@@ -14237,6 +14237,72 @@ VbFxDefs.register({
         {
           "anchor": "each-target",
           "basis": "unit",
+          "type": "card",
+          "time": [
+            0.3,
+            0.8
+          ],
+          "holdEnd": true,
+          "filterOrder": [
+            "brightness"
+          ],
+          "curves": {
+            "brightness": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  0.15,
+                  1.6
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "y": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.2,
+                  -0.12
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "ease-out"
+            },
+            "scale": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  0.2,
+                  1.08
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "ease-out"
+            }
+          }
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
           "type": "glow",
           "color": "#c99a3a",
           "texture": "glow",
@@ -14276,7 +14342,8 @@ VbFxDefs.register({
               "interpolation": "power-in",
               "exponent": 1.3
             }
-          }
+          },
+          "followMove": true
         },
         {
           "anchor": "each-target",
@@ -14348,7 +14415,8 @@ VbFxDefs.register({
               "interpolation": "power-in",
               "exponent": 1.2
             }
-          }
+          },
+          "followMove": true
         },
         {
           "anchor": "each-target",
@@ -14420,7 +14488,8 @@ VbFxDefs.register({
               "interpolation": "power-in",
               "exponent": 1.2
             }
-          }
+          },
+          "followMove": true
         },
         {
           "anchor": "each-target",
@@ -14469,7 +14538,8 @@ VbFxDefs.register({
               ],
               "interpolation": "ease-out"
             }
-          }
+          },
+          "followMove": true
         },
         {
           "anchor": "each-target",
@@ -14534,7 +14604,8 @@ VbFxDefs.register({
               ],
               "interpolation": "ease-out"
             }
-          }
+          },
+          "followMove": true
         },
         {
           "anchor": "each-target",
@@ -14596,73 +14667,8 @@ VbFxDefs.register({
               "radiusScale": 0.5,
               "blend": "add"
             }
-          ]
-        },
-        {
-          "anchor": "each-target",
-          "basis": "unit",
-          "type": "card",
-          "time": [
-            0.3,
-            0.8
           ],
-          "holdEnd": true,
-          "filterOrder": [
-            "brightness"
-          ],
-          "curves": {
-            "brightness": {
-              "keys": [
-                [
-                  0,
-                  1
-                ],
-                [
-                  0.15,
-                  1.6
-                ],
-                [
-                  1,
-                  1
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "y": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.2,
-                  -0.12
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "ease-out"
-            },
-            "scale": {
-              "keys": [
-                [
-                  0,
-                  1
-                ],
-                [
-                  0.2,
-                  1.08
-                ],
-                [
-                  1,
-                  1
-                ]
-              ],
-              "interpolation": "ease-out"
-            }
-          }
+          "followMove": true
         }
       ]
     },

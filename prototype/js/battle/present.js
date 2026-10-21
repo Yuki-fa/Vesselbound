@@ -1949,7 +1949,7 @@ const PRESENT_LAB_FX = {
   E008:['dragon-pact',0.228604,'foe'], E032:['rage-shards',0.450021,'foe'], R023:['storm-ring',0.215771,'foes'],
   // 指輪の開戦効果・封印されしもの（2026-10-17。それまで何も出ていなかった）。
   // 瞳の指輪（R001〜R005・R032）は常時効果なので戦闘中は発動しない扱いにし、演出は外した（2026-10-18 利用者指定。定義 ring-eye-* は別で使う）。
-  R019:['paladin-ring',0.45,'friends'], R031:['speed-ring',null,'friend'], R015:['toughness-ring',null,'friends'],
+  R019:['paladin-ring',0.45,'friends'], R031:['speed-ring',0.12,'friend'], R015:['toughness-ring',null,'friends'],
   R041:['curse-ring',0.45,'foes'], R042:['curse-ring',0.45,'foes'], E057:['sealed-power',0.45,'self'],
   C093:['void-mastery',0.45,'friends'],
   // 敵の開戦効果（2026-10-17。何も出ていなかった）：全員へのキーワード付与・ライフを1にする。
@@ -1971,7 +1971,7 @@ const PRESENT_LAB_FX = {
   C004:['satyr',0.625708,'self'],C020:['hecatoncheir',0.655729,'self'],C021:['zombie',0.263917,'self'],
   C060:['behemoth',0.48,'self'],C064:['sylph',0.284083,'self'],C071:['nymph',0.736167,'colors'],C089:['familiar',0.867437,'foe'],
   C099:['fiend',0.833771,'foe'],C029:['phantom',0.218375,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
-  C082:['arch-demon',0.774937,'purple'],C083:['gremlin',0.017667,'foes'],C095:['lilith',0.384333,'sequence'],
+  C082:['arch-demon',0.774937,'purple'],C083:['gremlin',0.341896,'foes'],C095:['lilith',0.384333,'sequence'],
   C097:['overlord',0.48,'self'],C009:['minotaur',0.2575,'reaction'],C042:['sleep-sheep',0.45,'self'],
   C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.45,'friend'],
   C084:['incubus',0.45,'victim'],C094:['chaos-imp',0.923583,'retrigger'],

@@ -148,5 +148,33 @@
     "file": null,
     "source": "Production Element Title Transition Bell Chime 04.wav",
     "note": "ゲーム未使用のVFX。採用印だけ"
+  },
+  "C083": {
+    "code": "C083",
+    "effect": "gremlin",
+    "candidate": "gremlin-2b",
+    "file": "assets/sfx/C083.wav",
+    "source": "MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
+    "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/David Dumais - ASFX - Steampunk Mech Freebies/Steampunk Mech SFX - Free Samples/MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
+    "peak": 0.341896,
+    "gainDb": null,
+    "note": null,
+    "labWired": true,
+    "duration": 1.6,
+    "sha256": "ccd456dc35140694eb3306e8113734d71f142b8a98b2d6d3d65fc18ad3341ec5"
+  },
+  "R031": {
+    "code": "R031",
+    "effect": "speed-ring",
+    "candidate": "speed-ring-2e",
+    "file": "assets/sfx/R031.wav",
+    "source": "DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav",
+    "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav",
+    "peak": 0.12,
+    "gainDb": null,
+    "note": null,
+    "labWired": true,
+    "duration": 1.04,
+    "sha256": "93ea82b998487a00194e3316f16f98c2bd64b92cf0ad17b3cb06f664802ae053"
   }
 }

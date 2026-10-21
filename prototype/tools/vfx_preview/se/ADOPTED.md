@@ -88,6 +88,8 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | C084 | incubus | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav | 1.95秒 | 0.45 |
 | R016 | intimidate-ring | Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav | 3.4秒 | 0.450021 |
 | K001 | death-mark | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large-03.wav | 1.95秒 | 0.45 |
+| C083 | gremlin | asfx-christmas-freebies-2024/David Dumais - ASFX - Steampunk Mech Freebies/Steampunk Mech SFX - Free Samples/MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav | 1.6秒 | 0.341896 |
+| R031 | speed-ring | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav | 1.04秒 | 0.12 |
 
 ## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 
@@ -136,7 +138,6 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 
 | 番号 | 演出 | 元の素材 | 長さ | peak |
 |---|---|---|---|---|
-| C083 | gremlin | Adobe/工業・工場・機械系/Industry Metal Clink Gear Fast 06.wav | 0.317458秒 | 0.017667 |
 | C056 | scylla | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav | 1.950000秒 | 0.450000 |
 
 2026-10-15：C056（スキュラ）は「SEが急に止まる」との指摘で候補を作り直し、新しい候補1を仮に配置（末尾400msのcos²フェード）。

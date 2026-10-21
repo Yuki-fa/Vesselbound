@@ -317,6 +317,7 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    R031: 'assets/sfx/R031.wav', // LAB採用（2026-10-21 speed-ring 候補2）
     E078: 'assets/sfx/E078.wav', // LAB採用（2026-10-21 gold-loss 候補1）
     R012: 'assets/sfx/R012.wav', // LAB採用（2026-10-21 penance-ring 候補2）
     E057: 'assets/sfx/E057.wav', // LAB採用（2026-10-21 sealed-power 候補3）
@@ -344,7 +345,7 @@ const Assets = {
     C029: 'assets/sfx/C029.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
     C034: 'assets/sfx/C034.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
     C082: 'assets/sfx/C082.wav',
-    C083: 'assets/sfx/C083.wav',
+    C083: 'assets/sfx/C083.wav', // LAB採用（2026-10-21 gremlin 候補2）
     C095: 'assets/sfx/C095.wav',
     C097: 'assets/sfx/C097.wav', // LAB採用（2026-10-20 overlord 候補1）
     C009: 'assets/sfx/C009.wav',

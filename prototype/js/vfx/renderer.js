@@ -1210,7 +1210,8 @@ var VbFxRenderer = (function () {
     if (s.moveTo === 'screen-left') x -= width * move;
     else if (s.moveTo) { var p = point(target), origin = point(f.r); x += (p.x - origin.x) * move; y += (p.y - origin.y) * move; }
     var hasTransform = s.mirror || s.moveTo || ['x', 'y', 'scale', 'move', 'rotation'].some(function(key) { return hasParameter(s, key); });
-    if (hasTransform) job.moves.set(el, { x: x, y: y });
+    // 拡大も記録し、followMove の層（枠の線など）がカードの拡大に合わせて広がるようにする（2026-10-21 利用者指摘：神速の指輪の枠の光がカードの動きとずれる）。
+    if (hasTransform) job.moves.set(el, { x: x, y: y, scale: hasParameter(s, 'scale') ? value(f, 'scale', 1) : 1 });
     if (hasParameter(s, 'opacity')) setStyle(job, el, 'opacity', String(value(f, 'opacity', 1)));
     var hasFilter = ['brightness', 'saturation', 'grayscale', 'sepia', 'hue', 'contrast', 'blur'].some(function (key) { return hasParameter(s, key); });
     if(hasFilter && s.filterOrder){
@@ -1361,7 +1362,8 @@ var VbFxRenderer = (function () {
             var bend0=(s.pathBend||0)*f.unit,previous0=curvedPoint(pathStart,center,clamp(progress0-(s.pathSampleStep||.015)),bend0,sign0*job.dir),pathEnd0=center;
             center=curvedPoint(pathStart,center,progress0,bend0,sign0*job.dir);f.angle=s.pathAngle==='chord'?Math.atan2(pathEnd0.y-pathStart.y,pathEnd0.x-pathStart.x):Math.atan2(center.y-previous0.y,center.x-previous0.x);
           }
-          if (s.followMove && r.element && job.moves.has(r.element)) { var move = job.moves.get(r.element); dx += move.x; dy += move.y; }
+          var followScale = 1;
+          if (s.followMove && r.element && job.moves.has(r.element)) { var move = job.moves.get(r.element); dx += move.x; dy += move.y; followScale = move.scale || 1; }
           if (s.layout === 'orbit') { var angle = i / copies * TAU + value(f, 'rotation', 0) * (s.directedOrbit===false?1:job.dir); dx += Math.cos(angle) * value(f, 'orbit', .5) * dimension(f,s.orbitSpace); dy += Math.sin(angle) * value(f, 'orbit', .5) * dimension(f,s.orbitSpace); }
           if (s.layout === 'line') { var spread = s.spread || [.1, 0]; dx += (i - (copies - 1) / 2) * spread[0] * f.unit; dy += (i - (copies - 1) / 2) * spread[1] * f.unit; }
           var jitter = value(f, 'jitter', 0);
@@ -1370,6 +1372,8 @@ var VbFxRenderer = (function () {
           f.p = { x: center.x + dx + value(f, 'shiftX', 0) * f.unit, y: center.y + dy + value(f, 'shiftY', 0) * f.unit }; f.pathEnd = center;
           if(hasParameter(s,'forwardOffset')){f.p.x+=Math.cos(job.angle)*value(f,'forwardOffset',0)*f.unit;f.p.y+=Math.sin(job.angle)*value(f,'forwardOffset',0)*f.unit;}
           f.r = { left: r.left + dx, top: r.top + dy, width: r.width, height: r.height, right: r.left + dx + r.width, bottom: r.top + dy + r.height, element: r.element };
+          if (followScale !== 1) { var fw = r.width * followScale, fh = r.height * followScale, fcx = f.r.left + r.width / 2, fcy = f.r.top + r.height / 2;
+            f.r = { left: fcx - fw / 2, top: fcy - fh / 2, width: fw, height: fh, right: fcx + fw / 2, bottom: fcy + fh / 2, element: r.element }; }
           // 2026-10-12指定: 色付きの対象光が、座標更新後も元カードの色を読む。
           if (r.color) f.r.color = r.color;
           f.opacity = (s.intrinsicAlpha?1:intro) * (i ? value(f, 'copyAlpha', 1) : 1);
