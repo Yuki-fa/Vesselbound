@@ -95,7 +95,7 @@ var VbFxPreviewCatalog = {
   "phantom": {"source": "C029", "mode": "kenzoku", "sampleValue": 1, "value": 1, "note": "半透明の波を戦場へ広げ、対象の眷属にだけ小さな霊火の紋章を約2秒残す。", "new1012": true},
   "eidolon": {"source": "C034", "mode": "kenzoku", "sampleValue": 2, "value": 2, "note": "ファントムと同じ定義。入力value=2で霊火の径だけ少し強める。", "new1012": true},
   "arch-demon": {"source": "C082", "mode": "purple", "sampleValue": 3, "value": 3, "note": "紫の味方だけを魔力線で結び、実際の反復回数ぶん魔力が流れて脈打つ。", "new1012": true},
-  "gremlin": {"source": "C083", "mode": "foes", "sampleValue": 1, "value": 1, "note": "煤色の波と歯車粉を敵へ送り、HPの萎縮を使わずATK減少へ引き継ぐ。", "new1012": true, "then": "atk-down", "thenSound": "gremlin-weaken"},
+  "gremlin": {"source": "C083", "mode": "foes", "sampleValue": 1, "value": 1, "note": "煤色の波と歯車粉を敵へ送り、HPの萎縮を使わずATK減少へ引き継ぐ。", "new1012": true, "then": "atk-down", "thenSilent": true},
   "lilith": {"source": "C095", "mode": "sequence", "sampleValue": 3, "value": 3, "note": "実際の回数だけ赤紫の花弁紋章を作り、順に飛ばす。重複する対象も同じ回数だけ脈動。", "new1012": true},
   // 2026-10-12指定・撮影第2回: 背景を伴わない頭巾・袖・裾の輪郭で倍化を示す。
   // 2026-10-12指定・撮影第3回: 元絵に沿う座ったローブ姿の輪郭へ修正。

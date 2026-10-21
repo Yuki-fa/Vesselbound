@@ -102,7 +102,7 @@
     {
       "asset": "K020",
       "name": "revive-burst",
-      "playbackMs": 1500,
+      "playbackMs": 1000,
       "usage": "既存LABの主経路は対象外。旧登録識別子・参考LAB用の定義のみ追加。"
     },
     {

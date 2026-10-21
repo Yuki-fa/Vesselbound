@@ -10099,7 +10099,7 @@ VbFxDefs.register({
       "name": "revive-burst",
       "label": "復活の光 · K020",
       "sourceCode": "K020",
-      "ms": 2250,
+      "ms": 1500,
       "color": "#79b9d2",
       "light": "#cde8ef",
       "playback": {
@@ -10113,8 +10113,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 1125,
-        "cueMs": 1125
+        "atMs": 750,
+        "cueMs": 750
       },
       "layers": [
         {
@@ -10380,7 +10380,7 @@ VbFxDefs.register({
                 ],
                 [
                   1,
-                  1.0
+                  1
                 ]
               ],
               "interpolation": "ease-out"
@@ -10477,12 +10477,12 @@ VbFxDefs.register({
             1.5
           ],
           "lifeMs": [
-            700,
-            1000
+            467,
+            667
           ],
           "delayMs": [
             0,
-            120
+            80
           ],
           "shape": "feather",
           "color": "#e8f8ff",
@@ -10573,7 +10573,7 @@ VbFxDefs.register({
             0.92
           ],
           "riseY": [
-            1.0,
+            1,
             -0.4
           ],
           "sway": 0.03,

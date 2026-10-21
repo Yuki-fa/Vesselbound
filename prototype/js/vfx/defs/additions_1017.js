@@ -14217,7 +14217,7 @@ VbFxDefs.register({
     {
       "name": "speed-ring",
       "label": "神速の指輪 · R031",
-      "ms": 1000,
+      "ms": 1250,
       "color": "#fff2c0",
       "light": "#ffffff",
       "playback": {
@@ -14230,8 +14230,8 @@ VbFxDefs.register({
       "underStatus": false,
       "stackable": false,
       "impact": {
-        "atMs": 380,
-        "cueMs": 380
+        "atMs": 475,
+        "cueMs": 475
       },
       "layers": [
         {

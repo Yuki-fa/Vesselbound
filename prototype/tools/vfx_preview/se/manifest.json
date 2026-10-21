@@ -5077,18 +5077,18 @@
       "originalDuration": 5.11,
       "start": 0.4,
       "trimmed": true,
-      "peak": 1.037813,
-      "tailFadeMs": 220,
+      "peak": 0.12,
+      "tailFadeMs": 450,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（02.wav）",
+      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（02.wav）（2026-10-21f 最後が切れて聞こえたので末尾0.45秒をなめらかに消し、VFXの始まりから頭から鳴らす）",
       "edit": {
         "maxSec": 1.2,
-        "tailMs": 220
+        "tailMs": 450
       },
-      "sha256": "b32ddbffcbf92d6d7cce49255ff84c71942896271e6c5a50fdc5ea1b49e031ce"
+      "sha256": "0431319927a3346183b8923bbf6542166a606fbc1d6f97fa7b47010d724211c0"
     },
     "speed-ring-2e": {
       "id": "speed-ring-2e",
@@ -5099,18 +5099,18 @@
       "originalDuration": 5.43,
       "start": 0.37,
       "trimmed": true,
-      "peak": 0.802021,
-      "tailFadeMs": 220,
+      "peak": 0.12,
+      "tailFadeMs": 450,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（04.wav）",
+      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（04.wav）（2026-10-21f 最後が切れて聞こえたので末尾0.45秒をなめらかに消し、VFXの始まりから頭から鳴らす）",
       "edit": {
         "maxSec": 1.04,
-        "tailMs": 220
+        "tailMs": 450
       },
-      "sha256": "ee56ae0b083c6c7b4b22ced9067d5675586f7f6b9281a17a89574a6123c29e8d"
+      "sha256": "93ea82b998487a00194e3316f16f98c2bd64b92cf0ad17b3cb06f664802ae053"
     },
     "speed-ring-3e": {
       "id": "speed-ring-3e",
@@ -5121,18 +5121,18 @@
       "originalDuration": 5.33,
       "start": 0.44,
       "trimmed": true,
-      "peak": 0.990083,
-      "tailFadeMs": 260,
+      "peak": 0.12,
+      "tailFadeMs": 450,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（01.wav）",
+      "reason": "2026-10-21e 利用者指定：神速の指輪。候補3（Hypersonic Missile）の方向で、ドンの手前の風切りだけを切り出し（01.wav）（2026-10-21f 最後が切れて聞こえたので末尾0.45秒をなめらかに消し、VFXの始まりから頭から鳴らす）",
       "edit": {
         "maxSec": 1.2,
-        "tailMs": 260
+        "tailMs": 450
       },
-      "sha256": "3ec3a874830f711289d607f4f31195b599b97baecc0ba7f38b689e5a3c86d7f2"
+      "sha256": "72c9ae774490f28b6fc10acfe0b065d73eea912cb6b9ec6e4877ca16bf4d3277"
     },
     "revive-burst-2e": {
       "id": "revive-burst-2e",
@@ -5169,7 +5169,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "2026-10-21e 利用者指定：復活の光球。候補2（Bell Chime 03）のベルの雰囲気で鳴り方を変える（Production Element Title Transition Bell Chime 04.wav）",
       "edit": {
@@ -5243,6 +5243,72 @@
         "tailMs": 300
       },
       "sha256": "2b2f522627e4a451cc957cf02c358fd3a432cfc21874b106af13f3673758626b"
+    },
+    "gremlin-1b": {
+      "id": "gremlin-1b",
+      "filename": "GEARBOX - DESIGNED - SMALL - Adams Spring Loaded Widget 01-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Gearbox/Sounds/分割/GEARBOX - DESIGNED - SMALL - Adams Spring Loaded Widget 01-01.wav",
+      "url": "vfx_preview/se/gremlin-1b.wav",
+      "duration": 0.712354,
+      "originalDuration": 4.24,
+      "start": 3.527646,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 60,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21f 利用者指定：グレムリン（煤と歯車の煙の筋）の選び直し（GEARBOX - DESIGNED - SMALL - Adams Spring Loaded Widget 01-01）",
+      "edit": {
+        "maxSec": 1.6,
+        "tailMs": 350
+      },
+      "sha256": "41c35e8762abeece3e0b9badfb8e18c10e9a34ed87ee7696899845c356b1245c"
+    },
+    "gremlin-2b": {
+      "id": "gremlin-2b",
+      "filename": "MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/David Dumais - ASFX - Steampunk Mech Freebies/Steampunk Mech SFX - Free Samples/MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
+      "url": "vfx_preview/se/gremlin-2b.wav",
+      "duration": 1.6,
+      "originalDuration": 1.913875,
+      "start": 0.037312,
+      "trimmed": true,
+      "peak": 0.341896,
+      "tailFadeMs": 350,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21f 利用者指定：グレムリン（煤と歯車の煙の筋）の選び直し（MACHMech_Steampunk Gadget Open Close 10）",
+      "edit": {
+        "maxSec": 1.6,
+        "tailMs": 350
+      },
+      "sha256": "ccd456dc35140694eb3306e8113734d71f142b8a98b2d6d3d65fc18ad3341ec5"
+    },
+    "gremlin-3b": {
+      "id": "gremlin-3b",
+      "filename": " Gears .wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/Technology/Device Mechanical/ Gears .wav",
+      "url": "vfx_preview/se/gremlin-3b.wav",
+      "duration": 1.6,
+      "originalDuration": 15.179521,
+      "start": 4.269979,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 350,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-21f 利用者指定：グレムリン（煤と歯車の煙の筋）の選び直し（Gears .wav）",
+      "edit": {
+        "maxSec": 1.6,
+        "tailMs": 350
+      },
+      "sha256": "8b6a3c76f05cf62056907b4cf74f79760a436f6429c930c65be125c8bdae7b5f"
     }
   },
   "effects": {
@@ -5480,9 +5546,9 @@
       "arch-demon-3"
     ],
     "gremlin": [
-      "gremlin-1",
-      "gremlin-4",
-      "gremlin-5"
+      "gremlin-1b",
+      "gremlin-2b",
+      "gremlin-3b"
     ],
     "lilith": [
       "lilith-1",
@@ -5804,10 +5870,6 @@
       "revive-burst-2e",
       "revive-burst-3e"
     ],
-    "gremlin-weaken": [
-      "gremlin-weaken-1b",
-      "gremlin-weaken-2b",
-      "gremlin-weaken-3b"
-    ]
+    "gremlin-weaken": []
   }
 }

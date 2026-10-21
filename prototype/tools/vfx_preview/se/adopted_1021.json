@@ -141,14 +141,12 @@
     "duration": 1.95,
     "sha256": "7149545f4d97ff5163d01e7337f0b702e7396a95ea70e5849746505f0697d9fe"
   },
-  "gremlinWeaken": {
-    "code": "gremlinWeaken",
-    "effect": "gremlin-weaken",
-    "candidate": "gremlin-weaken-1b",
-    "file": "assets/sfx/gremlin_weaken.wav",
-    "source": "Industry Metal Clink Gear Slow 13.wav",
-    "sourcePath": null,
-    "note": "2026-10-21 利用者指摘で選び直し：本体の歯車の音に合わせた3候補のうち、仮に候補1をゲームへ",
-    "sha256": "68fd3b3eace42330644109e642a68b7fa07778f333d8d2ea22f49b1a58965362"
+  "revive-burst": {
+    "code": null,
+    "effect": "revive-burst",
+    "candidate": "revive-burst-3e",
+    "file": null,
+    "source": "Production Element Title Transition Bell Chime 04.wav",
+    "note": "ゲーム未使用のVFX。採用印だけ"
   }
 }
