@@ -1638,8 +1638,13 @@ function presentActionBannerTextMatchesEvent(text, ev, source) {
 
 // 指輪の末尾の発動記録を、同じコアbatchの命中へ対応させる。束そのものは作り直さない。
 // 嵐は発生元IDがなく、逆鱗は負傷者のIDを使うため、名前だけの受け口では判別できない。
+const _presentRingDamageSources = new WeakMap();
 function presentActionBannerRingDamageSources(events) {
   const list = Array.isArray(events) ? events : [];
+  // 同じイベント列を、行動表示と各マナ効果から何度も全走査しない。
+  // 計算中の配列へ追記された場合は作り直す。
+  const cached = _presentRingDamageSources.get(list);
+  if (cached && cached.length === list.length) return cached.sources;
   const sources = new Map();
   list.forEach((ev, at) => {
     if (!ev || ev.type !== 'ring_effect') return;
@@ -1675,6 +1680,7 @@ function presentActionBannerRingDamageSources(events) {
         sources.set(e, { name: ev.ring, side: ev.side });
     });
   });
+  _presentRingDamageSources.set(list, { length:list.length, sources });
   return sources;
 }
 
@@ -2056,9 +2062,13 @@ function presentLabEffectEvents(events, index, code, ownerId) {
   const list = Array.isArray(events) ? events : [], first = list[index];
   if (!first) return [];
   const out = [first], mana = first.type === 'mana_threshold';
+  // マナ効果の直後に指輪が発動することがある。末尾の発動記録が指す命中の束は
+  // 独立した効果なので、直前の効果のclaimsへ取り込まない（落雷が出なくなる）。
+  const ringHits = presentActionBannerRingDamageSources(list);
   for (let i = index + 1; i < list.length; i++) {
     const ev = list[i];
     if (!ev || ['turn_begin','battle_end','mana_threshold','effect_flash'].includes(ev.type)) break;
+    if (ringHits.has(ev) && ringHits.get(ev).name !== ringHits.get(first)?.name) break;
     if (ev.type === 'attack' && !(code === 'C078' && ev.controlled)) break;
     if (first.type === 'damage' && ev.type === 'damage' &&
       ((first.batch || ev.batch) && presentDamageGroupKey(ev) !== presentDamageGroupKey(first)

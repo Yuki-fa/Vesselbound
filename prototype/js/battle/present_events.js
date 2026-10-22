@@ -28,6 +28,17 @@ function presentEndActionBannerEvent(scope) {
   if (typeof actionBannerLeaveEvent === 'function') actionBannerLeaveEvent(scope);
 }
 
+// コア／保存frameが体を書き換える前に、描画中の姿を別に控える。
+// 数値の据え置きとは独立し、途中の再描画・同じ体の複数回変身でも先の絵を出さない。
+function presentHoldForms(units) {
+  const held = (units || []).filter(Boolean).map(unit => [unit, battleFxShownForm(unit)]);
+  held.forEach(([unit, form]) => battleFxHoldForm(unit, { ...form }));
+  return () => held.forEach(([unit, form]) => {
+    if (form === unit) battleFxReleaseForm(unit);
+    else battleFxHoldForm(unit, form);
+  });
+}
+
 // LABの発動単位・直列化はこの共通入口だけで管理する（受け口はデータ供給だけ）。
 let _presentLabLists = new WeakMap();
 let _presentLabClaims = new WeakMap();
@@ -226,7 +237,8 @@ function _presentLabPlan(ev, events, index, api, context) {
   if (spec[2] === 'morph') {
     targets = [...new Set(members.filter(e=>e.type==='transform').map(e=>find(e.unitId)).filter(Boolean))];
     targets.forEach(u=>{
-      const old = actionBannerPresentationApi().unit(u.id);
+      const shown = battleFxShownForm(u);
+      const old = shown !== u ? shown : actionBannerPresentationApi().unit(u.id) || u;
       if (old && typeof battleFxHoldForm === 'function') battleFxHoldForm(u,{...old});
     });
   }
@@ -462,7 +474,7 @@ async function presentLabEndEvent(ev, events, index, api) {
     if (ev.type==='transform') {
       if(ev.unit&&typeof presentAdvanceShown==='function') presentAdvanceShown(unit,{shield:ev.unit.shield||0,weaken:ev.unit.weaken||0});
       battleFxAdvanceStates(unit,_battleFxValues(ev.unit||unit));
-      battleFxReleaseForm(unit); if (api.render) api.render();
+      if (api.render) api.render();
     }
     // 演出を省く時も、結界・毒・弱体などの最終状態表示は進める。
     if(silent)return;
@@ -495,6 +507,7 @@ async function presentLabEndEvent(ev, events, index, api) {
 async function presentFinishLabEvents(events) {
   const context=_presentLabLists.get(events);
   if(context&&context.active){await _presentLabFinish(context.active);context.active=null;}
+  (events||[]).filter(ev=>ev.type==='transform').forEach(ev=>battleFxReleaseForm({id:ev.unitId}));
 }
 
 // 終戦など、数値を既に確定・書き戻し済みの出口。再計算せず同じ演出入口へ接続する。
@@ -1409,6 +1422,8 @@ function presentTransformEvent(ev, api) {
     if (ev.unit) Object.assign(unit, ev.unit);
     else if (typeof api.setForm === 'function') api.setForm(unit, ev);
   }
+  // 命中した変身の姿まで進める。PvEの実体はさらに先の変身済みの場合がある。
+  if (typeof battleFxHoldForm === 'function') battleFxHoldForm(unit, ev.unit || { ...unit });
   // 画面の数値は「変身した時点」の値まで進める（最終値まで進めると、その後のダメージより先にHPが減って見える）。
   if (typeof api.advanceShown === 'function') api.advanceShown(unit, ev);
   if (typeof api.render === 'function') api.render();
