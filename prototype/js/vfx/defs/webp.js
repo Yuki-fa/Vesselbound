@@ -3367,8 +3367,8 @@ VbFxDefs.register({
     },
     {
       "name": "centaur-missile",
-      "label": "ケンタウロスの弾 · C019_1",
-      "sourceCode": "C019_1",
+      "label": "天の雷槌の矢（旧ケンタウロス） · E042_1",
+      "sourceCode": "E042_1",
       "ms": 269,
       "color": "#5ab8ff",
       "light": "#eaf8ff",
@@ -3887,8 +3887,8 @@ VbFxDefs.register({
     },
     {
       "name": "centaur-impact",
-      "label": "ケンタウロス着弾 · C019_2",
-      "sourceCode": "C019_2",
+      "label": "天の雷槌の着弾（旧ケンタウロス） · E042_2",
+      "sourceCode": "E042_2",
       "ms": 1200,
       "color": "#5ab8ff",
       "light": "#eaf8ff",

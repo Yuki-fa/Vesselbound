@@ -324,12 +324,12 @@ const PRESENT_EXPAND_VFX_HIT_RATIO = .8;
 // 鍵はカードの演出番号（シートの「VFX/SE」列＝fxCode、無ければカードのNo.）。
 const PRESENT_PROJECTILE_EFFECTS = new Set([
   'E058',   // 炎の矢（マナ効果）
-  'C019',   // ケンタウロス（攻撃：ランダムな敵にXダメージ）
+  'E042',   // 天の雷槌（攻撃：ランダムな敵にXダメージ。2026-10-22 シート改訂でケンタウロス C019 から移った）
 ]);
 // **速度の唯一のつまみ。** 大きくすると遅くなる（224→448＝速度50%）。
 const PRESENT_PROJECTILE_FLIGHT_MS = 448;               // 炎の矢の飛行時間
 // 効果ごとの飛行時間。ケンタウロスの矢は LAB の2.5倍速を標準にした（定義 centaur-missile の尺 672→269ms と同じ。2026-10-21 利用者指定）。
-const PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE = { C019:269, C019_1:269 };
+const PRESENT_PROJECTILE_FLIGHT_MS_BY_CODE = { E042:269, E042_1:269 };
 // 同時に撃つ時の発射ずらし。賢者の指輪・マナの種の反復で2本以上になる時、
 // 短いと「2発同時に出た」ように見える。1本ずつ続けて撃つ間隔にする。
 const PRESENT_PROJECTILE_STAGGER_MS = 260;
@@ -339,9 +339,9 @@ const PRESENT_PROJECTILE_STAGGER_MS = 260;
 const PRESENT_PROJECTILE_IMPACT_OFFSET_Y = .18;
 // 飛翔体の定義では弾頭を入れ物の中央に描く。従来の着弾中心を保つ。
 function presentProjectileImpactOffsetY(code) {
-  // C019_1 は縦長の透明余白が大きく、通常の「枠の中心」では
+  // E042_1（旧 C019_1）は縦長の透明余白が大きく、通常の「枠の中心」では
   // 絵の実体が敵の上へ大きく外れる。素材の実体中心を敵中心へ合わせる。
-  return String(code || '').toUpperCase() === 'C019' ? 0 : PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
+  return String(code || '').toUpperCase() === 'E042' ? 0 : PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
 }
 // 曲線軌道（ミサイル）の見せ方。**素材を歪めない。** 位置と回転だけで見せる。
 // 膨らみは始点→終点の垂線方向へ。距離に比例させ、画面外へ出ない範囲で頭打ちにする。
@@ -1920,10 +1920,10 @@ const PRESENT_VFX_SCALE = {
   S005: .5, S007: .5,             // 特殊演出（約550x550/605x603）。S006と同じ扱い
   S009: .5,                       // 特殊演出：バフ（常時。516x516）
   E058: .125,                     // 炎の矢。切り詰めた縦長素材（210x388）なので小さく出す
-  C019: .0625, C019_1: .0625,     // ケンタウロス（120x560）。旧表示の50%
+  E042: .0625, E042_1: .0625,     // 天の雷槌の矢（旧ケンタウロス。120x560）。旧表示の50%
   C017: .5, C018: .5,             // メデューサ／サイクロプス（約450x450）。S006と同じ扱い
   E058_2: 1.2,                    // 炎の矢の着弾（983x552）。矢とは別素材なので別の倍率
-  C019_2: 1.2,                    // ケンタウロスの着弾（1436x824）。炎の矢の着弾と同じ扱い
+  E042_2: 1.2,                    // 天の雷槌の着弾（旧ケンタウロス。1436x824）。炎の矢の着弾と同じ扱い
   [getKeywordAssetKey('毒牙')]: .5,                       // 毒牙（毒のデバフを受けた瞬間。389x398）
   [getKeywordAssetKey('毒')]: .5,                       // 毒（毒でダメージを受けた瞬間。370x575）
   [getKeywordAssetKey('衝撃')]: .4,                       // 衝撃（弱体を付与した瞬間）
@@ -1933,15 +1933,15 @@ const PRESENT_VFX_SCALE = {
 };
 // LABで承認された置換だけ。効果の判定・数値はコア、ここは演出の対応表。
 const PRESENT_LAB_FX = {
-  E006:['dark-fire',.5,'foes'], C024:['banshee',.24,'foe'], E035:['resentment',.7,'foe'],
-  C039:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
+  E006:['dark-fire',.5,'foes'], E035:['resentment',.7,'foe'],
+  C040:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
   E071:['shockwave',0.45,'foes'], E075:['demon-soul',.9,'foes'], C032:['vrykolakas',.9,'friend'],
-  C037:['dullahan',.18,'foe'], C038:['bone-chariot',.9,'friend'], C046:['jackalope',.7,'green'],
+  C038:['bone-chariot',.9,'friend'], C046:['jackalope',.7,'green'],
   C049:['dragonnet',.58,'morph'], C053:['bandersnatch',.9,'morph'], C051:['cockatrice',.04,'foe'],
   C054:['worm',.9,'foes'], C058:['wyvern',.3,'foe'], C067:['frost-sprite',.18,'foe'],
   C068:['leprechaun',.9,'friends'], C069:['melusine',.9,'foes'], C077:['carbuncle',.04,'lost'],
   C078:['pixie',.9,'pair'], C080:['elemental',.74,'self'], C081:['imp',.9,'others'],
-  C092:['wendigo',.9,'foes'], C096:['nightmare',.9,'self'], C098:['baron',.9,'self'],
+  C092:['wendigo',.9,'foes'], E082:['nightmare',.9,'self'], C098:['baron',.9,'self'],
   C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
   // 2026-10-15 アラクネの熱波（ゲームのC008.wavのピーク0.38秒）
   C008:['arachne-ring',0.171354,'friends'],
@@ -1955,7 +1955,7 @@ const PRESENT_LAB_FX = {
   // 敵の開戦効果（2026-10-17。何も出ていなかった）：全員へのキーワード付与・ライフを1にする。
   EN044:['keyword-grant',0.45,'friends'], EN075_1:['fate-sever',0.45,'self'],
   // 第3弾（2026-10-17。何も出ていなかった）：苦行の指輪・錬成・ハイドラ・苦悶の刻印・受難の刻印。
-  R012:['penance-ring',0.45,'friends'], E030:['alchemy',0.45,'self'], C055:['hydra-reward',0.45,'self'],
+  R012:['penance-ring',0.45,'friends'], E030:['alchemy',0.45,'self'],
   E078:['gold-loss',0.242979,'self'], E077:['suffering-brand',0.074896,'dead'],
   // 第4弾（2026-10-17。汎用の演出で代わりに出していた）：レムレースの呼び戻し・召喚の指輪・魔導板の力・威圧／魔力の指輪。
   // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
@@ -1968,41 +1968,45 @@ const PRESENT_LAB_FX = {
   [getKeywordAssetKey('結界','gain')]:['shield-gain',.22,'target'], [getKeywordAssetKey('復活','gain')]:['revive-gain',.24,'target'],
   shield_break:['shield-break',0.318812,'target'],
   // 2026-10-12 利用者指定：候補1の仮SE。peakは切り出し後の測定値で後述の音声台帳と揃える。
-  C004:['satyr',0.625708,'self'],C020:['hecatoncheir',0.655729,'self'],C021:['zombie',0.263917,'self'],
-  C060:['behemoth',0.48,'self'],C064:['sylph',0.284083,'self'],C071:['nymph',0.736167,'colors'],C089:['familiar',0.867437,'foe'],
-  C099:['fiend',0.833771,'foe'],C029:['phantom',0.218375,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
-  C082:['arch-demon',0.774937,'purple'],C083:['gremlin',0.341896,'foes'],C095:['lilith',0.384333,'sequence'],
-  C097:['overlord',0.48,'self'],C009:['minotaur',0.2575,'reaction'],C042:['sleep-sheep',0.45,'self'],
+  C004:['satyr',0.625708,'self'],E083:['hecatoncheir',0.655729,'self'],E043:['zombie',0.263917,'self'],
+  C060:['behemoth',0.48,'self'],E031:['sylph',0.284083,'self'],C071:['nymph',0.736167,'colors'],
+  C082:['fiend',0.833771,'foe'],C029:['phantom',0.218375,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
+  C099:['arch-demon',0.774937,'purple'],C083:['gremlin',0.341896,'foes'],C095:['lilith',0.384333,'sequence'],
+  C097:['overlord',0.48,'self'],C009:['minotaur',0.2575,'reaction'],E056:['sleep-sheep',0.45,'self'],
   C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.45,'friend'],
-  C084:['incubus',0.45,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
+  E024:['incubus',0.45,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
 };
 // 番号で引かない演出の持ち主（2026-10-21 利用者指摘：FIXしてゲームで使っているのにLABで「未使用」と出ていた）。
 // ゲームはここを読んで再生し、LAB（tools/vfx_preview/lab_model.js currentUses）も同じ表から「現在の割り振り」を出す。
 // 巻物などを魔導板のキャラクターに使った時（アイテムの番号 → 演出。reward_items.js _playItemUseVfx）。
 // 2026-10-18 利用者指定：盾の巻物（I003）と幻視の巻物（I004）の演出を入れ替えている。
-const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'scroll-giant', I011:'scroll-mana', I012:'scroll-guts' };
+// 2026-10-22 シート改訂：魔力の巻物（I011）は「再抽選が3回可能になる」になり、キャラクターに使わないので外した。
+const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'scroll-giant', I012:'scroll-guts' };
 // マップの力（PRESENT_LAB_FX の 'map:<id>'）とシートの番号（map.js のシート読み込みも使う）。
 const PRESENT_MAP_POWER_NO = { summon:'M001', life:'M002', eternal:'M003', resonance:'M004', duplicate:'M005' };
 // 番号を持たない場面で直接再生する演出。
 const PRESENT_DIRECT_LAB_FX = [
   { effect:'opening-sigil', id:'appearance', name:'開戦の登場（着地の砂煙）', trigger:'開戦', basis:'battle.js _battleOpeningLandingVfx' },
 ];
-const PRESENT_LAB_1012_CODES=new Set(['C004','C020','C021','C060','C064','C071','C089','C099','C029','C034','C082','C083','C095','C097','C009','C042','C056','C066','C079','C084','C094']);
+// 2026-10-22 シート改訂：効果が移った番号へ付け替え（C020→E083・C021→E043・C064→E031・C042→E056・C084→E024、
+// アークデーモン C082 とフィーンド C099 は効果が入れ替わったので演出も入れ替え）。ファミリア C089 は効果が変わったので外した。
+const PRESENT_LAB_1012_CODES=new Set(['C004','E083','E043','C060','E031','C071','C099','C029','C034','C082','C083','C095','C097','C009','E056','C056','C066','C079','E024','C094']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
 // 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
 function presentLab1012EventMatches(code,ev){
   if(!ev||ev.effectSource===false)return false;
   if(['C004','C056','C066','C079'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
-  if(['C020','C021','C064','C071','C089'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({C020:'injury_chance_mana',C021:'manaOnDeath',C064:'manaOnAttack',C071:'nymph_colors',C089:'familiar_blood'})[code];
+  if(['E083','E043','E031','C071'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({E083:'injury_chance_mana',E043:'manaOnDeath',E031:'manaOnAttack',C071:'nymph_colors'})[code];
   if(code==='C060')return ev.type==='mana_set'&&ev.reason==='behemoth'&&Number(ev.gained)>0;
   if(code==='C029'||code==='C034')return ev.type==='summon_buff';
-  if(code==='C099')return ev.type==='damage'&&ev.damageKind!=='combat';
-  if(code==='C082')return ev.type==='stat_change'&&ev.reason==='arch_demon_purple_buff';
+  if(code==='C082')return ev.type==='damage'&&ev.damageKind!=='combat';
+  if(code==='C099')return ev.type==='stat_change'&&ev.reason==='arch_demon_purple_buff';
   if(code==='C083')return ev.type==='stat_change'&&ev.reason==='injury_enemy_atk_down';
   if(code==='C095')return ev.type==='stat_change'&&ev.reason==='lilith';
   if(code==='C097')return ev.type==='stat_change'&&ev.reason==='overload';
-  if(code==='C009')return ev.type==='keyword_effect'&&ev.effect==='shield'&&ev.sourceId===ev.unitId;
-  if(code==='C042'||code==='C084')return ev.type==='blood_set'&&ev.sourceId!=null&&Number(ev.gained)>0;
+  // 2026-10-22 シート改訂：ミノタウロスは結界を得なくなった。負傷の発光（この後に本人の割り込み攻撃が続く）で始める。
+  if(code==='C009')return ev.type==='effect_flash'&&ev.trigger==='injury';
+  if(code==='E056'||code==='E024')return ev.type==='blood_set'&&ev.sourceId!=null&&Number(ev.gained)>0;
   return false;
 }
 const PRESENT_LAB_SPEED = 1.5;
@@ -2069,7 +2073,7 @@ function presentCharacterHitVfxMs(code) {
 // ゲームの効果音（assets/sfx）の一番大きい所の時刻（秒、ファイル先頭から。実測）。
 // 固有VFXと一緒に鳴らす時、このピークをVFXの山場（定義の impact）へ合わせる。LABも同じ表を使う。
 const PRESENT_SFX_PEAK_SEC = {
-  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: 0 /* 2026-10-21 利用者指定：「SEだけ聴く」と同じく頭から鳴らす（命中が0msなのでピークを合わせると頭を飛ばしていた） */, C017: 0.45, C019: 0.45, C019_HIT: 0.196729, C043: 0.45,
+  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: 0 /* 2026-10-21 利用者指定：「SEだけ聴く」と同じく頭から鳴らす（命中が0msなのでピークを合わせると頭を飛ばしていた） */, C017: 0.45, E042: 0.45, E042_HIT: 0.196729, C043: 0.45,
   C090: .130, appearance: .029 /* 開戦の砂煙の着地音（実測） */, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
   [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
 };

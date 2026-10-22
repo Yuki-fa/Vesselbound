@@ -81,52 +81,49 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   if(!owner)return null;
   const data=typeof actionBannerPresentationApi==='function'?actionBannerPresentationApi():null;
   const own=data?data.ownCard(owner):owner;
-  const trigger={C004:'mana',C020:'injury',C021:'death',C060:'release',C064:'attack',C071:'opening',C089:'attack',C099:'release',C029:'death',C034:'injury',C082:'release',C083:'injury',C095:'opening',C097:'release',C009:'injury',C042:'death',C056:'mana',C066:'mana',C079:'mana',C084:'passive'}[code];
-  if(!presentActionBannerEffectText(own,trigger))return null;
+  // エンチャントが持つ効果は、そのエンチャントの本文で発動の種類を確かめる（2026-10-22 シート改訂で多くの効果がエンチャントへ移った）。
+  const textCard=source&&source.kind==='enchant'?source.card:own;
+  const trigger={C004:'mana',E083:'injury',E043:'death',C060:'release',E031:'attack',C071:'opening',C099:'release',C029:'death',C034:'injury',C082:'release',C083:'injury',C095:'opening',C097:'release',C009:'injury',C042:'death',C056:'mana',C066:'mana',C079:'mana',C084:'passive'}[code];
+  if(!presentActionBannerEffectText(textCard,trigger))return null;
   const members=[ev];
   for(let i=index+1;i<events.length;i++){
     const next=events[i];if(!next||['effect_flash','mana_threshold','turn_begin','battle_end','attack'].includes(next.type))break;
-    if(code==='C099')break; // 1発＝コアのdamage1件。対象・弾数をまとめ直さない。
+    if(code==='C082')break; // 1発＝コアのdamage1件（フィーンドの演出。2026-10-22 シート改訂で C099 から C082 へ）。対象・弾数をまとめ直さない。
     if(ev.type==='mana_threshold'){
       if(next.sourceId!=null&&next.sourceId!==sourceId)break;
       if(['mana_gain','keyword_effect'].includes(next.type))members.push(next);
       else if(!['log'].includes(next.type))break;
     }else if(code==='C029'||code==='C034'){
       if(next.type==='stat_change'&&next.reason==='summon_buff'&&next.sourceId===sourceId)members.push(next);else break;
-    }else if(['C082','C083','C095'].includes(code)&&presentLab1012EventMatches(code,next)&&next.sourceId===sourceId)members.push(next);
+    }else if(['C099','C083','C095'].includes(code)&&presentLab1012EventMatches(code,next)&&next.sourceId===sourceId)members.push(next);
     else break;
   }
   let targets=members.filter(e=>e.type==='stat_change'||e.type==='keyword_effect'||e.type==='damage').map(e=>find(e.unitId)).filter(Boolean);
   let value=1,contactEvent=null,sourceRect=null,colors=null;
-  if(['C004','C020','C021','C060','C064','C097','C042'].includes(code))targets=[owner];
+  if(['C004','E083','E043','C060','E031','C097','E056'].includes(code))targets=[owner];
   if(code==='C004'&&!members.some(e=>e.type==='mana_gain'&&Number(e.amount)>0))return null;
   if(['C056','C066','C079'].includes(code)&&!targets.length)return null;
   if(code==='C071'){
     colors=ev.colorSources||[];targets=colors.map(c=>find(c.unitId)).filter(Boolean);value=colors.length;
     if(!value)return null;
   }
-  if(code==='C082'){
+  if(code==='C099'){
     if(!targets.length)return null;const first=targets[0].id;
     value=members.filter(e=>e.unitId===first).length;targets=[...new Set(targets)];
   }
   if(code==='C095'){value=targets.length;if(!value)return null;}
-  else if(code!=='C082')targets=[...new Set(targets)];
+  else if(code!=='C099')targets=[...new Set(targets)];
   if(code==='C034')value=2;
-  if(code==='C021'||code==='C042')sourceRect=battleFxRect(owner,owner.side==='p2'?'enemy':'ally');
-  if(code==='C042'||code==='C084')value=Number(ev.gained);
-  if(code==='C084'){
+  if(code==='E043'||code==='E056')sourceRect=battleFxRect(owner,owner.side==='p2'?'enemy':'ally');
+  if(code==='E056'||code==='E024')value=Number(ev.gained);
+  if(code==='E024'){
     const victim=find(ev.victimId);if(!victim)return null;
     targets=[victim];sourceRect=battleFxRect(victim,ev.victimSide==='p2'?'enemy':'ally');
   }
-  if(['C064','C089'].includes(code)){
+  if(code==='E031'){
     for(let i=index+1;i<events.length;i++){
       const next=events[i];if(['turn_begin','battle_end'].includes(next.type))break;
       if(next.type==='attack'&&next.attackerId===owner.id&&next.attackVisual!==false){contactEvent=next;break;}
-    }
-    if(contactEvent){if(code==='C089')targets=[find(contactEvent.targetId)].filter(Boolean);}
-    else if(code==='C089'){
-      const hint=events.slice(0,index).reverse().find(e=>e.type==='effect_flash'&&e.unitId===owner.id&&e.trigger==='attack');
-      targets=[find(hint&&hint.targetId)].filter(Boolean);
     }
   }
   if(code==='C009'){
@@ -306,7 +303,7 @@ function _presentLabStart(plan, options) {
     if(plan.code==='C095'&&statEvents[i])plan.eventImpact.set(statEvents[i],promise);
   });
   const pulseResolvers=[];
-  const cueTimes=plan.code==='C082'?battleFxPulseTimes(plan.spec[0],plan.value):null;
+  const cueTimes=plan.code==='C099'?battleFxPulseTimes(plan.spec[0],plan.value):null;
   if(cueTimes)statEvents.forEach((ev,i)=>plan.eventImpact.set(ev,new Promise(resolve=>{
     const wave=Math.floor(i/plan.targets.length);(pulseResolvers[wave]||(pulseResolvers[wave]=[])).push(resolve);
   })));
@@ -370,12 +367,15 @@ async function presentLabBeginEvent(ev, events, index, api) {
       const next=events[i];if(['attack','turn_begin','battle_end','death'].includes(next.type))break;
       if(presentIsSilentEvent(next))continue;
       const ownerId=next.sourceId||next.unitId,owner=api.findUnit('p1',ownerId)||api.findUnit('p2',ownerId);
-      const code=owner&&(owner.no||owner.artCode);
-      if(!['C021','C029','C042','C084'].includes(code)||_presentLabClaims.has(next)||!presentLab1012EventMatches(code,next))continue;
-      if(code==='C084'?next.victimId!==ev.unitId:ownerId!==ev.unitId)continue;
-      const plan=_presentLab1012Plan(code,next,events,i,api,{card:owner});
+      // エンチャントの効果（2026-10-22 シート改訂でマナの残滓・血の雫・渇望へ移った）は、エンチャントの番号で引く。
+      const nextSource=_presentLabSource(next);
+      const viaEnchant=nextSource&&nextSource.kind==='enchant';
+      const code=viaEnchant?String(nextSource.card.no||nextSource.card.artCode||''):owner&&(owner.no||owner.artCode);
+      if(!['E043','C029','E056','E024'].includes(code)||_presentLabClaims.has(next)||!presentLab1012EventMatches(code,next))continue;
+      if(code==='E024'?next.victimId!==ev.unitId:ownerId!==ev.unitId)continue;
+      const plan=_presentLab1012Plan(code,next,events,i,api,viaEnchant?nextSource:{card:owner});
       if(plan){context.active=plan;_presentLabStart(plan);await plan.done;
-        if(['C042','C084'].includes(code)&&typeof battleFxHideConsumedCard==='function')battleFxHideConsumedCard(code==='C042'?owner:plan.targets[0]);
+        if(['E056','E024'].includes(code)&&typeof battleFxHideConsumedCard==='function')battleFxHideConsumedCard(code==='E056'?owner:plan.targets[0]);
       }
       break;
     }
@@ -426,7 +426,8 @@ async function presentLabBeginEvent(ev, events, index, api) {
     const ms = Math.max(0, Number(VbFx.impactMs(plan.spec[0], speed)) || 0);
     if (ms > 0) await new Promise(resolve => (typeof battlePresentationSetTimeout==='function' ? battlePresentationSetTimeout : setTimeout)(resolve, ms));
   }
-  if (plan.code==='C041'&&ev.type!=='mana_threshold' || ev.type==='effect_flash') {
+  // ミノタウロス（C009）は発光で始めて、続く割り込み攻撃（claimed の attack）で締める。ここで最後まで待たない。
+  if (plan.code==='C041'&&ev.type!=='mana_threshold' || ev.type==='effect_flash'&&plan.code!=='C009') {
     await _presentLabFinish(plan); context.active = null;
   } else if (PRESENT_LAB_WAIT_IMPACT.has(plan.code) || plan.spec[2]==='morph') {
     const wait = plan.eventImpact&&plan.eventImpact.get(ev)||plan.impact.get(String(ev.unitId)); if (wait) await wait;

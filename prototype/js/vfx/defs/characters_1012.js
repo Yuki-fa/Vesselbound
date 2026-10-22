@@ -1077,7 +1077,7 @@ VbFxDefs.register({
     {
       "name": "hecatoncheir",
       "label": "ヘカトンケイル",
-      "sourceCode": "C020",
+      "sourceCode": "E083",
       "ms": 1350,
       "color": "#3aa6ff",
       "light": "#e6f6ff",
@@ -1836,7 +1836,7 @@ VbFxDefs.register({
     {
       "name": "zombie",
       "label": "ゾンビ",
-      "sourceCode": "C021",
+      "sourceCode": "E043",
       "ms": 1125,
       "color": "#9fe0f0",
       "light": "#f2fdff",
@@ -3448,7 +3448,7 @@ VbFxDefs.register({
     {
       "name": "sylph",
       "label": "シルフ",
-      "sourceCode": "C064",
+      "sourceCode": "E031",
       "ms": 975,
       "color": "#7fd4ff",
       "light": "#f2fbff",
@@ -5424,7 +5424,7 @@ VbFxDefs.register({
     {
       "name": "fiend",
       "label": "フィーンド",
-      "sourceCode": "C099",
+      "sourceCode": "C082",
       "ms": 1080,
       "color": "#8a3ad0",
       "light": "#f0d8ff",
@@ -7206,7 +7206,7 @@ VbFxDefs.register({
     {
       "name": "arch-demon",
       "label": "アークデーモン",
-      "sourceCode": "C082",
+      "sourceCode": "C099",
       "ms": 2100,
       "color": "#b060f0",
       "light": "#f4e0ff",
@@ -10897,7 +10897,7 @@ VbFxDefs.register({
     {
       "name": "sleep-sheep",
       "label": "スリープシープ",
-      "sourceCode": "C042",
+      "sourceCode": "E056",
       "ms": 1575,
       "color": "#d0203a",
       "light": "#ffd0d6",
@@ -14439,7 +14439,7 @@ VbFxDefs.register({
     {
       "name": "incubus",
       "label": "インキュバス",
-      "sourceCode": "C084",
+      "sourceCode": "E024",
       "ms": 1350,
       "color": "#d0203a",
       "light": "#ffd0d6",
