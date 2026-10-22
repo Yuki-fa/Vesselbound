@@ -1343,6 +1343,16 @@ async function loadGameData() {
               if(item._shopAvailable) delete item._shopExcluded;
             }
             if(Object.prototype.hasOwnProperty.call(row,'効果')) item.desc=String(row['効果']||'').trim();
+            // レアリティ「X」：本文の X は 1〜5 のどれかで、レアリティと一致する（2026-10-22 利用者指定。毒牙・邪眼・衝撃の巻物）。
+            // 値は出る時に決める（pool.js drawItems／makeItem）。
+            if(String(row['レアリティ']??'').trim().toUpperCase()==='X') item._rarityX=true;
+            else delete item._rarityX;
+            // 「対象のキャラクターに〇〇を与える。」の巻物（二段攻撃・隠密…）は、本文のキーワードを与える共通の処理で動かす
+            // （reward_items.js keyword_scroll）。専用の処理を持つもの（盾・幻視・鼓舞）はそのまま。
+            if(!item.itemEffectKey&&/^対象のキャラクターに.+?を与える。?$/.test(item.desc||'')){
+              item.itemEffectKey='keyword_scroll';
+              delete item._noItemEffectImpl;
+            }
             if(Object.prototype.hasOwnProperty.call(row,'ショップ')&&!_truthySheet(row['ショップ'])) item._shopExcluded=true;
             // 「報酬」列（2026-10-10 追加）：false なら戦闘報酬に出さない。
             if(Object.prototype.hasOwnProperty.call(row,'報酬')) {

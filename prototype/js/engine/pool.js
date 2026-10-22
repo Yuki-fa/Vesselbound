@@ -305,10 +305,20 @@ const ITEM_POOL=[
   {id:'item_inspire_flag',no:'012',name:'鼓舞の旗',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'inspire_flag',art:'assets/art/items/I012.jpg',desc:'対象のキャラクターに根性を永久付与する。'},
 ];
 
-function makeItem(idOrName){
+// レアリティ「X」のアイテム（毒牙・邪眼・衝撃の巻物）の X を決めて、レアリティと本文へ入れる（2026-10-22 利用者指定）。
+// xValue を渡さない時（デバッグの一覧など）は 1〜5 から選ぶ。
+function _applyItemX(card,xValue){
+  if(!card||!card._rarityX) return card;
+  const x=Math.max(1,Math.min(5,Math.floor(Number(xValue)||0)))||(1+Math.floor((typeof rand==='function'?rand():Math.random())*5));
+  card.rarity=x;card._xValue=x;
+  card.desc=String(card.desc||'').replace(/X/g,String(x));
+  delete card._rarityX;
+  return card;
+}
+function makeItem(idOrName,xValue){
   const def=ITEM_POOL.find(p=>p.id===idOrName||p.name===idOrName);
   if(!def||!def.name||def._implemented===false||String(def.name).trim().toLowerCase()==='false') return null;
-  const c=clone(def);
+  const c=_applyItemX(clone(def),xValue);
   _normalizePanelRewardCost(c);
   c.noRewardUse=true;
   c._buyPrice=0;
@@ -605,7 +615,10 @@ function drawItems(n, maxGrade, opts){
   const excluded=forPeddler?(p=>p._peddlerAvailable!==true):forShop?(p=>p._shopExcluded===true):_shopOrRewardExcluded;
   // _noItemEffectImpl：シートにだけある行から作ったアイテム。効果のコードが無いので
   // 入手・購入の抽選には入れない（コレクションには出る）。
-  const pool=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!p._noItemEffectImpl&&panelMergeContentAvailable(p)&&!excluded(p));
+  const base=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!p._noItemEffectImpl&&panelMergeContentAvailable(p)&&!excluded(p));
+  // レアリティ「X」のアイテムは、レアリティ1〜5の5通りとして抽選に入れる（X＝引いたレアリティ。出現率はレアリティの比率に従う）。
+  // 5通りは同じ id なので、1回の抽選で同じ種類はレアリティが違っても1つしか出ない（2026-10-22 利用者指定）。
+  const pool=base.flatMap(p=>p._rarityX?[1,2,3,4,5].map(x=>({...p,rarity:x,_xPick:x})):[p]);
   const res=[];
   const used=new Set();
   let t=0;
@@ -613,7 +626,7 @@ function drawItems(n, maxGrade, opts){
     const cand=_rewardWeightedPick(pool,currentGrade,used);
     if(!cand) break;
     used.add(cand.id);
-    const item=makeItem(cand.id);
+    const item=makeItem(cand.id,cand._xPick);
     if(item&&item.name&&String(item.name).trim().toLowerCase()!=='false') res.push(item);
   }
   return res;

@@ -394,7 +394,7 @@ function _canUseItemNow(card){
   if(!panelMergeContentAvailable(card)) return false;
   const key=_itemEffectKey(card);
   const chars=_boardCharacterSlots();
-  if(['shield_scroll','giant_scroll','inspire_flag'].includes(key)) return chars.length>0;
+  if(['shield_scroll','giant_scroll','inspire_flag','keyword_scroll'].includes(key)) return chars.length>0;
   if(key==='bond_scroll'){
     const counts={};
     chars.forEach(({card})=>{ if(!card._merged) counts[card.name]=(counts[card.name]||0)+1; });
@@ -538,6 +538,7 @@ const _ITEM_USE_PROMPT_FALLBACK={
   inspire_flag:['根性を付与するキャラクターを選んでください。'],
   vision_scroll:['復活を付与するキャラクターを選んでください。'],
   mana_scroll:['マナ効果の値1減らすキャラクターを選んでください。'],
+  keyword_scroll:['キーワードを与えるキャラクターを選んでください。'],
 };
 // いま何段階目か（1始まり）。1段階だけのアイテムは常に1。
 function _itemUseStep(pending){
@@ -727,6 +728,17 @@ function _handlePendingItemBoardTarget(slotIdx){
   const card=boardList[slotIdx];
   if(!_isBoardCharacterCard(card)){ ; return true; }
   const key=pending.key;
+  // 「対象のキャラクターに〇〇を与える。」の巻物（二段攻撃・毒牙X…）。本文のキーワードをそのまま与える（2026-10-22）。
+  if(key==='keyword_scroll'){
+    const m=/^対象のキャラクターに(.+?)を与える。?$/.exec(String(pending.card&&pending.card.desc||'').trim());
+    if(!m){ ; return true; }
+    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
+    const kw=m[1].trim();
+    // 数値の無いキーワード（二段攻撃など）を既に持っている時は使わない（重ねても効果が無い）。
+    if(!/\d+$/.test(kw)&&card.keywords.includes(kw)){ ; return true; }
+    card.keywords.push(kw);
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
+  }
   if(key==='shield_scroll'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
     card.keywords=[...card.keywords.filter(k=>!coreShieldValueFromKeyword(k)),'結界'];
