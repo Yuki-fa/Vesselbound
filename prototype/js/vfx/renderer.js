@@ -1200,7 +1200,7 @@ var VbFxRenderer = (function () {
       }
       var scale=value(f,'scale',1);
       Object.assign(node.style,{left:f.p.x+curShift.x+'px',top:f.p.y+curShift.y+'px',width:f.r.width+'px',height:f.r.height+'px',
-        opacity:String(clamp(value(f,'opacity',1)*alpha(f)*f.opacity)),transform:'translate(-50%,-50%) translate('+value(f,'x',0)*f.unit+'px,'+value(f,'y',0)*f.unit+'px) scale('+scale+')',
+        visibility:'visible',opacity:String(clamp(value(f,'opacity',1)*alpha(f)*f.opacity)),transform:'translate(-50%,-50%) translate('+value(f,'x',0)*f.unit+'px,'+value(f,'y',0)*f.unit+'px) scale('+scale+')',
         filter:(node._vbFxMask||'')+'brightness('+value(f,'brightness',1)+') saturate('+value(f,'saturation',1)+') grayscale('+value(f,'grayscale',0)+')',mixBlendMode:s.blend==='add'?'screen':s.blend||'normal'});
       return;
     }
@@ -1313,6 +1313,9 @@ var VbFxRenderer = (function () {
 
   function draw(job, t) {
     job.moves.clear();
+    // Canvasと違い、echoは前フレームのDOMが残る。参照元消失・層の区間外も毎回隠し、
+    // このフレームで実際に描いた複製だけを出す。後の死亡位置へ古い絵を残さない。
+    Object.keys(job.echoes || {}).forEach(function (key) { job.echoes[key].style.visibility = 'hidden'; });
     var effect = job.def.loop ? t % 1 : t, intro = job.def.intro ? VbFxCurves.sample(job.def.intro, t) : 1;
     var ordered=[];
     for(var next=0;next<job.def.layers.length;){

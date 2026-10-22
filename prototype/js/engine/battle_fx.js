@@ -41,7 +41,8 @@ function _battleFxResolveElement(element) {
   if (!id) return element;
   const unit = [...(G.allies||[]),...(G.enemies||[])].find(u=>u && _battleFxKey(u)===String(id));
   const r = unit && battleFxRect(unit);
-  return r && r.element || (element.isConnected ? element : null);
+  // IDを持つカードが盤面から外れたら、まだ接続中の旧DOMも再利用しない。
+  return r && r.element || null;
 }
 function _battleFxTimer(fn, ms) {
   const id = setTimeout(() => { _battleFxTimers.delete(id); fn(); }, Math.max(0,ms));

@@ -472,7 +472,8 @@ const SaveRun=(()=>{
         return strip(rest);
       });
     }
-    return copy({units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0,...coreGameSummonBuffFields(state.gameSummonBuff)});
+    return copy({units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0,
+      _stormRingFireCount:Math.max(0,Number(state._stormRingFireCount)||0),...coreGameSummonBuffFields(state.gameSummonBuff)});
   }
   function computeBattle(initial,seed,options){
     const state=copy(initial);
@@ -515,6 +516,7 @@ const SaveRun=(()=>{
     const s=copy(p.setup);
     G.allies=s.units.p1;G.enemies=s.units.p2;G.activeBattleItems=s.items.p1;
     G.gold=s.resources.p1.gold;G.mana=s.resources.p1.mana;G._blood=s.blood.p1;G._enemyBlood=s.blood.p2;
+    G._stormRingFireCount=Math.max(0,Number(s._stormRingFireCount)||0);
     G.gameSummonBuff=s.gameSummonBuff&&s.gameSummonBuff.p1?{...s.gameSummonBuff.p1}:{atk:0,hp:0};
     G._waveLife=s.life.p1;G.life=s.life.p1;
     const arenaBossRound=G._arenaActive&&((typeof arenaRoundKind==='function'
@@ -529,7 +531,8 @@ const SaveRun=(()=>{
     try{
       const state=_createPveCoreState();_stampCoreSideSlots(state);
       // プールは純データ。runner等の実行状態はsetupへ持ち込まない。
-      const initial=copy({units:state.units,summonDefs:state.summonDefs,itemDefs:state.itemDefs,rings:state.rings,items:state.items,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,mapIndex:state.mapIndex,maxUnits:state.maxUnits,frontSlots:state.frontSlots,openingSides:state.openingSides,...(state.runLevels?{runLevels:state.runLevels}:{}),...coreGameSummonBuffFields(state.gameSummonBuff)});
+      const initial=copy({units:state.units,summonDefs:state.summonDefs,itemDefs:state.itemDefs,rings:state.rings,items:state.items,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,mapIndex:state.mapIndex,maxUnits:state.maxUnits,frontSlots:state.frontSlots,openingSides:state.openingSides,
+        _stormRingFireCount:state._stormRingFireCount,...(state.runLevels?{runLevels:state.runLevels}:{}),...coreGameSummonBuffFields(state.gameSummonBuff)});
       const seed=Math.floor(random()*4294967296);
       const arenaBattle=!!G._arenaActive;
       const questGarmBattle=!!(typeof questIsGarmBattle==='function'&&questIsGarmBattle());
@@ -567,6 +570,8 @@ const SaveRun=(()=>{
       state.units[side].splice(0,state.units[side].length,...next);
     }
     for(const key of ['resources','life','maxLife','blood','turn']) state[key]=snap[key];
+    // 古い保存には無い。新しい保存は発動済み回数を各手番からGまで戻す。
+    if(snap._stormRingFireCount!=null) state._stormRingFireCount=snap._stormRingFireCount;
     if(snap.gameSummonBuff) state.gameSummonBuff=snap.gameSummonBuff;
     else delete state.gameSummonBuff;
     G.turn=state.turn;
@@ -581,12 +586,13 @@ const SaveRun=(()=>{
       for(const f of p.frames.slice(0,-1)){
         if(_battleRunStale(runId)) return;
         const held=[...G.allies,...G.enemies].filter(Boolean).map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0,u.weaken||0]);
+        const releaseForms=presentHoldForms(held.map(([u])=>u));
         presentBeginPlayback();
         try{
           applyFrame(f,state);held.forEach(([u,...values])=>presentHoldShown(u,...values));
           const events=copy(p.events.slice(f.from,f.to));G._battleCoreEvents.push(...events);
           await _flushCorePveHitEvents(state,events,before);
-        }finally{held.forEach(([u])=>presentReleaseShown(u));[...G.allies,...G.enemies].forEach(u=>u&&presentReleaseShown(u));presentEndPlayback();}
+        }finally{held.forEach(([u])=>presentReleaseShown(u));[...G.allies,...G.enemies].forEach(u=>u&&presentReleaseShown(u));releaseForms();presentEndPlayback();}
         if(_battleRunStale(runId)) return;
         _syncCoreLifeToG(state);_syncCoreResourcesToG(state);_syncCoreManaToG(state);_refreshManaDisplays();
         coreCompactUnits(state);requestBattleCompact();

@@ -2697,6 +2697,7 @@ async function battlePhase(){
       // HP/ATKだけが変わって見える。進めるのは演出を出す瞬間（_flushCorePveHitEvents）。
       const _shownBefore=[...(G.allies||[]),...(G.enemies||[])].filter(Boolean)
         .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1,Number(u.shield)||0,Number(u.weaken)||0]);
+      const releaseForms=presentHoldForms(_shownBefore.map(([u])=>u));
       let stepped=false;
       try{
         try{ stop=runner.step({deferCompact:true}); stepped=true; }
@@ -2711,6 +2712,7 @@ async function battlePhase(){
           _refreshManaDisplays();
         }
       } finally {
+        releaseForms();
         presentEndPlayback();
       }
       if(!stepped) break;
@@ -4946,23 +4948,29 @@ async function _flushRingManaThresholdEffects(){
   // 待つと旧処理の再実行を許し、召喚やVFXを次の攻撃まで遅延させる。
   if(G._ringManaEffectPromise) await G._ringManaEffectPromise;
 }
-// 嵐の指輪：10マナ：全ての敵にXダメージを与える。Xはマナの5倍に等しい。（10マナ到達ごとに繰り返し発動する）
+// 旧マナ入口もコアの指輪イベントを再生する。発動回数・威力・対象をここで計算しない。
 async function _checkRingManaThresholdEffects(){
   if(G._checkingRingManaEffects||!_hasRingNamed('嵐の指輪')) return;
   G._checkingRingManaEffects=true;
   try{
-    const progress=Math.floor(_ensureMana()/10);
-    while((G._stormRingFireCount||0)<progress){
-      if(_battleVictoryAlreadyPending()) break;
-      G._stormRingFireCount=(G._stormRingFireCount||0)+1;
-      const x=_ensureMana()*5;
-      const entries=(G.enemies||[]).filter(_canReceiveBattleEffect).map(t=>({unit:t,side:'enemy',amount:x,source:null}));
-      if(entries.length){
-        playDamageEffectSfx('all');
-        await applyDamageBatch(entries,{effect:true});
-        if(_battleVictoryAlreadyPending()) break;
-      }
+    const state=_createPveCoreState();
+    _stampCoreSideSlots(state);
+    const events=[],emit=ev=>{events.push(ev);if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);};
+    const before=new Set([...(state.units.p1||[]),...(state.units.p2||[])].filter(Boolean));
+    const shown=[...before].map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0,u.weaken||0]);
+    const releaseForms=presentHoldForms([...before]);
+    const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>
+      coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
+        Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
+    try{
+      coreApplyRingManaEffects(state,coreMathRng,emit,applyHit);
+      shown.forEach(([u,...values])=>presentHoldShown(u,...values));
+      await _flushCorePveHitEvents(state,events,before);
+    }finally{
+      shown.forEach(([u])=>presentReleaseShown(u));releaseForms();
+      _keepPveSummonState(state);
     }
+    _syncCoreResourcesToG(state);_syncCoreManaToG(state);_refreshManaDisplays();
   } finally {
     G._checkingRingManaEffects=false;
   }
@@ -5388,11 +5396,13 @@ async function _finishNewPanelBattleStartEffects(){
   // 倒れた敵が演出より先に消えたり、古い値で描き直されたりしていた（利用者報告：ボス戦）。
   const _openingShownBefore=[...(G.allies||[]),...(G.enemies||[])].filter(Boolean)
     .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1,Number(u.shield)||0,Number(u.weaken)||0]);
+  const releaseForms=presentHoldForms(_openingShownBefore.map(([u])=>u));
   if(typeof presentBeginPlayback==='function') presentBeginPlayback();
   let _openingPlaybackOpen=true;
   const _endOpeningPlayback=()=>{
     if(!_openingPlaybackOpen) return;
     _openingPlaybackOpen=false;
+    releaseForms();
     if(typeof presentEndPlayback==='function') presentEndPlayback();
   };
   try{
@@ -5450,6 +5460,7 @@ async function _finishNewPanelBattleStartEffects(){
       presentHoldShown(u,atk+r.atk,hp+r.hp,maxHp+r.maxHp,shield,weaken);
     });
     await _flushCorePveHitEvents(state,localEvents,before);
+    _syncCoreManaToG(state);
   }finally{
     if(typeof presentReleaseShown==='function'){
       _openingShownBefore.forEach(([u])=>presentReleaseShown(u));

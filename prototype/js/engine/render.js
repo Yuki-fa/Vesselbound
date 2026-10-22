@@ -1112,6 +1112,8 @@ function getCurrentUnitSlot(side,idxOrUnit){
     // IDが一致していても、非表示の旧枠（実寸0）は現在位置として返さない。
     // 召喚直後などにそこを攻撃先へ使うと、複製カードが画面左上へ飛ぶ。
     if(byId&&isMeasurable(byId)) return byId;
+    // 詰め直し後の同じ添字は別の体。ID指定では旧枠・別キャラを複製元にしない。
+    return null;
   }
   const idx=typeof idxOrUnit==='number'?idxOrUnit:list.indexOf(idxOrUnit);
   if(idx<0) return null;
