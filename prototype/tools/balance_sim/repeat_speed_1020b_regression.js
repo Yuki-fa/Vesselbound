@@ -18,13 +18,12 @@ async function check(name, run) {
     await x.pve();
     assert.deepEqual(h.cues.map(c => c.repeat), [false, true, true]);
   });
-  for (const extra of ['激怒の指輪', '執念の炎']) await check(`${extra}：負傷バフを間引かず2回目から既存repeatの尺にする`, async () => {
-    const e = h.card('E005');
-    const x = h.setup({ sides: { p1: { units: [h.unit('golem', 'C003', extra === '執念の炎' ? {
-      boardCards: [e], _adjacentPanelEffectTexts: [e.desc], _adjacentPanelAbilities: [e.name] } : {})] }, p2: { units: [h.unit('foe')] } },
+  for (const extra of ['激怒の指輪', 'ヘカトンケイル']) await check(`${extra}：負傷バフを間引かず2回目から既存repeatの尺にする`, async () => {
+    const e = h.card('E001');
+    const x = h.setup({ sides: { p1: { units: [h.enchantUnit('golem','E001'),...(extra==='ヘカトンケイル'?[h.unit('support','C020')]:[])] }, p2: { units: [h.unit('foe')] } },
       rings: extra === '激怒の指輪' ? { p1: [h.card('R008', 'ring')] } : {} });
     x.hit(x.find('foe'), x.find('golem'), 1);
-    const expected = x.events.filter(ev => ev.type === 'stat_change' && ev.reason === 'golem').length;
+    const expected = x.events.filter(ev => ev.type === 'stat_change' && ev.reason === 'injury_self_buff').length;
     assert.ok(expected >= 2);
     await x.pve();
     const buffs = h.calls.filter(c => c.name === 'S006');
@@ -35,7 +34,7 @@ async function check(name, run) {
     assert.deepEqual(h.calls.filter(c => c.name === 'S006').map(c => c.options.hitDuration), buffs.map(c => c.options.hitDuration));
   });
   for(const [keyword,count]of [['二段攻撃',2],['三段攻撃',3]])await check(`${keyword}の攻撃効果を全回高速反復する`,async()=>{
-    const x=h.setup({sides:{p1:{units:[h.unit('sylph','C064',{keywords:[keyword]})]},p2:{units:[h.unit('foe','',{atk:1})]}}});
+    const x=h.setup({sides:{p1:{units:[h.enchantUnit('sylph','E031',{keywords:[keyword]})]},p2:{units:[h.unit('foe','',{atk:1})]}}});
     createBattleRunner(x.state,x.rng,x.emit,{skipOpening:true}).step({deferCompact:true});
     await x.pve();
     const fx=h.calls.filter(c=>c.name==='sylph');
@@ -47,10 +46,10 @@ async function check(name, run) {
   });
   await check('懺悔2枚の4回の自傷誘発を、間引かず高速反復する',async()=>{
     const penance=h.card('E037');
-    const x=h.setup({sides:{p1:{units:[h.unit('golem','C003',{boardCards:[penance,penance],
-      _adjacentPanelAbilities:[penance.name,penance.name],_adjacentPanelEffectTexts:[penance.desc,penance.desc]})]},p2:{units:[h.unit('foe','',{atk:1})]}}});
+    const x=h.setup({sides:{p1:{units:[h.enchantUnit('golem','E001',{boardCards:[h.card('E001'),penance,penance],
+      _adjacentPanelAbilities:['逆襲',penance.name,penance.name],_adjacentPanelEffectTexts:[h.card('E001').desc,penance.desc,penance.desc]})]},p2:{units:[h.unit('foe','',{atk:1})]}}});
     createBattleRunner(x.state,x.rng,x.emit,{skipOpening:true}).step({deferCompact:true});
-    const n=x.events.filter(e=>e.type==='stat_change'&&e.reason==='golem').length;
+    const n=x.events.filter(e=>e.type==='stat_change'&&e.reason==='injury_self_buff').length;
     assert.ok(n>=4);
     await x.pve();
     const fx=h.calls.filter(c=>c.name==='S006');
@@ -59,7 +58,7 @@ async function check(name, run) {
     await x.online();
     assert.deepEqual(h.calls.filter(c=>c.name==='S006').map(c=>c.options.hitDuration),fx.map(c=>c.options.hitDuration));
   });
-  for(const [no,trigger,name]of [['C056','mana','scylla'],['C099','release','fiend']])await check(`${no}：${trigger==='mana'?'マナ閾値':'解放'}の固有VFXにもrepeatを渡す`,async()=>{
+  for(const [no,trigger,name]of [['C056','mana','scylla'],['C082','release','fiend']])await check(`${no}：${trigger==='mana'?'マナ閾値':'解放'}の固有VFXにもrepeatを渡す`,async()=>{
     const x=h.setup({sides:{p1:{units:[h.unit('source',no,{keywords:[],boardCards:[h.card('E005'),h.card('E005'),h.card('E005')]})]},
       p2:{units:[h.unit('foe')]}},resources:{p1:{mana:6}}});
     if(trigger==='mana')coreApplyManaThresholdEffects(x.state,x.rng,x.emit,x.hit);
@@ -72,11 +71,11 @@ async function check(name, run) {
     await x.online();
     assert.deepEqual(h.calls.filter(c=>c.name===name).map(c=>c.options.durationMs),fx.map(c=>c.options.durationMs));
   });
-  for(const no of ['E058','C019'])await check(`${no}：マナ閾値・三段攻撃の飛び道具も高速反復する`,async()=>{
+  for(const no of ['E058','E042'])await check(`${no}：マナ閾値・三段攻撃の飛び道具も高速反復する`,async()=>{
     const fire=h.card('E058');
     const u=no==='E058'?h.unit('source','',{boardCards:[fire],_adjacentPanelEffectTexts:[fire.desc],
       manaCost:1,manaRepeat:true,manaThresholdNo:'E058',manaThresholdDesc:fire.desc.replace(/^\d+マナ毎：/,'')})
-      :h.unit('source','C019',{keywords:['三段攻撃']});
+      :h.enchantUnit('source','E042',{keywords:['三段攻撃']});
     const x=h.setup({sides:{p1:{units:[u]},p2:{units:[h.unit('foe')]}},resources:{p1:{mana:3}}});
     if(no==='E058')coreApplyManaThresholdEffects(x.state,x.rng,x.emit,x.hit);
     else createBattleRunner(x.state,x.rng,x.emit,{skipOpening:true}).step({deferCompact:true});

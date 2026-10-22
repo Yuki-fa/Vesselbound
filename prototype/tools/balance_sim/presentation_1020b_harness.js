@@ -121,4 +121,9 @@ function setup(options) {
       hideOnlineVersusBoard();
     } };
 }
-module.exports = { setup, unit, card, calls, sounds, waits, cues, clone, sheetRows, ready: loadGameData() };
+function enchantUnit(id,no,extra={}){
+  const e=card(no);
+  return unit(id,null,{boardCards:[e],_adjacentPanelEffectTexts:[e.desc],_adjacentPanelAbilities:[e.name],
+    effectData:{effectNames:[e.name],effectTexts:[e.desc]},...extra});
+}
+module.exports = { enchantUnit, setup, unit, card, calls, sounds, waits, cues, clone, sheetRows, ready: loadGameData() };

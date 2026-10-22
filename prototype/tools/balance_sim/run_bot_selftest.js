@@ -92,7 +92,12 @@ async function main(args=process.argv.slice(2)) {
   let temporary=null;
   // 出力はgit管理外。新しいworktreeでも実周回を生成し、同じ監査・再現検査へ渡す。
   // 明示した--inputの欠落は誤指定として残し、既定のoutだけを補う。
-  if(!args.includes('--input')&&!fs.existsSync(path.join(input,'runs.jsonl'))){
+  const defaultStale=!args.includes('--input')&&fs.existsSync(path.join(input,'runs.jsonl'))&&(()=>{
+    const data=readInput(path.resolve(input));
+    return Object.entries(data.meta.sourceHashes||{}).some(([file,hash])=>crypto.createHash('sha256').update(source(file)).digest('hex')!==hash)
+      ||Object.entries(data.meta.toolHashes||{}).some(([file,hash])=>crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,file))).digest('hex')!==hash);
+  })();
+  if(!args.includes('--input')&&(!fs.existsSync(path.join(input,'runs.jsonl'))||defaultStale)){
     temporary=fs.mkdtempSync(path.join(os.tmpdir(),'vb-run-selftest-'));
     console.log('既定のout/runs.jsonlが無いため、一時フォルダで6方針×4周を生成して検査します（バランス評価の標本には含めません）。');
     const child=spawnSync(process.execPath,[path.join(__dirname,'run_bot.js'),'--runs','4','--lookahead-runs','4','--policy','all','--seed','4001','--workers','4','--out',temporary],{encoding:'utf8'});

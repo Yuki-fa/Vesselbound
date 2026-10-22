@@ -87,8 +87,8 @@ if (!ONLY) {
   const golem = cards.find(c => c.name === 'ゴーレム');
   const {events} = runEvents({name: golem.name, color: golem.color, desc: golem.desc, keywords: golem.keywords.slice()}, 'live', true);
   const firstDone = untilFirstAttackDone(events).length;
-  const before = events.slice(0, firstDone).filter(e => e.reason === 'golem').length;
-  const after = events.slice(firstDone).filter(e => e.reason === 'golem').length;
+  const before = events.slice(0, firstDone).filter(e => e.type === 'run_effect' && e.kind === 'reward_buff').length;
+  const after = events.slice(firstDone).filter(e => e.type === 'run_effect' && e.kind === 'reward_buff').length;
   if (before !== 0 || after === 0) failures.push(`ゴーレムの負傷効果：最初の攻撃まで${before}回（0のはず）・その後${after}回（1回以上のはず）`);
 
   // エルフは2026-10-10に効果文が無くなり（先制・結界1のキーワードだけ）、characterCards() には出ない。
@@ -97,7 +97,7 @@ if (!ONLY) {
     desc: String(elfRow['効果'] || ''), keywords: String(elfRow['キーワード'] || '').split(/[\s　]+/).filter(Boolean)};
   const elfState = runEvents({name: elf.name, color: elf.color, desc: elf.desc, keywords: elf.keywords.slice()}, 'live', true).state;
   const elfUnit = elfState.units.p2.find(u => u.id === 'T');
-  if (elfUnit && elfUnit.hp > 0 && core.coreUnitShieldValue(elfUnit) <= 0) failures.push('エルフ：最初の攻撃の後も結界のキーワードが戻っていない');
+  if (elfUnit && elfUnit.hp > 0 && !core.coreUnitHasKeyword(elfUnit,'二段攻撃')) failures.push('エルフ：最初の攻撃の後も二段攻撃のキーワードが戻っていない');
   if (elfUnit && (elfUnit._silenced || elfUnit._silenceStash)) failures.push('エルフ：最初の攻撃の後も沈黙が解けていない');
 }
 

@@ -831,7 +831,7 @@ function cardManaCostHtml(card){
       (Array.isArray(card._extraManaThresholds)?card._extraManaThresholds.map(t=>Number(t&&t.cost)||0):[]))
     :[];
   // 同じ必要マナの同一効果が複数接続されても、表示アイコンは1つだけにする。
-  const costs=[...new Set([Number(card.manaCost)||0,...extraCosts].filter(v=>v>0))];
+  const costs=[...new Set([Number(card.manaCost)||0,...extraCosts].map(v=>coreManaThresholdCost(card,v)).filter(v=>v>0))];
   if(path) costs.forEach((cost,i)=>{
     entries.push(`<span class="activation-cost-entry mana-cost-entry${i===0?' mana-primary':''}" data-mana-cost="${cost}"><img src="${path}" alt=""><b>${cost}</b></span>`);
   });
@@ -840,6 +840,7 @@ function cardManaCostHtml(card){
 function _sealCostValue(card){
   if(!card) return 0;
   const kws=[...(card.keywords||[]),...(card.adjacentKeywords||[])];
+  if(card._mapPanelPowerText) return coreSealValue({...card,keywords:kws});
   if(card._sealInfinity||kws.some(k=>/^封印\s*∞$/.test(String(k||'')))) return Infinity;
   // 封印は持っている分を合計する（戦闘の coreSealValue と同じ。封印3＋封印されしもの＝封印12）。
   const sealKws=kws.filter(k=>/^封印\s*\d+$/.test(String(k||'')));
@@ -866,7 +867,7 @@ function _applyManaOrbState(div,entity){
   if(!div) return;
   const wrap=div.querySelector('.mana-cost-orbs');
   if(!wrap) return;
-  const cost=Number(entity&&entity.manaCost)||0;
+  const cost=coreManaThresholdCost(entity,entity&&entity.manaCost);
   if(!cost) return;
   const primary=wrap.querySelector('.mana-primary');
   const orbImgs=primary?primary.querySelectorAll('img'):[];
@@ -4178,8 +4179,9 @@ function _enchantmentEffectsList(unit,slotIdx){
 // （_unitPreviewText）の両方から共通して使う。
 function _groupedEnchantEffectTexts(unit,slotIdx){
   const list=_enchantmentEffectsList(unit,slotIdx);
-  const strategyPanels=list.filter(e=>e.panel&&e.panel.name==='策士');
-  const normal=list.filter(e=>!(e.panel&&e.panel.characterDesc)&&!(e.panel&&e.panel.name==='策士'));
+  const isKeywordCount=e=>/キーワードの数の\d+倍に等しい/.test(String(e.panel&&e.panel.desc||''));
+  const strategyPanels=list.filter(isKeywordCount);
+  const normal=list.filter(e=>(!(e.panel&&e.panel.characterDesc)||corePermanentDamageSpec(e.panel.desc))&&!isKeywordCount(e));
   const normalMap=new Map();
   normal.forEach(e=>{
     // 以前の「マナの種」は“キャラクター自身の効果を複製する”仕様で、説明文もキャラの効果文へ
@@ -4191,8 +4193,10 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
     normalMap.get(identity).count++;
   });
   const charDescMap=new Map();
-  list.filter(e=>e.panel&&e.panel.characterDesc&&e.panel.name!=='策士').forEach(e=>{
-    const text=_stageEngravingDescription(e.panel,e.panel.characterDesc);
+  list.filter(e=>e.panel&&e.panel.characterDesc&&!isKeywordCount(e)).forEach(e=>{
+    let text=_stageEngravingDescription(e.panel,e.panel.characterDesc);
+    const stats=String(e.panel.desc||'').match(/常時[：:]このキャラクターは([+-]\d+)\/([+-]\d+)を得る/);
+    if(stats) text=text.replace(/[+-]X\/[+-]X/g,`${stats[1]}/${stats[2]}`);
     const key=`${e.panel._tripleMerged?'merged':'base'}::${e.panel.name}::${text}`;
     if(!charDescMap.has(key)) charDescMap.set(key,{name:_cardUiName(e.panel),text,count:0});
     charDescMap.get(key).count++;

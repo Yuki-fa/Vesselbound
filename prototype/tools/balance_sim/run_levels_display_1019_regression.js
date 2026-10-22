@@ -85,18 +85,18 @@ async function testRunLevelDisplay(api){
       });
       fresh({atk:level,hp:level+1});
       await check(`レベル${level}：戦闘修正・接続強化・詳細・ツールチップの数値とコアが一致`,()=>{
-        const hero=make('C006'),enchant=make('E034'),unit=formed(hero,enchant),m=metrics(board());
+        const hero=make('C006');hero.desc=make('E061').desc;const enchant=make('E034'),unit=formed(hero,enchant),m=metrics(board());
         assert.equal(m.atk,hero.power*level+8);assert.equal(m.hp,hero.life*(level+1)-3);
         assert.equal(m.atk,unit.atk);assert.equal(m.hp,unit.maxHp);
-        assert.ok(m.desc.includes(`+1/+1`));assert.ok(m.desc.includes(`+8/-3`));
+        assert.ok(m.desc.includes(hero.desc.split('：')[1]));assert.ok(m.desc.includes('+8/-3'),m.desc);
         assert.ok(_collectionDescriptionHtml(enchant,'enchant').includes(`+8/-3`));
         assert.ok(mkCardEl(enchant,-1,'reward').getAttribute('data-preview').includes(`+8/-3`));
         const e=fight(stateFor([unit])).find(e=>e.type==='stat_change'&&e.reason==='attack_self_buff');
-        assert.ok(e);assert.equal(e.atk,1);assert.equal(e.hp,1);
+        assert.ok(e);const pair=hero.desc.match(/\+(\d+)\/\+(\d+)/);assert.equal(e.atk,Number(pair[1]));assert.equal(e.hp,Number(pair[2]));
         const damage=make('E008'),caster=formed(make('C001'),damage);
-        assert.ok(_rawSubstitutedDesc(damage).includes(`8ダメージ`));
-        assert.ok(_unitPreviewText(caster,_rawSubstitutedDesc(caster),0).includes(`8ダメージ`));
-        assert.ok(fight(stateFor([caster])).some(e=>e.type==='damage'&&e.damageKind==='attack_effect'&&e.amount===8));
+        assert.ok(_rawSubstitutedDesc(damage).includes(`${Number(damage.desc.match(/(\d+)ダメージ/)[1])}ダメージ`));
+        assert.ok(_unitPreviewText(caster,_rawSubstitutedDesc(caster),0).includes(`${Number(damage.desc.match(/(\d+)ダメージ/)[1])}ダメージ`));
+        assert.ok(fight(stateFor([caster])).some(e=>e.type==='damage'&&e.damageKind==='attack_effect'&&e.amount===Number(damage.desc.match(/(\d+)ダメージ/)[1])));
       });
       fresh({atk:level,hp:level+1});
       await check(`レベル${level}：眷属の注釈・固定コピーの説明と召喚結果、コピーの効果は一度だけ`,()=>{
@@ -104,12 +104,13 @@ async function testRunLevelDisplay(api){
         const shown=desc.match(/(\d+)\/(\d+)の「緑ペリカン」/);assert.ok(shown,desc);
         const summons=fight(stateFor([unit])).filter(e=>e.type==='summon'&&e.side==='p1');assert.equal(summons.length,2);
         for(const e of summons){assert.equal(e.unit.atk,Number(shown[1]));assert.equal(e.unit.hp,Number(shown[2]));}
-        const copy=make('E028'),caster=formed(make('C043'),copy);
-        assert.ok(_rawSubstitutedDesc(copy).includes(`1/1のコピー`));
+        const copy=make('C087'),caster=formed(copy);
+        assert.match(_rawSubstitutedDesc(copy),/コピーを召喚/);
         const state=stateFor([caster]),events=fight(state),child=events.find(e=>e.type==='summon').unit;
-        assert.equal(child.atk,1);assert.equal(child.hp,1);assert.equal(child.desc,`攻撃：全ての敵に4ダメージを与える。`);
+        assert.equal(child.atk,caster.atk);assert.equal(child.hp,caster.hp);assert.equal(child.desc,copy.desc);
         assert.equal(child.boon,undefined);
         assert.equal(coreApplyUnitRunLevels(child,G.runLevels.values),child);
+
       });
     }
     fresh({atk:2,hp:5});
@@ -124,8 +125,8 @@ async function testRunLevelDisplay(api){
     });
     fresh({atk:2,hp:5});
     await check('X・正負・ゼロ・ATK奪取・回数：対象の数値・定義・回数を保持',()=>{
-      const caster=make('C019');assert.match(_rawSubstitutedDesc(caster),/Xダメージ/);
-      const u=formed(caster),ev=fight(stateFor([u],{resources:{p1:{mana:4}}}));
+      const caster=make('C001'),dynamic=make('E042');assert.match(_rawSubstitutedDesc(dynamic),/Xダメージ/);
+      const u=formed(caster,dynamic),ev=fight(stateFor([u],{resources:{p1:{mana:4}}}));
       assert.ok(ev.some(e=>e.type==='damage'&&e.sourceId===u.id&&e.damageKind==='attack_effect'&&e.amount===4));
       assert.match(_rawSubstitutedDesc(make('E036')),/ATK\+X/);
       const card=make('C006');card.desc='ATK+2 HP-1 +0/-2 ATKを2奪う。4ダメージを2回与える。';
@@ -156,7 +157,7 @@ async function testRunLevelDisplay(api){
       assert.equal(events.at(-1).unit.atk,stolen.atk);assert.equal(coreApplyUnitRunLevels(stolen,G.runLevels.values),stolen);
       const child=coreSummonUnit(state,'p1',{name:make('C043').name},()=>{},target.id,false);
       assert.equal(child.atk,make('C043').power);coreTransformUnit(state,child,make('C006').name,()=>{});
-      assert.equal(child.atk,make('C006').power);assert.match(child.desc,/\+1\/\+1/);
+      assert.equal(child.atk,make('C006').power);assert.equal(child.desc,make('C006').desc);
       const def=make('C006'),shownCard={...runLevelBattleCard(make('C043')),desc:`開戦：「${def.name}」に変身する。`};
       assert.ok(_rawSubstitutedDesc(shownCard,child).includes(`${def.power}/${def.life}の「${def.name}」`),'召喚体の変身先注釈へ本体レベルを掛けない');
     });
@@ -235,7 +236,7 @@ async function testRunLevelDisplay(api){
       assert.equal(metrics(mkCardEl(enemy,0,'enemy')).atk,card.power);
       assert.match(_collectionDescriptionHtml(enemy,'enemy'),/4ダメージ/);
       const enchant=make('E008'),enemyOwner={side:'p2',boardCards:[enemy,enchant]};
-      assert.match(_enchantEffectTextForPanel(enchant,enemyOwner),/8ダメージ/);
+      assert.equal(_enchantEffectTextForPanel(enchant,enemyOwner),enchant.desc);
       const summonEnchant={...make('E028'),desc:make('C045').desc};
       const enemySummonText=_enchantEffectTextForPanel(summonEnchant,enemyOwner);
       G._onlineMode=true;assert.equal(_enchantEffectTextForPanel(summonEnchant,enemyOwner),enemySummonText);

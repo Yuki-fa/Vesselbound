@@ -11,9 +11,9 @@ function waveLifeMax(){
   // 生命の指輪：常時：ライフ上限が+1される。宿屋で上限まで回復できる。
   const ringBonus=typeof _ringCount==='function'?Math.max(0,Number(_ringCount('生命の指輪'))||0):0;
   if(typeof G!=='undefined'&&G&&G._onlineMode){
-    return ((typeof ONLINE_START_LIFE!=='undefined'?Number(ONLINE_START_LIFE):5)||5)+ringBonus;
+    return ((typeof ONLINE_START_LIFE!=='undefined'?Number(ONLINE_START_LIFE):5)||5)+ringBonus+(Number(G.ascensionLifeBonus)||0);
   }
-  return 3+ringBonus;
+  return 3+ringBonus+(Number(G.ascensionLifeBonus)||0);
 }
 
 // キーワード説明文マップ（loader.js で effect_id シートから上書き可）
@@ -96,6 +96,7 @@ function initState(){
     towerBoons:typeof towerBoonInitialState==='function'?towerBoonInitialState():null,
     runLevels:typeof runLevelInitialState==='function'?runLevelInitialState():null,
     gameSummonBuff:{atk:0,hp:0},
+    runEffects:{}, runEffectRerollsApplied:0, ascensionLifeBonus:0, activationFormationSeq:0,
     _shopRerollSeq:0,
     // ── 盤面（MAX_ALLIES/MAX_ENEMIES件・HP持続）──
     allies: Array(MAX_ALLIES||5).fill(null),

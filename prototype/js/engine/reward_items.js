@@ -318,38 +318,6 @@ function _isBoardCharacterCard(card){
 function _boardCharacterSlots(){
   return _mainBoardCards().map((card,idx)=>({card,idx})).filter(x=>_isBoardCharacterCard(x.card));
 }
-function _cardSealKeywordIndex(card){
-  const kws=Array.isArray(card&&card.keywords)?card.keywords:[];
-  return kws.findIndex(k=>/^封印(?:\d+|∞)$/.test(String(k||'')));
-}
-// 生贄人形は封印の値を3減らす。**最低値は1で、0にはならない**（封印は失われない）。
-// 値はここが唯一の置き場（シートの効果文と合わせること）。
-const SACRIFICE_DOLL_SEAL_REDUCE=3;
-const SACRIFICE_DOLL_SEAL_MIN=1;
-// 生贄人形で実際に減らせる封印かどうか。
-// ・封印∞は減らせない
-// ・既に最低値（封印1）なら減らせない
-// 減らせない相手を選べてしまうと「破壊だけ実行され、アイテムは消費されない」状態で止まる。
-function _cardSealReducible(card){
-  const idx=_cardSealKeywordIndex(card);
-  if(idx<0) return false;
-  const kw=String(card.keywords[idx]||'');
-  if(/∞/.test(kw)) return false;
-  return (parseInt(kw.replace('封印',''),10)||0)>SACRIFICE_DOLL_SEAL_MIN;
-}
-function _reduceCardSeal(card){
-  const idx=_cardSealKeywordIndex(card);
-  if(idx<0) return false;
-  const kw=String(card.keywords[idx]||'');
-  if(/∞/.test(kw)) return false;
-  const cur=parseInt(kw.replace('封印',''),10)||0;
-  const n=Math.max(SACRIFICE_DOLL_SEAL_MIN,cur-SACRIFICE_DOLL_SEAL_REDUCE);
-  if(n===cur) return false;
-  card.keywords[idx]=`封印${n}`;
-  // 説明文にも封印の数が書かれている場合は同じ値へ揃える（消さない）。
-  if(card.desc) card.desc=String(card.desc).replace(/封印\d+/g,`封印${n}`);
-  return true;
-}
 function _consumeItemSlot(idx){
   const slots=_ensureItemSlots();
   if(Number.isInteger(idx)) slots[idx]=null;
@@ -391,7 +359,7 @@ function _isInVillageScene(){
 }
 
 function _canUseItemNow(card){
-  if(!panelMergeContentAvailable(card)) return false;
+  if(!card||card._implemented===false||card._noItemEffectImpl||!panelMergeContentAvailable(card)) return false;
   const key=_itemEffectKey(card);
   const chars=_boardCharacterSlots();
   if(['shield_scroll','giant_scroll','inspire_flag','keyword_scroll'].includes(key)) return chars.length>0;
@@ -400,11 +368,11 @@ function _canUseItemNow(card){
     chars.forEach(({card})=>{ if(!card._merged) counts[card.name]=(counts[card.name]||0)+1; });
     return Object.values(counts).some(n=>n>=2);
   }
-  if(key==='sacrifice_doll') return chars.length>=2&&chars.some(x=>_cardSealReducible(x.card));
-  // 永劫の巻物：「召喚の力」マス上のキャラクターを破壊し、そのマスを「永劫の力」にする（2026-09-24 利用者指定）。
-  if(key==='weakening_scroll') return chars.some(x=>_isSummonPowerSlot(x.slotIdx!=null?x.slotIdx:x.idx));
-  // 魔力の巻物は減らせるマナ効果を持つキャラクターが1体も居なければ使えない（生贄人形と同じ扱い）。
-  if(key==='mana_scroll') return chars.some(x=>_manaScrollReducible(x.card));
+  if(key==='sacrifice_doll'||key==='mana_scroll') return true;
+  if(key==='transform_scroll') return chars.length>0&&_mainBoardCards().filter(Boolean).length>=2;
+  // 永劫の巻物は2枚のキャラクターの戦闘力を交換する。
+  if(key==='weakening_scroll') return chars.length>=2;
+
   if(key==='meteor_scroll') return true;
   // ポータルの巻物は「直前の村へワープする」アイテムなので、街（村・その施設）にいる間は使えない。
   // **行き先はウェーブ進行（旅の進捗）の街マス。** 以前は G.worldMap があることを
@@ -414,12 +382,6 @@ function _canUseItemNow(card){
     && !!(typeof _wavePreviousVillage==='function'&&_wavePreviousVillage());
   if(key==='vision_scroll') return chars.length>0;
   return true;
-}
-// 魔力の巻物が減らせるマナ効果の項目。
-const _MANA_SCROLL_FIELDS=['manaCost','manaOnAttack','manaOnInjury','manaOnDeath'];
-// 最低値1のため、2以上の項目が1つでもあれば減らせる。
-function _manaScrollReducible(card){
-  return _MANA_SCROLL_FIELDS.some(f=>Object.prototype.hasOwnProperty.call(card||{},f)&&(Number(card[f])||0)>1);
 }
 // アイテム使用中、そのスロットが対象になり得るか。
 // アイテム未使用時は常にtrue（通常操作を妨げない）。
@@ -433,17 +395,15 @@ function _cardHasKeyword(card,kw){
 // 対象として選べるスロットか。**選べないカードは暗くして押しても何も起きない。**
 // エンチャントは「キャラクターを選ぶアイテム」の対象にならないので、
 // _isBoardCharacterCard() で一律に落とす（個別のアイテムごとに書かない）。
-function _isSummonPowerSlot(slotIdx){
-  return Number.isInteger(Number(slotIdx))&&typeof mapPanelPowerIdAt==='function'&&mapPanelPowerIdAt(Number(slotIdx))==='summon';
-}
 function _isItemUseTargetSlot(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending) return true;
   if(pending.key==='bond_scroll'&&!panelMergeEnabled()) return false;
   const boardList=typeof _mainBoardCards==='function'?_mainBoardCards():[];
   const card=boardList[slotIdx];
-  if(!_isBoardCharacterCard(card)) return false;
   const key=pending.key;
+  if(key==='transform_scroll') return !Number.isInteger(pending.firstIdx) ? !!card : _isBoardCharacterCard(card)&&slotIdx!==pending.firstIdx;
+  if(!_isBoardCharacterCard(card)) return false;
   // 付与系は**既に同じキーワードを持つキャラクターを対象にできない**（無駄になるため）。
   if(key==='inspire_flag'&&_cardHasKeyword(card,'根性')) return false;
   if(key==='vision_scroll'&&_cardHasKeyword(card,'復活')) return false;
@@ -456,20 +416,11 @@ function _isItemUseTargetSlot(slotIdx){
     // 2枚目：1枚目と同名の別スロット
     return slotIdx!==pending.firstIdx&&card.name===pending.firstName;
   }
-  if(key==='mana_scroll') return _manaScrollReducible(card);
-  if(key==='weakening_scroll') return _isSummonPowerSlot(slotIdx);
-  if(key==='sacrifice_doll'){
-    // 1枚目（破壊）は封印持ちが別に居る場合のみ。2枚目は封印を持つ別キャラ。
-    if(!Number.isInteger(pending.destroyIdx)){
-      return boardList.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&_cardSealReducible(c));
-    }
-    return slotIdx!==pending.destroyIdx&&_cardSealReducible(card);
-  }
+  if(key==='weakening_scroll') return slotIdx!==pending.firstIdx;
   return true;
 }
 
-// アイテムの対象選択を中断する。生贄人形のように途中で盤面を書き換える
-// アイテムがあるため、開始時のスナップショットへ戻してから解除する。
+// アイテムの対象選択を中断し、開始時のスナップショットへ戻してから解除する。
 function _cancelPendingItemUse(silent){
   const pending=G._pendingItemUse;
   if(!pending) return false;
@@ -532,19 +483,17 @@ if(!window._itemUseCancelBound){
 const _ITEM_USE_PROMPT_FALLBACK={
   bond_scroll:['合体する1枚目の同名キャラクターを選んでください。','合体する2枚目の同名キャラクターを選んでください。'],
   shield_scroll:['結界1を付与するキャラクターを選んでください。'],
-  giant_scroll:['+5/+5を付与するキャラクターを選んでください。'],
-  sacrifice_doll:['破壊するキャラクターを選んでください。','封印の値を3減らすキャラクターを選んでください。'],
-  weakening_scroll:['「召喚の力」マス上の、破壊するキャラクターを選んでください。'],
+  giant_scroll:['ATKとHPを増幅するキャラクターを選んでください。'],
+  transform_scroll:['変身させるカードを選んでください。','変身先のキャラクターを選んでください。'],
+  weakening_scroll:['戦闘力を入れ替える1枚目のキャラクターを選んでください。','戦闘力を入れ替える2枚目のキャラクターを選んでください。'],
   inspire_flag:['根性を付与するキャラクターを選んでください。'],
   vision_scroll:['復活を付与するキャラクターを選んでください。'],
-  mana_scroll:['マナ効果の値1減らすキャラクターを選んでください。'],
   keyword_scroll:['キーワードを与えるキャラクターを選んでください。'],
 };
 // いま何段階目か（1始まり）。1段階だけのアイテムは常に1。
 function _itemUseStep(pending){
   if(!pending) return 1;
-  if(pending.key==='sacrifice_doll') return (pending.destroyIdx==null)?1:2;
-  if(pending.key==='bond_scroll') return (pending.firstIdx==null)?1:2;
+  if(['bond_scroll','transform_scroll','weakening_scroll'].includes(pending.key)) return (pending.firstIdx==null)?1:2;
   return 1;
 }
 function _itemUsePromptText(pending){
@@ -608,7 +557,8 @@ function _syncItemUsePickingUi(){
   }
 }
 function _beginBoardItemUse(idx,card){
-  if(!panelMergeContentAvailable(card)) return false;
+  if(!card||card._implemented===false||card._noItemEffectImpl||!panelMergeContentAvailable(card)) return false;
+  if(typeof _pendingCardActivation!=='undefined') _pendingCardActivation=null;
   const key=_itemEffectKey(card);
   const boardListNow=typeof _mainBoardCards==='function'?_mainBoardCards():[];
   G._pendingItemUse={slotIdx:idx,key,card:clone(card),step:0,
@@ -649,9 +599,16 @@ function _useImmediateItem(idx,card){
     return true;
   }
   if(key==='mana_scroll'){
-    _beginBoardItemUse(idx,card);
-    _closeItemUseConfirm();
-    return true;
+    const count=String(card.desc||'').match(/再抽選が(\d+)回/);
+    if(!count) return false;
+    towerBoonState().rerolls+=Number(count[1]);
+    _consumeItemSlot(idx); return true;
+  }
+  if(key==='sacrifice_doll'){
+    G.pendingBattleItems=G.pendingBattleItems||[]; G.nextBattleItems=G.nextBattleItems||[];
+    const item=clone(card); item._itemUseInstanceId=uid();
+    G.pendingBattleItems.push(clone(item)); G.nextBattleItems.push(clone(item));
+    _consumeItemSlot(idx); return true;
   }
   if(key==='vision_scroll'){
     _beginBoardItemUse(idx,card);
@@ -726,8 +683,20 @@ function _handlePendingItemBoardTarget(slotIdx){
   if(pending.key==='bond_scroll'&&!panelMergeEnabled()){_cancelPendingItemUse(true);return false;}
   const boardList=_mainBoardCards();
   const card=boardList[slotIdx];
-  if(!_isBoardCharacterCard(card)){ ; return true; }
   const key=pending.key;
+  // 旧セーブに対象選択が残っていても、改訂前の破壊・値減少は実行しない。
+  if(key==='sacrifice_doll'||key==='mana_scroll'){_cancelPendingItemUse(true);return true;}
+  if(key==='transform_scroll'){
+    if(!card) return true;
+    if(!Number.isInteger(pending.firstIdx)){ pending.firstIdx=slotIdx; _syncItemUsePickingUi(); renderHandEditor(); return true; }
+    if(!_isBoardCharacterCard(card)||slotIdx===pending.firstIdx) return true;
+    const previous=boardList[pending.firstIdx];
+    const next=makePanel(card.id);
+    if(previous&&previous._activationUses) next._activationUses={...previous._activationUses};
+    boardList[pending.firstIdx]=next;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); return true;
+  }
+  if(!_isBoardCharacterCard(card)){ return true; }
   // 「対象のキャラクターに〇〇を与える。」の巻物（二段攻撃・毒牙X…）。本文のキーワードをそのまま与える（2026-10-22）。
   if(key==='keyword_scroll'){
     const m=/^対象のキャラクターに(.+?)を与える。?$/.exec(String(pending.card&&pending.card.desc||'').trim());
@@ -745,7 +714,9 @@ function _handlePendingItemBoardTarget(slotIdx){
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='giant_scroll'){
-    card.power=(Number(card.power)||0)+5; card.life=(Number(card.life)||0)+5;
+    const match=String(pending.card.desc||'').match(/ATKとHPを([0-9.]+)倍/);
+    if(!match) return true;
+    card.power=Math.ceil((Number(card.power)||0)*Number(match[1])); card.life=Math.ceil((Number(card.life)||0)*Number(match[1]));
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='inspire_flag'){
@@ -756,34 +727,6 @@ function _handlePendingItemBoardTarget(slotIdx){
   if(key==='vision_scroll'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
     if(!card.keywords.includes('復活')) card.keywords.push('復活');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
-  }
-  if(key==='mana_scroll'){
-    const fields=_MANA_SCROLL_FIELDS;
-    let changed=false;
-    fields.forEach(field=>{
-      if(!Object.prototype.hasOwnProperty.call(card,field)) return;
-      const cur=Number(card[field])||0;
-      // 最低値は1。1以下（＝効果を持たない／既に最小）は減らさない。
-      if(cur<=1) return;
-      card[field]=cur-1;
-      changed=true;
-    });
-    if(!changed){ ; return true; }
-    // 永久減少後の内部値と、カードに表示する効果文の数値を同期する。
-    if(typeof card.desc==='string'){
-      if(Object.prototype.hasOwnProperty.call(card,'manaCost')){
-        const cost=Math.max(0,Number(card.manaCost)||0);
-        card.desc=card.desc.replace(/(^|\n)\s*\d+マナ(毎)?([：:])/g,(_,prefix,every,sep)=>`${prefix}${cost}マナ${every||''}${sep}`);
-      }
-      const manaTriggers=[['manaOnAttack','攻撃'],['manaOnInjury','負傷'],['manaOnDeath','死亡']];
-      manaTriggers.forEach(([field,trigger])=>{
-        if(!Object.prototype.hasOwnProperty.call(card,field)) return;
-        const value=Math.max(0,Number(card[field])||0);
-        const re=new RegExp(`(${trigger}：\\s*(?:[赤青緑黄紫茶]\\s*)?)\\d*マナ(?=を?得る)`,'g');
-        card.desc=card.desc.replace(re,`$1${value}マナ`);
-      });
-    }
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='bond_scroll'){
@@ -845,52 +788,12 @@ function _handlePendingItemBoardTarget(slotIdx){
     boardList[slotIdx]=null;
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
-  if(key==='sacrifice_doll'){
-    if(!pending.destroyIdx&&pending.destroyIdx!==0){
-      pending.destroyIdx=slotIdx;
-      pending.destroyName=card.name;
-      boardList[slotIdx]=null;
-      _syncItemUsePickingUi();   // 2段階目の指示文へ差し替える
-      renderHandEditor();
-      return true;
-    }
-    if(slotIdx===pending.destroyIdx||!_cardSealReducible(card)){ ; return true; }
-    // 封印は最低でも1残るので、解放効果が開戦効果へ変わることはない。
-    // （そのための確認ダイアログも不要になったため廃止した）
-    if(!_reduceCardSeal(card)) return true;
-    G._pendingItemUse=null; _syncItemUsePickingUi();
-    _consumeItemSlot(pending.slotIdx);
-    return true;
-  }
   if(key==='weakening_scroll'){
-    // 選んだキャラクターの居る「召喚の力」マスそのものを「永劫の力」マスにする（ランダムではない）。
-    if(!_isSummonPowerSlot(slotIdx)) return true;
-    boardList[slotIdx]=null;
-    G.mapPanelPowers=G.mapPanelPowers||{};
-    const target=slotIdx;
-    if(target==null){ ; return true; }
-    G._pendingItemUse=null; _syncItemUsePickingUi();
-    _consumeItemSlot(pending.slotIdx);
-    const finish=()=>{ renderHandEditor(); renderRewCards(); updateHUD(); ; };
-    if(typeof _playMapForgeSlotRoll==='function'){
-      G._mapForgeAnimating=true;
-      // **演出が失敗しても必ず旗を降ろす。**
-      // `_mapForgeAnimating` が立っている間、`_renderPanelUniteMarkers()` は
-      // 結合アイコンを消して何も描かない（マス変化の演出中に線が残らないようにする仕組み）。
-      // 以前は .then() だけだったため、途中で例外が出ると旗が立ったままになり、
-      // **以後どの画面でも結合アイコンが出なくなっていた。**
-      Promise.resolve(_playMapForgeSlotRoll([target],target,{id:'eternal'}))
-        .catch(e=>{ console.error('[eternal scroll]',e); })
-        .finally(()=>{
-          G._mapForgeAnimating=false;
-          G.mapPanelPowers[target]='eternal';
-          finish();
-        });
-    }else{
-      G.mapPanelPowers[target]='eternal';
-      finish();
-    }
-    return true;
+    if(!Number.isInteger(pending.firstIdx)){ pending.firstIdx=slotIdx; _syncItemUsePickingUi(); renderHandEditor(); return true; }
+    const first=boardList[pending.firstIdx];
+    if(!first||first===card) return true;
+    [first.power,card.power]=[card.power,first.power]; [first.life,card.life]=[card.life,first.life];
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); return true;
   }
   return false;
 }

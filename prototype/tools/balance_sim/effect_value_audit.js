@@ -32,11 +32,11 @@ function readCards() {
   const push = (kind, name, variant, desc) => {
     if (String(desc || '').trim()) out.push({ kind, name, variant, desc: String(desc).trim() });
   };
-  sheetData.sheetRows('card').forEach(r => {
+  sheetData.sheetRows('card').filter(r => String(r['実装']).toLowerCase() !== 'false').forEach(r => {
     push('キャラクター', r['名前'], '基本', r['効果']);
     push('キャラクター', r['名前'], '強化', r['合体効果']);
   });
-  sheetData.sheetRows('enchant').forEach(r => {
+  sheetData.sheetRows('enchant').filter(r => String(r['実装']).toLowerCase() !== 'false').forEach(r => {
     push('強化', r['名前'], '基本', r['効果']);
     push('強化', r['名前'], '強化', r['合体効果']);
   });
@@ -131,6 +131,10 @@ function fire(card, trigger, summonDefs) {
   state.deadUnits = [{ id: 'corpse', name: '死亡済みの体', atk: 6, hp: 0, maxHp: 10, color: '青', keywords: [], desc: '' }];
   if (/死亡効果を発動する/.test(card.desc)) state.units.p1[0].effectData.effectTexts = [...(state.units.p1[0].effectData.effectTexts || []), '死亡：1マナを得る。'];
   const unit = state.units.p1[0];
+  if (/回目の終戦ごと/.test(card.desc)) {
+    unit._battleEndCount = Number(card.desc.match(/(\d+)回目/)[1]) - 1;
+    unit.boardCards = [0,1].map(i => ({ category:'エンチャント', name:'強化候補'+i, _mainBoardSlot:i+1, mergedForm:{desc:'強化後'} }));
+  }
   unit._currentAttackTarget = state.units.p2[0];
   const events = [];
   const emit = e => events.push(e);
@@ -194,11 +198,11 @@ function mergeDiffAudit(summonDefs) {
   const sign = res => res.events
     .filter(e => e && e.type !== 'effect_flash' && e.type !== 'battle_start')
     .map(e => [e.type, e.unitId || e.targetId || '', e.attackerId, e.sourceId, e.amount, e.atk, e.hp, e.value,
-      e.shield, e.count, e.effect, e.keyword, e.unit && e.unit.name, e.name].join(':')).join('|')
-    + '#' + JSON.stringify(Object.values(res.state.units).flat().map(u => [u.id,u.atk,u.hp,u.maxHp,u.poison,u.shield,u.keywords]));
+      e.shield, e.count, JSON.stringify(e.effects), JSON.stringify(e.targetSlots), e.effect, e.keyword, e.unit && e.unit.name, e.name].join(':')).join('|')
+    + '#' + JSON.stringify(res.state.runEffects || {}) + JSON.stringify(Object.values(res.state.units).flat().map(u => [u.id,u.atk,u.hp,u.maxHp,u.poison,u.shield,u.keywords]));
   const pairs = [];
-  sheetData.sheetRows('card').forEach(r => pairs.push(['キャラクター', r['名前'], r['効果'], r['合体効果']]));
-  sheetData.sheetRows('enchant').forEach(r => pairs.push(['強化', r['名前'], r['効果'], r['合体効果']]));
+  sheetData.sheetRows('card').filter(r => String(r['実装']).toLowerCase() !== 'false').forEach(r => pairs.push(['キャラクター', r['名前'], r['効果'], r['合体効果']]));
+  sheetData.sheetRows('enchant').filter(r => String(r['実装']).toLowerCase() !== 'false').forEach(r => pairs.push(['強化', r['名前'], r['効果'], r['合体効果']]));
   let checked = 0;
   for (const [kind, name, base, merged] of pairs) {
     if (!String(base || '').trim() || !String(merged || '').trim()) continue;
@@ -249,7 +253,7 @@ function manaDiffAudit() {
       + '#' + board;
   };
   let checked = 0;
-  sheetData.sheetRows('card').forEach(r => {
+  sheetData.sheetRows('card').filter(r => String(r['実装']).toLowerCase() !== 'false').forEach(r => {
     const name = String(r['名前'] || '').trim();
     const base = String(r['効果'] || '').trim();
     const merged = String(r['合体効果'] || '').trim();
@@ -274,7 +278,7 @@ function repeatAudit() {
     'マナの種': 'マナ', '禁断の力': '解放' };
   const rows = [];
   let checked = 0;
-  sheetData.sheetRows('enchant').forEach(r => {
+  sheetData.sheetRows('enchant').filter(r => String(r['実装']).toLowerCase() !== 'false').forEach(r => {
     const name = String(r['名前'] || '').trim();
     const kind = KIND_BY_NAME[name];
     if (!kind) return;

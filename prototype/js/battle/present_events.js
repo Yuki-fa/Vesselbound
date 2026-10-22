@@ -94,7 +94,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   const own=data?data.ownCard(owner):owner;
   // エンチャントが持つ効果は、そのエンチャントの本文で発動の種類を確かめる（2026-10-22 シート改訂で多くの効果がエンチャントへ移った）。
   const textCard=source&&source.kind==='enchant'?source.card:own;
-  const trigger={C004:'mana',E083:'injury',E043:'death',C060:'release',E031:'attack',C071:'opening',C099:'release',C029:'death',C034:'injury',C082:'release',C083:'injury',C095:'opening',C097:'release',C009:'injury',C042:'death',C056:'mana',C066:'mana',C079:'mana',C084:'passive'}[code];
+  const trigger={C004:'mana',E083:'injury',E043:'death',C060:'release',E031:'attack',C071:'opening',C099:'release',C029:'death',C034:'injury',C082:'release',C083:'injury',C095:'opening',C097:'release',C009:'injury',E056:'death',C056:'mana',C066:'mana',C079:'mana',E024:'passive'}[code];
   if(!presentActionBannerEffectText(textCard,trigger))return null;
   const members=[ev];
   for(let i=index+1;i<events.length;i++){
@@ -138,7 +138,15 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
     }
   }
   if(code==='C009'){
-    const next=events.slice(index+1).find(e=>e.type==='attack'&&e.reactionSourceId===owner.id);
+    // 負傷の発光の直後に続く本人の割り込み攻撃だけを見る（次の発光・手番の区切りで止める）。
+    // 列の最後まで探すと、別の負傷（戦闘ダメージで割り込まない時）に後の割り込み攻撃を拾い、
+    // イベント列を全部持つオンラインだけ演出が出ていた（2026-10-23 present_parity で検出）。
+    let next=null;
+    for(let i=index+1;i<events.length;i++){
+      const e=events[i];if(!e)continue;
+      if(['effect_flash','turn_begin','battle_end'].includes(e.type))break;
+      if(e.type==='attack'&&e.reactionSourceId===owner.id){next=e;break;}
+    }
     if(!next)return null;targets=[find(next.targetId)].filter(Boolean);members.push(next);
   }
   const plan={code,spec:presentLabFx(code),owner,targets,members,value,colors,sourceRect,contactEvent,events,index,
@@ -178,6 +186,9 @@ function _presentLabPlan(ev, events, index, api, context) {
     const data=actionBannerPresentationApi(), unit=data.unit(ev.unitId);
     if(unit&&['C025','C076'].includes(unit.no||unit.artCode)&&
       /効果を(?:\d+回)?発動する/.test(presentActionBannerEffectText(data.ownCard(unit),ev.trigger)))
+      source={card:unit,side:unit.side,kind:'character'};
+    // 新本文には結界獲得が無いので、続く割り込み攻撃を持つ負傷の発光から怒りの演出を始める。
+    if(unit&&(unit.no||unit.artCode)==='C009'&&ev.trigger==='injury')
       source={card:unit,side:unit.side,kind:'character'};
   }
   let code = ev.type === 'mana_threshold' ? String(ev.effectNo || '')

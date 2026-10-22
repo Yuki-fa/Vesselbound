@@ -208,8 +208,8 @@ function simulate(units){
     assert.equal(payload.units[0].atk,formed.atk);assert.equal(payload.units[0].hp,formed.hp);
     assert.equal(payload.units[0].desc,formed.desc);assert.deepEqual(payload.units[0].keywords,formed.keywords);
     const online=simulate(payload.units);
-    const changes=events=>events.filter(e=>e.type==='stat_change'&&e.reason==='golem').map(e=>[e.atk,e.hp]);
-    assert.ok(changes(pve.events).length);assert.ok(changes(pve.events).every(v=>v[0]===4&&v[1]===4));
+    const changes=events=>events.filter(e=>e.type==='run_effect'&&e.kind==='reward_buff').map(e=>[e.atk,e.hp]);
+    assert.ok(changes(pve.events).length);assert.ok(changes(pve.events).every(v=>v[0]===2&&v[1]===2));
     assert.deepEqual(changes(online.events),changes(pve.events));
     assert.equal(online.state.units.p1[0]._tripleMerged,true);
     const src=fs.readFileSync(path.resolve(__dirname,'../../js/online/board.js'),'utf8');

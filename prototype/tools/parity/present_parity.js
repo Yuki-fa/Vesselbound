@@ -123,11 +123,11 @@ const SCENARIOS = [
   },
   {
     name: '固有VFXと肩代わり',
-    // C003ゴーレム（負傷で+2/+2）とC002マータ（ダメージの半分を肩代わり）。
+    // 逆襲 E001（負傷バフ）とC002マータ（ダメージの半分を肩代わり）。
     // 個別VFXを持つ4枚のうちの2枚。発生元の決め方が食い違うと即座に出なくなる。
     seed: 4242,
     requires: ['stat_change'],
-    p1: [['ゴーレム', 'A0', { atk: 40, hp: 60, maxHp: 60 }], ['マータ', 'A1', { atk: 2, hp: 40, maxHp: 40 }]],
+    p1: [['ゴブリン', 'A0', { atk: 40, hp: 60, maxHp: 60, enh: ['逆襲'] }], ['マータ', 'A1', { atk: 2, hp: 40, maxHp: 40 }]],
     p2: [['ゴブリン', 'E0', { atk: 6, hp: 30, maxHp: 30 }], ['オーク', 'E1', { atk: 6, hp: 30, maxHp: 30 }]],
   },
   {
@@ -526,6 +526,7 @@ const SETUP = `
     if (Array.isArray(u0.enh) && u0.enh.length) {
       const names = u0.enh.slice();
       delete u0.enh;
+      u0.boardCards=[c,...names.map(n=>pick(n)).filter(Boolean)];
       u0._adjacentPanelAbilities = names.slice();
       // 強化カードのマナ閾値は _extraManaThresholds で運ぶ（PvEの強化適用と同じ形）。
       // PvEの _applyAdjacentPanelEnhancements と同じ形にする。
@@ -551,6 +552,7 @@ const SETUP = `
     const u = unit(n, id, 'p1', 0, over);
     return { id, name: n, atk: u.atk, hp: u.hp, maxHp: u.maxHp, color: u.color,
       keywords: u.keywords, desc: u.desc, no: u.no, art: u.artCode, lane: u.lane, guardian: u.guardian,
+      ...(u.boardCards?{boardCards:u.boardCards}:{}),
       manaCost: u.manaCost, manaRepeat: u.manaRepeat,
       manaOnAttack: u.manaOnAttack,
       // **強化由来のマナ効果は effectData だけで運ぶ**（versus.js が送るのと同じ形）。
@@ -668,7 +670,7 @@ const onlineScript = sc => `
 
 // 2026-10-12: 新21種は同じ実カードfixture・コアイベントを両受け口へ流す。
 // VB_ONLY=LAB1012 または LAB1012：C004 で節単位に実行できる。
-const LAB_1012_SCENARIOS=[['C004','mana'],['C020','injury'],['C021','death'],['C060','release'],['C064','attackContact'],['C071','opening'],['C089','attackContact'],['C099','release'],['C029','death'],['C034','injury'],['C082','release'],['C083','injury'],['C095','opening'],['C097','release'],['C009','injury'],['C042','death'],['C056','mana'],['C066','mana'],['C079','mana'],['C084','kill'],['C094','releaseObserver']];
+const LAB_1012_SCENARIOS=Object.entries(require('node:vm').runInNewContext(require('node:fs').readFileSync(require('node:path').join(__dirname,'lab_vfx_fixtures.js'),'utf8')+';vbLabVfx1012Cases'));
 function lab1012ParityScript(code,trigger,online){
   const fixtures=require('node:fs').readFileSync(require('node:path').join(__dirname,'lab_vfx_fixtures.js'),'utf8');
   return fixtures+`\n

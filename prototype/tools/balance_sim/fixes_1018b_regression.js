@@ -197,11 +197,11 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
     const a = formed(card('E058'),online); a.keywords.push('毒牙2', '邪眼3');
     const b = copy(a); b.id = 'second';
     const h = trigger(a, 'マナ',side,[b]);
-    assert.equal(h.events.filter(e=>e.type==='damage').length,4);
+    assert.equal(h.events.filter(e=>e.type==='damage').length,2);
     const victims=h.state.units[side==='p1'?'p2':'p1'];
-    assert.equal(victims.reduce((sum,u)=>sum+1000000-u.hp,0),16);
-    assert.equal(victims.reduce((sum,u)=>sum+10000-u.atk,0),12);
-    assert.equal(victims.reduce((sum,u)=>sum+(u.poison||0),0),8);
+    assert.equal(victims.reduce((sum,u)=>sum+1000000-u.hp,0),8);
+    assert.equal(victims.reduce((sum,u)=>sum+10000-u.atk,0),6);
+    assert.equal(victims.reduce((sum,u)=>sum+(u.poison||0),0),4);
     for (let i = 0; i < h.events.length; i++) if (h.events[i].type === 'damage') {
       assert.deepEqual(h.events.slice(i + 1, i + 4).map(e => e.type + ':' + (e.effect || e.reason)),
         ['keyword_effect:poison', 'keyword_effect:evil_eye', 'stat_change:evil_eye']);
@@ -261,11 +261,12 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
   await check('3：実際の継戦入口はマナ効果の発動済み回数を消さない', async () => {
     fresh();G._arenaActive=true;G._arenaRound=2;G.mana=4;
     const raw=formed(card('E058'));G._arenaActive=true;G._arenaRound=2;G.mana=4;
-    raw._manaFireCounts={'2|1|ランダムな敵に4ダメージを与える。':2};G.allies=[raw];
+    const mana=card('E058').desc.match(/^(\d+)マナ毎：(.+)$/),key=`${mana[1]}|1|${mana[2]}`;
+    raw._manaFireCounts={[key]:2};G.allies=[raw];
     const original=generateArenaEnemies,stop=new Error('継戦初期化の検査境界');
     generateArenaEnemies=()=>{throw stop;};
     try{await assert.rejects(startBattle(),error=>error===stop);}finally{generateArenaEnemies=original;}
-    assert.deepEqual(raw._manaFireCounts,{'2|1|ランダムな敵に4ダメージを与える。':2});
+    assert.deepEqual(raw._manaFireCounts,{[key]:2});
   });
   await check('4：闘技場の引き分けは今回の勝利数を含めてやめる入口へ進む', async () => {
     fresh();G.phase='enemy'; G._arenaActive = true; G._arenaRound = 3; G._arenaWins = 2;

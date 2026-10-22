@@ -64,7 +64,7 @@ function kill(units, shield, side = 'p1') {
   runBattleCore(state, createSeededRng(7), { onEvent: e => events.push(e), turnLimit: 40 });
   assert.ok(events.some(e => e.type === 'summon' && /ナイトキャット/.test(e.unit.name)), '負傷召喚を含む');
   assert.equal(events.filter(e => e.type === 'death' && e.unitId === 'cat').length, 1);
-  assert.equal(events.filter(e => e.type === 'damage' && e.sourceId === 'cat' && e.damageKind === 'death_effect').length,3);
+  assert.equal(events.filter(e => e.type === 'damage' && e.sourceId === 'cat' && e.damageKind === 'death_effect' && e.side==='p2').length,3);
   assert.ok(events.some(e=>e.type==='shield_lost'),'エインセルの結界消失を含む');
   // 全ての死亡本文（キャラ・強化）で、同一死亡への再入は追加イベントを出さない。
   for (const key of ['card', 'enchant']) for (const row of sheetRows(key).filter(r => /(?:死亡|攻撃[＆&]死亡)\s*[：:；]/.test(r['効果'] || ''))) {

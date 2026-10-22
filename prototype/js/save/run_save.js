@@ -35,7 +35,7 @@ const SaveRun=(()=>{
         _debugMode / _onlineMode 等）。再開時に前回のUI状態が復活してしまう。
      ══════════════════════════════════════════════════════════ */
   const fields={
-    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons','runLevels','gameSummonBuff'],
+    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons','runLevels','gameSummonBuff','runEffects','runEffectRerollsApplied','activationFormationSeq','ascensionLifeBonus'],
     progress:['floor','_wave','_waveStage','_debugStoryCycle','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_waveEnemySnapshotAtEnd','_waveEnemySnapshotBlood','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','_waveBosses','_arenaActive','_arenaRound','_arenaWins','runStats'],
     choices:['_shopRerollSeq','panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_blessingFlameUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards','_fiveSaints','_peddlerStock'],
     place:['_isPeddler','_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
@@ -473,7 +473,7 @@ const SaveRun=(()=>{
       });
     }
     return copy({units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0,
-      _stormRingFireCount:Math.max(0,Number(state._stormRingFireCount)||0),...coreGameSummonBuffFields(state.gameSummonBuff)});
+      _stormRingFireCount:Math.max(0,Number(state._stormRingFireCount)||0),...coreGameSummonBuffFields(state.gameSummonBuff),...coreRunEffectFields(state.runEffects),...(state.itemFreeSlots?{itemFreeSlots:state.itemFreeSlots}:{})});
   }
   function computeBattle(initial,seed,options){
     const state=copy(initial);
@@ -517,6 +517,7 @@ const SaveRun=(()=>{
     G.allies=s.units.p1;G.enemies=s.units.p2;G.activeBattleItems=s.items.p1;
     G.gold=s.resources.p1.gold;G.mana=s.resources.p1.mana;G._blood=s.blood.p1;G._enemyBlood=s.blood.p2;
     G._stormRingFireCount=Math.max(0,Number(s._stormRingFireCount)||0);
+    G.runEffects=s.runEffects&&s.runEffects.p1?copy(s.runEffects.p1):{};
     G.gameSummonBuff=s.gameSummonBuff&&s.gameSummonBuff.p1?{...s.gameSummonBuff.p1}:{atk:0,hp:0};
     G._waveLife=s.life.p1;G.life=s.life.p1;
     const arenaBossRound=G._arenaActive&&((typeof arenaRoundKind==='function'
@@ -532,7 +533,7 @@ const SaveRun=(()=>{
       const state=_createPveCoreState();_stampCoreSideSlots(state);
       // プールは純データ。runner等の実行状態はsetupへ持ち込まない。
       const initial=copy({units:state.units,summonDefs:state.summonDefs,itemDefs:state.itemDefs,rings:state.rings,items:state.items,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,mapIndex:state.mapIndex,maxUnits:state.maxUnits,frontSlots:state.frontSlots,openingSides:state.openingSides,
-        _stormRingFireCount:state._stormRingFireCount,...(state.runLevels?{runLevels:state.runLevels}:{}),...coreGameSummonBuffFields(state.gameSummonBuff)});
+        _stormRingFireCount:state._stormRingFireCount,...(state.runLevels?{runLevels:state.runLevels}:{}),...coreGameSummonBuffFields(state.gameSummonBuff),...coreRunEffectFields(state.runEffects),...(state.itemFreeSlots?{itemFreeSlots:state.itemFreeSlots}:{})});
       const seed=Math.floor(random()*4294967296);
       const arenaBattle=!!G._arenaActive;
       const questGarmBattle=!!(typeof questIsGarmBattle==='function'&&questIsGarmBattle());
@@ -572,6 +573,8 @@ const SaveRun=(()=>{
     for(const key of ['resources','life','maxLife','blood','turn']) state[key]=snap[key];
     // 古い保存には無い。新しい保存は発動済み回数を各手番からGまで戻す。
     if(snap._stormRingFireCount!=null) state._stormRingFireCount=snap._stormRingFireCount;
+    if(snap.runEffects) state.runEffects=snap.runEffects; else delete state.runEffects;
+    if(snap.itemFreeSlots) state.itemFreeSlots=snap.itemFreeSlots; else delete state.itemFreeSlots;
     if(snap.gameSummonBuff) state.gameSummonBuff=snap.gameSummonBuff;
     else delete state.gameSummonBuff;
     G.turn=state.turn;
@@ -624,6 +627,7 @@ const SaveRun=(()=>{
       // ここで書かないと演出だけ出て魔導板は上がらない（2026-10-20 利用者報告）。闘技場は入場前の盤面へ戻すので書かない（戦闘中と同じ）。
       if(!(typeof arenaIsActive==='function'&&arenaIsActive())&&typeof _persistPermanentStatOrWarn==='function'&&typeof _getPartyBoardUnit==='function'){
         for(const event of end.pending.events.slice(f.from,f.to)){
+          if(event&&event.type==='run_effect') applyCoreRunEffectEvent(event);
           if(event&&event.type==='stat_change'&&event.persistent&&event.side==='p1') _persistPermanentStatOrWarn(_getPartyBoardUnit(),event);
         }
       }

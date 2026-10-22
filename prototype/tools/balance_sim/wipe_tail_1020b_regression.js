@@ -1,5 +1,5 @@
 'use strict';
-// 全滅後の能力上昇を演出せず、計算済みの値・資源・復活・反撃は保存する。
+// 全滅後の処理・演出（2026-10-22 利用者指定で「省く」から「省かずに速く見せる」へ変更）。計算済みの値・資源・復活・反撃は保存する。
 const assert = require('node:assert/strict');
 const h = require('./presentation_1020b_harness');
 const silent = ev => typeof presentIsSilentEvent === 'function' && presentIsSilentEvent(ev);
@@ -11,7 +11,7 @@ async function check(name, run) {
 (async () => {
   await h.ready;
   for (const side of ['p1', 'p2']) for (const mode of ['効果ダメージ', 'ATK0逃走', '範囲攻撃', '反撃', '死亡効果']) {
-    await check(`${side}：${mode}による全滅の後は常時バフの演出を省く`, async () => {
+    await check(`${side}：${mode}による全滅の後も常時バフの演出を省かない`, async () => {
       const other = side === 'p1' ? 'p2' : 'p1';
       const roar=h.card('E049');
       const x = h.setup({ sides: { [side]: { units: [h.unit('winner', 'C033', { atk: 100,boardCards:[roar],_adjacentPanelEffectTexts:[roar.desc] })] },
@@ -27,26 +27,29 @@ async function check(name, run) {
       else if (mode === '死亡効果') coreWithDamageKind(x.state, 'death_effect', () => x.hit(winner, last, 2));
       else x.hit(winner, last, 2);
       const final = h.clone(x.state.units);
+      const deathAt = x.events.findIndex(e => e.type === 'death' || e.type === 'fled');
+      const buffsAfter = x.events.slice(deathAt + 1).filter(e => e.type === 'stat_change' && e.sourceId === 'winner').length;
       await x.pve();
-      assert.equal(h.calls.filter(c => ['S009', 'S005', 'mana-buff'].includes(c.name)).length, 0, '全滅後のバフVFXが残る');
+      assert.ok(x.events.every(e => !silent(e)), '決着後のイベントも省かない');
+      if (buffsAfter) assert.ok(h.calls.some(c => ['S009', 'S005', 'mana-buff'].includes(c.name)), '全滅後のバフVFXも見せる');
       assert.equal(x.find('winner').atk, final[side][0].atk);
       assert.equal(x.find('winner').hp, final[side][0].hp);
       await x.online();
-      assert.equal(h.calls.filter(c => ['S009', 'S005', 'mana-buff'].includes(c.name)).length, 0, 'オンラインの全滅後バフ');
+      if (buffsAfter) assert.ok(h.calls.some(c => ['S009', 'S005', 'mana-buff'].includes(c.name)), 'オンラインの全滅後バフ');
       const shown = [...G.allies, ...G.enemies].find(u => u?.id === 'winner');
       assert.equal(shown.hp, final[side][0].hp, '省略しても最終HPを反映する');
     });
   }
-  await check('活性化の途中で全滅した後の残りの閾値は、数値を保って合図を省く',async()=>{
+  await check('活性化の途中で全滅した後の残りの閾値も、合図を省かない',async()=>{
     const a=h.card('E045');
     const x=h.setup({sides:{p1:{units:[h.unit('wyvern','C058',{boardCards:[a],_adjacentPanelEffectTexts:[a.desc],
-      manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:a.desc.replace(/^1マナ毎：/,'')})]},
+      manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:a.desc.replace(/^\d+マナ毎：/,'')})]},
       p2:{units:[h.unit('last','',{hp:1,maxHp:1})]}},resources:{p1:{mana:3,gold:19}}});
     coreApplyManaThresholdEffects(x.state,x.rng,x.emit,x.hit);
     assert.equal(x.events.filter(e=>e.type==='mana_threshold').length,3,'コアの計算は途中で止めない');
     const final=h.clone(x.state.resources),atk=x.find('wyvern').atk;
     await x.pve();
-    assert.equal(h.cues.length,1,'残り2回の合図を省く');
+    assert.equal(h.cues.length,3,'残り2回の合図も省かない');
     assert.equal(x.find('wyvern').atk,atk);
     assert.deepEqual(x.state.resources,final);
     await x.online();

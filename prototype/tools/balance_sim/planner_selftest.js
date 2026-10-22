@@ -7,18 +7,19 @@ async function test(api,check,rows=[]){
   const catalog=synergy.sheetCatalog(),role=name=>synergy.extract(catalog.find(c=>c.name===name));
   check('役割抽出：活性化・マナ生成・Nマナ毎・マナ比例・解放・死亡/召喚の主要カード',()=>{
     assert.ok(role('活性化').consumes.mana>0);assert.equal(role('活性化').produces.mana,undefined);
-    for(const name of ['シルフ','マナの生成','サテュロス','ジャッカロープ'])assert.ok(role(name).produces.mana>0,name);
-    for(const name of ['ドワーフ','アラクネ','ケンタウロス','ユミル'])assert.ok(role(name).consumes.mana>0,name);
+    for(const name of ['ニンフ','マナの生成','サテュロス','ジャッカロープ'])assert.ok(role(name).produces.mana>0,name);
+    for(const name of ['ドワーフ','アラクネ','天の雷槌','ダークワン'])assert.ok(role(name).consumes.mana>0,name);
     for(const name of ['オーバーロード','封印されしもの','ベヒーモス']){assert.ok(role(name).consumes.blood>0,name);assert.ok(role(name).produces.release>0,name);}
-    for(const name of ['ミテーラ','スケルトンキング','デスナイト','複製'])assert.ok(role(name).produces.summon>=1,name);
-    for(const name of ['レヴナント','リッチ','ヴァンパイアロード'])assert.ok(role(name).consumes.death>0,name);
-    assert.ok(role('ナーガ').consumes.summon>0);assert.ok(role('スリープシープ').produces.blood>=1);
+    for(const name of ['ミテーラ','スケルトンキング','デスナイト','ツインデビル'])assert.ok(role(name).produces.summon>=1,name);
+    for(const name of ['レヴナント','グリムリーパー','ヴァンパイアロード'])assert.ok(role(name).consumes.death>0,name);
+    assert.ok(role('シャナ').consumes.summon>0);assert.ok(role('血の雫').produces.blood>=1);
     assert.ok(role('賢者の指輪').consumes.manaEffect>0);assert.ok(role('毒沼の指輪').consumes.poison>0);
-    assert.ok(role('盾の巻物').produces.barrier>0);assert.ok(role('策士').consumes.keyword>0);
+    assert.ok(role('盾の巻物').produces.barrier>0);assert.ok(role('ケンタウロス').keywords.includes('熟練'));
+    assert.ok(role('ラミア').produces.injuryEffect>0);assert.ok(role('ラミア').produces.deathEffect>0);
   });
   check('役割抽出：カード名をキーワードに混ぜず、敵への効果を味方の負傷/結界供給にしない',()=>{
     assert.deepEqual(role('活性化').keywords,[]);assert.deepEqual(role('マナの種').keywords,[]);
-    assert.ok(role('毒の刃').keywords.includes('毒牙'));assert.ok(role('根性').keywords.includes('根性'));
+    assert.ok(role('毒の刃').keywords.includes('毒牙'));assert.ok(role('ゴーレム').keywords.includes('根性'));
     assert.equal(role('破滅の指輪').produces.barrier,undefined);
     assert.equal(role('竜の契約').produces.injury,undefined);
     assert.equal(role('ナーガ').produces.summon,undefined);
@@ -28,7 +29,8 @@ async function test(api,check,rows=[]){
   const fixed=require('./fixed_engine');await fixed.initialize();sandbox.configure({compute:fixed.fastCompute});
   await sandbox.isolated(async()=>{
     api.seed=319;api.cycle=1;api.resetRun();initState();SaveRun.begin();G._wave=1;G._waveStage=2;G._waveLife=3;G.gold=50;
-    G.mainBoard.fill(null);const body=makePanel('ゴーレム');body.power=50;body.life=100;G.mainBoard[1]=body;
+    // 次戦は両方で勝てる耐久にし、直近の能力上昇と将来のマナ投資を比べる。
+    G.mainBoard.fill(null);const body=makePanel('ゴーレム');body.power=50;body.life=200;G.mainBoard[1]=body;
     G.phase=null;goToReward();
     _rewCards=['活性化','内なる大力'].map(name=>makePanel(name));for(const c of _rewCards){c.directions=['up','left','right'];c._isOriginalReward=true;}
     const context={policy:'planner',color:'赤',plannerStage:'r1'};planner.refresh(context,'fixture');
@@ -72,11 +74,11 @@ async function test(api,check,rows=[]){
       const last=planner.forecast();assert.equal(last.rewards,0);assert.equal(last.exchanges,0);assert.deepEqual(last.chance.produces,{});
     });
     G._wave=1;G._waveStage=2;
-    const activation=_rewCards[0];lookahead.apply(chosen.action);G.mainBoard[3]=makePanel('シルフ');
+    const activation=_rewCards[0];lookahead.apply(chosen.action);G.mainBoard[3]=makePanel('ニンフ');
     planner.refresh(context,'mana-arrived');
     const historyBefore=structuredClone(context.planner.weights);
     check('投資後：後からマナ生成を得ると、実際の接続先の活性化と噛み合う',()=>{
-      assert.ok(planner.describe().pairs.some(p=>p.token==='mana'&&p.consumer===activation.name&&p.producer==='シルフ'&&p.active));
+      assert.ok(planner.describe().pairs.some(p=>p.token==='mana'&&p.consumer===activation.name&&p.producer==='ニンフ'&&p.active));
       assert.ok(planner.describe().completed.includes('mana'));
     });
     G.mainBoard.fill(null);G.mainBoard[1]=makePanel('サイレン');G.mainBoard[3]=makePanel('ゴーレム');

@@ -7,7 +7,7 @@ const { sheetRows, effectRepetitions, damageRepetitions } = require('./sheet_dat
 require('./load');
 console.table=()=>{};
 const internals = vm.runInNewContext(fs.readFileSync('js/battle/core.js', 'utf8') + '\n({coreFireWargThreshold,coreMataSplit,coreGainResource});', {});
-const rows = [...sheetRows('card'), ...sheetRows('enchant')];
+const rows = [...sheetRows('card'), ...sheetRows('enchant')].filter(r=>String(r['実装']).toLowerCase()!=='false');
 const copy = v => JSON.parse(JSON.stringify(v));
 const words = t => String(t || '').split(/[\s　、,]+/).filter(Boolean);
 const plain = (id, color = '赤', extra = {}) => ({ id, name: id, atk: 20, hp: 10000, maxHp: 10000, color,
@@ -48,12 +48,27 @@ function exercise(row, merged, text, times = 1, side = 'p1', includeRegular=fals
   const state = createBattleState({sides:{[side]:{units:[subject,...allies]},[other]:{units:foes}},
     resources:{p1:{mana:cost||10,gold:1000},p2:{mana:cost||10,gold:1000}},blood:{p1:10,p2:10},life:{p1:1,p2:1},maxLife:{p1:3,p2:3},
     summonDefs:[...PANEL_POOL,...ENEMY_POOL],itemDefs:ITEM_POOL,frontSlots:30,maxUnits:40});
-  const u=state.units[side][0], receiver=state.units[side][1]; u._currentAttackTarget=state.units[other][0];
+  const u=state.units[side][0], receiver=state.units[side][1];
+  if(/回目の終戦ごと/.test(text)){u._battleEndCount=Number(text.match(/(\d+)回目/)[1])-1;u.boardCards=[0,1].map(i=>({name:'検査強化'+i,category:'エンチャント',mergedForm:{desc:'強化後'},_mainBoardSlot:i+1}));} u._currentAttackTarget=state.units[other][0];
   state.deadUnits=[plain('archived','青',{hp:0,atk:6,maxHp:10})];
   const events=[],emit=e=>events.push(e);
   const rng=createSeededRng(1012);if(/確率/.test(text))rng.next=()=>0;
   const hit=(a,b,n,c,_s,_t,o)=>coreResolveHit(state,a,b,n,c,rng,emit,o);
   const run=i=>{
+    const teamRepeat=text.match(/味方の(負傷|攻撃|マナ|解放)効果は(\d+)回追加/);
+    if(teamRepeat){
+      if(teamRepeat[1]==='負傷'){receiver.desc='負傷：このキャラクターは+1/+1を得る。';hit(state.units[other][0],receiver,1);}
+      if(teamRepeat[1]==='マナ'){Object.assign(receiver,{manaCost:1,manaRepeat:false,manaThresholdDesc:'このキャラクターは+1/+1を得る。'});coreApplyManaThresholdEffects(state,rng,emit,hit);}
+      if(teamRepeat[1]==='攻撃'){receiver.desc='攻撃：このキャラクターは+1/+1を得る。';u.lane='rear';receiver.lane='front';state._coreFirstSide=side;createBattleRunner(state,rng,emit,{skipOpening:true}).step();}
+      if(teamRepeat[1]==='解放'){receiver.desc='解放：このキャラクターは+1/+1を得る。';receiver.keywords=['封印1'];runBattleCore(state,rng,{turnLimit:1,onEvent:emit});}
+      return;
+    }
+    if(/敵が状態異常を得るたび/.test(text)){coreApplyKeywordOnHit({...u,keywords:['毒牙1']},state.units[other][0],1,9999,state,emit);return;}
+    if(/あなたが血を得る場合/.test(text)){receiver.hp=0;coreTriggerDeath(receiver,state,emit,rng,hit);return;}
+    if(/このキャラクターが敵を倒した(?:場合|時)/.test(text)){state.units[other][0].hp=1;hit(u,state.units[other][0],10);return;}
+    if(/持つ邪眼、毒牙、衝撃の値/.test(text)){u.keywords.push('毒牙1','邪眼1','衝撃1');coreApplyKeywordOnHit(u,state.units[other][0],1,9999,state,emit);return;}
+    if(/このキャラクターからダメージを受けた敵/.test(text)){hit(u,state.units[other][0],1);return;}
+
     if (/^(開戦|攻撃|負傷|死亡|終戦|解放|\d+マナ)/.test(text)) {
       if (/^開戦/.test(text)) coreApplyOpeningEffects(u,state,rng,emit,hit,i);
       if (/^攻撃/.test(text)) {coreTriggerManaOnAttack(u,state,emit);coreApplyAttackEffects(u,state,rng,emit,hit,i);}
@@ -82,6 +97,13 @@ function exercise(row, merged, text, times = 1, side = 'p1', includeRegular=fals
   };
   for(let i=0;i<times;i++)run(i);
   const score={};
+  if(/報酬に.*キャラクターが出るたび/.test(text)){
+    G.mainBoard[1]=p;const atk=p.power,hp=p.life;
+    applyRewardCharacterEffects([{category:'キャラクター',color:'青',power:1,life:1}]);
+    score.boardAtk=p.power-atk;score.boardHp=p.life-hp;
+  }
+  const ascension=coreAscensionSpec(p);Object.entries(ascension).forEach(([key,value])=>score['ascension_'+key]=value);
+
   for(const e of events) {
     if(['effect_flash','battle_start','mana_threshold','sweep_vfx','death','compact','opening_step'].includes(e.type))continue;
     if(e.type==='blood_set') {if(e.gained&&e.sourceId)score.blood=(score.blood||0)+e.gained;}
@@ -201,7 +223,7 @@ function concrete(row,merged,text,result) {
   if((m=match(/(\d+)Gと引き換え/))) {assert.equal(1000-state.resources[side].gold,Number(m[1]));return;}
   if((m=match(/全ての敵に(?:弱体|毒)(\d+)/))) {
     const prop=text.includes('弱体')?'weaken':'poison';const runs=repeats;
-    assert.ok(state.units[other].every(x=>x[prop]===(prop==='poison'?2:0)+Number(m[1])*runs));return;
+    assert.ok(state.units[other].every(x=>x[prop]===(prop==='poison'?2:0)+Number(m[1])*runs),`${row['No.']} ${text} ${prop}: ${state.units[other].map(x=>x[prop])}`);return;
   }
   if((m=match(/死亡：血を(\d+)得る/))) {assert.equal(score.blood,Number(m[1]));return;}
   if((m=match(/眷属が召喚された時、その眷属は\+(\d+)\/\+(\d+)/))) {
@@ -326,7 +348,7 @@ async function pveBridgeChecks() {
   }
   // 通常と合体の同時接続も本文ごとに発動する。倍率は順に掛け、その他は両本文の量を足す。
   const mixedFailures=[];let mixedChecked=0;
-  for(const row of sheetRows('enchant').filter(r=>r['合体効果']&&r['合体効果']!==r['効果']&&/^(開戦|攻撃|負傷|死亡|終戦|解放|\d+マナ)/.test(r['効果']||''))) {
+  for(const row of sheetRows('enchant').filter(r=>String(r['実装']).toLowerCase()!=='false'&&r['合体効果']&&r['合体効果']!==r['効果']&&/^(開戦|攻撃|負傷|死亡|終戦|解放|\d+マナ)/.test(r['効果']||''))) {
     for(const side of ['p1','p2'])try{
       const regular=exercise(row,false,row['効果'],1,side),merged=exercise(row,true,row['合体効果'],1,side);
       const mixed=exercise(row,true,row['合体効果'],1,side,true);
@@ -340,7 +362,7 @@ async function pveBridgeChecks() {
   }
   assert.equal(mixedFailures.length,0,mixedFailures.join('\n'));
   // 5%の境界、2回目・3回目だけの成功、0ダメージでは判定しない。名前変更にも追従する。
-  const basilisk=rows.find(r=>r['No.']==='C059');
+  const basilisk=rows.find(r=>r['No.']==='E027');
   for(const merged of [false,true]) for(const side of ['p1','p2']) {
     const text=String(merged?basilisk['合体効果']:basilisk['効果']);
     const prob=Number(text.match(/(\d+)%/)[1])/100,rep=effectRepetitions(text)-1;

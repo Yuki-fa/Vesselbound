@@ -1110,7 +1110,7 @@ async function loadGameData() {
       if (weaken) panel.adjacentKeywords.push('衝撃' + (weaken[1] || '1'));
       const tough = desc.match(/強靭\s*(\d*)/);
       if (tough) panel.adjacentKeywords.push('強靭' + (tough[1] || '1'));
-      const poison = desc.match(/毒牙\s*(\d*)/);
+      const poison = bareDesc.match(/毒牙\s*(\d*)/);
       if (poison) panel.adjacentKeywords.push('毒牙' + (poison[1] || '1'));
       const colorMana = desc.match(/召喚：\s*(?:[赤青緑黄紫茶])?\s*\d*マナを?得る/);
       if (colorMana) panel.adjacentKeywords.push('マナ召喚');

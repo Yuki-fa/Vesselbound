@@ -146,6 +146,11 @@ function buildBoardFormation(board, opts) {
         unit.boardCards=_panelSummonDisplayBoardCards(panel,contributingPanels);
       }
       unit._mapPanelPower = panelPower;
+      const powerDef = typeof MAP_PANEL_POWERS !== 'undefined' ? MAP_PANEL_POWERS.find(p => p.id === panelPower) : null;
+      if (powerDef && ['life','resonance'].includes(panelPower)) unit._mapPanelPowerText = powerDef.desc;
+      if (panel._battleEndCount) unit._battleEndCount = panel._battleEndCount;
+      if (contributingPanels.length && /回目の終戦ごと/.test(unit.desc || '')) unit.boardCards = typeof _panelSummonDisplayBoardCards === 'function'
+        ? _panelSummonDisplayBoardCards(panel, contributingPanels) : unit.boardCards;
       unit._stageNumber = stageNumber;
       if (enh && typeof _applyAdjacentPanelEnhancements === 'function') _applyAdjacentPanelEnhancements(unit, enh);
       unit._mainBoardSlot = idx;
@@ -267,4 +272,25 @@ if (typeof window !== 'undefined') {
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { formationDeploySlots, boardSlotIsDeployable, formationAssignSlot, buildBoardFormation, boardHasDeployableCharacter, persistBoardCharacterStats, persistBoardEffectDamage };
+}
+
+// コアで確定したラン効果の出口。保存済み再生でも絶対値なので重複しない。
+function applyCoreRunEffectEvent(event) {
+  if (!event || event.type !== 'run_effect' || event.side !== 'p1' || typeof G === 'undefined') return;
+  if (event.effects) {
+    G.runEffects = JSON.parse(JSON.stringify(event.effects));
+    const total = Number(event.effects.rerolls) || 0;
+    const gain = Math.max(0, total - (Number(G.runEffectRerollsApplied) || 0));
+    if (gain && typeof towerBoonState === 'function') towerBoonState().rerolls += gain;
+    G.runEffectRerollsApplied = total;
+  }
+  const cards = typeof _getPartyBoardUnit === 'function' ? (_getPartyBoardUnit() || {}).boardCards : G.mainBoard;
+  if (event.kind === 'enchant_upgrade' && Array.isArray(cards)) {
+    const source = cards[event.boardSlot];
+    if (source) source._battleEndCount = event.count;
+    for (const slot of event.targetSlots || []) {
+      const next = typeof enhancedPanelCopy === 'function' ? enhancedPanelCopy(cards[slot]) : null;
+      if (next) cards[slot] = next;
+    }
+  }
 }

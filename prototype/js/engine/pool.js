@@ -105,6 +105,7 @@ function applyMergedPanelForm(card){
     else card[k]=Array.isArray(v)?v.slice():v;
   });
   card._mergedFormApplied=true;
+  if(typeof corePermanentDamageSpec==='function'&&corePermanentDamageSpec(card.desc)) delete card._permanentEffectDamage;
   if(card.boon) coreApplyCardBoon(card,card.boon,{freshEffects:true,effectsOnly:true});
   return true;
 }
@@ -290,7 +291,7 @@ const PANEL_POOL=[
 
 const ITEM_POOL=[
   {id:'item_silence_scroll',no:'001',name:'静寂の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'silence_scroll',art:'assets/art/items/I001.jpg',desc:'次の戦闘中、全ての敵は一度攻撃するまで全ての効果が無効化される。'},
-  {id:'item_bond_scroll',no:'002',name:'絆の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'bond_scroll',art:'assets/art/items/I002.jpg',desc:'同名のキャラクター2枚を選んで合体する。'},
+  {id:'item_transform_scroll',no:'002',name:'変身の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'transform_scroll',art:'assets/art/items/I002.jpg',desc:'対象のカード1枚を、対象の別のキャラクターに変身させる。'},
   {id:'item_shield_scroll',no:'003',name:'盾の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'shield_scroll',art:'assets/art/items/I003.jpg',desc:'対象のキャラクターに結界1を永久付与する。'},
   {id:'item_underworld_scroll',no:'004',name:'幻視の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'vision_scroll',art:'assets/art/items/I004.jpg',desc:'対象のキャラクターに復活を永久付与する。'},
   {id:'item_giant_scroll',no:'005',name:'巨大化の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'giant_scroll',art:'assets/art/items/I005.jpg',desc:'対象のキャラクターに+5/+5を永久付与する。'},
@@ -736,5 +737,26 @@ function drawRewards(count=5,opts){
   // **同じ提示の中で矢印の向きが完全に同じカードを重ねない。**
   // 規則は _dedupePanelDirections() が唯一の実装。魔導店もこの抽選を使う。
   _dedupePanelDirections(res);
-  return towerBoonGeneratedOffers(res);
+  return applyRewardCharacterEffects(towerBoonGeneratedOffers(res),!(opts&&opts.trader));
+}
+
+// 提示された時にだけ報酬強化と報酬観測を解決する。再描画やカード移動では発動しない。
+function applyRewardCharacterEffects(cards, observe = true) {
+  const buff = G.runEffects && G.runEffects.rewardBuff;
+  for (const card of cards || []) {
+    if (!card || card.category !== 'キャラクター') continue;
+    if (buff) {
+      const applied=card._rewardGrowthApplied||{};
+      card.power += (Number(buff.atk)||0)-(Number(applied.atk)||0);
+      card.life += (Number(buff.hp)||0)-(Number(applied.hp)||0);
+      card._rewardGrowthApplied={atk:Number(buff.atk)||0,hp:Number(buff.hp)||0};
+    }
+    if (!observe) continue;
+    for (const observer of (G.mainBoard || []).filter(Boolean)) {
+      for (const m of coreTriggerEffectEntries(observer, '常時', /報酬に([赤青緑黄紫])キャラクターが出るたび、このキャラクターは\+(\d+)\/\+(\d+)を得る/)) {
+        if (card.color === m[1]) { observer.power += Number(m[2]); observer.life += Number(m[3]); }
+      }
+    }
+  }
+  return cards;
 }

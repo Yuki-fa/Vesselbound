@@ -27,7 +27,7 @@ const card = name => makePanel(PANEL_POOL.find(p => p.name === name).id);
 
 (async () => {
   await loadGameData(); SaveRun.ready();
-  for (const [label, plus, gain] of [['通常', false, 1], ['強化', true, 2]]) {
+  for (const [label, plus, gain] of [['通常', false, 2], ['強化', true, 4]]) {
     await check(`保存済み戦闘の終戦で、レプラコーン（${label}）の永久+${gain}/+${gain}が魔導板のカードへ書き込まれる`, async () => {
       initState(); G._runId = 'leprechaun-1020'; G._runSeed = 31; G._runRngState = 31;
       G._wave = 1; G._waveStage = 2; G._waveLife = 3; G.phase = 'reward'; _rewCards = []; _rewFreePickDone = false;

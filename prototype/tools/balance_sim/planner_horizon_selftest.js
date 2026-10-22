@@ -49,7 +49,8 @@ async function test(api,check,{rows,meta,file}){
         assert.ok(choice.value.horizon.progress>=0&&choice.value.horizon.progress<=1);
       });
       check('山場：次戦だけの巻物を遠い壁へ持ち越さず、永久強化は将来取得前の本体に使う',()=>{
-        for(const scenario of choice.value.horizon.scenarios){assert.deepEqual(scenario.queuedItems,[]);assert.equal(scenario.board.find(c=>c?.name==='ゴーレム').power,105);}
+        const multiplier=Number(makeItem('巨大化の巻物').desc.match(/ATKとHPを([0-9.]+)倍/)[1]);
+        for(const scenario of choice.value.horizon.scenarios){assert.deepEqual(scenario.queuedItems,[]);assert.equal(scenario.board.find(c=>c?.name==='ゴーレム').power,Math.ceil(before.mainBoard[1].power*multiplier));}
         assert.equal(nearChoice.value.horizon.distance,0);assert.ok(nearChoice.value.horizon.scenarios[0].queuedItems.includes('隕石の巻物'));
       });
       check('山場：再戦は既知の敵へ切り替え、敵が変わればサンプルとコアのキャッシュも更新する',()=>{

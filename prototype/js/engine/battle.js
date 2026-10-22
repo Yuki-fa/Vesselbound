@@ -31,6 +31,7 @@ function _syncCoreLifeToG(state){
 }
 function _syncCoreResourcesToG(state){
   if(!state) return;
+  if(state.runEffects&&state.runEffects.p1) applyCoreRunEffectEvent({type:'run_effect',side:'p1',effects:state.runEffects.p1});
   if(state.gameSummonBuff&&state.gameSummonBuff.p1) G.gameSummonBuff={...state.gameSummonBuff.p1};
   // **所持金だけは再生中に書き戻さない。** コアは1手番ぶんを先に解決するので、
   // 再生の途中でコアの値（もう加算済み）を入れると、その後の gold_gain の演出で
@@ -880,7 +881,8 @@ function _releaseRepeatCount(unit,isEnemySide){
   const side=isEnemySide?G.enemies:G.allies;
   // 秘紋の指輪：常時：味方の解放効果は1回追加で発動する。（敵側のunitには適用しない）
   const ringExtra=isEnemySide?0:_ringCount('秘紋の指輪');
-  return 1+ringExtra+_unitKeywordCount(unit,'禁断の力')+(Number(unit._effectRepeatBonus)||0);
+  return 1+ringExtra+coreExtraTriggerTimes(unit,'解放',_unitKeywordCount(unit,'禁断の力'))
+    +coreAllyExtraTriggerTimes(unit,{units:{[unit.side]:side}},'解放')+(Number(unit._effectRepeatBonus)||0);
 }
 
 // PvEの各互換フックから共通コアへ渡す現在地。刻印のXは必ず現在のステージを
@@ -889,6 +891,8 @@ function _pveCoreStageFields(){
   return {
     ...runLevelCoreFields(),
     ...coreGameSummonBuffFields({p1:G.gameSummonBuff}),
+    ...coreRunEffectFields({p1:G.runEffects||{}}),
+    itemFreeSlots:{p1:(G.spellSlots||[]).filter(x=>!x).length,p2:4},
     mapIndex:Math.max(1,Number(G.floor)||1),
     stageNumber:Math.max(1,Number(G._wave)||1),
     ...(G._preserveEnemyOpening?{openingSides:['p1']}:{}),
@@ -3364,7 +3368,8 @@ async function _applyUnitAttackEffects(unit,isEnemySide){
   try{
     // 攻撃効果の反復回数は共通コアと同じ入口で一度だけ計算する。
     // 旧互換ラッパー側でも同じ回数を呼ぶと、ユミル等が二重発動する。
-    const attackRepeats=1+coreEffectCount(unit,'闇の儀式')
+    const attackRepeats=1+coreExtraTriggerTimes(unit,'攻撃',coreEffectCount(unit,'闇の儀式'))
+      +coreAllyExtraTriggerTimes(unit,{units:{[unit.side]:unit.side==='p2'?G.enemies:G.allies}},'攻撃')
       +_ringCount('狂戦士の指輪')+(Number(unit.effectData&&unit.effectData.effectRepeatBonus)||0);
     for(let i=0;i<attackRepeats&&unit.hp>0;i++){
       const effectBeforeAtk=Number(unit.atk)||0, effectBeforeHp=Number(unit.hp)||0;
@@ -3859,7 +3864,8 @@ async function _runCoreLiveInjuryEffects(unit, actualDmg, isEnemySide, source, d
   // という2点でコアと食い違い、PvEとオンラインで負傷効果の回数がずれていた。
   // stateのringsはp1のみ実体を持つため、coreRingCountは敵側で0を返す＝
   // 「敵にプレイヤーの指輪を適用しない」旧PvEの意図もそのまま保たれる。
-  const repeat=1+coreRingCount(state,side,'激怒の指輪')+coreEffectCount(unit,'執念の炎')
+  const repeat=1+coreRingCount(state,side,'激怒の指輪')+coreExtraTriggerTimes(unit,'負傷',coreEffectCount(unit,'執念の炎'))
+    +coreAllyExtraTriggerTimes(unit,state,'負傷')
     +Math.max(0,Number(unit._effectRepeatBonus)||Number(unit.effectData&&unit.effectData.effectRepeatBonus)||0);
   let fired=0;
   const previousDeferMana=!!G._deferManaThresholdEffects;
@@ -4396,7 +4402,7 @@ function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
     if(keywordPanels.has(coreEffectKey(panel.name))&&!enh.abilities.includes(coreEffectKey(panel.name))) enh.abilities.push(coreEffectKey(panel.name));
     // 策士は倍率を本文から読む（基本2倍／合体3倍）。合体後の本文が入っているなら
     // 枚数で二重に強くしない（上の copies と同じ理由）。
-    if(coreEffectKey(panel.name)==='策士'){
+    if(/キーワードの数の\d+倍に等しい/.test(String(panel.desc||''))){
       const m=/キーワードの数の(\d+)倍に等しい/.exec(String(panel.desc||''));
       enh.strategyMultiplier=Math.max(enh.strategyMultiplier||0,m?(parseInt(m[1],10)||2):2);
       enh.strategyCount+=(panel._tripleMerged&&!panel._mergedFormApplied?2:1);
@@ -4894,7 +4900,7 @@ function _panelSummonDisplayBoardCards(sourcePanel, contributingPanels){
   const center=sourcePanel?{...clone(sourcePanel),directions:['up','down','left','right']}:null;
   const panels=(contributingPanels||[]).map(entry=>{
     const p=entry&&entry.panel?entry.panel:entry;
-    return p?{...clone(p),directions:['up','down','left','right'],
+    return p?{...clone(p),_mainBoardSlot:entry.idx,directions:['up','down','left','right'],
       ...(corePermanentDamageSpec(p.desc)?{_permanentEffectBoardSlot:entry.idx}:{})}:null;
   }).filter(Boolean);
   return [center,...panels];
@@ -5552,6 +5558,7 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
     // 死亡処理は一時コアstateで解決するため、血だけはイベント発行時点で
     // PvEのグローバル状態へ反映する。後段の演出待ちや盤面整理で処理が
     // 中断されても、封印解放判定が参照するカウンターを失わないようにする。
+    if(ev&&ev.type==='run_effect') applyCoreRunEffectEvent(ev);
     if(ev&&ev.type==='blood_set'&&ev.side==='p1'){
       G._blood=Math.max(0,Number(ev.amount)||0);
       if(typeof renderBattleCounters==='function') renderBattleCounters();
@@ -5823,6 +5830,7 @@ async function _applyCoreBattleEndEffectsLive(){
   });
   const emit=ev=>{
     if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
+    if(ev&&ev.type==='run_effect') applyCoreRunEffectEvent(ev);
     // 終戦の「永久に+X/+Y」（レプラコーン）は魔導板のカードへ書き込む。
     // 戦闘中の再生（battle_events.js）と違い、ここはイベントを流さないので、書き込まないと効果が消えていた（利用者報告）。
     if(!(typeof arenaIsActive==='function'&&arenaIsActive())

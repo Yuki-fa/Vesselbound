@@ -50,7 +50,7 @@ function rendererClock() {
 (async () => {
   await h.ready;
   await check('1：まとめた死亡の後でも、エインセルの死亡起点へ以前の死体を使わない', async () => {
-    const x=h.setup({ sides: { p1: { units: [h.unit('ally')] }, p2: { units: [h.unit('lich','C039')] } } });
+    const x=h.setup({ sides: { p1: { units: [h.unit('ally')] }, p2: { units: [h.unit('lich','C040')] } } });
     const ally=x.find('ally'),lich=x.find('lich');
     const old = h.unit('old', '', { side: 'p2', hp: 0 });
     const ainsel = { ...definition('EN011'), id: 'ainsel', side: 'p2', hp: 0 };
@@ -106,20 +106,27 @@ function rendererClock() {
       assert.deepEqual({ events: x.events, buffs: x.state.gameSummonBuff }, coreResult, '再生でイベント・累積値を変えない');
     });
   }
-  await check('2：決着後の通常バフは引き続き省く', () => {
+  // 2026-10-22 利用者指定：決着後は省かずに速くする（次戦以後に影響する効果が入ったため）。
+  await check('2：決着後の通常バフも省かず、そこから演出を速くする', () => {
     const events = [{ type: 'death', side: 'p2', unitId: 'last' },
       { type: 'stat_change', side: 'p1', unitId: 'ally', sourceId: 'ally', atk: 1, hp: 1, reason: 'ally_death_buff' }];
     presentMarkBattleTail(events, { p1: [{ id: 'ally', hp: 1 }], p2: [{ id: 'last', hp: 1 }] });
-    assert.equal(presentIsSilentEvent(events[1]), true);
+    assert.equal(presentIsSilentEvent(events[1]), false, '省かない');
+    assert.equal(presentDecidedSpeedScale(), 1, '決着のイベントまでは通常の速さ');
+    presentNoteDecidedEvent(events[0]);
+    assert.equal(presentDecidedSpeedScale(), 1, '決着した死亡そのものは通常の速さ');
+    presentNoteDecidedEvent(events[1]);
+    assert.equal(presentDecidedSpeedScale(), PRESENT_DECIDED_SPEED_SCALE, '決着後は速くする');
+    presentResetDecided();
   });
 
   await check('3：全シートのゲーム中眷属強化を洗い出す（通常・強化後）', () => {
     const found = ['card', 'enchant', 'enemy', 'ring', 'item'].flatMap(kind => h.sheetRows(kind)
       .filter(r => ['効果', '強化効果'].some(k => /このゲーム中、味方の眷属は/.test(r[k] || '')))
       .map(r => r['No.'])).sort();
-    assert.deepEqual(found, ['C029', 'C034', 'C057']);
+    assert.deepEqual(found, ['C029', 'C034', 'C072']);
   });
-  for (const no of ['C029', 'C034', 'C057']) for (const merged of [false, true]) {
+  for (const no of ['C029', 'C034', 'C072']) for (const merged of [false, true]) {
     await check(`3：${no} ${merged ? '強化後' : '通常'}の累積値がカード・ホバー・戦闘説明と次戦の召喚へ一致`, async () => {
       const effect = definition(no); if (merged) applyMergedPanelForm(effect);
       const source = h.unit('buffer', no, { desc: effect.desc });
@@ -127,7 +134,7 @@ function rendererClock() {
         summonDefs: [...PANEL_POOL, ...ENEMY_POOL] });
       if (no === 'C029') { x.find('buffer').hp = 0; coreApplyDeathEffects(x.find('buffer'), x.state, x.rng, x.emit, x.hit); }
       if (no === 'C034') coreApplyInjuryEffects(x.find('buffer'), 1, x.state, x.rng, x.emit, x.hit);
-      if (no === 'C057') coreSummonUnit(x.state, 'p1', { name: '青スケルトン' }, x.emit, 'summoner', undefined, x.rng, x.hit);
+      if (no === 'C072') coreSummonUnit(x.state, 'p1', { name: '青スケルトン' }, x.emit, 'summoner', undefined, x.rng, x.hit);
       const cumulative = h.clone(x.state.gameSummonBuff.p1);
       // 付与元がいなくなった次の戦闘でも累積値は残る。
       const next = h.setup({ sides: { p1: { units: [h.unit('summoner', 'C035')] }, p2: { units: [h.unit('foe')] } },
@@ -148,12 +155,12 @@ function rendererClock() {
   }
 
   for(const side of ['p1','p2']) for(const boosted of [false,true]) {
-    await check(`3：${side} 眷属倍率・指輪・熟練・生存ナーガ${boosted?'あり':'なし'}も実際の召喚と一致`,()=>{
+    await check(`3：${side} 眷属倍率・指輪・熟練・生存シャナ${boosted?'あり':'なし'}も実際の召喚と一致`,()=>{
       const rings=boosted?['青い瞳の指輪','虹の瞳の指輪','召喚師の指輪'].map(name=>{
         const ring=RING_POOL.find(c=>c.name===name);assert.ok(ring,name);return ring;
       }):[];
       const source=h.unit('summoner','C035',boosted?{boon:{famMul:2},keywords:['熟練3']}:{});
-      const extra=boosted?[h.unit('naga','C057',{keywords:['熟練2']})]:[];
+      const extra=boosted?[h.unit('shana','C072',{keywords:['熟練2']})]:[];
       const x=h.setup({sides:{[side]:{units:[source,...extra]},[side==='p1'?'p2':'p1']:{units:[h.unit('foe')]}},
         rings:{[side]:rings},items:{[side]:boosted?[{itemEffectKey:'bond_scroll'}]:[]},
         gameSummonBuff:{p1:{atk:7,hp:11},p2:{atk:13,hp:17}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
