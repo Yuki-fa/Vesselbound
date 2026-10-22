@@ -308,9 +308,9 @@ const Assets = {
     C008: 'assets/sfx/C008.wav', // アラクネ
     C011: 'assets/sfx/C011.wav', // LAB採用（2026-10-20 siren-wave 候補1・初期のSE・原音2秒から）
     C017: 'assets/sfx/C017.wav', // メデューサ
-    E042: 'assets/sfx/C019_1.wav', // 天の雷槌（発射。2026-10-22 シート改訂でケンタウロス C019 から移った）
+    E042: 'assets/sfx/E042_1.wav', // 天の雷槌（発射。2026-10-22 シート改訂でケンタウロス C019 から移った）
     C090: 'assets/sfx/C090.wav', // LAB採用（2026-10-21 steal-mark 候補3）
-    E042_HIT: 'assets/sfx/C019_2.wav', // LAB採用（2026-10-20 centaur-impact 候補1）
+    E042_HIT: 'assets/sfx/E042_2.wav', // LAB採用（2026-10-20 centaur-impact 候補1）
     // マナ効果SE。シートのNo.に合わせて K024（旧 K023）。
     K024: 'assets/sfx/K024.wav',
     K007: 'assets/sfx/K007.wav', // 貫通
@@ -333,29 +333,29 @@ const Assets = {
     E067: 'assets/sfx/E067.wav', // 援護射撃（LABの命中に合わせる）
     // 2026-10-12: 21キャラのSEは候補1を仮配置（利用者未選択）。
     C004: 'assets/sfx/C004.wav',
-    E083: 'assets/sfx/C020.wav', // 2026-10-22 シート改訂で C020 から移った
-    E043: 'assets/sfx/C021.wav', // 2026-10-22 シート改訂で C021 から移った
+    E083: 'assets/sfx/E083.wav', // 2026-10-22 シート改訂で C020 から移った
+    E043: 'assets/sfx/E043.wav', // 2026-10-22 シート改訂で C021 から移った
     C060: 'assets/sfx/C060.wav', // LAB採用（2026-10-20 behemoth 候補1）
-    E031: 'assets/sfx/C064.wav', // 2026-10-22 シート改訂で C064 から移った
+    E031: 'assets/sfx/E031.wav', // 2026-10-22 シート改訂で C064 から移った
     C071: 'assets/sfx/C071.wav', // LAB採用（2026-10-20 nymph 候補1）
-    C082: 'assets/sfx/C099.wav', // 2026-10-22 シート改訂：フィーンドの効果が C082 へ（入れ替え）
+    C082: 'assets/sfx/C082.wav', // 2026-10-22 シート改訂：フィーンドの効果が C082 へ（入れ替え）
     C029: 'assets/sfx/C029.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
     C034: 'assets/sfx/C034.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
-    C099: 'assets/sfx/C082.wav', // 2026-10-22 シート改訂：アークデーモンの効果が C099 へ（入れ替え）
+    C099: 'assets/sfx/C099.wav', // 2026-10-22 シート改訂：アークデーモンの効果が C099 へ（入れ替え）
     C083: 'assets/sfx/C083.wav', // LAB採用（2026-10-21 gremlin 候補2）
     C095: 'assets/sfx/C095.wav',
     C097: 'assets/sfx/C097.wav', // LAB採用（2026-10-20 overlord 候補1）
     C009: 'assets/sfx/C009.wav',
-    E056: 'assets/sfx/C042.wav', // 2026-10-22 シート改訂で C042 から移った // LAB採用（2026-10-21 sleep-sheep 候補1）
+    E056: 'assets/sfx/E056.wav', // 2026-10-22 シート改訂で C042 から移った // LAB採用（2026-10-21 sleep-sheep 候補1）
     C056: 'assets/sfx/C056.wav',
     C066: 'assets/sfx/C066.wav', // LAB採用（2026-10-20 undine 候補1）
     C079: 'assets/sfx/C079.wav', // LAB採用（2026-10-20 spriggan 候補1）
-    E024: 'assets/sfx/C084.wav', // 2026-10-22 シート改訂で C084 から移った // LAB採用（2026-10-21 incubus 候補1）
+    E024: 'assets/sfx/E024.wav', // 2026-10-22 シート改訂で C084 から移った // LAB採用（2026-10-21 incubus 候補1）
     C094: 'assets/sfx/C094.wav',
     // VFX LABで採用済みの戦闘SE。
     E006: 'assets/sfx/E006.wav',
     E035: 'assets/sfx/E035.wav',
-    C040: 'assets/sfx/C039.wav', // 2026-10-22 シート改訂で C039 から移った
+    C040: 'assets/sfx/C040.wav', // 2026-10-22 シート改訂で C039 から移った
     E062: 'assets/sfx/E062.wav',
     E071: 'assets/sfx/E071.wav', // LAB採用（2026-10-21 shockwave 候補2）
     E075: 'assets/sfx/E075.wav',
@@ -375,7 +375,7 @@ const Assets = {
     C080: 'assets/sfx/C080.wav',
     C081: 'assets/sfx/C081.wav',
     C092: 'assets/sfx/C092.wav',
-    E082: 'assets/sfx/C096.wav', // 2026-10-22 シート改訂で C096 から移った
+    E082: 'assets/sfx/E082.wav', // 2026-10-22 シート改訂で C096 から移った
     C098: 'assets/sfx/C098.wav',
     C076: 'assets/sfx/C076.wav',
     C041: 'assets/sfx/C041.wav',

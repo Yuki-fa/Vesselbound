@@ -17,7 +17,7 @@
     ]
   },
   "hecatoncheir": {
-    "code": "C020",
+    "code": "E083",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-02.wav",
@@ -34,7 +34,7 @@
     ]
   },
   "zombie": {
-    "code": "C021",
+    "code": "E043",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav",
@@ -68,7 +68,7 @@
     ]
   },
   "sylph": {
-    "code": "C064",
+    "code": "E031",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/UI・電子音・マルチメディア系/Multimedia Internet CD-Rom Flash Whoosh Short 01.wav",
@@ -119,7 +119,7 @@
     ]
   },
   "fiend": {
-    "code": "C099",
+    "code": "C082",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
@@ -170,7 +170,7 @@
     ]
   },
   "arch-demon": {
-    "code": "C082",
+    "code": "C099",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
@@ -255,7 +255,7 @@
     ]
   },
   "sleep-sheep": {
-    "code": "C042",
+    "code": "E056",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-02.wav",
@@ -323,7 +323,7 @@
     ]
   },
   "incubus": {
-    "code": "C084",
+    "code": "E024",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 02-01.wav",

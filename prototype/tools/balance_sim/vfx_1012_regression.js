@@ -156,6 +156,9 @@ async function newDataChecks(){
   console.log('OK 第1回撮影の回帰: ニンフの2色光 / 花弁の外形と倍率 / 亡霊波の近隣カード通過');
   console.log('OK 新21種: 20定義+共有派生1 / 3速さ×16時刻・有限数・実描画・残像の除去・復元・JSON '+jsonBytes+' bytes');
 }
+// 2026-10-22 シート改訂：効果が別の番号へ移ったので、SE のファイル名も新しい番号へ付け替えた（新 → 旧）。
+// アークデーモン C082 とフィーンド C099 は効果が入れ替わったので、ファイルの中身も入れ替えた。
+const RENAMED_1022={E042_1:'C019_1',E042_2:'C019_2',E083:'C020',E043:'C021',E031:'C064',E056:'C042',E024:'C084',E082:'C096',C040:'C039',C082:'C099',C099:'C082'};
 function audioChecks(){
   const raw=read('tools/vfx_preview/se_catalog.js'),catalog=JSON.parse(raw.slice(raw.indexOf('{'),raw.lastIndexOf('}')+1));
   const picks=JSON.parse(read('tools/vfx_preview/se/picks_1012.json')),used=new Set(),hashes=new Set();
@@ -192,7 +195,7 @@ function audioChecks(){
       for(let ch=0;ch<format.channels;ch++)assert.equal(pcm.readInt16LE(pcm.length-2*(ch+1)),0,'末尾フェード');
       // 2026-10-18：利用者がLABで選んだ候補（adopted_1018.json）があれば、それをそのまま配置。無ければ候補1の仮配置。
       // Bufferの deepEqual は不一致時の差分作成が極端に重いので、ハッシュで比べる。
-      if(i===1){const pick=adopted1018[entry.code],expected=pick?catalog.sounds[pick.candidate].sha256:digest;
+      if(i===1){const oldCode=RENAMED_1022[entry.code],pick=adopted1018[oldCode||entry.code],expected=pick?catalog.sounds[pick.candidate].sha256:digest;
         assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(ROOT,'assets/sfx',entry.code+'.wav'))).digest('hex'),expected,(pick?'選んだ候補（'+pick.candidate+'）をそのまま採用':'候補1をそのまま仮配置')+': '+entry.code);}
     }
   }
@@ -206,6 +209,8 @@ function audioChecks(){
   // 2026-10-20 以降の採用（adopted_MMDD.json。加工しただけの E071 なども含む）も同じ扱い。
   for(const f of fs.readdirSync(path.join(ROOT,'tools/vfx_preview/se')).filter(f=>/^adopted_\d{4}\.json$/.test(f)))
     for(const v of Object.values(JSON.parse(read('tools/vfx_preview/se/'+f))))if(v&&v.file)addedByUser.add('prototype/'+v.file);
+  // ファイル名を付け替えた SE（新旧どちらの名前も）は変更を許す。
+  for(const [now,was]of Object.entries(RENAMED_1022))for(const code of [now,was])addedByUser.add('prototype/assets/sfx/'+code+'.wav');
   assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!removable(f)&&!addedByUser.has(f)).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
   console.log('OK SE63候補: 既存登録保持・元素材重複なし・ボイス名除外・48kHz/PCM16・最長1.95秒・-1dBFS・peak・末尾フェード・仮コピー21');
 }

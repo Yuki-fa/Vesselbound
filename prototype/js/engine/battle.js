@@ -244,20 +244,24 @@ function _effectVfxSource(code){
   return {artCode:code,no:code,_code:code};
 }
 
-// シートの「VFX/SE」列に書かれた番号（改行・カンマ区切りで複数可）。
-// ブラウニーのように攻撃と負傷で別の演出を持つカードがあるため、全部返す。
+// カードの演出の番号（loader.js CARD_PRESENTATION_FX_CODES。2026-10-22 にシートの「VFX/SE」列から移した。空白・カンマ区切りで複数可）。
 function _effectPresentationCodes(unit){
   return String(unit?.fxCode||'').split(/[\s,、\/]+/).map(x=>x.trim().toUpperCase())
     .filter(Boolean).map(x=>/^\d{3}$/.test(x)?`C${x}`:x);
 }
 
-// その強化カードのVFX/SE列（シートで指定された演出の番号）。
+// その強化カードの演出の番号。表（loader.js CARD_PRESENTATION_FX_CODES）か、固有の絵を持つ強化カード（活性化・炎の矢）の No.。
+// それ以外は空（発動の種類ごとの汎用の演出を present.js が選ぶ）。2026-10-22：シートの「VFX/SE」列をやめた。
 // **カード名から推測せず、読み込んだカードデータを引く。**
 function _enchantFxCode(name){
   const key=String(name||'').trim();
   if(!key||typeof PANEL_POOL==='undefined'||!Array.isArray(PANEL_POOL)) return '';
   const panel=PANEL_POOL.find(p=>p&&String(p.name||'').trim()===key);
-  return panel?(_effectPresentationCodes(panel)[0]||''):'';
+  if(!panel) return '';
+  const fx=_effectPresentationCodes(panel)[0]||'';
+  if(fx) return fx;
+  const own=String(panel.no||panel.artCode||'').trim().toUpperCase();
+  return own&&typeof Assets!=='undefined'&&Assets.vfx&&Assets.vfx.enchantEffect&&Assets.vfx.enchantEffect[own]?own:'';
 }
 
 // 効果名（コアが damage.fxEffect に載せる。援護射撃 等）→ その強化カードの演出番号。
@@ -282,7 +286,7 @@ function _effectFxCodeByNo(no){
 }
 
 function _effectPresentationCode(unit){
-  // **シートの「VFX/SE」列（fxCode）が最優先。** 空欄ならカード自身のNo.を使う。
+  // **演出の番号の表（fxCode。loader.js）が最優先。** 無ければカード自身のNo.を使う。
   // 複数指定されている時は先頭を既定にする（どれを使うかは present.js が決める）。
   const fx=_effectPresentationCodes(unit)[0]||'';
   if(fx) return fx;

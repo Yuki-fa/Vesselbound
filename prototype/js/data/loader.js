@@ -5,6 +5,12 @@
 // fetch 失敗時は内蔵データ（他の data/*.js）をそのまま使用。
 // ═══════════════════════════════════════
 
+// カードの演出の番号のうち、規則で決まらないもの（カードの No. → 演出の番号）。
+// 2026-10-22 利用者指定：シートの「VFX/SE」列をやめてコードへ移した。列で S005〜S009（発動の種類ごとの汎用の強化）を
+// 指していたものは、present.js の規則（攻撃・マナ・開戦・常時＝汎用、負傷・死亡＝固有の絵が無ければ汎用）で同じ演出になる。
+// マミーの金貨（S003）だけは規則で決まらないので書く。
+const CARD_PRESENTATION_FX_CODES = Object.freeze({ C023: 'S003' });
+
 const _EXPORT_BASE =
   'https://docs.google.com/spreadsheets/d/e/' +
   '2PACX-1vRgSPXHfTa42bU5EZN9lvtFUeeYAapxMGp2RqdE1QNl_5W2PTEtBGvFcdaZf4SGDg' +
@@ -1220,9 +1226,9 @@ async function loadGameData() {
       else if (!isNaN(rarVal) && rarVal >= 1) panel.rarity = rarVal;
       const grade = parseInt(row['グレード']);
       if (!isNaN(grade) && grade >= 1) panel.grade = grade;
-      // 「VFX/SE」列＝そのカードの効果で使う演出の番号（No.とは別に指定できる）。
-      // 空欄ならカード自身のNo.を使う。キーワードのVFX/SEはここで指定しなくても出る。
-      const fxCodeVal = String(row['VFX/SE'] ?? row['VFX'] ?? '').trim().toUpperCase();
+      // 演出の番号（No.とは別に指定する時だけ）。2026-10-22 利用者指定でシートの「VFX/SE」列をやめ、コードの表へ移した。
+      // 負傷・死亡の強化は present.js（presentStatChangeVfxCode）が固有の絵の有無で汎用の演出を選ぶので、表には書かない。
+      const fxCodeVal = String(CARD_PRESENTATION_FX_CODES[String(row['No.'] || '').trim().toUpperCase()] || '').trim().toUpperCase();
       if (fxCodeVal) panel.fxCode = fxCodeVal;
       else delete panel.fxCode;
       // 「マナ順位」列＝マナ効果の処理順。小さいほど先に発動する。

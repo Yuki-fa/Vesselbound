@@ -137,7 +137,7 @@ const SFX_SETTINGS={
     E042_HIT: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 centaur-impact 候補1）
     K020: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     S004:       {group:'magic',  volume: 1.00}, // 特殊演出：マナ増加（実測-20.9dBFS）
-    // シートの「VFX/SE」列に書ける番号は、ここにも必ず登録すること。
+    // 演出の番号（loader.js CARD_PRESENTATION_FX_CODES・各カードの No.）で鳴らす音は、ここにも必ず登録すること。
     // 登録が無いと playSfx() が鳴らず、絵だけ出て音が出ない。
     S003:       {group:'magic',  volume: 0.83}, // 特殊演出：金貨（旧C001）（実測-9.5dBFS）
     S006: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 injury-buff 候補1）

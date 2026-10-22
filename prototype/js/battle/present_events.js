@@ -795,8 +795,10 @@ function _presentStatChangeEvent(ev, api) {
       ? presentStatChangeEnchantName(ev.reason) : '';
     const enchantCode = enchantName && typeof _enchantFxCode === 'function' ? _enchantFxCode(enchantName) : '';
     const ownEffectText = typeof api.ownEffectText === 'function' ? api.ownEffectText(source) : '';
+    const ownHasArt = typeof getCharacterEffectVfxPath === 'function' ? !!getCharacterEffectVfxPath({ fxCode: ownCode }) : true;
     const code = typeof presentStatChangeVfxCode === 'function'
-      ? presentStatChangeVfxCode(ev, ownCode, { codes, enchantCode, ownEffectText }) : ownCode;
+      ? presentStatChangeVfxCode(ev, ownCode, { codes, enchantCode, ownEffectText, ownHasArt, fromEnchant: !!enchantName,
+        enchantText: enchantName && typeof PANEL_POOL !== 'undefined' ? String((PANEL_POOL.find(p => p && String(p.name || '').trim() === enchantName) || {}).desc || '') : '' }) : ownCode;
     if (/^[A-Z]\d{3}$/i.test(code)) {
       const run=presentStatChangeRun(ev,api.events,api.eventIndex);
       const cueKey = run.key;

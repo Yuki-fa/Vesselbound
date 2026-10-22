@@ -131,16 +131,6 @@ var VbFxSeSources = {
   "effect": "steal-mark",
   "basis": "ADOPTED.md"
  },
- "C019_1.wav": {
-  "source": "HERO - DESIGNED - ARROW Fire By 02-05.wav",
-  "note": "キャラ固有SE",
-  "basis": "アセットリスト"
- },
- "C019_2.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Small-03.wav",
-  "note": "キャラ固有SE",
-  "basis": "アセットリスト"
- },
  "E058_1.wav": {
   "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Large-03",
   "note": "エンチャント固有SE",
@@ -202,9 +192,10 @@ var VbFxSeSources = {
   "basis": "ADOPTED.md"
  },
  "K001.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
-  "note": "即死",
-  "basis": "アセットリスト"
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Large-03.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large-03.wav",
+  "effect": "death-mark",
+  "basis": "ADOPTED.md"
  },
  "K003.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ACID Cast Large 01-01.wav",
@@ -468,12 +459,6 @@ var VbFxSeSources = {
   "effect": "resentment",
   "basis": "ADOPTED.md"
  },
- "C039.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC BLACK Summon Necromancer-01.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Necromancer-01.wav",
-  "effect": "lich",
-  "basis": "ADOPTED.md"
- },
  "E062.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-04.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-04.wav",
@@ -592,12 +577,6 @@ var VbFxSeSources = {
   "source": "Weather Ambience Wind Blizzard Snow Whistle Gust 01.wav",
   "path": "Adobe/雨・雷・風など天候/Weather Ambience Wind Blizzard Snow Whistle Gust 01.wav",
   "effect": "wendigo",
-  "basis": "ADOPTED.md"
- },
- "C096.wav": {
-  "source": "Drone Production Element Imaging Dark Phase Evil Gritty 01.wav",
-  "path": "Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Dark Phase Evil Gritty 01.wav",
-  "effect": "nightmare",
   "basis": "ADOPTED.md"
  },
  "C076.wav": {
@@ -756,40 +735,28 @@ var VbFxSeSources = {
   "effect": "gold-loss",
   "basis": "ADOPTED.md"
  },
- "C042.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
-  "effect": "sleep-sheep",
+ "R016.wav": {
+  "source": "Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav",
+  "path": "Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Ominous Dark Deep Rumble 01.wav",
+  "effect": "intimidate-ring",
   "basis": "ADOPTED.md"
  },
- "C084.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
-  "effect": "incubus",
+ "C083.wav": {
+  "source": "MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
+  "path": "asfx-christmas-freebies-2024/David Dumais - ASFX - Steampunk Mech Freebies/Steampunk Mech SFX - Free Samples/MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
+  "effect": "gremlin",
+  "basis": "ADOPTED.md"
+ },
+ "R031.wav": {
+  "source": "DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav",
+  "path": "The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav",
+  "effect": "speed-ring",
   "basis": "ADOPTED.md"
  },
  "C004.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
   "effect": "satyr",
-  "basis": "ADOPTED.md"
- },
- "C020.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-02.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-02.wav",
-  "effect": "hecatoncheir",
-  "basis": "ADOPTED.md"
- },
- "C021.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav",
-  "effect": "zombie",
-  "basis": "ADOPTED.md"
- },
- "C064.wav": {
-  "source": "Multimedia Internet CD-Rom Flash Whoosh Short 01.wav",
-  "path": "Adobe/UI・電子音・マルチメディア系/Multimedia Internet CD-Rom Flash Whoosh Short 01.wav",
-  "effect": "sylph",
   "basis": "ADOPTED.md"
  },
  "C089.wav": {
@@ -799,16 +766,18 @@ var VbFxSeSources = {
   "basis": "ADOPTED.md"
  },
  "C099.wav": {
-  "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
-  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
-  "effect": "fiend",
-  "basis": "ADOPTED.md"
- },
- "C082.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
   "effect": "arch-demon",
-  "basis": "ADOPTED.md"
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C082.wav から改名）"
+ },
+ "C082.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
+  "effect": "fiend",
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C099.wav から改名）"
  },
  "C095.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-04.wav",
@@ -912,28 +881,75 @@ var VbFxSeSources = {
   "effect": "rage-shards",
   "basis": "ADOPTED.md"
  },
- "R016.wav": {
-  "source": "AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav",
-  "path": "Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Ghostly Presences Vol. 1/AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav",
-  "effect": "intimidate-ring",
-  "basis": "ADOPTED.md"
- },
  "shield_break.wav": {
   "source": "BROKEN - DESIGNED - WINDSHIELD Glass Stress and Pop-01.wav",
   "path": "The Vault/Broken/Sounds/分割/BROKEN - DESIGNED - WINDSHIELD Glass Stress and Pop-01.wav",
   "effect": "shield-break",
   "basis": "ADOPTED.md"
  },
- "C083.wav": {
-  "source": "Industry Metal Clink Gear Fast 06.wav",
-  "path": "Adobe/工業・工場・機械系/Industry Metal Clink Gear Fast 06.wav",
-  "effect": "gremlin",
-  "basis": "ADOPTED.md（仮）"
- },
  "C056.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav",
   "effect": "scylla",
   "basis": "ADOPTED.md（仮）"
+ },
+ "E042_1.wav": {
+  "source": "HERO - DESIGNED - ARROW Fire By 02-05.wav",
+  "note": "キャラ固有SE（2026-10-22 C019_1.wav から改名）",
+  "basis": "アセットリスト"
+ },
+ "E042_2.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Small-03.wav",
+  "note": "キャラ固有SE（2026-10-22 C019_2.wav から改名）",
+  "basis": "アセットリスト"
+ },
+ "E083.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-02.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-02.wav",
+  "effect": "hecatoncheir",
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C020.wav から改名）"
+ },
+ "E043.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav",
+  "effect": "zombie",
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C021.wav から改名）"
+ },
+ "E031.wav": {
+  "source": "Multimedia Internet CD-Rom Flash Whoosh Short 01.wav",
+  "path": "Adobe/UI・電子音・マルチメディア系/Multimedia Internet CD-Rom Flash Whoosh Short 01.wav",
+  "effect": "sylph",
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C064.wav から改名）"
+ },
+ "E056.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+  "effect": "sleep-sheep",
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C042.wav から改名）"
+ },
+ "E024.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
+  "effect": "incubus",
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C084.wav から改名）"
+ },
+ "E082.wav": {
+  "source": "Drone Production Element Imaging Dark Phase Evil Gritty 01.wav",
+  "path": "Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Dark Phase Evil Gritty 01.wav",
+  "effect": "nightmare",
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C096.wav から改名）"
+ },
+ "C040.wav": {
+  "source": "SORCERY - DESIGNED - MAGIC BLACK Summon Necromancer-01.wav",
+  "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Necromancer-01.wav",
+  "effect": "lich",
+  "basis": "ADOPTED.md",
+  "note": "（2026-10-22 C039.wav から改名）"
  }
 };

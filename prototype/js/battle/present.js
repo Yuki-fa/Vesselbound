@@ -1491,6 +1491,12 @@ function presentStatChangeVfxCode(ev, ownCode, opt) {
   if (wanted && PRESENT_BUFF_VFX_ALWAYS_TRIGGERS.has(trigger)) return wanted;
   // 付与された別トリガの効果で、キャラクター本体の固有VFXを使わない。
   // 例：攻撃効果しか持たないケンタウロスへ負傷エンチャントを付けた場合はS006。
+  // 強化カードで得た効果は、付けたキャラクター本体の固有の絵を使わない（継承・遺志＝死亡の汎用 S007 など）。
+  // 理由名から発動の種類が判らない時（共振など）は、強化カードの本文の発動の種類で汎用の演出を選ぶ。
+  if (opt && opt.fromEnchant) return wanted || presentBuffCodeForEffectText(opt.enchantText);
+  // 固有の絵を持たないカード（コボルド・ギガンテス等）は、負傷・死亡でも汎用の演出にする
+  // （2026-10-22：シートの「VFX/SE」列で S006／S007 を指定していたものを規則へ移した）。
+  if (opt && opt.ownHasArt === false) return wanted || String(ownCode || '');
   return ownHasTrigger ? (String(ownCode || '') || wanted) : wanted;
 }
 // その能力変化を起こした強化カード（VFX/SE列を引くための名前）。
@@ -1502,6 +1508,13 @@ const PRESENT_STAT_CHANGE_ENCHANT_BY_REASON = {
   resonance: '共振',
   tactics: '戦術',
 };
+// 効果文の先頭の発動の種類（攻撃：・負傷：…）→ 汎用の強化の演出（S005〜S009）。読めなければ空。
+function presentBuffCodeForEffectText(text) {
+  const m = /(?:^|[。\n　\s])(攻撃|負傷|死亡|開戦|常時|\d+マナ毎?)\s*[：:]/.exec(String(text || ''));
+  if (!m) return '';
+  const trigger = /マナ/.test(m[1]) ? 'mana' : { 攻撃: 'attack', 負傷: 'injury', 死亡: 'death', 開戦: 'opening', 常時: 'passive' }[m[1]];
+  return PRESENT_BUFF_VFX_BY_TRIGGER[trigger] || '';
+}
 function presentStatChangeEnchantName(reason) {
   return PRESENT_STAT_CHANGE_ENCHANT_BY_REASON[String(reason || '')] || '';
 }
