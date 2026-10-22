@@ -95,7 +95,7 @@ function fixture(count, manySpriggans) {
     _extraManaThresholds: [h.clone(threshold), h.clone(threshold)],
   }));
   const x = h.setup({ sides: { p1: { units }, p2: { units: [h.unit('foe', '', { hp: 10000, maxHp: 10000 })] } },
-    resources: { p1: { mana: 20 } } });
+    resources: { p1: { mana: 40 } } });
   renderAll();
   coreApplyManaThresholdEffects(x.state, x.rng, x.emit, x.hit);
   return x;

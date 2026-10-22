@@ -35,7 +35,7 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
   await check('シートの本文：邪眼・結界・狂気（通常／合体）、エルフ、ミノタウロス、敵3体', () => {
     for(const no of ['E018','E021','E009','C009']) assert.equal(PANEL_POOL.find(c=>c.no===no).desc,effectText(no));
     assert.deepEqual(card('エルフ').keywords, sheetRows('card').find(r=>r['No.']==='C062')['キーワード'].split(/[\s　]+/));
-    assert.match(card('ミノタウロス').desc, /結界1を得てからランダムな敵に攻撃する/);
+    assert.match(card('ミノタウロス').desc, /効果ダメージを受けた場合、ランダムな敵に攻撃する/);
     assert.match(enemy('ラン・ドーター').desc, /「黒ケルピー」を1体召喚する/);
     assert.match(enemy('ヴィーザル').desc, /全ての味方は\+12\/\+12を得る/);
     assert.match(enemy('リムスルス').desc, /このキャラクターにダメージを与えた敵に8ダメージを与える/);
@@ -58,7 +58,7 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
   }
   for (const enhanced of [false,true]) {
     const text=effectText('E021',enhanced),label=enhanced?'強化':'通常',per=Number((text.match(/味方(\d+)体/)||[])[1])||1;
-    const repeat=effectRepetitions(text),count=per*repeat,amount=Number(text.match(/結界(\d+)/)[1]);
+    const repeat=effectRepetitions(text),count=per*repeat,amount=Number((text.match(/結界(\d*)/)||['',1])[1]||1);
     await check(`結界（${label}）：自分以外の味方${per}体へ結界${amount}を${repeat}回（同時対象は別々）`, () => {
       const h = harness([plain('ward', { desc: text }), plain('a1'), plain('a2'), plain('a3')], [plain('e0')]);
       h.p1[0].hp = 0;
@@ -71,7 +71,7 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
     });
   }
   for (const enhanced of [false,true]) {
-    const text=effectText('E009',enhanced),label=enhanced?'強化':'通常',amount=Number(text.match(/ATK\+(\d+)/)[1]),repeat=effectRepetitions(text);
+    const text=effectText('C036',enhanced),label=enhanced?'強化':'通常',amount=Number(text.match(/ATK\+(\d+)/)[1]),repeat=effectRepetitions(text);
     await check(`狂気（${label}）：本文の対象へATK+${amount}を${repeat}回`, () => {
       const h = harness([plain('mad', { desc: text }), plain('a1')], [plain('e0'), plain('e1')]);
       h.p1[0].hp = 0;
@@ -88,7 +88,7 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
       coreApplyInjuryEffects(h.p1[0], 1, h.state, h.rng, h.emit, h.hit, h.p2[0], undefined, 'effect');
       const order = h.events.filter(e => (e.type === 'keyword_effect' && e.effect === 'shield') || e.type === 'attack').map(e => e.type);
       // 結界は重ならない（2026-10-21 利用者指定）：反撃0で結界が残る2回目以降は獲得を出さない。
-      assert.deepEqual(order, ['keyword_effect', ...Array(times).fill('attack')]);
+      assert.deepEqual(order, Array(times).fill('attack'));
       const h2 = harness([plain('ミノタウロス', { desc: text })], [plain('e0')]);
       coreApplyInjuryEffects(h2.p1[0], 1, h2.state, h2.rng, h2.emit, h2.hit, h2.p2[0], undefined, 'combat');
       assert.ok(!h2.events.some(e => e.type === 'attack'), '戦闘ダメージでは発動しない');

@@ -64,8 +64,8 @@ async function testPveTrial(api,check=(name,fn)=>{fn();console.log('OK '+name);}
     const scroll=makeItem('絆の巻物');G.spellSlots[0]=scroll;assert.equal(_canUseItemNow(scroll),false);assert.equal(_useImmediateItem(0,scroll),false);assert.equal(G.spellSlots[0],scroll);assert.ok(!G._pendingItemUse);
     G.mainBoard[0]={...makePanel('ノーム'),_tripleMerged:true,_merged:true,power:81,life:99};const merged=clone(G.mainBoard[0]);
     SaveRun.restoreRunState(SaveRun.buildRunSave('reward'));assert.deepEqual(G.mainBoard[0],merged);
-    assert.equal(panelMergeContentAvailable(makePanel('魔鏡')),false);assert.equal(panelMergeContentAvailable(scroll),false);
-    for(let i=0;i<30;i++){assert.ok(!drawRewards().some(c=>_isMagicMirrorPanel(c)));assert.ok(!drawItems(3).some(c=>c.itemEffectKey==='bond_scroll'));}
+    assert.match(makePanel('魔鏡').desc,/還魂/);assert.equal(_canUseItemNow(scroll),false);
+    for(let i=0;i<30;i++){assert.ok(drawRewards().every(c=>c&&c._implemented!==false));assert.ok(!drawItems(3).some(c=>c.itemEffectKey==='bond_scroll'));}
   });
   fresh();check('停止スイッチを戻すと合体を復帰でき、オンラインは停止スイッチに影響されない',()=>{
     const enabled=PANEL_MERGE_TRIAL.enabled;

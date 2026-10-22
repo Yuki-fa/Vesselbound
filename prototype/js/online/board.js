@@ -85,6 +85,7 @@
       _resonanceEffectNames: Array.isArray(snap._resonanceEffectNames) ? snap._resonanceEffectNames.slice() : [],
       _resonanceEffectScales: { ...(snap._resonanceEffectScales || {}) },
       _mapPanelPower: String(snap._mapPanelPower || ''),
+      ...(snap._mapPanelPowerText?{_mapPanelPowerText:snap._mapPanelPowerText}:{}),
       _uniteGroups: Array.isArray(snap._uniteGroups) ? snap._uniteGroups.slice() : [],
       _tripleMerged: !!snap._tripleMerged,
       _merged: !!snap._merged,
@@ -883,6 +884,7 @@
         }
         break;
       }
+      case 'run_effect': { applyCoreRunEffectEvent(ev); break; }
       case 'summon_buff': {
         if(ev.persistent&&ev.side==='p1'&&typeof G!=='undefined'&&G) G.gameSummonBuff={atk:ev.gameTotalAtk,hp:ev.gameTotalHp};
         // 「この戦闘中、召喚された味方は+X/+Yを得る」の記録。

@@ -48,7 +48,7 @@ function setup(extra={}){
     h.hit(h.enemy,target,4);assert.deepEqual(G._simMetrics,{dealt:4,taken:0});
   });
   check('ATKへのダメージ',()=>{
-    const def=PANEL_POOL.find(c=>/攻撃はHPではなくATKにダメージを与える/.test(c.desc));
+    const def={desc:'攻撃：このキャラクターの攻撃はHPではなくATKにダメージを与える。'}; // 旧セーブも受ける汎用ルールの検査
     assert.ok(def,'ATK攻撃のシート定義');
     const h=setup({desc:def.desc});h.ally._coreAttackContact=true;
     coreResolveHit(h.state,h.ally,h.enemy,4,false,()=>0,h.emit);

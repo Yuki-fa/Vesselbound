@@ -72,6 +72,8 @@
         _resonanceEffectNames: Array.isArray(u._resonanceEffectNames) ? u._resonanceEffectNames.slice() : [],
         _resonanceEffectScales: { ...(u._resonanceEffectScales || {}) },
         _mapPanelPower: entry.panelPower,
+        ...(u._mapPanelPowerText ? { _mapPanelPowerText: u._mapPanelPowerText } : {}),
+        ...(u._battleEndCount != null ? { _battleEndCount: Number(u._battleEndCount)||0 } : {}),
         _mainBoardSlot: Number.isInteger(entry.slotIdx) ? entry.slotIdx : null,
         _stageNumber: Math.max(1, Number(u._stageNumber)
           || Number(typeof G !== 'undefined' && G && G._wave) || 1),
@@ -126,6 +128,8 @@
     return {
       units,
       ...coreGameSummonBuffFields({p1:typeof G!=='undefined'&&G&&G.gameSummonBuff}),
+      ...coreRunEffectFields({p1:G.runEffects||{}}),
+      itemFreeSlots:{p1:(G.spellSlots||[]).filter(x=>!x).length,p2:4},
       stageNumber: Math.max(1, Number(typeof G !== 'undefined' && G && G._wave) || 1),
       mapIndex: Math.max(1, Number(typeof G !== 'undefined' && G && G._wave) || 1),
       rings: {

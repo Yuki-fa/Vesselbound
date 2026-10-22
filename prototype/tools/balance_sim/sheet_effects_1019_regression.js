@@ -64,8 +64,8 @@ const stats = events => events.filter(e => e.type === 'stat_change');
     const fanatic = setup([subject('C100', enhanced, { name: '改名された観測者' }), plain('released')], side);
     fanatic.state.blood = { [side]: 7 };
     coreApplyReleaseEffects(fanatic.state.units[side][1], [], fanatic.state, fanatic.rng, fanatic.emit, fanatic.hit);
-    const scale = Number((data.effectText('C100', enhanced).match(/血の(\d+)倍/) || [])[1]) || 1;
-    assert.deepEqual([fanatic.unit.atk, fanatic.unit.hp, fanatic.unit.shield], [20 + 7 * scale, 100 + 7 * scale, 1]);
+    assert.equal(coreAllyExtraTriggerTimes(fanatic.unit,fanatic.state,'解放'),Number(data.effectText('C100',enhanced).match(/(\d+)回追加/)[1]));
+    assert.deepEqual([fanatic.unit.atk,fanatic.unit.hp,fanatic.unit.shield],[20,100,0]);
 
     const steal = setup([subject('C090', enhanced)], side);
     steal.state.units[steal.other] = ['front-a', 'front-b', 'rear'].map((id, i) => createCoreUnit(plain(id, { lane: i === 2 ? 'rear' : 'front' }), steal.other, i));
@@ -92,17 +92,15 @@ const stats = events => events.filter(e => e.type === 'stat_change');
     checked += 8;
   }
 
-  // 確率の外れ・2回目だけの成功・両方の成功。反復は独立した判定。
-  for (const enhanced of [false, true]) {
-    const text = data.effectText('C020', enhanced), probability = Number(text.match(/(\d+)%/)[1]) / 100;
-    const times = data.effectRepetitions(text), amount = Number(text.match(/確率で(\d+)マナ/)[1]);
-    for (const successful of [-1, 0, times - 1, 'all']) {
-      const run = setup([subject('C020', enhanced)]); let calls = 0;
-      run.rng.next = () => { const n = calls++; return successful === 'all' || n === successful ? probability / 2 : probability; };
-      coreApplyInjuryEffects(run.unit, 1, run.state, run.rng, run.emit, run.hit);
-      assert.equal(calls, times);
-      assert.equal(run.state.resources.p1.mana - 10, amount * (successful === 'all' ? times : successful < 0 ? 0 : 1)); checked++;
-    }
+  // ヘカトンケイルは現行本文で味方の負傷効果を追加発動する。封印中は働かない。
+  for (const side of ['p1', 'p2']) for (const enhanced of [false, true]) {
+    const run = setup([subject('E001', false), subject('C020', enhanced)], side);
+    const amount = Number(data.effectText('C020', enhanced).match(/(\d+)回追加/)[1]);
+    assert.equal(coreAllyExtraTriggerTimes(run.unit, run.state, '負傷'), amount);
+    run.hit(run.state.units[run.other][0], run.unit, 1);
+    assert.equal(run.events.filter(e => e.reason === 'injury_self_buff').length, 1 + amount);
+    run.state.units[side][1]._sealed = true;
+    assert.equal(coreAllyExtraTriggerTimes(run.unit, run.state, '負傷'), 0); checked++;
   }
 
   // 反復付与が同じ相手を選んでも、後の死亡で全ての付与が発動する。
@@ -129,6 +127,7 @@ const stats = events => events.filter(e => e.type === 'stat_change');
     const source = subject(no, false), enhanced = subject(no, true);
     source.effectData.effectTexts.push(...enhanced.effectData.effectTexts);
     source.boardCards.push(...enhanced.boardCards);
+    if(no==='E069') source.keywords=['先制','毒牙2'];
     const run = setup([source], side);
     const child = coreSummonUnit(run.state, side, { name: '歌の検査体', atk: 10, hp: 20 }, run.emit, run.unit.id);
     const texts = [data.effectText(no, false), data.effectText(no, true)];
@@ -136,7 +135,12 @@ const stats = events => events.filter(e => e.type === 'stat_change');
       const pairs = texts.map(text => text.match(/\+(\d+)\/\+(\d+)/));
       assert.deepEqual([child.atk-child._baseAtk,child.hp-child._baseMaxHp],
         [pairs.reduce((n,m)=>n+Number(m[1]),0),pairs.reduce((n,m)=>n+Number(m[2]),0)]);
-    } else if (no === 'E069') assert.equal(child.shield,1); // 結界は重ならない（2026-10-21 利用者指定）
+    } else if (no === 'E069') {
+      const grants=run.events.filter(e=>e.effect==='keyword_gain');
+      assert.equal(grants.length,texts.reduce((n,text)=>n+Number(text.match(/ランダムに(\d+)つ/)[1]),0));
+      assert.ok(grants.every(e=>['先制','毒牙2'].includes(e.keyword)));
+      assert.equal(child.shield,0,'旧本文の結界を付与しない');
+    }
     else {
       child.hp=0;coreApplyDeathEffects(child,run.state,run.rng,run.emit,run.hit);
       assert.equal(run.events.filter(e=>e.type==='damage').reduce((n,e)=>n+e.amount,0),
@@ -146,17 +150,17 @@ const stats = events => events.filter(e => e.type === 'stat_change');
   }
 
   // 熟練は付与時の与え手から確定し、後続の召喚者から再計算しない。
-  for (const no of ['C029', 'C034', 'C057']) {
+  for (const no of ['C029', 'C034', 'C072']) {
     const run = setup([subject(no, true, { keywords: ['熟練2'] }), plain('summoner', { keywords: ['熟練9'] })]);
     const first = coreSummonUnit(run.state, 'p1', { name: '先の眷属', atk: 10, hp: 20 }, run.emit, 'summoner');
     if (no === 'C029') { run.unit.hp = 0; coreApplyDeathEffects(run.unit, run.state, run.rng, run.emit, run.hit); }
     if (no === 'C034') coreApplyInjuryEffects(run.unit, 1, run.state, run.rng, run.emit, run.hit);
     const text = data.effectText(no, true), pair = text.match(/\+(\d+)\/\+(\d+)/);
     const expected = { atk: pair ? Number(pair[1]) + 2 : no === 'C034' ? Number(text.match(/ATK\+(\d+)/)[1]) + 2 : 0,
-      hp: pair ? Number(pair[2]) + 2 : no === 'C057' ? Number(text.match(/HP\+(\d+)/)[1]) + 2 : 0 };
+      hp: pair ? Number(pair[2]) + 2 : no === 'C072' ? Number(text.match(/HP\+(\d+)/)[1]) + 2 : 0 };
     assert.deepEqual(run.state.gameSummonBuff.p1, expected);
     const second = coreSummonUnit(run.state, 'p1', { name: '後の眷属', atk: 10, hp: 20 }, run.emit, 'summoner');
-    const repeats = no === 'C057' ? 2 : 1;
+    const repeats = no === 'C072' ? 2 : 1;
     assert.deepEqual([first.atk, first.hp, second.atk, second.hp],
       [10 + expected.atk * repeats, 20 + expected.hp * repeats, 10 + expected.atk * repeats, 20 + expected.hp * repeats]);
     const next = setup([plain('new-battle')], 'p1', { gameSummonBuff: h.copy(run.state.gameSummonBuff) });
@@ -165,7 +169,7 @@ const stats = events => events.filter(e => e.type === 'stat_change');
   }
 
   // 同じ入力のコア・オンライン計算・JSON保存再計算と、両受け口への書き戻し。
-  const prepared = setup([subject('C057', true), subject('C045', false, { id: 'mitera' }),
+  const prepared = setup([subject('C072', true), subject('C045', false, { id: 'mitera' }),
     subject('C034', false, { id: 'eidolon' })], 'p1', { gameSummonBuff: { p1: { atk: 3, hp: 5 }, p2: { atk: 2, hp: 4 } } }).state;
   const seed = 20261019;
   const input = SaveRun.copy({ seed, turnLimit: 8, sides: Object.fromEntries(['p1', 'p2'].map(side => [side, { units: prepared.units[side] }])),

@@ -96,31 +96,31 @@ function gameplay(result) {
   });
   check('内なる大力と合算：60/80＋3/2−10/10、ゴーレム2/4＋3/2−5/5', () => {
     let board = fresh({stage: 2, might: true});
-    assert.deepEqual(stats(formed(board)), [53, 72, 72]);
+    assert.deepEqual(stats(formed(board)), [54, 73, 73]);
     board = fresh({power: 2, life: 4, might: true});
-    assert.deepEqual(stats(formed(board)), [0, 1, 1]);
-    assert.deepEqual(_panelCharacterPreviewStats(board, 1, G.mainBoard[1]), {atk: 0, hp: 1});
+    assert.deepEqual(stats(formed(board)), [1, 2, 2]);
+    assert.deepEqual(_panelCharacterPreviewStats(board, 1, G.mainBoard[1]), {atk: 1, hp: 2});
   });
   check('封印中も内なる大力と同じ編成値を保ち、解放で再減算しない', () => {
     const raw = formed(fresh({stage: 2, might: true, sealed: true})), h = opening(raw);
-    assert.deepEqual(stats(h.unit), [53, 72, 72]); assert.ok(coreIsSealed(h.unit));
+    assert.deepEqual(stats(h.unit), [54, 73, 73]); assert.ok(coreIsSealed(h.unit));
     h.unit._sealed = false; delete h.unit._sealValue;
     coreApplyReleaseEffects(h.unit, [], h.state, createSeededRng(2), e => h.events.push(e), () => {});
-    assert.deepEqual(stats(h.unit), [53, 72, 72]);
+    assert.deepEqual(stats(h.unit), [54, 73, 73]);
   });
   check('静寂でも編成済みの常時修正は残り、静寂解除で再減算しない（両陣営）', () => {
     for (const side of ['p1', 'p2']) {
       const raw = formed(fresh({stage: 2, might: true})), h = opening(raw, {side, silence: true});
-      assert.ok(coreUnitIsSilenced(h.unit)); assert.deepEqual(stats(h.unit), [53, 72, 72]);
+      assert.ok(coreUnitIsSilenced(h.unit)); assert.deepEqual(stats(h.unit), [54, 73, 73]);
       coreUnsilenceUnit(h.unit);
-      assert.ok(!coreUnitIsSilenced(h.unit)); assert.deepEqual(stats(h.unit), [53, 72, 72]);
+      assert.ok(!coreUnitIsSilenced(h.unit)); assert.deepEqual(stats(h.unit), [54, 73, 73]);
     }
   });
   check('祝福は刻印個体へ一度だけ、キャラ本体の祝福・runLevels・強化は基礎値へ先に適用', () => {
     const board = fresh({stage: 4, acquired: 2, might: true, levels: {atk: 2, hp: 3}, boon: {modDelta: 2, modMul: 3}});
     coreApplyCardBoon(G.mainBoard[1], {statMul: 2, modDelta: 9});
     const unit = formed(board);
-    assert.deepEqual(stats(unit), [60 * 2 * 2 + 3 - 36, 80 * 2 * 3 + 2 - 36, 80 * 2 * 3 + 2 - 36]);
+    assert.deepEqual(stats(unit), [60 * 2 * 2 + 4 - 36, 80 * 2 * 3 + 3 - 36, 80 * 2 * 3 + 3 - 36]);
     assert.deepEqual(_panelCharacterPreviewStats(board, 1, G.mainBoard[1]), {atk: unit.atk, hp: unit.hp});
     const mergedBoard = fresh({stage: 2, merged: true});
     assert.deepEqual(stats(formed(mergedBoard)), [G.mainBoard[1].power - 10, G.mainBoard[1].life - 10, G.mainBoard[1].life - 10]);

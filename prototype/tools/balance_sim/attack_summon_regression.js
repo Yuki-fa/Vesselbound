@@ -282,7 +282,7 @@ async function run() {
   await check('present_parityの追加5場面と生成したブラウザ用スクリプトは構文が正しい', () => {
     const file = path.join(ROOT, 'tools/parity/present_parity.js'), source = fs.readFileSync(file, 'utf8');
     const data = vm.runInNewContext(source.slice(0, source.indexOf('(async () => {'))
-      + '\n({ SCENARIOS, pveScript, onlineScript });', { require: require('node:module').createRequire(file), process });
+      + '\n({ SCENARIOS, pveScript, onlineScript });', { require: require('node:module').createRequire(file), process, __dirname:path.dirname(file) });
     for (const scene of data.SCENARIOS.slice(0, 5)) {
       new vm.Script('(async () => {' + data.pveScript(scene) + '})()');
       new vm.Script('(async () => {' + data.onlineScript(scene) + '})()');

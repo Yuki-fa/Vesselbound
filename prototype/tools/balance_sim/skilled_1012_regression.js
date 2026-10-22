@@ -34,7 +34,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   const giver=plain('giver','赤',{keywords:['熟練2','熟練3']}),receiver=plain('receiver','青',{keywords:['熟練9']});
   for(const n of [0,1,4,-1,-4])assert.equal(coreStatBonus(receiver,n,giver),n+(n?Math.sign(n)*5:0));
   assert.equal(coreStatBonus(receiver,2,plain('unskilled')),2,'受け手の熟練で増えた');
-  assert.equal(coreKeywordCountBuff(['熟練','熟練1','熟練3','先制'],[{desc:text('E063',false)}]),4,'熟練Nは1種類、カード名は除外');
+  assert.equal(coreKeywordCountBuff(['熟練','熟練1','熟練3','先制'],[{desc:'常時：このキャラクターは+X/+Xを得る。Xはキーワードの数の2倍に等しい。'}]),4,'熟練Nは1種類、カード名は除外');
 
   for(const side of ['p1','p2'])for(const merged of [false,true]){
     // E052はシート本文の通常1／合体3。改名しても本文で効く。
@@ -84,15 +84,11 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
     assert.equal(coreKeywordSum(child,'熟練'),0,'開戦後に新たな体へ常時付与');checked++;
   }
   for(const side of ['p1','p2'])for(const strategyMerged of [false,true]){
-    const recipient=formed('C093',[['E063',strategyMerged]],{desc:'',keywords:['先制']});recipient.id='strategy';
-    const walker=plain('walker','紫',{desc:text('C093',false)});
-    const h=setup([walker,recipient],side),u=h.state.units[side][1];
-    const before=[u.atk,u.hp,u.maxHp],multiplier=Number(text('E063',strategyMerged).match(/数の(\d+)倍/)[1]);
-    opening(h);
-    assert.equal(coreKeywordCountBuff(u.keywords,[{desc:text('E063',strategyMerged)}]),multiplier*2,'付与後の策士の種類数');
-    assert.deepEqual([u.atk,u.hp,u.maxHp],before.map(n=>n+multiplier+1),'新しい1種類分＋自身の熟練1');
-    coreApplyOpeningEffects(h.state.units[side][0],h.state,h.rng,h.emit,h.hit,1);
-    assert.equal(coreKeywordSum(u,'熟練'),2);assert.deepEqual([u.atk,u.hp,u.maxHp],before.map(n=>n+multiplier+1),'同種の重複で策士の種類数が増えた');checked++;
+    const recipient=formed('C093',[['E063',strategyMerged]],{desc:'',keywords:['邪眼3','毒牙4','衝撃2']});
+    const value=Number(text('E063',strategyMerged).match(/値は\+(\d+)/)[1]);
+    assert.equal(coreKeywordSum(recipient,'邪眼'),3+value);assert.equal(coreKeywordSum(recipient,'毒牙'),4+value);
+    assert.equal(coreKeywordSum(recipient,'衝撃'),2+value);
+    assert.equal(coreKeywordCountBuff(recipient.keywords,[{desc:text('E063',strategyMerged)}]),0,'策士はキーワード数で能力を上げない');checked++;
   }
   // 状態異常、毒によるHP減少、結界、通常ダメージは熟練の対象外。
   for(const side of ['p1','p2']){

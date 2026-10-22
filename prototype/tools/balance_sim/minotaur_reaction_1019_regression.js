@@ -1,6 +1,6 @@
 'use strict';
-// 2026-10-19 利用者指定：ミノタウロスの効果による攻撃では「攻撃：」の効果を発動しない。
-// 懺悔2枚なら「懺悔の1ダメージ→結界1→攻撃（反撃は結界が受ける）」を4回繰り返してから本来の攻撃をする。
+// 2026-10-22 利用者指定：割り込み攻撃でも攻撃効果を発動する。
+// 懺悔の再発動による負傷の再入は止め、攻撃と反撃を検証する。
 const assert = require('node:assert/strict');
 const core = require(process.env.VB_CORE_BASELINE || '../../js/battle/core');
 const { createSeededRng } = require('../../js/online/protocol');
@@ -13,7 +13,7 @@ function run(side, penances, extraText = [], foeSpec = null, minoKeywords = []) 
   const foe = side === 'p1' ? 'p2' : 'p1';
   const texts = [...Array(penances).fill(PENANCE), ...extraText];
   const mino = { id: 'mino', name: 'ミノタウロス', no: 'C009', atk: 4, hp: 40, maxHp: 40, color: '赤', keywords: minoKeywords,
-    desc: '負傷：効果ダメージを受けた場合、結界1を得てからランダムな敵に攻撃する。',
+    desc: require('./sheet_data').effectText('C009'),
     _adjacentPanelEffectTexts: texts, effectData: { effectTexts: texts } };
   const state = core.createBattleState({ sides: { [side]: { units: [mino] },
     [foe]: { units: foeSpec || [{ id: 'foe', name: 'foe', atk: 1, hp: 500, maxHp: 500, keywords: [] }] } } });
@@ -23,26 +23,20 @@ function run(side, penances, extraText = [], foeSpec = null, minoKeywords = []) 
   return { events, mino: state.units[side].find(u => u.id === 'mino'), foe: state.units[foe][0] };
 }
 for (const side of ['p1', 'p2']) {
-  check(`${side}：懺悔2枚は1ダメージごとに結界＋攻撃を4回、割り込み攻撃では懺悔を再発動しない`, () => {
+  check(`${side}：懺悔2枚は1ダメージごとに結界＋攻撃を4回、割り込み攻撃でも懺悔を再発動する`, () => {
     const { events, mino, foe } = run(side, 2);
     const reactions = events.filter(e => e.type === 'attack' && e.immediate && e.attackerId === 'mino');
     assert.equal(reactions.length, 4);
     const selfHits = events.filter(e => e.type === 'damage' && e.unitId === 'mino' && (e.amount ?? e.damage) > 0);
-    assert.equal(selfHits.length, 5, '懺悔4回＋本来の攻撃の反撃1回（割り込み攻撃の反撃は結界が受ける）');
-    assert.equal(mino.hp, 35);
+    assert.equal(selfHits.length, 25, '本来と割り込み4回の懺悔20回＋各攻撃の反撃5回');
+    assert.equal(mino.hp, 15);
     assert.equal(foe.hp, 500 - 4 * 5);
-    // 各割り込み攻撃の直前は「1ダメージ→結界」で、間に懺悔の追加ダメージが入らない。
-    for (const reaction of reactions) {
-      const i = events.indexOf(reaction), before = events.slice(0, i).filter(e => e.type !== 'effect_flash');
-      assert.equal(before.at(-1).type, 'keyword_effect');
-      assert.equal(before.at(-2).type, 'damage');
-      assert.equal(before.at(-2).amount ?? before.at(-2).damage, 1);
-    }
+    assert.equal(events.filter(e=>e.type==='keyword_effect'&&e.effect==='shield').length,0,'新本文は結界を与えない');
   });
-  check(`${side}：他の攻撃効果（このキャラクターは+1/+1を得る）も割り込み攻撃では発動しない`, () => {
+  check(`${side}：他の攻撃効果（このキャラクターは+1/+1を得る）も割り込み攻撃で発動する`, () => {
     const { events } = run(side, 1, ['攻撃：このキャラクターは+1/+1を得る。']);
     assert.equal(events.filter(e => e.type === 'attack' && e.immediate).length, 2);
-    assert.equal(events.filter(e => e.type === 'stat_change' && e.unitId === 'mino' && e.atk > 0).length, 1, '本来の攻撃の1回だけ');
+    assert.equal(events.filter(e => e.type === 'stat_change' && e.unitId === 'mino' && e.atk > 0).length, 3, '本来1回＋割り込み2回');
   });
 }
 for (const side of ['p1', 'p2']) {

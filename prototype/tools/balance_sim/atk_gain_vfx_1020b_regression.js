@@ -77,10 +77,10 @@ async function check(name, run) {
     const clean=value=>JSON.parse(JSON.stringify(value,(key,v)=>key==='_coreOpeningEffectsState'?'<state>':v));
     // 結界を持つ・与えるキャラは 2026-10-21 の結界ルール変更（重ならない）で結果が変わるので外す。
     const shieldRule=r=>/結界/.test(Object.values(r).join(' '));
-    const cases=defs.filter((d,i)=>!shieldRule(h.sheetRows('card')[i]));
+    const cases=defs.filter((d,i)=>!shieldRule(h.sheetRows('card')[i])&&!require('./sheet_data').effectChanged1022(d.no));
     for(const def of cases)for(const side of ['p1','p2']){
       const u=h.clone(def);
-      if(def.no==='C058')Object.assign(u,{manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:h.card('E045').desc.replace(/^1マナ毎：/,'')});
+      if(def.no==='C058')Object.assign(u,{manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:h.card('E045').desc.replace(/^\d+マナ毎：/,'')});
       const options={sides:{[side]:{units:[u]},[side==='p1'?'p2':'p1']:{units:[h.unit('foe0'),h.unit('foe1')]}},
         resources:{[side]:{mana:6,gold:20}},summonDefs:defs};
       const results=[baseline,global].map(api=>{

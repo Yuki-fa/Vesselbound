@@ -370,6 +370,8 @@ const ONLINE_VERSUS_GOLD = 100;
           p2: opponent,
         },
         resources: selfFormation && selfFormation.resources,
+        runEffects: {p1:selfFormation&&selfFormation.runEffects&&selfFormation.runEffects.p1,p2:opponent&&opponent.runEffects&&(opponent.runEffects.p2||opponent.runEffects.p1)},
+        itemFreeSlots:{p1:selfFormation&&selfFormation.itemFreeSlots&&selfFormation.itemFreeSlots.p1,p2:opponent&&opponent.itemFreeSlots&&opponent.itemFreeSlots.p1},
         gameSummonBuff: {
           p1: selfFormation && selfFormation.gameSummonBuff && selfFormation.gameSummonBuff.p1,
           p2: opponent && opponent.gameSummonBuff && (opponent.gameSummonBuff.p2 || opponent.gameSummonBuff.p1),

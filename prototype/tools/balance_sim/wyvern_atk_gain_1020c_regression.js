@@ -34,13 +34,8 @@ const scenarios = [
     run: x => coreApplyOpeningRings(x.state, x.rng, x.emit, x.hit), reasons: ['opening_ring_enemy_buff'] },
   ...['bond_scroll', 'giant_scroll'].map(key => ({ name: key, options: side => items(side, key),
     run: x => coreApplyOpeningItems(x.state, x.rng, x.emit, x.hit), reasons: [key] })),
-  { name: '魔導板の共鳴', extra: { _mapPanelPower: 'resonance' },
-    run: x => coreApplyMapPanelOpeningEffects(x.state, x.emit, x.rng, x.hit), reasons: ['resonance_panel'] },
   { name: '咆哮エンチャント', extra: () => effects('E049', 'enchant'),
     run: x => coreApplyOpeningEffects(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['roar'] },
-  { name: '全色条件で倍化', extra: () => effects('C080'),
-    support: () => ['青', '緑', '黄', '紫'].map((color, i) => h.unit('color' + i, null, { color })),
-    run: x => coreApplyOpeningEffects(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['opening_all_color_double'] },
   { name: 'マナ獲得による常時補正', extra: () => effects('EN061', 'enemy'),
     options: side => ({ resources: { [other(side)]: { mana: 2 } } }),
     run: x => coreGainResource(x.state, x.find('wyvern').side, 'mana', 1, null, x.emit, '検査', null, x.rng, x.hit),
@@ -55,20 +50,17 @@ const scenarios = [
     desc: '常時：全ての味方は+X/+Xを得る。Xは現在のマップの2倍に等しい。', _terrainMapNo: 2 })],
     run: x => coreApplyOpeningEffects(x.find('support'), x.state, x.rng, x.emit, x.hit), reasons: ['map_passive_team_buff'] },
   { name: '活性化', extra: () => ({ manaCost: 1, manaRepeat: true, manaThresholdNo: 'E045',
-    manaThresholdDesc: h.card('E045').desc.replace(/^1マナ毎：/, '') }),
+    manaThresholdDesc: h.card('E045').desc.replace(/^\d+マナ毎：/, '') }),
     options: side => ({ resources: { [side]: { mana: 2 } } }),
     run: x => coreApplyManaThresholdEffects(x.state, x.rng, x.emit, x.hit), reasons: ['mana_threshold'] },
   { name: 'マナ効果の色補正', extra: { color: '緑' }, support: () => [h.unit('support', 'C050')],
     options: side => ({ resources: { [side]: { mana: 2 } } }),
     run: x => coreApplyManaThresholdEffects(x.state, x.rng, x.emit, x.hit), reasons: ['mana_threshold_color_all'] },
-  { name: 'キーワード種類数が増える策士', extra: () => effects('E063', 'enchant'),
-    run: x => coreGrantOpeningKeyword(x.find('wyvern'), '貫通', x.find('wyvern'), x.emit, x.state, x.rng, x.hit),
-    reasons: ['opening_keyword_count_buff'] },
   { name: 'ATK奪取で得る値', extra: () => effects('C081'),
     run: x => coreApplyAttackEffects(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['imp_gain'] },
   { name: '攻撃エンチャント共振', extra: () => effects('E054', 'enchant'),
     run: x => coreApplyAttackEffects(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['resonance'] },
-  { name: '味方攻撃の常時観測', extra: () => effects('C072'),
+  { name: '味方攻撃の常時観測', extra: () => effects('E059','enchant'),
     run: x => coreApplyAttackObservers(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['attack_observer_self_buff'] },
   { name: '味方攻撃の全体観測', support: () => [h.unit('support', null, h.card('EN032', 'enemy'))],
     run: x => coreApplyAttackObservers(x.find('support'), x.state, x.rng, x.emit, x.hit), reasons: ['attack_observer_team_buff'] },
@@ -79,25 +71,16 @@ const scenarios = [
     run: x => coreApplyInjuryEffects(x.find('support'), 1, x.state, x.rng, x.emit, x.hit), reasons: ['gigantes'] },
   { name: '解放バフ', extra: () => effects('E057', 'enchant'),
     run: x => coreApplyReleaseEffects(x.find('wyvern'), [], x.state, x.rng, x.emit, x.hit), reasons: ['release_bonus'] },
-  { name: '解放の血観測', extra: () => effects('C100'),
-    run: x => { x.state.blood[x.find('wyvern').side] = 2;
-      coreApplyReleaseEffects(x.find('wyvern'), [], x.state, x.rng, x.emit, x.hit); }, reasons: ['fanatic_blood'] },
-  { name: 'アークデーモンの解放補正', extra: { color: '紫' },
-    support: () => [h.unit('support', 'C082', { boardCards: [h.card('E057')] })],
+  { name: 'フィーンドの解放補正', extra: { color: '紫' },
+    support: () => [h.unit('support', 'C099', { boardCards: [h.card('E057')] })],
     run: x => coreApplyReleaseEffects(x.find('support'), [], x.state, x.rng, x.emit, x.hit), reasons: ['arch_demon_purple_buff'] },
-  { name: '死亡エンチャントからの獲得', support: () => [h.unit('support', null, effects('E009', 'enchant'))],
+  { name: '死亡エンチャントからの獲得', support: () => [h.unit('support', null, effects('C036'))],
     run: x => { x.find('support').hp = 0;
       coreApplyDeathEffects(x.find('support'), x.state, x.rng, x.emit, x.hit); }, reasons: ['death_all_atk'] },
   { name: '死亡の常時観測', extra: { effectData: { effectTexts: ['常時：味方が死亡するたび、このキャラクターは+1/+1を得る。'] } },
     support: () => [h.unit('support')],
     run: x => { x.find('support').hp = 0;
       coreApplyDeathObservers(x.find('support'), x.state, x.rng, x.emit, x.hit); }, reasons: ['ally_death_self_buff'] },
-  { name: 'ウォーグの召喚バッチ末尾', support: () => [h.unit('support', 'C052'),
-    ...Array.from({ length: 6 }, (_, i) => h.unit('ally' + i, null, { lane: 'rear' }))],
-    run: x => { coreBeginSummonBatch(x.state);
-      coreApplyWargThreshold(x.state, x.find('wyvern').side, x.emit, x.rng, x.hit);
-      assert.equal(x.events.length, 0, 'バッチ中は誘発を保留する');
-      coreEndSummonBatch(x.state, x.emit, x.rng, x.hit); }, reasons: ['warg_count_buff'] },
   { name: '結界喪失の指輪', only: 'p1', options: side => rings(side, 'R035'),
     run: x => coreApplyShieldLostEffects(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['seal_breaker_ring'] },
   { name: '既存眷属への強化', extra: { keywords: ['眷属'] }, support: () => [h.unit('support', 'C034')],
@@ -257,7 +240,7 @@ function battle(api, options, stepped = false) {
     const baseline = context.module.exports;
     // 結界を持つ・与えるキャラは 2026-10-21 の結界ルール変更（重ならない）で結果が変わるので外す。
     const shieldRule = r => /結界/.test(Object.values(r).join(' '));
-    for (const row of h.sheetRows('card').filter(r => r['No.'] !== 'C058' && !shieldRule(r))) for (const side of ['p1', 'p2']) {
+    for (const row of h.sheetRows('card').filter(r => r['No.'] !== 'C058' && !shieldRule(r) && !require('./sheet_data').effectChanged1022(r['No.']))) for (const side of ['p1', 'p2']) {
       const u = h.unit(row['No.'], row['No.']);
       const options = { sides: { [side]: { units: [u] }, [other(side)]: { units: [h.unit('foe0'), h.unit('foe1')] } },
         resources: { [side]: { mana: 6, gold: 20 } }, ...rings(side, 'R001', 'R032', 'R034'),

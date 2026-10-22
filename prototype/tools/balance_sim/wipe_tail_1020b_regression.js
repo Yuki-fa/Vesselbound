@@ -40,7 +40,7 @@ async function check(name, run) {
   await check('活性化の途中で全滅した後の残りの閾値は、数値を保って合図を省く',async()=>{
     const a=h.card('E045');
     const x=h.setup({sides:{p1:{units:[h.unit('wyvern','C058',{boardCards:[a],_adjacentPanelEffectTexts:[a.desc],
-      manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:a.desc.replace(/^1マナ毎：/,'')})]},
+      manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:a.desc.replace(/^\d+マナ毎：/,'')})]},
       p2:{units:[h.unit('last','',{hp:1,maxHp:1})]}},resources:{p1:{mana:3,gold:19}}});
     coreApplyManaThresholdEffects(x.state,x.rng,x.emit,x.hit);
     assert.equal(x.events.filter(e=>e.type==='mana_threshold').length,3,'コアの計算は途中で止めない');

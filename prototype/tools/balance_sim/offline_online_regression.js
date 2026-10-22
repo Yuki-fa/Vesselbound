@@ -307,8 +307,8 @@ function main() {
   console.log(`カード別オフライン／オンライン一致 ${allCards.length}件 OK`);
 
   const resonance = online.events.filter(event => event.reason === 'resonance_panel');
-  assert.equal(resonance.length, 2, '共振の開戦効果が同色2体へ適用されていない');
-  assert.equal(online.finalState.p1.units[0].atk >= 6, true, '共振後のATKが維持されていない');
+  assert.equal(resonance.length, 0, '魔の力で旧共鳴のバフが発生している');
+  assert.ok(!online.events.some(e=>e.reason==='life_panel_double'),'闇の力で旧HP倍化が発生しない');
 
   const transformState = core.createBattleState({
     resources: {p1: {mana: 6, gold: 0}, p2: {mana: 0, gold: 0}},

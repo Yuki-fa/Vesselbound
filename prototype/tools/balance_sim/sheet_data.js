@@ -54,7 +54,7 @@ function sheetRows(key) {
 // キャラクターシート → 監査用の共通カード定義。列名はここ1箇所だけで管理する。
 function characterCards() {
   return sheetRows('card')
-    .filter(row => String(row['効果'] || '').trim())
+    .filter(row => String(row['実装']).toLowerCase() !== 'false')
     .map(row => ({
       name: String(row['名前'] || '').trim(),
       power: Number(row['パワー']) || 0,
@@ -68,7 +68,7 @@ function characterCards() {
 // 強化（エンチャント）シート → 同上。
 function enchantCards() {
   return sheetRows('enchant')
-    .filter(row => String(row['効果'] || '').trim())
+    .filter(row => String(row['実装']).toLowerCase() !== 'false' && String(row['効果'] || '').trim())
     .map(row => ({
       name: String(row['名前'] || '').trim(),
       keywords: String(row['キーワード'] || '').split(/[\s　]+/).filter(Boolean),
@@ -93,3 +93,21 @@ function damageRepetitions(text) {
 
 module.exports = { parseCsv, loadLocalXlsxData, sheetRows, characterCards, enchantCards,
   effectText, effectRepetitions, damageRepetitions };
+
+// 旧演出専用の差分比較は、シート改訂で効果そのものが変わった行を混ぜない。
+// 改訂した効果の検証は現行本文の回帰検査へ持たせ、変わらない効果の乱数も守る。
+let _sheet1021 = null;
+function effectChanged1022(no) {
+  if (!_sheet1021) {
+    const source = require('node:child_process').execFileSync('git', ['show', 'bf94998:prototype/js/data/local_xlsx_data.js'], { encoding: 'utf8', maxBuffer: 4e6 });
+    const data = JSON.parse(source.match(/= (\{.*\});/s)[1]);
+    _sheet1021 = new Map();
+    for (const key of ['card','enchant']) {
+      const rows=parseCsv(data[key]),headers=rows.shift();
+      for(const values of rows){const row=Object.fromEntries(headers.map((h,i)=>[h,values[i]]));_sheet1021.set(row['No.'],row);}
+    }
+  }
+  const row=[...sheetRows('card'),...sheetRows('enchant')].find(r=>r['No.']===no),old=_sheet1021.get(no);
+  return !row||!old||['名前','効果','強化効果','キーワード','強化キーワード'].some(k=>String(row[k]||'')!==String(old[k]||''));
+}
+module.exports.effectChanged1022=effectChanged1022;

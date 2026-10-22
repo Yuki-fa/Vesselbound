@@ -1666,7 +1666,7 @@ function main() {
   assert.doesNotMatch(versusSrc, /lane: idx/,
     'オンラインが独自にレーンを決めている（共通ビルダーとの二重実装）');
   // 負傷効果の反復回数をPvEとコアで同じ式にする。
-  assert.match(currentBattle, /const repeat=1\+coreRingCount\(state,side,'激怒の指輪'\)\+coreEffectCount\(unit,'執念の炎'\)/,
+  assert.match(currentBattle, /const repeat=1\+coreRingCount\(state,side,'激怒の指輪'\)\+coreExtraTriggerTimes\(unit,'負傷',coreEffectCount\(unit,'執念の炎'\)\)/,
     'PvEの負傷反復回数がコアと同じ式になっていない');
   assert.doesNotMatch(currentBattle, /const repeat=isEnemySide\?1:/,
     'PvEの負傷反復が敵側を一律1回に固定したままになっている');

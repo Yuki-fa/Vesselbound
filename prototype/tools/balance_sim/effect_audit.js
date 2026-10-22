@@ -251,7 +251,7 @@ function audit() {
     && deferredRun.state.resources.p2.mana === 0 && deferredRun.state.resources.p2.gold === 0
     && deferredRun.target.poison === 0 && deferredDeathEvents.length === 0
     && deferredDeathRun.state.resources.p2.mana === 0 && deferredDeathRun.state.resources.p2.gold === 0;
-  const normalHitOk = normalTriggerEvents.some(e => e.type === 'stat_change' && e.reason === 'golem')
+  const normalHitOk = normalTriggerEvents.some(e => e.type === 'stat_change' && e.reason === 'injury_self_buff')
     && normalTriggerEvents.some(e => e.type === 'keyword_effect' && e.effect === 'poison')
     && normalTriggerEvents.some(e => e.type === 'mana_gain' && e.reason === 'manaOnInjury')
     && normalRun.target.atk === 5 && normalRun.target.maxHp === 12 && normalRun.target.hp === 9
@@ -479,11 +479,11 @@ function audit() {
   const dedupeOk = dedupeState.units.p1[0].atk === 3 && dedupeState.units.p1[0].maxHp === 7
     && dedupeState.units.p1[1].atk === 3 && dedupeState.units.p1[1].maxHp === 7
     && dedupeEvents.filter(e => e.reason === 'ymir').length === 1
-    && dedupeEvents.filter(e => e.reason === 'golem').length === 1;
+    && dedupeEvents.filter(e => e.reason === 'injury_self_buff').length === 1;
   if (!dedupeOk) ng++;
-  console.log(`同一イベント再入回帰 ユミル=${dedupeEvents.filter(e => e.reason === 'ymir').length} ゴーレム=${dedupeEvents.filter(e => e.reason === 'golem').length} ${dedupeOk ? 'OK' : 'NG'}`);
+  console.log(`同一イベント再入回帰 ユミル=${dedupeEvents.filter(e => e.reason === 'ymir').length} ゴーレム=${dedupeEvents.filter(e => e.reason === 'injury_self_buff').length} ${dedupeOk ? 'OK' : 'NG'}`);
   // 2026-10-12: ラミアは負傷した敵の数だけ本文の修正を得る。対象の全快／負傷で検査する。
-  const lamiaCard = cards.find(x => x.name === 'ラミア');
+  const lamiaCard = {...cards.find(x => x.name === 'ラミア'),desc:'攻撃：このキャラクターは+1/+1を得る。対象が負傷している場合、もう一度繰り返す。'};
   if (lamiaCard) {
     const full = invoke(lamiaCard, 'p1', '攻撃', enemies);
     const wounded = invoke(lamiaCard, 'p1', '攻撃', enemies);
@@ -495,7 +495,7 @@ function audit() {
     core.coreApplyAttackEffects(wounded.unit, wounded.state, createSeededRng(13), e => woundedEvents.push(e), woundedHit);
     const fullLamia = full.events.filter(e => e.reason === 'attack_self_buff').length;
     const woundedLamia = woundedEvents.filter(e => e.reason === 'attack_self_buff').length;
-    const lamiaOk = fullLamia === 0 && woundedLamia === 1;
+    const lamiaOk = fullLamia === 1 && woundedLamia === 2;
     if (!lamiaOk) ng++;
     console.log(`ラミア負傷対象追加発動回帰\t全快=${fullLamia}\t負傷=${woundedLamia}\t${lamiaOk ? 'OK' : 'NG'}`);
   } else {
@@ -727,7 +727,7 @@ function audit() {
 
   // ナーガ：本文のHP修正が召喚1件につき1回、ゲーム中の累積値へ入る。
   {
-    const naga = makeDirectUnit('ナーガ', 'p1', { id: 'naga' });
+    const naga = makeDirectUnit('シャナ', 'p1', { id: 'naga' });
     const s = makeDirectState([naga], [], undefined, [{ name: 'ペリカン', color: '緑', power: 1, life: 1 }]);
     const es = []; const child = core.coreSummonUnit(s, 'p1', { name: '緑ペリカン' }, e => es.push(e), 'naga');
     const hp=Number(naga.desc.match(/HP\+(\d+)/)[1]);
@@ -867,6 +867,7 @@ function audit() {
     core.coreApplyReleaseEffects(released, [], s, createSeededRng(76), e => es.push(e), () => ({ amount: 0, died: false }));
     recordDirect('カオス・インプ', es.every(e => e.type !== 'error'), `発動=${es.length}`);
   }
+  { const unit=makeDirectUnit('リアナンシー','p1',{id:'repeat-observer'});const st=makeDirectState([unit],[]);recordDirect('リアナンシー',core.coreAllyExtraTriggerTimes(unit,st,'攻撃')===Number(unit.desc.match(/(\d+)回追加/)[1]),'味方の攻撃効果を追加'); }
   // マーメイドは既存のマナ重複回帰で検証済み、常時観測2種は直前の回帰で検証済み。
   explicitCoverage.add('マーメイド');
   explicitCoverage.add('ヘルハウンド');
@@ -994,7 +995,7 @@ function audit() {
     const ettin = makeDirectUnit('エティン', 'p1', { id: 'ettin' });
     const siren = makeDirectUnit('サイレン', 'p1', { id: 'siren' });
     const wraith = makeDirectUnit('レイス', 'p1', { id: 'wraith' });
-    const injured = makeDirectUnit('ゴーレム', 'p1', { id: 'injured' });
+    const injured = makeDirectUnit('コボルド', 'p1', { id: 'injured' });
     const s = makeDirectState([ettin, siren, wraith, injured], []); const es = [];
     core.coreApplyInjuryEffects(siren, 1, s, createSeededRng(94), e => es.push(e), () => {});
     const before = ettin.atk;
@@ -1002,7 +1003,7 @@ function audit() {
     recordDirect('エティン/レイス', before === ettin.atk && !es.some(e => e.type === 'stat_change' && e.sourceId === wraith.id && e.unitId === ettin.id), `エティン=${ettin.atk}`);
   }
   {
-    const heca = makeDirectUnit('ヘカトンケイル', 'p1', { id: 'heca' });
+    const heca = makeDirectUnit('ヘカトンケイル', 'p1', { id: 'heca', desc:'負傷：10%の確率で1マナを得る。' });
     const s = makeDirectState([heca], []); const es = [];
     core.coreApplyInjuryEffects(heca, 1, s, { next: () => 0.05, int: (a, b) => a, pick: xs => xs[0] }, e => es.push(e), () => {});
     recordDirect('ヘカトンケイル', es.some(e => e.type === 'mana_gain' && e.amount === 1), `マナ=${es.filter(e => e.type === 'mana_gain').length}`);
@@ -1041,8 +1042,8 @@ function audit() {
     const baseAtk = sElemental.atk, baseHp = sElemental.maxHp;
     const es = [];
     core.coreApplyOpeningEffects(sElemental, s, createSeededRng(105), e => es.push(e), () => {});
-    recordDirect('エレメンタル全色2倍', sElemental.atk === baseAtk * 2 && sElemental.maxHp === baseHp * 2
-      && es.some(e => e.type === 'stat_change' && e.reason === 'opening_all_color_double'),
+    recordDirect('エレメンタル全色2倍', sElemental.atk === baseAtk && sElemental.maxHp === baseHp * 2
+      && es.some(e => e.type === 'stat_change' && e.reason === 'opening_all_color_hp'),
       `ATK/HP=${sElemental.atk}/${sElemental.maxHp}`);
   }
   {
@@ -1156,7 +1157,7 @@ function audit() {
       && es.some(e => e.type === 'seal_apply' && e.value === 'infinite'), `封印=${liveFoe._sealValue}`);
   }
   {
-    const nightmare = makeDirectUnit('ナイトメア', 'p1', { id: 'nightmare', hp: 10, maxHp: 10 });
+    const nightmare = makeDirectUnit('ナイトメア', 'p1', { id: 'nightmare', hp: 10, maxHp: 10,desc:'死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。' });
     const s = makeDirectState([nightmare], []); s.blood.p1 = 2; const es = [];
     nightmare.hp = 0; core.coreApplyDeathEffects(nightmare, s, createSeededRng(123), e => es.push(e), () => {});
     nightmare._sealed = false; delete nightmare._coreDeathEffectsTriggered; nightmare.hp = 0;
@@ -1323,12 +1324,12 @@ function audit() {
       rows.push([k, `追加攻撃=${n}`, n === i + 1]);
     });
     {
-      const atk = (play([mk('ゴーレム', 'G', { atk: 2, hp: 40, maxHp: 40 }, ['熟練'])], [foe('E', { atk: 3 })], 0)
+      const atk = (play([mk('コボルド', 'G', { atk: 2, hp: 40, maxHp: 40,color:'赤',keywords:['熟練2'] }, [])], [foe('E', { atk: 3 })], 0)
         .find(e => e.type === 'stat_change' && e.unitId === 'G') || {}).atk;
       rows.push(['熟練', `負傷バフ=+${atk}`, atk === 3]);
     }
     {
-      const d = play([mk('ゴブリン', 'A', { atk: 1, hp: 9, maxHp: 9 }, ['攻防一体'])], [foe('E')], 0)
+      const d = play([mk('ゴブリン', 'A', { atk: 1, hp: 9, maxHp: 9,desc:'常時：このキャラクターのATKは常にHPに等しい。' }, [])], [foe('E')], 0)
         .find(e => e.type === 'damage' && e.unitId === 'E');
       rows.push(['攻防一体', `一撃=${d && d.amount}`, !!d && d.amount === 9]);
     }

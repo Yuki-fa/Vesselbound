@@ -157,6 +157,7 @@ function _restoreRewardReturnCard(card){
   delete returned._rewardReturnPhaseId;
   // 取る前の姿へ戻しても、アイテムを使った事実は残す（酒場の依頼カードの特殊拒否。quest.js）。
   if(card._itemBuffed) returned._itemBuffed=true;
+  if(card._activationUses) returned._activationUses={...returned._activationUses,...card._activationUses};
   if(!Array.isArray(_rewCards)) _rewCards=[];
   const idx=Number.isInteger(card._rewardReturnIdx)?card._rewardReturnIdx:-1;
   if(idx>=0&&idx<REWARD_GRID_CAPACITY&&!_rewCards[idx]){
@@ -746,6 +747,7 @@ function renderRaceBuffSummary(){
 // ── 報酬フェイズ開始 ────────────────────────────
 
 function goToReward(options){
+  if(typeof _pendingCardActivation!=='undefined') _pendingCardActivation=null;
   const _restoreCheckpoint=!!(options&&options.restoreCheckpoint);
   const _saveCheckpoint=!!(options&&options.checkpoint);
   const _noNewRewards=!!(options&&options.noNewRewards);
@@ -767,6 +769,7 @@ function goToReward(options){
     G._rewardOnePickMode=true;
     _rewFreePickDone=_noNewRewards;
     _rewPhaseId++;
+    if(!_isFacilityEntry&&!G._isItemShop&&!_peddler) G.activationFormationSeq=(Number(G.activationFormationSeq)||0)+1;
     G._isBossRewardCycle=!!G._bossJustDefeated;
     G._boardDiscardCount=0;
     G._ringOfferUnlocked=false;
@@ -1658,6 +1661,7 @@ function _syncRewardProductionRings(){
           G._ringOfferResolved=true;
           // 指輪を取った時点で「捧げたカード」は確定する（もう回収できない）。
           if(G._isRingExchange&&typeof questCommitAltarSacrifices==='function') questCommitAltarSacrifices(G._ringSacrificedCards||[]);
+          applyAscensionCardEffects(G._ringSacrificedCards||[]);
           G._ringSacrificedCards=[];
           // 別の枠へドラッグした場合は自然発火するdragendでゴーストが消えるが、この枠の
           // ようにドロップ成功でrenderRewCards()がこの要素自体を作り直す（＝ドラッグ元の要素が
@@ -4429,6 +4433,7 @@ function _wireHeCardDiscard(div,card,arr,arrName,i,_ringOfferDiscardable){
 }
 
 function _wireHeCardControls(div,card,arrName,i){
+  if(arrName==='boardCards'&&typeof wireCardActivation==='function') wireCardActivation(div,card,i);
   if(arrName==='boardCards'&&blessingFlameActive()){
     blessingFlameWireCard(div,card,i);return;
   }
@@ -4439,6 +4444,7 @@ function _wireHeCardControls(div,card,arrName,i){
   }
   if(arrName==='boardCards') div.onclick=e=>{
     e.stopPropagation();
+    if(typeof handleCardActivationTarget==='function'&&handleCardActivationTarget(i)) return;
     // 対象外スロットは何も起こさない（アイテムを無駄に消費させない）。
     if(G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'&&!_isItemUseTargetSlot(i)) return;
     if(typeof handlePendingItemBoardTarget==='function'&&handlePendingItemBoardTarget(i)) return;
@@ -5158,3 +5164,17 @@ function discardHeCard(arrName, idx){
 
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────
 // onDone は受け取り後または「戻る」を押したときに呼ばれるコールバック
+
+// 還魂の仮置き・回収では発動せず、指輪を取得して供物が確定した時だけ解決する。
+function applyAscensionCardEffects(entries){
+  for(const {card} of entries){
+    const spec=coreAscensionSpec(card);
+    if(spec.life) G.ascensionLifeBonus=(Number(G.ascensionLifeBonus)||0)+Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax()));
+    if(spec.gold) gainEventGold(spec.gold);
+    if(spec.items){
+      const generate=()=>drawItems(spec.items);
+      const items=typeof runWithKeyedRandom==='function'?runWithKeyedRandom(`ascension:${G._wave}:${card.id}:${G._ringSacrificedCards.length}`,generate):generate();
+      for(const item of items){const slot=_ensureItemSlots().findIndex(x=>!x);if(slot>=0) G.spellSlots[slot]=item;}
+    }
+  }
+}

@@ -1940,7 +1940,7 @@ const PRESENT_LAB_FX = {
   C049:['dragonnet',.58,'morph'], C053:['bandersnatch',.9,'morph'], C051:['cockatrice',.04,'foe'],
   C054:['worm',.9,'foes'], C058:['wyvern',.3,'foe'], C067:['frost-sprite',.18,'foe'],
   C068:['leprechaun',.9,'friends'], C069:['melusine',.9,'foes'], C077:['carbuncle',.04,'lost'],
-  C078:['pixie',.9,'pair'], C080:['elemental',.74,'self'], C081:['imp',.9,'others'],
+  C078:['pixie',.9,'pair'], C080:['elemental',.74,'friends'], C081:['imp',.9,'others'],
   C092:['wendigo',.9,'foes'], E082:['nightmare',.9,'self'], C098:['baron',.9,'self'],
   C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
   // 2026-10-15 アラクネの熱波（ゲームのC008.wavのピーク0.38秒）
@@ -1961,7 +1961,7 @@ const PRESENT_LAB_FX = {
   // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
   C031:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
   R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.450021,'foes'],
-  'map:life':['map-life',0.243979,'friends'], 'map:resonance':['map-resonance',0.072292,'friends'], 'map:duplicate':['map-duplicate',0.45,'self'],
+  'map:duplicate':['map-duplicate',0.45,'self'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], K009_SWEEP:['all-sweep',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],

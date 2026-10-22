@@ -11,9 +11,9 @@
 
 const MAP_PANEL_POWERS=[
   {id:'summon',name:'召喚の力',price:200,desc:'置いたカードがキャラクターなら開戦時に場に出る。'},
-  {id:'life',name:'生命の力',price:400,desc:'置いたカードがキャラクターなら、開戦時に場に出してHPを2倍にする。'},
+  {id:'life',name:'闇の力',price:400,desc:'置いたカードがキャラクターならそのキャラクターが持つ封印の値を3減らして、開戦時に場に出す。'},
   {id:'eternal',name:'永劫の力',price:600,desc:'置いたカードがキャラクターなら、開戦時に場に出して永久に+1/+1を与える。'},
-  {id:'resonance',name:'共鳴の力',price:800,desc:'置いたカードがキャラクターなら、開戦時に場に出して全ての同色の味方に+3/+3を与える。'},
+  {id:'resonance',name:'魔の力',price:800,desc:'置いたカードがキャラクターならそのキャラクターが持つマナ効果の値を1減らして、開戦時に場に出す。（但し、最低値は1）'},
   {id:'duplicate',name:'複製の力',price:1000,desc:'置いたカードがキャラクターなら、開戦時に場に出てコピーを1体生成する。'},
 ];
 window.MAP_PANEL_POWERS=MAP_PANEL_POWERS;
@@ -2874,14 +2874,18 @@ function _drawPricedShopStock(){
 }
 // 魔導店・敗北時の行商人で共用。抽選・祝福は通常報酬の実装へ渡す。
 function _drawExchangeShopStock(key){
-  return runWithKeyedRandom(key,()=>drawRewards(SHOP_EXCHANGE_TRIAL.stockCount))
+  return runWithKeyedRandom(key,()=>drawRewards(SHOP_EXCHANGE_TRIAL.stockCount,{trader:true}))
     .filter(Boolean).map(_exchangeShopCardCopy);
 }
 function _ensureWaveShopStock(){
   const waveKey=_waveFacilityCacheKey();
   const old=G._waveShopStock&&G._waveShopStock[waveKey];
   const exchange=_cardTradingRules().exchangeShop;
-  if(Array.isArray(old)&&(!exchange||old.length===SHOP_EXCHANGE_TRIAL.stockCount&&old.every(c=>c&&!('_buyPrice' in c)))) return clone(old);
+  if(Array.isArray(old)&&(!exchange||old.length===SHOP_EXCHANGE_TRIAL.stockCount&&old.every(c=>c&&!('_buyPrice' in c)))) {
+    const stock=applyRewardCharacterEffects(clone(old),false);
+    G._waveShopStock[waveKey]=clone(stock);
+    return stock;
+  }
   // PvEの旧セーブの「価格付き5枚」は初回利用時に新しい3枚へ作り直す。
   if(exchange&&Array.isArray(old)) old.filter(c=>c&&!c._shopSalePending&&!c._towerBoonBoss).forEach(returnPanelToSalePool);
   const stock=exchange?_drawExchangeShopStock(`exchange-shop:${waveKey}`):_drawPricedShopStock();

@@ -97,7 +97,7 @@ function runCoreChecks() {
     route('マナ効果', card('ダイアウルフ', 'mana'), h =>
       core.coreApplyManaThresholdEffects(h.state, h.rng, h.emit, h.hit),
     { resources: { [side]: { mana: 3 } } });
-    const enchant = sheetData.sheetRows('enchant').find(r => r['No.'] === 'E028');
+    const enchant = {'効果':card('ツインデビル','copy-effect').desc};
     assert.ok(enchant && enchant['効果'], '複製のシート本文がない');
     route('強化カード', plain('enchanted', { effectData: { effectTexts: [enchant['効果']] } }), h =>
       core.coreApplyOpeningEffects(h.source, h.state, h.rng, h.emit, h.hit));
@@ -168,7 +168,7 @@ function runCoreChecks() {
         '眷属の復活へナーガ／指輪の修正が付かない／復活を召喚数へ加えた');
       assert.deepEqual([initial.atk, initial.hp, initial.shield], [6, 10, 0], '初期配置の復活へ強化が付いた');
       assert.deepEqual(h.events.slice(revivalStart).filter(e => e.type === 'stat_change').map(e => e.reason),
-        ['summon_buff', 'summoner_ring'], '元眷属の復活へ累積修正を1回だけ掛け、初期配置へは掛けない');
+        [...(naga.atk||naga.hp?['summon_buff']:[]), 'summoner_ring'], '元眷属の復活へ累積修正を1回だけ掛け、初期配置へは掛けない');
       const beforeLive = [live.atk, live.hp];
       const beforeRevived = [revived.atk, revived.hp, initial.atk, initial.hp];
       h.source.hp = 0;
@@ -222,7 +222,7 @@ function runCoreChecks() {
         '後続召喚時は復活した眷属も強化し、初期配置の復活は対象外');
       assert.equal(h.state._summonCount[side], 3);
       assert.deepEqual(h.events.filter(e => e.type === 'stat_change' && e.reason === 'summon_buff').map(e => e.unitId),
-        [first.id, second.id, second.id, second.id, third.id, second.id, third.id], '累積修正の再適用と新規召喚の追加分を各1回だけ反映');
+        naga.atk||naga.hp ? [first.id, second.id, second.id, second.id, third.id, second.id, third.id] : [], '累積修正の再適用と新規召喚の追加分を各1回だけ反映');
     });
     check(`${side}/眷属判定・変身・沈黙・根性`, () => {
       const h = harness(side, [plain('marker-only', { _summonedInBattle: true }), plain('keyword-only', { keywords: ['眷属'] })]);

@@ -28,17 +28,17 @@ const effectHits = r => r.events.filter(e => e.type === 'damage' && e.effect && 
 
 // 従来は4→12→弱体1→9。指定後は弱体1→5→13→9（竜の契約の基本8+弱体1）。
 const mixed = run(actor('アラッサス', ['衝撃波', '魔族の魂', '竜の契約']));
-assert.deepEqual(effectHits(mixed).map(e => [e.amount, e.effectSource]), [[5, true], [13, false], [9, false]]);
+assert.deepEqual(effectHits(mixed).map(e => [e.amount, e.effectSource]), [[5, true], [13, false], [6, false]]);
 const shock = mixed.events.findIndex(e => e.type === 'keyword_effect' && e.effect === 'weaken');
 assert.ok(shock >= 0 && shock < mixed.events.findIndex(e => e.type === 'sweep_vfx'));
-assert.equal(mixed.state.units.p2[0].hp, 200 - 5 - 13 - 9 - 8, '接触も弱体1込み');
+assert.equal(mixed.state.units.p2[0].hp, 200 - 5 - 13 - 6 - 8, '接触も弱体1込み');
 assert.equal(mixed.events.filter(e => e.type === 'keyword_effect' && e.effect === 'effect_value').length, 1, '永久減衰は1回');
 
 // 非ダメージ内・ダメージ内の順序を維持する。本人の全体4→魂12→竜8。
 const stable = run(actor('アラッサス', ['戦術', '剣技', '魔族の魂', '竜の契約']));
 const nonDamage = stable.events.filter(e => e.type === 'stat_change' && e.sourceId === 'A');
 assert.deepEqual(nonDamage.slice(0, 2).map(e => e.reason), ['tactics', 'sword_skill']);
-assert.deepEqual(effectHits(stable).map(e => e.amount), [4, 12, 8]);
+assert.deepEqual(effectHits(stable).map(e => e.amount), [4, 12, 5]);
 assert.ok(stable.events.indexOf(nonDamage.at(-1)) < stable.events.indexOf(effectHits(stable)[0]));
 
 // 合体・狂戦士による反復でも、各非ダメージを全て先に解決する。

@@ -21,7 +21,7 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
     G.mainBoard[1]=makePanel(PANEL_POOL.find(c=>c.no==='C006').id);
   };
   const card=no=>makePanel(PANEL_POOL.find(c=>c.no===no).id);
-  const formed=c=>{G.mainBoard.fill(null);G.mainBoard[1]=c;return buildBoardFormation(_getPartyBoardUnit(),{persistEternal:false}).ordered[0].unit;};
+  const formed=(c,enchant)=>{G.mainBoard.fill(null);G.mainBoard[1]=c;if(enchant){c.directions=['left'];enchant.directions=['right'];G.mainBoard[0]=enchant;}return buildBoardFormation(_getPartyBoardUnit(),{persistEternal:false}).ordered[0].unit;};
   const simulate=(unit,extra={})=>{
     const state=createBattleState({frontSlots:7,summonDefs:[...PANEL_POOL,...ENEMY_POOL],stageNumber:2,
       ...runLevelCoreFields(),sides:{p1:{units:[unit]},p2:{units:[{id:'dummy',name:'検査相手',atk:1,hp:100000,maxHp:100000}]}},...extra});
@@ -71,9 +71,9 @@ async function testRunLevels(api,check=(name,fn)=>{fn();console.log('OK '+name);
     assert.equal(runLevelBattleCard(enchant),enchant);
     const u=formed(card('C043')),result=simulate(u);
     assert.equal(result.events.find(e=>e.type==='damage'&&e.sourceId===u.id&&e.damageKind==='attack_effect').amount,4);
-    const caster=formed(card('C019')),dynamic=simulate(caster,{resources:{p1:{mana:4}}});
+    const caster=formed(card('C001'),card('E042')),dynamic=simulate(caster,{resources:{p1:{mana:4}}});
     assert.equal(dynamic.events.find(e=>e.type==='damage'&&e.sourceId===caster.id&&e.damageKind==='attack_effect').amount,4);
-    const mana=formed(card('C064'));assert.equal(simulate(mana).events.find(e=>e.type==='mana_gain').amount,1);
+    const mana=formed(card('C001'),card('E031'));assert.equal(simulate(mana).events.find(e=>e.type==='mana_gain').amount,Number(card('E031').desc.match(/(\d+)マナ/)[1]));
     assert.equal(result.state.units.p2[0].atk,1);
   });
   fresh();

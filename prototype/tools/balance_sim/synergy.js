@@ -51,11 +51,10 @@ function extract(card={}){
   }
   const triggerHost=!ring;
   for(const [trigger,token] of [['攻撃','attack'],['負傷','injury'],['死亡','death'],['開戦','opening']]){
-    if(new RegExp('(?:^|[。」「])'+trigger+'(?:&負傷)?[:：]').test(desc)){
+    if(new RegExp('(?:^|[。」「])(?:(?:攻撃|負傷|死亡)&)?'+trigger+'(?:&(?:攻撃|負傷|死亡))?[:：]').test(desc)){
       p(token+'Effect');if(token!=='opening')c(token,token==='attack'?.45:1,triggerHost);
     }
   }
-  if(/攻撃&負傷[:：]/.test(desc)){p('injuryEffect');c('injury',1,triggerHost);}
   rule('mana-gain',/(?:(\d+|X)マナを得る|マナを(\d+|X)得る|得るマナは\+\d+|マナを\d+倍にする)/,m=>p('mana',Math.min(2.5,(Number(m[1]||m[2])||1)*.6+.6+(Number(card.boon?.manaDelta)||0)*.4)));
   rule('mana-threshold',/(\d+)マナ(毎)?[:：]/,m=>{c('mana',Math.min(2,2/Number(m[1]))*(m[2]?1.3:1));p('manaEffect');});
   rule('mana-scaling',/Xはマナ(?:の\d+倍)?に等しい/,()=>c('mana',1.6));
@@ -76,7 +75,7 @@ function extract(card={}){
   rule('injury-watch',/負傷している敵|受けたダメージに等しい/,()=>c('injury',1));
   rule('attack-more',/攻撃回数は\d+回追加|(?:前に|代わりに|直ちに)攻撃(?:させる|する)/,()=>p('attack',1.3,/味方の攻撃回数/.test(desc)));
   rule('attack-watch',/味方が(?:\d+回)?攻撃するたび/,()=>c('attack',1.1));
-  rule('barrier-gain',/(?:味方|キャラクター|眷属|このキャラクター)は.*?結界\d+を得る|結界\d+を永久付与|結界\d+を得て/,()=>p('barrier',1.2));
+  rule('barrier-gain',/(?:味方|キャラクター|眷属)(?:は.*?結界\d*を得る|に結界\d*を(?:与える|付与する))|結界\d*を永久付与|結界\d*を得て/,()=>p('barrier',1.2));
   rule('barrier-use',/結界を失うたび/,()=>c('barrier',1.2));
   rule('poison-create',/敵に毒\d+を与える/,()=>p('poison',1.3));
   rule('poison-use',/敵の毒を|敵が得る毒/,()=>c('poison',1.3));

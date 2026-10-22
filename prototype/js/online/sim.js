@@ -24,6 +24,8 @@ function simulateOnlineBattle(setup) {
   const state = createBattleState({
     sides: (setup && setup.sides) || {},
     gameSummonBuff: setup && setup.gameSummonBuff,
+    runEffects: setup && setup.runEffects,
+    itemFreeSlots: setup && setup.itemFreeSlots,
     resources: (setup && setup.resources) || {},
     rings: (setup && setup.rings) || {},
     items: (setup && setup.items) || {},
