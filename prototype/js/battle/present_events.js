@@ -359,6 +359,8 @@ async function _presentLabFinish(plan) {
 // 竜の契約（E008）・逆上（E032）・嵐の指輪（R023）・苦行の指輪（R012）・受難の刻印（E077）も着弾の瞬間に数値を出す（2026-10-17）。
 const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006','C099','C056','C066','C079','C095','C082','C008','E008','E032','R023','R012','E077']);
 async function presentLabBeginEvent(ev, events, index, api) {
+  // 決着後のイベントへ来たら、以後の演出を速くする（present.js presentDecidedSpeedScale）。
+  if (typeof presentNoteDecidedEvent === 'function') presentNoteDecidedEvent(ev);
   if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
   const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
   if (context.active && context.active !== claimed) { await _presentLabFinish(context.active); context.active = null; }

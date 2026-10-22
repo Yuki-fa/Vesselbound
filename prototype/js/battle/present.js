@@ -573,6 +573,12 @@ function presentReorderDeathsAfterDamageBatch(events) {
 const _presentSilentEvents = new WeakSet();
 const PRESENT_TAIL_CUE_TYPES = new Set(['effect_flash','mana_threshold','turn_begin','attack_contact_vfx','sweep_vfx','ring_effect','attack']);
 function presentIsSilentEvent(ev) { return !!ev && _presentSilentEvents.has(ev); }
+// 決着（どちらかの陣営が全滅）した後のイベント。ここへ来たら、以後の演出をこの倍率で速くする（2026-10-22 利用者指定）。
+const PRESENT_DECIDED_SPEED_SCALE = 3;
+let _presentDecidedEvents = new WeakSet(), _presentDecided = false;
+function presentNoteDecidedEvent(ev) { if (ev && _presentDecidedEvents.has(ev)) _presentDecided = true; }
+function presentDecidedSpeedScale() { return _presentDecided ? PRESENT_DECIDED_SPEED_SCALE : 1; }
+function presentResetDecided() { _presentDecided = false; _presentDecidedEvents = new WeakSet(); }
 function presentSkipsEvent(ev) { return presentIsSilentEvent(ev) && PRESENT_TAIL_CUE_TYPES.has(ev.type); }
 
 // 説明文も、コアの先の最終値ではなく今見せた眷属強化の合計を読む。
@@ -617,6 +623,7 @@ function presentAdvanceSummonPreview(ev) {
   if (ev.type==='summon') _presentSummonPreview._summonCount[ev.side]++;
 }
 function presentMarkBattleTail(events, initialUnits) {
+  presentResetDecided();
   const list = events || [], alive = {p1:new Set(),p2:new Set()}, units = new Map();
   const enter = (side,u) => {
     if (u) units.set(`${side}:${u.id}`,u);
@@ -644,30 +651,9 @@ function presentMarkBattleTail(events, initialUnits) {
     else if(started && after<0 && (exit||ev.type==='unit_stolen'))after=i;
   }
   if(after<0)return;
-  // 次の戦闘にも残る眷属強化は、対象が今いなくても固有VFXを見せる。
-  // 通常の死亡・負傷・常時バフの省略範囲は広げない。
-  const keepsKenzokuFx = ev => {
-    const source = units.get(`${ev.side}:${ev.sourceId}`);
-    return ev.type==='summon_buff' && ev.persistent && ev.effectSource!==false
-      && source && ['C029','C034'].includes(source.no || source.artCode);
-  };
-  const effects=new Set(['stat_change','keyword_effect','mana_gain','mana_set','summon_buff',...PRESENT_TAIL_CUE_TYPES]);
-  for(let i=after+1;i<end;i++) {
-    const ev=list[i];if(!ev||!effects.has(ev.type)||ev.type==='attack'&&ev.effectOnly)continue;
-    if(keepsKenzokuFx(ev))continue;
-    // 決着を変え得る死亡効果等の開始合図は、その実体と一緒に見せる。
-    if(ev.type==='effect_flash'||ev.type==='mana_threshold') {
-      let consequential=false;
-      for(let j=i+1;j<end;j++) {
-        const next=list[j];
-        if(['effect_flash','mana_threshold','turn_begin'].includes(next.type))break;
-        if(keepsKenzokuFx(next)&&next.sourceId===ev.unitId){consequential=true;break;}
-        if(['damage','death','fled','summon','revive','seal_release','unit_stolen','life_set','life_gain'].includes(next.type)){consequential=true;break;}
-      }
-      if(consequential)continue;
-    }
-    _presentSilentEvents.add(ev);
-  }
+  // 2026-10-22 利用者指定：決着後の処理・演出を省くのをやめる（次の戦闘以後に影響する効果が入ったため）。
+  // 代わりに、決着後のイベントへ来たら演出を速くする（presentNoteDecidedEvent・presentDecidedSpeedScale）。
+  for(let i=after+1;i<end;i++) if(list[i]) _presentDecidedEvents.add(list[i]);
 }
 
 // 2026-10-10 利用者報告：攻撃効果中の死亡では通常attackが出ないことがある。
@@ -1920,7 +1906,7 @@ function presentBeginPlayback() { _presentPlaybackDepth++; }
 function presentEndPlayback() { _presentPlaybackDepth = Math.max(0, _presentPlaybackDepth - 1); }
 function presentIsPlaying() { return _presentPlaybackDepth > 0; }
 // 戦闘の切れ目で必ず0へ戻す。例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。
-function presentResetPlayback() { _presentPlaybackDepth = 0; }
+function presentResetPlayback() { _presentPlaybackDepth = 0; presentResetDecided(); }
 
 // ── 固有VFXの大きさ ──────────────────────────────────
 // **素材ごとに、絵がフレームの中で占める割合が違う。** 同じ倍率で出すと、
@@ -2376,7 +2362,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     presentBreaksEffectRun,
     presentEffectRun, presentStatChangeRun, presentEffectRunDuration,
-    presentMarkBattleTail, presentIsSilentEvent, presentSkipsEvent,
+    presentMarkBattleTail, presentIsSilentEvent, presentSkipsEvent, presentNoteDecidedEvent, presentDecidedSpeedScale, presentResetDecided,
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
     presentReorderDeathsAfterDamageBatch, presentHoldHpForGuts, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,

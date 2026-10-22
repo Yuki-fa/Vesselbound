@@ -5632,7 +5632,9 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
     const arr = (state.units[side] || []).filter(u => u && !u._isObject && !u._isSoul);
     return arr.length > 0 && !arr.some(u => u.hp > 0);
   };
-  if (!consumeOnly && (coreSideWipedOut('p1') || coreSideWipedOut('p2'))) return;
+  // 2026-10-22 利用者指定：次の戦闘以後に影響する効果（このゲーム中の強化など）が入ったので、決着後も処理を省かない。
+  // 演出は省かず速く見せる（present.js presentDecidedSpeedScale）。全滅判定は呼び出し側の判定用に残す。
+  void coreSideWipedOut;
   let changed = true;
   // 1パスで発動するのは (ユニット×閾値) ごとに1回のため、
   // 「1マナ毎」に高マナで到達している場合は到達回数分のパスが要る。

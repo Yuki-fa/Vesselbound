@@ -622,8 +622,10 @@ function isBattlePresentationPlaying(){
 function getBattlePresentationSpeedScale(){
   if(!isBattlePresentationPlaying()) return 1;
   // オプションの2倍速・3倍速は最初から固定の倍率（自動加速の立ち上がりも無し）。
+  // 決着（どちらかの陣営が全滅）した後は、省かずに速く見せる（2026-10-22 利用者指定。倍率は present.js）。
+  const decided=typeof presentDecidedSpeedScale==='function'?presentDecidedSpeedScale():1;
   const optionMul=optionBattleSpeedMultiplier();
-  if(optionMul>1) return optionMul;
+  if(optionMul>1) return optionMul*decided;
   // 速度を読む全経路（sleep・タイマー・rAF・VFX）から同じ判定を通す。
   // イベント再生型のPvEは battleSleep() を通らないため、ここが自動加速判定の入口。
   // rAFは毎フレーム呼ばれるので、短時間の再判定は間引く。
@@ -635,7 +637,7 @@ function getBattlePresentationSpeedScale(){
       updateBattleSpeedMode();
     }
   }
-  return getBattleSpeedScale();
+  return getBattleSpeedScale()*decided;
 }
 function battlePresentationSetTimeout(fn,ms){
   const speed=typeof getBattlePresentationSpeedScale==='function'
