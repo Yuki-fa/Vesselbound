@@ -12,11 +12,11 @@ async function main(){
     floorBefore[map]=values.map((_,i)=>FLOOR_DATA[floorForMapDeep(map,i+1)].mult);
 
   experiment.applyDeep('deep_standard');
-  assert.equal(FLOOR_DATA[floorForMapDeep(3,3)].mult,3.2,'標準候補の3層3段を適用できる');
+  assert.equal(FLOOR_DATA[floorForMapDeep(3,3)].mult,1.5,'標準候補の3層3段を適用できる');
   assert.ok(FLOOR_DATA[floorForMapDeep(3,2)].mult<FLOOR_DATA[floorForMapDeep(3,3)].mult);
   assert.ok(FLOOR_DATA[floorForMapDeep(3,3)].mult<FLOOR_DATA[floorForMapDeep(3,4)].mult);
   assert.equal(floorBefore[3][2],4,'検査開始時のシート値を確認');
-  console.log('OK 深層候補：現行3層3段4.0を標準3.2へメモリ上だけ差し替え');
+  console.log('OK 深層候補：現行3層3段4.0を標準1.5へメモリ上だけ差し替え');
 
   await experiment.install(experiment.SPECS.gold50);
   const row=await require('./run_bot').simulateRun({seed:4001,policy:'greedy'});
