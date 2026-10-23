@@ -200,7 +200,7 @@ function mana(f, text, amount = 4) {
       _formatJourneyEnemyHtml('敵', JSON.stringify({ name: '敵', keywords: ['結界3'], desc: c.desc }))]) {
       assert.ok(html.includes('結界')); assert.doesNotMatch(html, /結界\s*(?:\d+|X)/);
     }
-    assert.equal(_keywordDescLine('結界'), '結界：このキャラクターはダメージを1回無効化する。');
+    assert.equal(_keywordDescLine('結界'), `結界：${KW_DESC_MAP['結界']}`);
     assert.doesNotMatch(_itemUsePromptText({ key: 'shield_scroll', card: { name: '盾の巻物' } }), /結界\d/);
     G.phase = 'reward';
   });
