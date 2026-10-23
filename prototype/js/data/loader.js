@@ -9,7 +9,8 @@
 // 2026-10-22 利用者指定：シートの「VFX/SE」列をやめてコードへ移した。列で S005〜S009（発動の種類ごとの汎用の強化）を
 // 指していたものは、present.js の規則（攻撃・マナ・開戦・常時＝汎用、負傷・死亡＝固有の絵が無ければ汎用）で同じ演出になる。
 // マミーの金貨（S003）だけは規則で決まらないので書く。
-const CARD_PRESENTATION_FX_CODES = Object.freeze({ C023: 'S003' });
+// 2026-10-23：コボルド（シートの S006）を入れ漏らし、battle.js の古い代わり（C007→C003）に落ちて負傷強化の音が鳴っていなかった。
+const CARD_PRESENTATION_FX_CODES = Object.freeze({ C023: 'S003', C007: 'S006' });
 
 const _EXPORT_BASE =
   'https://docs.google.com/spreadsheets/d/e/' +

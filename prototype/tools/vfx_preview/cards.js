@@ -12,7 +12,9 @@ var VbFxCards = (function () {
   function gameLab(card){
     if(card.kind==='keyword'&&M.states[card.name])return [{name:M.states[card.name],assign:{se:null}}];
     var codes=[card.kind==='keyword'?keywordKeys[card.name]:card.no].concat(card.kind==='specialFx'&&keywordKeys[card.name]?[keywordKeys[card.name]]:[],String(card.row['VFX/SE']||'').split(/[\s,、/]+/));
-    return codes.filter(function(c){return labFx[c];}).map(function(c){return {name:labFx[c][0]};});
+    // 番号とシートの「VFX/SE」列が同じ番号を指すと同じ演出が2回並び、見出しを押すと2回再生されていた（2026-10-23 利用者指摘：アラクネ・サイクロプス）。
+    var seen={};
+    return codes.filter(function(c){if(!labFx[c]||seen[labFx[c][0]])return false;seen[labFx[c][0]]=1;return true;}).map(function(c){return {name:labFx[c][0]};});
   }
   function allowed(card,vfx){return !M.suppressed(card,vfx,VbFxLabStore.get(),keywordKeys);}
   function previewPaths(card){
@@ -119,7 +121,7 @@ var VbFxCards = (function () {
       controls.appendChild(labs); controls.appendChild(button('LAB再生', function () { playLab(selected); }));
     }
     var choice = element('select'); choice.id = 'card-current-choice'; choice.setAttribute('aria-label', '現行演出の経路');
-    var all = element('option', '', '確認できた現行演出を順に比較'); all.value = '-1'; choice.appendChild(all);
+    var all = element('option', '', '戦闘で出るこのカードのVFXを順に'); all.value = '-1'; choice.appendChild(all);
     selected.vfx.forEach(function (vfx, i) {
       var op = element('option', '', (i + 1) + '. ' + (vfx.path || vfx.fn) + ' / ' + vfx.trigger + ' / ' + timing(vfx));
       op.value = String(i); choice.appendChild(op);
@@ -276,7 +278,10 @@ var VbFxCards = (function () {
     // 肩代わり（マータ等）は、ゲームでは肩代わりした本人が被弾した位置に固有VFXが出る（present.js presentDamageVfxSource）。
     // 一覧では本人＝味方前衛の真ん中に出す（2026-10-06 利用者指摘：マータのVFXが敵側に出る）。
     if (/代わりに受ける/.test(card.effect || '')) { nodes.target = nodes.source; nodes.targets = [nodes.source]; }
-    var allPaths=previewPaths(card), paths = (value < 0 ? allPaths : allPaths.slice(value, value + 1)).filter(function(m){return allowed(card,m);});
+    // 戦闘中にVFXが出ないカード（「常時：HP+」など）は、既定（順に比較）では共通の被弾・消滅・発光も出さない
+    // （2026-10-23 利用者指定）。共通演出は選択欄で個別に選んだ時だけ再生する。
+    if (value < 0 && !card.vfx.length) { status(card.no + ' · 戦闘中にこのカードのVFXは出ません（共通の演出は選択欄から個別に再生できます）'); return; }
+    var allPaths=previewPaths(card), paths = (value < 0 ? card.vfx.slice() : allPaths.slice(value, value + 1)).filter(function(m){return allowed(card,m);});
     if (!paths.length && allPaths.length) {status(card.no+' · 選択した汎用VFXは「再生しない」に設定されています');return;}
     if (!paths.length) {
       if (card.se.length) { status(card.no + ' · VFXなし、現行SEを再生'); for (var sound of card.se) { if (id !== token) break; await audio(sound.path); } }

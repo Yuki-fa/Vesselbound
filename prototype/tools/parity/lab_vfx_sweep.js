@@ -21,8 +21,9 @@ const setup=`
     await b.call('Emulation.setDeviceMetricsOverride',{width:1860,height:1180,deviceScaleFactor:1,mobile:false});
     await b.goto(BASE,1800);await b.waitFor("typeof PANEL_POOL!=='undefined'&&PANEL_POOL.length>0&&typeof VbFx!=='undefined'");
     await b.eval(fixtures+`
-      window.__labCalls=[];
-      const originalPlay=VbFx.play;
+      window.__labCalls=[];window.__labSounds=[];
+      const originalPlay=VbFx.play,originalSfx=window.playSfx;
+      window.playSfx=function(code,opt){window.__labSounds.push(String(code));return originalSfx.apply(this,arguments);};
       window.getBattlePresentationSpeedScale=()=>3;
       VbFx.play=function(name,opt){window.__labCalls.push(name);return originalPlay(name,opt);};
       Object.assign(window,{vbLabVfxFixture,vbLabVfxTriggers,vbLabVfxResetBattle,vbLabVfxStartPve});
@@ -64,18 +65,18 @@ const setup=`
           actionBannerSetBattleData({units:state.units,items:state.items,rings:state.rings});renderAll();
           if(_battleFxFrame)cancelAnimationFrame(_battleFxFrame);_battleFxFrame=-1;
           await new Promise(r=>requestAnimationFrame(r));
-          window.__labCalls=[];
+          window.__labCalls=[];window.__labSounds=[];
           let error='';
           const run=vbLabVfxStartPve(${JSON.stringify(no)},state,${JSON.stringify(trigger)});
           await Promise.race([run.done.catch(e=>{error=String(e&&e.message||e);}),new Promise(r=>setTimeout(r,9000))]);
-          const calls=window.__labCalls.filter(n=>!/-state$/.test(n));
+          const calls=window.__labCalls.filter(n=>!/-state$/.test(n)),sounds=[...new Set(window.__labSounds)];
           _forceStopAllVfx();
           await new Promise(r=>requestAnimationFrame(r));
-          return {events:run.events.map(e=>e.type+(e.reason?':'+e.reason:e.kind?':'+e.kind:'')),calls,error};
+          return {events:run.events.map(e=>e.type+(e.reason?':'+e.reason:e.kind?':'+e.kind:'')),calls,sounds,error};
         `);
-      } catch(e) { result={events:[],calls:[],error:String(e&&e.message||e)}; }
+      } catch(e) { result={events:[],calls:[],sounds:[],error:String(e&&e.message||e)}; }
       rows.push({no,name,desc,trigger,...result});
-      console.log([no,name,trigger,result.calls.join('|')||'-',result.events.filter(e=>!/^(effect_flash|turn_begin)/.test(e)).slice(0,6).join(' '),result.error].join('\t'));
+      console.log([no,name,trigger,result.calls.join('|')||'-','SE:'+(result.sounds.join('|')||'-'),result.events.filter(e=>!/^(effect_flash|turn_begin)/.test(e)).slice(0,6).join(' '),result.error].join('\t'));
     }
   } finally {await b.close();}
   if(OUT) fs.writeFileSync(OUT,JSON.stringify(rows,null,1));

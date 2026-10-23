@@ -43,7 +43,8 @@ for (const c of cards) {
   c.lab.forEach(fx => assert.ok(context.VbFx.effects.some(d => d.name === fx.name), c.no + ' LAB演出がある: ' + fx.name));
   if (c.adopted) assert.ok(fs.existsSync(path.join(root, c.adopted.path)), c.no + ' 正式採用SEあり');
   const dedicated = c.vfx.findIndex(v => model.dedicated(c.row, v, c.kind));
-  assert.equal(model.defaultVfxIndex(c), dedicated >= 0 ? dedicated : c.vfx.length ? 0 : -1, c.no + ' 既定は固有素材か実経路の先頭');
+  // 2026-10-23：固有VFXが無いカードは「戦闘で出るこのカードのVFXを順に」（-1）。
+  assert.equal(model.defaultVfxIndex(c), dedicated, c.no + ' 既定は固有素材、無ければ順に');
 }
 assert.equal(cards.find(c => c.no === 'C008').vfx[model.defaultVfxIndex(cards.find(c => c.no === 'C008'))].path,
   'vfx:C008:arachne-ring', '通常攻撃が先頭でもC008の固有定義を選ぶ');

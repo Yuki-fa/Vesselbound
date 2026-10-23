@@ -293,8 +293,8 @@ function _effectPresentationCode(unit){
   if(fx) return fx;
   const rawCode=String(unit?.no||unit?.artCode||'').toUpperCase();
   const code=/^\d{3}$/.test(rawCode)?`C${rawCode}`:rawCode;
-  // コボルドの効果演出・SEはカード固有素材ではなくC003を共用する（シート未指定時の従来動作）。
-  return code==='C007'?'C003':code;
+  // コボルドは演出の番号の表（loader.js CARD_PRESENTATION_FX_CODES の S006）で決まる。
+  return code;
 }
 
 // カード固有VFXは「そのカード本来の効果」の演出である。

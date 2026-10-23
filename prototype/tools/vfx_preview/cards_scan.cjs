@@ -46,8 +46,9 @@ global.presentFledBatch = async (evs, api) => {
 const sources = { card: 'キャラ', enemy: 'エネミー', char: 'NPC', enchant: 'エンチャント',
   item: 'アイテム', ring: '指輪', mapPanelPower: 'マス', keyword: 'キーワード', specialFx: '共通演出' };
 const hash = text => crypto.createHash('sha256').update(text).digest('hex');
+// LAB（cards_model.js signature）と同じ照合。強化効果／合体効果の両方の呼び名を受け、VFX/SE（コードへ移った）は使わない。
 const signature = row => JSON.stringify([row['No.'], row['名前'], row['効果'] || '',
-  row['キーワード'] || '', row['合体効果'] || '', row['合体キーワード'] || '', row['VFX/SE'] || '', row['効果音'] || '']);
+  row['キーワード'] || '', row['強化効果'] || row['合体効果'] || '', row['強化キーワード'] || row['合体キーワード'] || '', row['効果音'] || '']);
 let current = null, callStack = [], currentEvent = null, imageRecords = [];
 const rect = { left: 100, top: 100, right: 100 + geometry.cardWidth,
   bottom: 100 + geometry.cardHeight, width: geometry.cardWidth, height: geometry.cardHeight };

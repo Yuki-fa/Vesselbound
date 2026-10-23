@@ -3,9 +3,11 @@ var VbFxCardCatalog = (function () {
   'use strict';
   var kinds = { card: 'キャラ', enemy: 'エネミー', char: 'NPC', enchant: 'エンチャント',
     item: 'アイテム', ring: '指輪', mapPanelPower: 'マス', keyword: 'キーワード', specialFx: '共通演出' };
+  // 台帳（cards_scan.cjs）と同じ照合。2026-10-23：列名が「合体効果」→「強化効果」に変わり、「VFX/SE」列はコードへ移ったため、
+  // 両方の呼び名を受け、VFX/SE は照合に使わない（ブラウザの内蔵CSVと Node の sheet_data で行の形が違っても一致させる）。
   function signature(row) {
     return JSON.stringify([row['No.'], row['名前'], row['効果'] || '', row['キーワード'] || '',
-      row['合体効果'] || '', row['合体キーワード'] || '', row['VFX/SE'] || '', row['効果音'] || '']);
+      row['強化効果'] || row['合体効果'] || '', row['強化キーワード'] || row['合体キーワード'] || '', row['効果音'] || '']);
   }
   function unique(list, key) {
     var seen = new Set();
@@ -24,7 +26,8 @@ var VbFxCardCatalog = (function () {
   }
   function defaultVfxIndex(card) {
     var index = card.vfx.findIndex(function (vfx) { return dedicated(card.row, vfx, card.kind); });
-    return index >= 0 ? index : card.vfx.length ? 0 : -1;
+    // 固有VFXが無いカードは「順に」（＝戦闘で出るこのカードのVFXを順に。共通の被弾・消滅・発光は含めない）。2026-10-23 利用者指定。
+    return index;
   }
   function labAssignments(row, kind, routes, definitions, catalog) {
     var adopted = routes.adopted[row['No.']], result = [];
