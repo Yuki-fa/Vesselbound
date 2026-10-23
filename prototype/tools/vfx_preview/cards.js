@@ -35,20 +35,44 @@ var VbFxCards = (function () {
       lab.appendChild(input);lab.appendChild(document.createTextNode('再生しない：'+g.name));lab.title=g.basis+' / '+g.media.map(function(m){return M.definitionName(m)||m.fn;}).join(', ');box.appendChild(lab);
     });return box;
   }
-  // チェック用の★。全カードに付けられる（2026-10-06 利用者指定）。この端末のブラウザにだけ保存する。
-  var STAR_KEY = 'vbfx-card-stars', stars = {};
-  try { stars = JSON.parse(localStorage.getItem(STAR_KEY) || '{}') || {}; } catch (e) { stars = {}; }
-  function hasOwnVfx(card) { return card.vfxSetting === '専用' || (card.lab && card.lab.length > 0); }
+  // ★＝戦闘で出すVFXが全て FIX 済み（lab_fixed.js）で割り当て済み、☆＝未FIXの演出がある／戦闘で発動する効果なのに演出が無い、
+  // －＝戦闘中に演出の要らない効果（常時の補正・起動など）。2026-10-23 利用者指定「FIX&設定されているものは★、されていないものは☆のまま」。
+  // 以前の手動の★（この端末のブラウザに保存）はやめ、台帳と FIX の記録から毎回決める。
+  var BATTLE_TRIGGER = /(?:^|[。\n])\s*(?:(?:攻撃|負傷|死亡)(?:[＆&](?:攻撃|負傷|死亡))*|開戦|終戦|解放|\d+マナ毎?)\s*[：:]|常時[：:][^。]*(?:たび|度|代わりに受ける)/;
+  // 戦闘中に出す場面の無い効果（回数の補正・報酬の時の効果）。
+  var NO_BATTLE_MOMENT = /回追加で発動する|報酬に[^。]*(?:出る|出現する)(?:たび|度)/;
+  function starStatus(card) {
+    var row = card.row || {};
+    if (String(row['実装'] == null ? '' : row['実装']).trim().toLowerCase() === 'false') return { mark: '－', on: false, note: '未実装' };
+    var fixedNote = window.VbFxLabStarNotes && VbFxLabStarNotes[card.no];
+    if (fixedNote) return { mark: '－', on: false, note: fixedNote };
+    var sweep = window.VbFxBattleSweep && VbFxBattleSweep[card.no];
+    var extra = [];
+    if (typeof PRESENT_ITEM_USE_FX !== 'undefined' && PRESENT_ITEM_USE_FX[card.no]) extra.push(PRESENT_ITEM_USE_FX[card.no]);
+    if (card.kind === 'mapPanelPower' && typeof PRESENT_MAP_POWER_NO !== 'undefined') {
+      Object.keys(PRESENT_MAP_POWER_NO).forEach(function (id) { if (PRESENT_MAP_POWER_NO[id] === card.no && labFx['map:' + id]) extra.push(labFx['map:' + id][0]); });
+    }
+    if (window.VbFxLabActivationFx && VbFxLabActivationFx[card.no]) extra.push(VbFxLabActivationFx[card.no]);
+    var names = card.vfx.map(function (m) { return M.definitionName(m) || ''; }).filter(Boolean)
+      .concat(gameLab(card).map(function (f) { return f.name; }), sweep || [], extra)
+      .filter(function (n, i, a) { return n && a.indexOf(n) === i && !/-state$/.test(n); });
+    var text = [card.effect, card.mergedEffect].join('\n');
+    // 被弾（hit-burst）は全カード共通。自分がダメージを受ける効果（懺悔など）だけ、それを効果の演出として数える。
+    if (!/このキャラクターは\d+ダメージ/.test(text)) names = names.filter(function (n) { return n !== 'hit-burst'; });
+    var pending = window.VbFxLabPending && VbFxLabPending[card.no];
+    if (pending) return { mark: '☆', on: false, note: '新しく割り当て（確認待ち）：' + pending };
+    if (!names.length) {
+      if (card.unknown.vfx.length && !sweep && !NO_BATTLE_MOMENT.test(text) && BATTLE_TRIGGER.test(text)) return { mark: '☆', on: false, note: '演出を確定できない（' + card.unknown.vfx[0] + '）' };
+      return BATTLE_TRIGGER.test(text) && !NO_BATTLE_MOMENT.test(text) ? { mark: '☆', on: false, note: '戦闘で発動する効果だが、VFXが割り当てられていない' }
+        : { mark: '－', on: false, note: '戦闘中にVFXを出さない効果（常時の補正・起動・報酬の時など）' };
+    }
+    var unfixed = names.filter(function (n) { return !(window.VbFxLabFixed && VbFxLabFixed[n]); });
+    return unfixed.length ? { mark: '☆', on: false, note: '未FIX：' + unfixed.join('・') }
+      : { mark: '★', on: true, note: 'FIX済み：' + names.join('・') };
+  }
   function starButton(card) {
-    var b = element('span', 'card-star' + (stars[card.no] ? ' on' : ''), stars[card.no] ? '★' : '☆');
-    b.setAttribute('role', 'button'); b.tabIndex = 0; b.title = card.no + ' のチェック';
-    b.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      if (stars[card.no]) delete stars[card.no]; else stars[card.no] = true;
-      try { localStorage.setItem(STAR_KEY, JSON.stringify(stars)); } catch (e) { /* 保存できない環境では表示だけ */ }
-      document.querySelectorAll('.card-star[data-no="' + card.no + '"]').forEach(function (x) { x.textContent = stars[card.no] ? '★' : '☆'; x.classList.toggle('on', !!stars[card.no]); });
-    });
-    b.dataset.no = card.no; return b;
+    var st = starStatus(card), b = element('span', 'card-star' + (st.on ? ' on' : ''), st.mark);
+    b.title = card.no + ' · ' + st.note; b.dataset.no = card.no; return b;
   }
   var page, detail, tableBody, stageMount, stage, playbar, stageAnchor, playAnchor, original, sidebar;
   var $ = function (id) { return document.getElementById(id); };

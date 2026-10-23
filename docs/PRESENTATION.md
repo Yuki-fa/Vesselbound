@@ -825,3 +825,9 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
   - 既定の再生：固有VFXがあればそれ、無ければ「戦闘で出るこのカードのVFXを順に」（共通の被弾・消滅・発光は含めない）。戦闘中にVFXが出ないカード（常時の HP+ など）は既定では何も出さない（共通の演出は選択欄から個別に再生できる）。
   - 見出し再生の2回：LAB の割り当てをカード番号とシートの「VFX/SE」列の番号から集める時、同じ番号（C008・C018 など）で同じ演出が2つ並んでいた。重複を除いた（cards.js `gameLab`）。
   - 本体：コボルドの負傷強化の音が鳴っていなかった（10-22 に VFX/SE 列をコードの表へ移した時の入れ漏れ。battle.js の古い代わり C007→C003 に落ち、C003 に音が無い）。表（loader.js `CARD_PRESENTATION_FX_CODES`）に C007:'S006' を足し、古い代わりを外した。全カードの照合（lab_vfx_sweep.js に SE の記録を追加）で、VFX が出て音が無いのは野生の力のマナ獲得（マナ獲得の音は鳴らさない仕様）だけ。
+- VFX の全検査と★☆（2026-10-23 利用者指定「VFXを全て検査し、FIX&設定されているものは★、されていないものは☆のまま。FIX&設定されていないものは新しくVFXを検討して割り当てる」）：
+  - LAB の★は手動の印をやめ、台帳と FIX の記録から自動で付ける（cards.js `starStatus`）。★＝戦闘で出すVFXが全て FIX 済み（lab_fixed.js）で割り当て済み、☆＝未FIX／発動する効果なのに演出が無い／新しく割り当てて利用者の確認待ち（lab_fixed.js `VbFxLabPending`）、－＝未実装・戦闘中に演出の要らない効果（理由は `VbFxLabStarNotes`、回数の補正・報酬の時の効果）。印にマウスを乗せると理由が出る。台帳で発動できないカードは全カード照合（tools/parity/lab_vfx_sweep.js の `VB_LAB_OUT` で tools/vfx_preview/battle_sweep.js を書き出す）で判定する。照合のきっかけに「敵が状態異常を得る」「眷属が召喚される」「味方の負傷効果が発動する」を足した。
+  - 本体で演出が出ていなかった能力変化に、トリガの汎用バフ演出を割り当て（確認待ち）：ウォーグ（mana_random_colors→S008）・ハイドラ（enemy_ailment_hp→S009）・デュラハン（summon_observer_stats→S009）・シャナ（眷属の強化 summon_buff は固有VFXの無いカードなら本文のトリガのバフ演出。present.js `presentSummonBuffTrigger`）。
+  - 既存の FIX 済み演出の割り当て（確認待ち）：絶魔の指輪 R035＝aura-buff（味方全体）、永劫の力 M003＝map-life（開戦の着地。battle.js `_battleOpeningLandingVfx`。PvE・オンライン共通）、キーワードの巻物 I015〜I023＝keyword-grant（いずれもシートでは未実装）。
+  - 新しく作った演出（js/vfx/defs/additions_1023.js。FIX 済みのフロスト・スプライト／サイレンの波／常時の強化の層の組み方を土台に Claude が作成。確認待ち）：残響の魔導師 EN013＝echo-bolt（三重の残響の輪と紫の魔導弾）、凍てつく亡霊 EN031＝frost-retaliate（菫の氷の針の反撃）、起動の変身 C064・変身の巻物 I002＝activation-transform、インキュバスの起動 C084＝activation-empower、ヘルナイトの起動 C091＝activation-devour（破壊したカードの位置からヘルナイトへ。血の滴は使わない）。起動の演出は activation.js `_playActivationFx`（表は present.js `PRESENT_ACTIVATION_FX`）、SE は巻物の共通音を仮に使う。
+  - 血の指輪 R036 は画面上の発生場所が無いので演出なし（－）。強靭の指輪 R015・神速の指輪 R031 は SE を選び直し中で未FIX（☆）。

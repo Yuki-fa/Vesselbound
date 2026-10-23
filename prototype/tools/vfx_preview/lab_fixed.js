@@ -41,3 +41,27 @@ var VbFxLabFixed = {
   // 2026-10-21 6回目：FIX（47 グレムリン SE2）
   'gremlin':'2026-10-21',
 };
+
+/* 2026-10-23 VFX の全検査（利用者指定「FIX&設定されているものは★、されていないものは☆のまま。FIX&設定されていないものは新しくVFXを検討して割り当てる」）。
+ * VbFxLabPending：今回新しく割り当てた（流用・新作）もの。利用者が LAB で見て FIX と言うまで☆のまま（★にする時はここから外す）。
+ * VbFxLabStarNotes：戦闘中に演出を出さないもの（－）の理由。 */
+var VbFxLabPending = {
+  C052:'mana-buff（ウォーグのバフに出ていなかった）', C055:'aura-buff（敵が状態異常を得るたびHP+）', C037:'aura-buff（眷属が召喚されるたび）',
+  C072:'aura-buff（眷属の強化）', C075:'aura-buff（4回目の終戦でエンチャントを強化した時）', C003:'injury-buff（報酬とトレーダーの強化）',
+  C089:'attack-buff（報酬とトレーダーの強化）', C047:'aura-buff（終戦のリロール）', C007:'injury-buff＋S006の音（音が鳴っていなかった）',
+  R035:'aura-buff（味方が結界を失うたび全ての味方+1/+1）', M003:'map-life（開戦の着地。旧・生命の力の演出）',
+  I015:'keyword-grant', I016:'keyword-grant', I017:'keyword-grant', I018:'keyword-grant', I019:'keyword-grant',
+  I020:'keyword-grant', I021:'keyword-grant', I022:'keyword-grant', I023:'keyword-grant',
+  // 新しく作った演出（additions_1023.js）
+  EN013:'echo-bolt（新作）', EN031:'frost-retaliate（新作）', C064:'activation-transform（新作。起動の変身）',
+  C084:'activation-empower（新作。起動の強化と色の変化）', C091:'activation-devour（新作。起動の破壊）', I002:'activation-transform（新作。変身の巻物）',
+};
+var VbFxLabStarNotes = {
+  E029:'開戦で死亡効果を発動する（発動した死亡効果の演出が出る）',
+  M002:'値の補正（置いた時点で封印の値が変わる）', M004:'値の補正（置いた時点でマナ効果の値が変わる）',
+  I009:'街へワープする（戦闘外）', I011:'再抽選の回数（盤面の対象が無い）',
+  R036:'血の数が増えるだけ（画面上の発生場所が無い。血のカウンターに出る）',
+};
+// 起動の演出（魔導板で対象に使った時）。本体は present.js PRESENT_ACTIVATION_FX。
+var VbFxLabActivationFx = typeof PRESENT_ACTIVATION_FX !== 'undefined' ? PRESENT_ACTIVATION_FX : {};
+

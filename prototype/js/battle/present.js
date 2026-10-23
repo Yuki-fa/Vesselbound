@@ -1314,6 +1314,11 @@ const PRESENT_STAT_CHANGE_VFX_REASONS = new Set([
   'mana_threshold_hp_double', 'release_bonus',
   'release_self_buff', 'death_random_blue_buff', 'death_random_ally_buff', 'ghost',
   'battle_end_permanent_buff',
+  // 2026-10-23 VFX の全検査で、新しい効果の能力変化に演出が出ていなかったもの（ウォーグ・ハイドラ・デュラハン／シャナ）。
+  'mana_random_colors', 'enemy_ailment_hp', 'summon_observer_stats',
+  // 眷属の強化（この戦闘／ゲーム中、味方の眷属は〜）。固有VFX（ファントム・エイドロン）の体はそちらが受け持つ（presentLabEventHandled）。
+  // それ以外（シャナの常時など）は本文のトリガのバフ演出（presentSummonBuffTrigger）。
+  'summon_buff',
 ]);
 
 // カード固有の効果VFXの尺（ms）。**ゴーレムの負傷エフェクトと同じ長さに揃える。**
@@ -1406,7 +1411,9 @@ const PRESENT_STAT_CHANGE_TRIGGER_REASONS = {
     // 開戦（一律S009。名前で書かれていて opening_ で始まらないもの）
     'strange_bond', 'roar', 'majesty', 'green_hermit',
     // 常時（「〜たび」／召喚された味方への上乗せ）
-    'warg_count_buff', 'summon_scaling_buff', 'naga_summon', 'jack_o_lantern']),
+    'warg_count_buff', 'summon_scaling_buff', 'naga_summon', 'jack_o_lantern',
+    // 2026-10-23：ハイドラ（敵が状態異常を得るたびHP+）・デュラハン／シャナ（眷属が召喚されるたび）
+    'enemy_ailment_hp', 'summon_observer_stats']),
 };
 const PRESENT_BUFF_VFX_BY_TRIGGER = {
   attack: 'S005', injury: 'S006', death: 'S007', mana: 'S008', opening: 'S009', passive: 'S009',
@@ -1436,7 +1443,7 @@ function presentIsBuffVfxCode(code) {
 }
 function presentStatChangeTrigger(reason) {
   const name = String(reason || '');
-  if (/^mana_threshold/.test(name)) return 'mana';
+  if (/^mana_threshold/.test(name) || name === 'mana_random_colors') return 'mana';
   if (/^opening_/.test(name)) return 'opening';
   for (const key of ['attack', 'injury', 'death', 'passive']) {
     if (PRESENT_STAT_CHANGE_TRIGGER_REASONS[key].has(name)) return key;
@@ -1451,6 +1458,17 @@ function presentStatChangeTrigger(reason) {
   if (name === 'battle_end_permanent_buff') return 'passive';
   return '';
 }
+// 眷属の強化（reason 'summon_buff'）は、発生元の本文で「味方の眷属は」を含む効果のトリガで決める（2026-10-23）。
+function presentSummonBuffTrigger(reason, ownText) {
+  if (String(reason || '') !== 'summon_buff') return '';
+  const m = String(ownText || '').match(/(?:^|[。\n])\s*((?:攻撃|負傷|死亡)(?:[＆&](?:攻撃|負傷|死亡))*|開戦|常時|\d+マナ毎?)\s*[：:][^。]*味方の眷属は/);
+  if (!m) return '';
+  const label = m[1];
+  if (/^常時/.test(label)) return 'passive';
+  if (/^開戦/.test(label)) return 'opening';
+  if (/マナ/.test(label)) return 'mana';
+  return /負傷/.test(label) ? 'injury' : /死亡/.test(label) ? 'death' : 'attack';
+}
 // その能力変化で出す演出の番号。
 // opt.codes：シートの「VFX/SE」列に書かれた番号（複数可）。
 // opt.enchantCode：その効果を持つ強化カードのVFX/SE列の番号（あればこれが最優先）。
@@ -1459,7 +1477,7 @@ function presentStatChangeVfxCode(ev, ownCode, opt) {
   // 強化カードの効果は、**その強化カードのVFX/SE列**で決める（剣技＝S005 等）。
   const enchantCode = String((opt && opt.enchantCode) || '').trim();
   if (enchantCode) return enchantCode;
-  const trigger = presentStatChangeTrigger(reason);
+  const trigger = presentStatChangeTrigger(reason) || presentSummonBuffTrigger(reason, opt && opt.ownEffectText);
   // そのトリガの既定（攻撃S005／負傷S006／死亡S007／マナS008／開戦・常時S009）。
   const wanted = PRESENT_BUFF_VFX_BY_TRIGGER[trigger] || '';
   const codes = (opt && Array.isArray(opt.codes) ? opt.codes : [])
@@ -1977,6 +1995,11 @@ const PRESENT_LAB_FX = {
   // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
   C031:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
   R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.450021,'foes'],
+  // 2026-10-23 VFX の全検査で割り当て（利用者の確認待ち）：絶魔の指輪（味方が結界を失うたび全ての味方+1/+1）＝常時の強化、
+  // 永劫の力（開戦のたびに永久に+1/+1）＝使われなくなった生命の力の演出。
+  R035:['aura-buff',0.45,'friends'], 'map:eternal':['map-life',0.45,'self'],
+  // 新しく作った演出（additions_1023.js）：残響の魔導師の負傷（ランダムな敵へ）・凍てつく亡霊の負傷（ダメージを与えた敵へ）。
+  EN013:['echo-bolt',0.45,'foes'], EN031:['frost-retaliate',0.45,'foes'],
   'map:duplicate':['map-duplicate',0.45,'self'],
   C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], K009_SWEEP:['all-sweep',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
@@ -1997,7 +2020,14 @@ const PRESENT_LAB_FX = {
 // 巻物などを魔導板のキャラクターに使った時（アイテムの番号 → 演出。reward_items.js _playItemUseVfx）。
 // 2026-10-18 利用者指定：盾の巻物（I003）と幻視の巻物（I004）の演出を入れ替えている。
 // 2026-10-22 シート改訂：魔力の巻物（I011）は「再抽選が3回可能になる」になり、キャラクターに使わないので外した。
-const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'scroll-giant', I012:'scroll-guts' };
+// 2026-10-23：「対象のキャラクターに〇〇を与える。」の巻物（I015〜I023）＝キーワードの付与の演出（利用者の確認待ち）。
+const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'scroll-giant', I012:'scroll-guts',
+  I015:'keyword-grant', I016:'keyword-grant', I017:'keyword-grant', I018:'keyword-grant', I019:'keyword-grant',
+  I020:'keyword-grant', I021:'keyword-grant', I022:'keyword-grant', I023:'keyword-grant',
+  // 変身の巻物＝起動の変身と同じ演出（additions_1023.js）。
+  I002:'activation-transform' };
+// 起動（魔導板で対象に使う効果）の演出。activation.js が対象のカードの上（破壊は破壊したカードからヘルナイトへ）に出す。
+const PRESENT_ACTIVATION_FX = { C064:'activation-transform', C084:'activation-empower', C091:'activation-devour' };
 // マップの力（PRESENT_LAB_FX の 'map:<id>'）とシートの番号（map.js のシート読み込みも使う）。
 const PRESENT_MAP_POWER_NO = { summon:'M001', life:'M002', eternal:'M003', resonance:'M004', duplicate:'M005' };
 // 番号を持たない場面で直接再生する演出。
@@ -2355,6 +2385,7 @@ if (typeof window !== 'undefined') {
   window.presentStatChangeVfxAllowed = presentStatChangeVfxAllowed;
   window.presentStatChangeVfxCode = presentStatChangeVfxCode;
   window.presentRunEffectVfxCode = presentRunEffectVfxCode;
+  window.PRESENT_ACTIVATION_FX = PRESENT_ACTIVATION_FX;
   window.presentIsBuffVfxCode = presentIsBuffVfxCode;
   window.PRESENT_CARD_EFFECT_VFX_MS = PRESENT_CARD_EFFECT_VFX_MS;
   window.presentIsScreenBottomVfx = presentIsScreenBottomVfx;

@@ -694,7 +694,7 @@ function _handlePendingItemBoardTarget(slotIdx){
     const next=makePanel(card.id);
     if(previous&&previous._activationReady) next._activationReady=true;
     boardList[pending.firstIdx]=next;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,pending.firstIdx); return true;
   }
   if(!_isBoardCharacterCard(card)){ return true; }
   // 「対象のキャラクターに〇〇を与える。」の巻物（二段攻撃・毒牙X…）。本文のキーワードをそのまま与える（2026-10-22）。

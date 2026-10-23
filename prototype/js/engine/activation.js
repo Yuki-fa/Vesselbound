@@ -62,6 +62,7 @@ function handleCardActivationTarget(index) {
   const result = typeof runWithKeyedRandom === 'function' ? runWithKeyedRandom(`activation:${pending.key}:${pending.index}:${index}`, run) : run();
   if (!result) return true;
   delete source._activationReady;
+  const victimRect = result.kind === 'destroy' ? _activationSlotRect(index) : null;
   if (result.kind === 'transform') {
     const make = () => makePanel(result.definition.id);
     const next = typeof runWithKeyedRandom === 'function' ? runWithKeyedRandom(`activation-card:${pending.key}:${pending.index}:${index}`, make) : make();
@@ -77,6 +78,7 @@ function handleCardActivationTarget(index) {
     source.power = (Number(source.power)||0) + result.atk; source.life = (Number(source.life)||0) + result.hp;
   }
   _finishCardActivation(pending, quest);
+  _playActivationFx(source, result.kind === 'destroy' ? { rect: victimRect } : { index }, pending.index);
   return true;
 }
 // 破壊の起動（ヘルナイト）は報酬枠のキャラクターも対象にできる（2026-10-23 利用者指定）。
@@ -94,6 +96,8 @@ function handleCardActivationRewardTarget(rewIdx) {
   const cards = _mainBoardCards(), source = pending.card, target = Array.isArray(_rewCards) ? _rewCards[rewIdx] : null;
   if (cards[pending.index] !== source) { cancelCardActivation(); return true; }
   if (!cardActivationRewardTargetable(target)) return true;
+  const rewEl = typeof document !== 'undefined' ? document.querySelector(`#reward-offer-row [data-merge-rew-idx="${rewIdx}"]`) : null;
+  const victimRect = rewEl && rewEl.getBoundingClientRect ? rewEl.getBoundingClientRect() : null;
   const quest = typeof questRequiredEntryOnBoard === 'function' ? questRequiredEntryOnBoard() : null;
   const result = coreActivateBoardCard(source, target, PANEL_POOL, coreMathRng);
   if (!result || result.kind !== 'destroy') return true;
@@ -103,7 +107,42 @@ function handleCardActivationRewardTarget(rewIdx) {
   if (G._isShop && typeof _persistCurrentShopStock === 'function') _persistCurrentShopStock();
   source.power = (Number(source.power)||0) + result.atk; source.life = (Number(source.life)||0) + result.hp;
   _finishCardActivation(pending, quest);
+  _playActivationFx(source, { rect: victimRect }, pending.index);
   return true;
+}
+// ── 起動の演出（2026-10-23 VFX の全検査で新しく作った。利用者の確認待ち）──────────────
+// 番号ごとの演出は present.js PRESENT_ACTIVATION_FX（LAB も同じ表を読む）。変身・強化は対象のカードの上、
+// 破壊（ヘルナイト）は破壊したカードの位置からヘルナイトへ吸い込む。効果の適用・保存には関わらない。
+function _activationSlotEl(index) {
+  if (typeof document === 'undefined') return null;
+  return typeof getBoardSlotElement === 'function' ? getBoardSlotElement(index)
+    : document.querySelector(`#hand-slots [data-board-idx="${index}"]`);
+}
+function _activationSlotRect(index) {
+  const el = _activationSlotEl(index);
+  return el && el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+}
+function _playActivationFx(source, at, sourceIndex) {
+  const code = String(source && (source.no || source.artCode) || '');
+  const name = typeof PRESENT_ACTIVATION_FX !== 'undefined' ? PRESENT_ACTIVATION_FX[code] : '';
+  if (!name || typeof VbFx === 'undefined' || !VbFx.effects.some(d => d.name === name)) return;
+  const owner = _activationSlotEl(sourceIndex);
+  let from = Number.isInteger(at && at.index) ? _activationSlotEl(at.index) : null, anchor = null;
+  if (!from && at && at.rect && at.rect.width > 0) {
+    // 破壊したカードは描き直しで消えているので、元の位置に見えない目印を置いて発生元にする。
+    anchor = document.createElement('div');
+    Object.assign(anchor.style, { position: 'fixed', left: at.rect.left + 'px', top: at.rect.top + 'px', width: at.rect.width + 'px',
+      height: at.rect.height + 'px', pointerEvents: 'none', opacity: '0' });
+    document.body.appendChild(anchor); from = anchor;
+  }
+  if (!from || !from.isConnected) return;
+  const target = anchor ? owner : from;
+  if (!target || !target.isConnected) { if (anchor) anchor.remove(); return; }
+  if (typeof _vfxClipLayer === 'function') VbFx.settings.layer = _vfxClipLayer;
+  VbFx.play(name, { source: from, targets: [target], speed: 1, seed: 53, dir: 1 }).catch(() => {})
+    .finally(() => { if (anchor) anchor.remove(); });
+  // SEは巻物の使用と同じ共通音（仮。LAB で選び直せる）。
+  if (typeof playSfx === 'function') playSfx('itemScroll', { group: 'magic', guardKey: `activation:${name}`, guardMs: 120, maxPlayMs: 0 });
 }
 function _finishCardActivation(pending, quest) {
   _pendingCardActivation = null;

@@ -1657,6 +1657,14 @@ function _battleOpeningLandingVfx(slot){
   const sfxPeak=typeof presentSfxPeakSec==='function'?presentSfxPeakSec('appearance')*1000:0;
   battlePresentationSetTimeout(_playBattleOpeningAppearanceSfx,Math.max(0,dustAt-sfxPeak));
   const playing=_playDefinedVfx(fx,'vfx:appearance_sheet:opening-sigil',OPENING_DUST_MS,{presentationSpeed:true});
+  // 永劫の力（M003）のマスから出たキャラクターは、着地に合わせて生命の力の演出を出す（2026-10-23 VFX の全検査で割り当て。PvE・オンライン共通）。
+  {
+    const enemySide=!!slot.closest('#f-enemy');
+    const landed=(enemySide?G.enemies:G.allies||[])[Number(slot.dataset.unitIdx)];
+    if(landed&&landed._mapPanelPower==='eternal'&&typeof playBattleLabFx==='function'&&typeof presentLabFx==='function'&&presentLabFx('map:eternal')){
+      battlePresentationSetTimeout(()=>{ playBattleLabFx('map:eternal',landed,[landed],{side:enemySide?'enemy':'ally'}); },dustAt);
+    }
+  }
   // 2026-10-21 利用者指定：砂煙は登場元（左）へ流れる。流れていく様子が見えるよう、薄れ始めを700ms、消すのを1200msにした
   // （以前の560ms／980msは、大きく広がる輪を見せないための値。今の定義に輪は無い）。
   battlePresentationSetTimeout(()=>fx.classList.add('is-fading'),700);

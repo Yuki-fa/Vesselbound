@@ -333,3 +333,11 @@ VbFxPreviewCards["C094"]={"name":"カオス・インプ","color":"紫"};
 VbFxPreviewCards["C095"]={"name":"リリス","color":"紫"};
 VbFxPreviewCards["C097"]={"name":"オーバーロード","color":"紫"};
 VbFxPreviewCards["C099"]={"name":"フィーンド","color":"紫"};
+// 2026-10-23 VFX の全検査で新しく作った演出（利用者の確認待ち）。
+Object.assign(VbFxPreviewCatalog, {
+  "frost-retaliate": {"source": "C041", "mode": "foe", "note": "凍てつく亡霊“リムスルス”（EN031）の負傷：自分にダメージを与えた敵へ、青白い菫の氷の針が冷気の尾を引いて飛び、着弾で霜の枝が走る。"},
+  "echo-bolt": {"source": "C041", "mode": "foe", "note": "残響の魔導師“アバドン”（EN013）の負傷：発生元で残響の輪が三重に広がり、紫の光の粒の筋がランダムな敵へ走って、着弾で小さな残響の輪が弾ける。"},
+  "activation-transform": {"source": "C064", "mode": "self", "note": "起動の変身（シルフ C064・変身の巻物 I002）：翡翠の魔法陣が回り、粒子が渦を巻いて収束し、白く光って姿が変わる。"},
+  "activation-empower": {"source": "C084", "mode": "self", "note": "インキュバスの起動（C084）：薔薇色と金の光が昇り、五色の粒が散って色が移ろう。"},
+  "activation-devour": {"source": "C091", "mode": "foe", "note": "ヘルナイトの起動（C091）：破壊されるカードが灰色に沈んで黒紅の瘴気を上げ、暗い光の粒の筋がヘルナイトへ吸い込まれて赤黒く脈打つ。"}
+});

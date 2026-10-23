@@ -43,7 +43,7 @@
 .card-totals{font-size:11px;color:#a5a697;border-top:1px solid var(--line);padding:8px 4px 0;margin-top:8px}
 
 /* チェック用の★（個別VFXのあるカードだけ） */
-.card-star{margin-left:auto;padding:0 4px;color:#7c7558;cursor:pointer;font-size:13px;line-height:1;user-select:none}
+.card-star{margin-left:auto;padding:0 4px;color:#7c7558;cursor:help;font-size:13px;line-height:1;user-select:none}
 .card-star.on{color:var(--gold)}
 .card-title .card-star{margin-left:6px}
 #card-list .card-list-name{flex:1}

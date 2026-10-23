@@ -26,7 +26,7 @@ function vbLabVfxFixture(no) {
   const enemies=['赤','青','緑'].map((color,i)=>({id:'foe'+i,name:'敵'+i,color,atk:4,hp:80,maxHp:100,desc:'',keywords:[],poison:3,shield:0,lane:i===2?'rear':'front'}));
   if(no==='E067') allies[0]={...JSON.parse(JSON.stringify(u)),id:'ally0',hp:70,maxHp:100};
   // 2026-10-12: 新21種も実カードの本文からコアの結果を作る。
-  if(['C029','C034'].includes(no)){allies[0].keywords=['眷属'];allies[2].keywords=['眷属'];}
+  if(['C029','C034','C072','C037'].includes(no)){allies[0].keywords=['眷属'];allies[2].keywords=['眷属'];}
   if(['C099','C082'].includes(no))u.boardCards=Array.from({length:3},()=>({category:'エンチャント',name:'検査接続',desc:''}));
   if(no==='C099'){allies[0].color='紫';allies[3].color='紫';}
   if(no==='C094')allies.forEach((a,i)=>Object.assign(a,_makePanelSummonUnit(_panelSummonSpec(PANEL_POOL.find(c=>c.no==='C071')),[]),{id:'ally'+i,atk:4,hp:70,maxHp:100}));

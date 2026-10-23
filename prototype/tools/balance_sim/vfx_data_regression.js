@@ -119,6 +119,8 @@ async function allEffects(bundle){
   const old=harness(true),next=harness(false),again=harness(false);
   // 2026-10-17: additions_1017.js の新規分は旧版との比較から外す。
   const added1017=new Set((t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(fs.readFileSync(path.join(ROOT,'js/vfx/defs/additions_1017.js'),'utf8')).effects.map(d=>d.name));
+  // 2026-10-23: additions_1023.js の新規分も外す。
+  for(const d of (t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(fs.readFileSync(path.join(ROOT,'js/vfx/defs/additions_1023.js'),'utf8')).effects) added1017.add(d.name);
   assert.deepEqual(bundle.effects.filter(d=>!d.sourceCode&&!added1017.has(d.name)).map(d=>d.name),Array.from(old.fx.effects,d=>d.name),'旧版の全効果と順序を保持');
   for(const d of bundle.effects.filter(d=>!d.sourceCode&&!added1017.has(d.name))){
     if(process.env.VB_ONLY&&!process.env.VB_ONLY.split(',').includes(d.name))continue;
@@ -274,6 +276,8 @@ async function shapeAxisChecks(bundle){
 async function run(){
   // 2026-10-17: additions_1017.js の新規分（番号なしの指輪・巻物）は元の50種に数えない。
   const added1017=new Set((t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/additions_1017.js'),'utf8')).effects.map(d=>d.name));
+  // 2026-10-23: additions_1023.js（VFX の全検査で新しく作った演出）も元の50種に数えない。
+  for(const d of (t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/additions_1023.js'),'utf8')).effects) added1017.add(d.name);
   const {bundle}=validatedBundle();assert.equal(bundle.effects.filter(d=>!d.sourceCode&&!added1017.has(d.name)).length,50);assert.ok(Object.keys(bundle.shapes).length>=15,'元の図形を保持');
   schemaChecks(bundle);await allEffects(bundle);await stateChecks();await genericParts(bundle);await shapeAxisChecks(bundle);
   console.log('VFXデータ回帰: 50効果・9時刻・5速さ・状態値8段階・許可リスト拒否・新部品 OK（画面は未確認）');

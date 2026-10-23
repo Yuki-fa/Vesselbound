@@ -26,6 +26,11 @@ const setup=`
       window.playSfx=function(code,opt){window.__labSounds.push(String(code));return originalSfx.apply(this,arguments);};
       window.getBattlePresentationSpeedScale=()=>3;
       VbFx.play=function(name,opt){window.__labCalls.push(name);return originalPlay(name,opt);};
+      // 常時の観測のきっかけ（2026-10-23 追加）：敵が状態異常を得る／味方の眷属が召喚される。
+      vbLabVfxTriggers.enemyAilment=(st,_u,_rng,emit)=>{const foe=st.units.p2[0];foe.poison=(Number(foe.poison)||0)+1;
+        coreEmitAilment(st,emit,{type:'keyword_effect',effect:'poison',side:'p2',unitId:foe.id,sourceId:st.units.p1[1].id,amount:1});};
+      vbLabVfxTriggers.allyInjuryEffect=(st,_u,rng,emit,hit)=>{const a=st.units.p1[1];a.desc='負傷：このキャラクターはHP+1を得る。';coreApplyInjuryEffects(a,1,st,rng,emit,hit,st.units.p2[0]);};
+      vbLabVfxTriggers.familiarSummon=(st,_u,rng,emit,hit)=>coreSummonUnit(st,'p1',{name:'検査の眷属',atk:2,hp:2,keywords:['眷属']},emit,st.units.p1[1].id,'',rng,hit);
       Object.assign(window,{vbLabVfxFixture,vbLabVfxTriggers,vbLabVfxResetBattle,vbLabVfxStartPve});
       // 常時の誘発は本文の言い回しから観測の入口を選ぶ。
       window.__sweepTriggers=desc=>{
@@ -41,6 +46,9 @@ const setup=`
               if(/結界を失/.test(body))out.add('shieldLost');
               if(/攻撃(?:する|した)(?:たび|度)|攻撃効果/.test(body))out.add('allyAttack');
               if(/ATKを得る(?:たび|度)/.test(body))out.add('atkGain');
+              if(/状態異常を得る(?:たび|度)/.test(body))out.add('enemyAilment');
+              if(/負傷効果が発動する(?:たび|度)/.test(body))out.add('allyInjuryEffect');
+              if(/眷属が召喚され(?:る|た)(?:たび|度|時)/.test(body))out.add('familiarSummon');
             }
           }
         }
@@ -80,4 +88,10 @@ const setup=`
     }
   } finally {await b.close();}
   if(OUT) fs.writeFileSync(OUT,JSON.stringify(rows,null,1));
+  // VB_LAB_OUT：LAB の★☆の判定用に、カードごとの戦闘で出たVFXの名前を書き出す（tools/vfx_preview/battle_sweep.js）。
+  if(process.env.VB_LAB_OUT){
+    const byNo={};rows.forEach(r=>{const set=byNo[r.no]=byNo[r.no]||new Set();r.calls.forEach(n=>set.add(n));});
+    const data=Object.fromEntries(Object.entries(byNo).map(([no,set])=>[no,[...set].sort()]));
+    fs.writeFileSync(process.env.VB_LAB_OUT,'/* tools/parity/lab_vfx_sweep.js が書き出す。実戦のコア→PvE presenter で各カードの効果を発動させた時に出たVFX。手で編集しない。 */\nvar VbFxBattleSweep = '+JSON.stringify(data)+';\n');
+  }
 })().catch(error=>{console.error(error.stack||error);process.exitCode=1;});
