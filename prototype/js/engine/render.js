@@ -5270,6 +5270,16 @@ function _stageEngravingDescription(card,desc){
   }
   return out.replace(/X/g,String(value));
 }
+// 「N回目の終戦ごとに〜（あとX戦）」のXは、次に発動するまでの残りの戦闘数（グリマルキン。2026-10-23 利用者指摘）。
+// 数えた終戦の回数はカードの _battleEndCount（コアの終戦処理が数え、戦闘の体からカードへ戻る）。
+function _battleEndCountdownDescription(card,desc){
+  const text=String(desc||'');
+  const every=text.match(/(\d+)回目の終戦ごとに/);
+  if(!every||!/（あと\s*X\s*戦）/.test(text)) return text;
+  const n=Math.max(1,Number(every[1])||1);
+  const count=Math.max(0,Math.floor(Number(card&&card._battleEndCount)||0));
+  return text.replace(/（あと\s*X\s*戦）/g,`（あと${n-count%n}戦）`);
+}
 function _rawSubstitutedDesc(card,owner){
   if(!card) return '';
   card=runLevelDisplayCard(card,owner);
@@ -5281,6 +5291,7 @@ function _rawSubstitutedDesc(card,owner){
   }
   if(card.descXEqualsAtk&&card.atk!=null) desc=desc.replace(/X/g,String(card.atk));
   desc=_stageEngravingDescription(card,desc);
+  desc=_battleEndCountdownDescription(card,desc);
   desc=corePermanentDamageDescription(card,desc);
   desc=coreBoonDisplayText(card,desc,typeof TOWER_BOON_CONFIG!=='undefined'?TOWER_BOON_CONFIG.text:null);
   // （状態異常：毒N）は今の毒の値で出す（永続化した毒／戦闘中はその体の毒。預言者"ディナ"、2026-10-11）。
