@@ -64,8 +64,8 @@ function check(name,ok,detail){results.push({name,ok:!!ok,detail});console.log((
           frames++;
           const canvas=document.querySelector('[data-vb-fx-canvas]'),root=canvas&&canvas.parentNode;
           // 攻撃の動く複製がある間だけは body 直下の z=10001 へ出る（2026-10-20：攻撃中のVFXがカード下へ回り込む対策）。
-          const clip=document.getElementById('vfx-frame-clip'),overClone=!!document.querySelector('.attack-motion-clone')&&clip&&clip.parentNode===document.body&&clip.style.zIndex==='10001';
-          layerOK=!!root&&root.parentNode===clip&&(root.closest('#scr-battle')!==null||overClone);
+          const clip=document.getElementById('vfx-frame-clip'),top=document.getElementById('vfx-frame-clip-top'),overClone=!!document.querySelector('.attack-motion-clone')&&top&&top.parentNode===document.body&&top.style.zIndex==='10001';
+          layerOK=!!root&&(root.parentNode===clip&&root.closest('#scr-battle')!==null||overClone&&root.parentNode===top);
           if(canvas&&!painted){const data=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
             for(let i=3;i<data.length;i+=64){if(data[i]>5){painted=true;break;}}}
         }

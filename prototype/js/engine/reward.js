@@ -4434,9 +4434,7 @@ function _wireHeCardDiscard(div,card,arr,arrName,i,_ringOfferDiscardable){
 
 function _wireHeCardControls(div,card,arrName,i){
   if(arrName==='boardCards'&&typeof wireCardActivation==='function') wireCardActivation(div,card,i);
-  if(arrName==='boardCards'&&blessingFlameActive()){
-    blessingFlameWireCard(div,card,i);return;
-  }
+  if(arrName==='boardCards'&&blessingFlameActive()&&blessingFlameWireCard(div,card,i)) return;
   // アイテム使用中は、対象になり得ないカードを暗くして選択不能にする。
   if(arrName==='boardCards'&&G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'){
     if(_isItemUseTargetSlot(i)) div.classList.add('item-target-ok');

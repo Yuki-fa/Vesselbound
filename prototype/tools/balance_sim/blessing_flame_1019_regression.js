@@ -157,6 +157,7 @@ function simulate(units){
     };
     assert.deepEqual(event('click',''),[true,true]);
     assert.deepEqual(event('dragstart',''),[true,true]);
+    assert.deepEqual(event('dragstart','#hand-slots'),[true,true],'強化する前は魔導板の中でも動かせない');
     assert.deepEqual(event('contextmenu',''),[true,true]);
     assert.deepEqual(event('click','#reward-move-btns'),[false,false]);
     assert.deepEqual(event('click','#battle-options-btn'),[false,false]);
@@ -166,6 +167,15 @@ function simulate(units){
     // 強化後は全てのカードを明るくする（強化できないカードも）。
     G.mainBoard[5]=card('E010');const dim=element();blessingFlameWireCard(dim,G.mainBoard[5],5);
     assert.equal(dim.classList.contains('blessing-flame-unavailable'),false);G.mainBoard[5]=null;
+    // 強化した後は魔導板の中でカードを動かせる（2026-10-23 利用者指定）。
+    const movable=element();movable.draggable=true;
+    assert.equal(blessingFlameWireCard(movable,G.mainBoard[3],3),false,'通常の操作を付けさせる');
+    assert.equal(movable.draggable,true);assert.equal(movable.onclick,undefined);
+    const drag=(type,inside)=>{let prevented=false;
+      blessingFlameBlockInput({type,target:{closest:s=>s==='#scr-battle'||inside&&s==='#hand-slots'?true:null},preventDefault(){prevented=true;},stopImmediatePropagation(){}});
+      return prevented;};
+    assert.equal(drag('dragstart',true),false);assert.equal(drag('drop',true),false);
+    assert.equal(drag('drop',false),true,'魔導板の外へは落とせない');
     const upgraded=clone(G.mainBoard[3]);
     assert.equal(await blessingFlameLeave(),true);
     assert.equal(blessingFlameUsed(1),true);assert.equal(G._isWaveAltar,true);

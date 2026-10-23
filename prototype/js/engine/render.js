@@ -1671,35 +1671,51 @@ function _battleVfxClipRect(){
 // clip-path で背景の範囲へ切り抜く。入れ物は画面いっぱいなので、
 // 中のhost（position:fixed・画面座標）の位置計算は今までのままでよい。
 // clip-path は子孫（position:fixedも含む）の描画ごと切り抜く。
-function _vfxClipLayer(){
-  if(typeof document==='undefined') return null;
-  let layer=document.getElementById('vfx-frame-clip');
+function _vfxClipLayerEl(id,zIndex){
+  let layer=document.getElementById(id);
   if(!layer){
     layer=document.createElement('div');
-    layer.id='vfx-frame-clip';
+    layer.id=id;
     Object.assign(layer.style,{position:'fixed',left:'0',top:'0',width:'100%',height:'100%',
-      pointerEvents:'none',zIndex:'10035'});
+      pointerEvents:'none',zIndex});
   }
+  return layer;
+}
+function _vfxClipLayer(){
+  if(typeof document==='undefined') return null;
   const screen=document.getElementById('scr-battle');
+  const battleActive=!!(screen&&screen.classList.contains('active'));
   // 攻撃の動く複製（.attack-motion-clone）は body 直下の z=10000 にいる。戦闘画面の中（z=9999）に置いたままだと、
-  // 攻撃中のVFXが動くカードの下へ回り込む（2026-10-20 利用者指摘）。複製がある間だけ body 直下でその上に出す。
-  // 描画側（VbFx）は毎コマこの関数を呼ぶので、複製が消えれば戦闘画面の中へ戻る。
-  const motionClone=!!document.querySelector('.attack-motion-clone');
-  if(screen&&screen.classList.contains('active')&&!motionClone){
+  // 攻撃中のVFXが動くカードの下へ回り込む（2026-10-20 利用者指摘）。複製がある間に作る演出は body 直下の
+  // 別の入れ物（#vfx-frame-clip-top・z=10001）へ出す。
+  // **入れ物そのものは付け替えない**（2026-10-23）。付け替えると中の CSS アニメーションが全て最初からやり直しになり、
+  // 焼失中のカード（.death-burn-clone）が攻撃の始まり・戻りのたびに元の姿へ戻って焼け直す
+  // ＝「既に死んだキャラの残像」になっていた（数値・波打ちなども同じ）。作り済みの演出は作った入れ物に置いたままにし、
+  // 毎コマこの関数を呼ぶ VbFx の描画面（中身は毎コマ描き直す canvas 1枚）だけを今の入れ物へ移す。
+  const motionClone=battleActive&&!!document.querySelector('.attack-motion-clone');
+  const layer=_vfxClipLayerEl('vfx-frame-clip','10035');
+  if(battleActive){
     // 結果カットイン(z=10000)・行動表示(z=10002)より下。既存VFXの画面座標・寸法を保つ。
     const base=screen.getBoundingClientRect(),scale=_gameScale()||1;
     Object.assign(layer.style,{position:'absolute',left:`${-base.left/scale}px`,top:`${-base.top/scale}px`,
       width:`${window.innerWidth}px`,height:`${window.innerHeight}px`,zIndex:'9999',transformOrigin:'0 0',transform:`scale(${1/scale})`});
     if(layer.parentNode!==screen) screen.appendChild(layer);
   }else{
-    Object.assign(layer.style,{position:'fixed',left:'0',top:'0',width:'100%',height:'100%',zIndex:motionClone&&screen&&screen.classList.contains('active')?'10001':'10035',transform:'none'});
+    Object.assign(layer.style,{position:'fixed',left:'0',top:'0',width:'100%',height:'100%',zIndex:'10035',transform:'none'});
     if(layer.parentNode!==document.body) (document.body||document.documentElement).appendChild(layer);
   }
+  const top=motionClone||document.getElementById('vfx-frame-clip-top')?_vfxClipLayerEl('vfx-frame-clip-top','10001'):null;
+  if(top&&top.parentNode!==document.body) (document.body||document.documentElement).appendChild(top);
   const r=_battleVfxClipRect();
   const vw=window.innerWidth||r.width, vh=window.innerHeight||r.height;
-  layer.style.clipPath=`inset(${Math.max(0,r.top)}px ${Math.max(0,vw-(r.left+r.width))}px `
+  const clip=`inset(${Math.max(0,r.top)}px ${Math.max(0,vw-(r.left+r.width))}px `
     +`${Math.max(0,vh-(r.top+r.height))}px ${Math.max(0,r.left)}px)`;
-  return layer;
+  layer.style.clipPath=clip;
+  if(top) top.style.clipPath=clip;
+  const active=motionClone?top:layer;
+  const fxRoot=document.querySelector('[data-vb-fx-layer]');
+  if(fxRoot&&(fxRoot.parentNode===layer||fxRoot.parentNode===top)&&fxRoot.parentNode!==active) active.appendChild(fxRoot);
+  return active;
 }
 
 function _vfxHostParent(){

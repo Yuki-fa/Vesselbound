@@ -523,12 +523,16 @@ function cardRevealPlay(rig, rarity, opts) {
     if (r === 4) p.backGlow.style.filter = 'hue-rotate(185deg) saturate(1.4)';
     else p.backGlow.style.filter = '';
     if (heavy) {
-      const jitter = [];
-      for (let i = 0; i <= 14; i++) {
-        const a = (i / 14) * 1.6;
-        jitter.push({ transform: `translate(${Math.sin(i * 7.3) * a}em,${Math.cos(i * 5.1) * a * .6}em)`, offset: i / 14 });
+      // 震えは1コマごとに左右・上下を反転させ、最後は中央で終える（2026-10-23 利用者指摘：
+      // 旧式は sin(i*7.3) がほぼ1周期6コマのゆっくりした揺れになり、右上の端で終わってめくり開始で
+      // 中央へ跳ね戻る＝「★5でカードが右上に少しズレる」）。振れ幅は溜めの終わりへ向けて大きくする。
+      const jitter = [], n = 24;
+      for (let i = 0; i <= n; i++) {
+        const a = i === n ? 0 : Math.pow(i / n, 1.6) * 1.6;
+        const sx = i % 2 ? 1 : -1, sy = (i >> 1) % 2 ? 1 : -1;
+        jitter.push({ transform: `translate(${sx * a * (.65 + .35 * Math.abs(Math.sin(i * 2.1)))}em,${sy * a * .6 * (.65 + .35 * Math.abs(Math.cos(i * 1.7)))}em)`, offset: i / n });
       }
-      cardRevealTrack(rig, cardRevealAnimate(p.spinner, jitter, { duration: tier.charge, easing: 'ease-in' }));
+      cardRevealTrack(rig, cardRevealAnimate(p.spinner, jitter, { duration: tier.charge, easing: 'linear' }));
       // 背後の光は溜めから着地後まで1本で通す（途中で重ねると着地の瞬間に一度暗くなる）。
       const total = land + 1700, c = tier.charge / total, l = land / total;
       cardRevealHalo(rig, 'rgba(255,196,82,.7)', 230, 0, total, 1,
