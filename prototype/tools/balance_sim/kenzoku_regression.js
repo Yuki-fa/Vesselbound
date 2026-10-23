@@ -376,8 +376,8 @@ async function runDisplayChecks() {
   try { console.log = () => {}; console.table = () => {}; await loadGameData(); }
   finally { console.log = originalLog; console.table = originalTable; }
   // 2026-10-12: シート番号の並べ替えに依存せず、意味を名前で引く。
-  const keywords = sheetData.sheetRows('keyword').filter(r => ['眷属','マナ効果','荷物','刻印'].includes(r['名前']));
-  assert.equal(keywords.length,4);
+  const keywords = sheetData.sheetRows('keyword').filter(r => ['眷属','マナ効果','刻印'].includes(r['名前']));
+  assert.equal(keywords.length,3);
   keywords.forEach(row => {
     assert.equal(KW_NO_MAP[row['名前']], row['No.']);
     assert.equal(KW_DESC_MAP[row['名前']], row['効果']);

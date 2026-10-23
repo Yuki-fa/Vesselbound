@@ -618,7 +618,6 @@ async function loadGameData() {
     // 上書きしないこと（封印・隠密を上書きしていて、シートを直しても反映されなかった）。
     // シートを読めない時の予備は js/engine/state.js の KW_DESC_MAP。
     ['生贄','狩人','狙撃','強靭','エリート','ボス'].forEach(k => { delete KW_DESC_MAP[k]; delete KW_NO_MAP[k]; });
-    if(!KW_DESC_MAP['荷物']) KW_DESC_MAP['荷物']='合体できない。';
 
     // 地域情報シート（任意）：街の名前・街の施設・戦闘（道中）の固有名をシート駆動にする。
     // 「ステージ」列の値がG._wave（1〜5。0は開始地点）に対応する。
@@ -1272,7 +1271,7 @@ async function loadGameData() {
       const sfxType = String(row['効果音'] || row['SE'] || row['SFX'] || '').trim();
       if (sfxType) panel.sfxType = sfxType;
       panel.characterDesc = String(row['キャラクター用説明文'] || '').trim();
-      const sheetKeywords = _splitSheetKeywords(row['キーワード']).map(k=>{
+      const sheetKeywords = _splitSheetKeywords(row['キーワード']).filter(k=>k!=='荷物').map(k=>{
         const s=String(k||'').trim();
         return s==='強靭'?'強靭1':s;
       });
@@ -1285,12 +1284,6 @@ async function loadGameData() {
       if (panel.category === 'エンチャント') {
         _setEnchantFieldsFromDesc(panel);
         panel.adjacentKeywords = _applyMergedKeywordList(panel.adjacentKeywords, sheetKeywords);
-        // 「荷物」は接続先へ付与する効果ではなく、カード自身の分類（合体不可）。
-        // 効果文が空のカードも通常のエンチャントとして安全に保持する。
-        if (sheetKeywords.includes('荷物')) {
-          panel.keywords = _mergeUniqueKeywords(panel.keywords, ['荷物']);
-          panel.adjacentKeywords = panel.adjacentKeywords.filter(k => String(k || '').trim() !== '荷物');
-        }
         // 強化カード名は表示名であり、接続先へ付与するキーワードではない。
         // シート側に誤って残っている場合もここで除去し、データ追加時の再発を防ぐ。
         const enchantCardNames=new Set(['封印されしもの','禁断の力','武器破壊','団結','共振','遺志','熟練','戦術','大盾','策士']);
@@ -1484,16 +1477,6 @@ async function loadGameData() {
         PANEL_POOL.splice(i, 1);
       }
     }
-    // 荷物はカード自身が持つキーワードで、接続先へは付与しない。
-    // シート側の更新前でも壺・魔鏡の合体不可ルールを一貫して適用する。
-    const _luggagePanelNames=new Set(['翡翠の壺','黄金の壺','魔鏡']);
-    (PANEL_POOL||[]).forEach(panel=>{
-      const hasLuggage=(panel&&panel.keywords||[]).concat(panel&&panel.adjacentKeywords||[])
-        .some(k=>String(k||'').trim()==='荷物');
-      if(!panel||(!hasLuggage&&!_luggagePanelNames.has(String(panel.name||'').trim()))) return;
-      panel.keywords=_mergeUniqueKeywords(panel.keywords,['荷物']);
-      panel.adjacentKeywords=(panel.adjacentKeywords||[]).filter(k=>String(k||'').trim()!=='荷物');
-    });
     // ※「複製」はシート（E028）に入ったので、ここで消してはいけない。
     //   以前は現行シートに無い旧試作カードだったため取り除いていた。
     // **シートの「キーワード」「効果」列と完全に同じ値にする。** 効果欄が空のカードは desc も空（シート読込と同じ。

@@ -10,7 +10,7 @@ let _rewPhaseId=0; // この報酬フェイズで取得したカードだけを�
 const SHOP_EXCHANGE_TRIAL={
   stockCount:3, ringCardCost:3,
   text:{
-    shopIntro:'魔導店：カード交換',
+    shopIntro:'魔導取引所：カード交換',
     shopSteps:[
       '店のカードを、魔導板上のカードへドラッグすると交換できます。',
       '空きマスには置けません。交換の回数・カードの種類に制限はなく、ゴールドも使いません。',
@@ -1503,12 +1503,18 @@ function _syncRewardTitleLabel(){
   if(!el) return;
   // 街から入った施設は、シートに書かれた施設名そのまま（G._facilityLabel）を優先する。
   const fromVillage=(G._isItemShop||G._isForge||G._isShop||G._isLibrary||G._isTavern||G._isFiveSaints||G._isBlessingFlame)?String(G._facilityLabel||'').trim():'';
+  const visibleFromVillage=G._isPeddler
+    ?fromVillage.replace(/^行商人?(?=[ 　]|$)/,'トレーダー')
+    :G._isShop?fromVillage.replace(/魔道店|魔導店/g,'魔導取引所'):fromVillage;
   // **見出しはテキストメッセージシートが唯一の出どころ**（「◯◯見出し」）。
   const t=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
-  el.textContent=fromVillage
+  const shopTitle=typeof textMessage==='function'
+    ?(textMessage('「魔導取引所」見出し','')||textMessage('「魔導店」見出し','魔導取引所'))
+    :'魔導取引所';
+  el.textContent=visibleFromVillage
     ||(G._isItemShop?t('「道具屋」見出し','道具屋')
     :G._isForge?t('「鍛冶屋」見出し','鍛治屋')
-    :G._isShop?t('「魔導店」見出し','魔導店')
+    :G._isShop?String(shopTitle).replace(/魔道店|魔導店/g,'魔導取引所')
     :G._isRingExchange?t('「祭壇」見出し','祭壇')
     :t('「編成画面」見出し','編成'));
   const rewardLabel=Array.from(document.querySelectorAll('#reward-info-bar .ri-soul')).find(node=>node.querySelector('#rw-count'));
@@ -3484,10 +3490,8 @@ function _mergedPanelCard(a,b){
   if(!panelMergeEnabled()) return null;
   if(!a||!b||typeof PANEL_POOL==='undefined'||typeof makePanel!=='function') return null;
   if(typeof questCardRemovalLocked==='function'&&(questCardRemovalLocked(a)||questCardRemovalLocked(b))) return null;
-  // 荷物は通常の2枚合体不可。魔鏡も3枚目の代替素材としてのみ扱う。
-  // 抑圧の刻印も合体で元マスから消える経路を作らない。
-  if(_isLuggagePanel(a)||_isLuggagePanel(b)
-    ||_cardIsSuppressionEngraving(a)||_cardIsSuppressionEngraving(b)) return null;
+  // 抑圧の刻印は合体で元マスから消える経路を作らない。
+  if(_cardIsSuppressionEngraving(a)||_cardIsSuppressionEngraving(b)) return null;
   const names=[String(a.name||'').trim(),String(b.name||'').trim()].sort().join('\n');
   const def=PANEL_POOL.find(p=>{
     if(!Array.isArray(p.mergeFrom)||p.mergeFrom.length!==2) return false;
@@ -3496,9 +3500,6 @@ function _mergedPanelCard(a,b){
   return def?makePanel(def.id):null;
 }
 function _isMagicMirrorPanel(card){ return String(card&&card.name||'').trim()==='魔鏡'; }
-function _isLuggagePanel(card){
-  return !!card&&Array.isArray(card.keywords)&&card.keywords.some(k=>String(k||'').trim()==='荷物');
-}
 function _panelMergeKey(card){ return String(card&&(card.name||card.id)||'').trim(); }
 function _ownedMergeCards(){
   const out=[];
@@ -3513,23 +3514,22 @@ function _rewardMergeCandidate(rewIdx,card){
   if(!card||!G) return false;
   if(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)) return false;
   if(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(card)) return false;
-  if(_isLuggagePanel(card)&&!_isMagicMirrorPanel(card)) return false;
   // ショップでは、魔導板上のカード／所持キャラクターも合体素材として数える。
   if(G._isShop||G._isRewardTown){
     const owned=_ownedMergeCards().filter(c=>!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(c)));
     const key=_panelMergeKey(card);
     if(!key) return false;
-    const same=owned.filter(c=>!_isMagicMirrorPanel(c)&&!_isLuggagePanel(c)&&_panelMergeKey(c)===key).length;
+    const same=owned.filter(c=>!_isMagicMirrorPanel(c)&&_panelMergeKey(c)===key).length;
     const mirrors=owned.filter(c=>_isMagicMirrorPanel(c)).length;
     return _isMagicMirrorPanel(card)?same>=2:(same>=2||same>=1&&mirrors>0);
   }
   if(G.phase!=='reward') return false;
   const cards=Array.isArray(_rewCards)?_rewCards.filter(Boolean):[];
-  const usable=cards.filter(c=>!c._tripleMerged&&!_isLuggagePanel(c)&&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(c)));
+  const usable=cards.filter(c=>!c._tripleMerged&&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(c)));
   // **魔導板・場のカードも合体素材に数える。**（ショップ側と同じ扱い）
   // 以前は提示カード同士しか見ておらず、「同じカードが盤面に2枚あって
   // 報酬の1枚を取れば3枚そろう」場面で光らなかった。
-  const owned=_ownedMergeCards().filter(c=>c&&!_isLuggagePanel(c)&&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(c)));
+  const owned=_ownedMergeCards().filter(c=>c&&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(c)));
   const ownedSame=key=>owned.filter(c=>!_isMagicMirrorPanel(c)&&_panelMergeKey(c)===key).length;
   const mirrors=cards.filter(c=>!c._tripleMerged&&_isMagicMirrorPanel(c))
     .concat(owned.filter(_isMagicMirrorPanel));
@@ -3621,7 +3621,7 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
     .filter(x=>x.card&&!x.card._tripleMerged&&!_cardIsSuppressionEngraving(x.card)
       &&!(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(x.card))
       &&!(typeof isTripleMergeBlockedCard==='function'&&isTripleMergeBlockedCard(x.card)));
-  const baseCards=available.filter(x=>!_isLuggagePanel(x.card));
+  const baseCards=available;
   const mirrors=available.filter(x=>_isMagicMirrorPanel(x.card));
   const candidates=[];
   const seen=new Set();
@@ -3680,7 +3680,7 @@ function _tryTripleMergeOnBoard(unit,placedIdx){
   let tripleExtraKeywords=[];
   picked.forEach(idx=>{
     const source=unit.boardCards[idx];
-    const sourceKeywords=_isMagicMirrorPanel(source)?(source.keywords||[]).filter(k=>String(k||'').trim()!=='荷物'):(source&&source.keywords);
+    const sourceKeywords=source&&source.keywords;
     mergedKeywords=typeof _mergeCardKeywordsForBond==='function'
       ?_mergeCardKeywordsForBond(mergedKeywords,sourceKeywords)
       :mergedKeywords.concat(Array.isArray(sourceKeywords)?sourceKeywords:[]);
@@ -4636,7 +4636,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _slotUnit=arrName==='boardCards'?_getPartyBoardUnit():null;
       const _slotDef=arrName==='boardCards'?_boardSlotDef(i,_slotUnit):arrName==='globalPanels'?{label:`全体${i+1}`,kind:'global'}:null;
       const _deployNum=arrName==='boardCards'?MAIN_BOARD_DEPLOY_SLOTS.indexOf(i):-1;
-    if(i>=startIdx+count){
+      if(i>=startIdx+count){
       // 未解放スロット
       const ph=document.createElement('div'); ph.className='card-empty spell'; ph.style.opacity='0.1';
       ph.style.setProperty('--hand-i',_handPos);
@@ -4664,6 +4664,10 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       }
       if(_slotDef) div.classList.add(`board-slot-${_slotDef.kind}`);
       const _mapPowerId=arrName==='boardCards'&&typeof mapPanelPowerIdAt==='function'?mapPanelPowerIdAt(i):'';
+      const _powerId=_mapPowerId;
+      const _powerDef=_powerId&&typeof MAP_PANEL_POWERS!=='undefined'?MAP_PANEL_POWERS.find(p=>p.id===_powerId):null;
+      const _displayCard=_powerDef&&typeof coreMapPanelPowerDisplayCard==='function'
+        ?coreMapPanelPowerDisplayCard(card,_powerDef.desc):card;
       const _hasMapDeployPower=!!_mapPowerId;
       if(arrName==='boardCards'&&_mapPowerId) div.dataset.mapBoard=_mapPowerId;
       if(arrName==='boardCards'&&_mapPowerId&&Assets.mapBoard&&Assets.mapBoard[_mapPowerId]){
@@ -4671,8 +4675,8 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       }
       if(_deployNum>=0||_hasMapDeployPower){ div.classList.add('deploy-slot'); }
       const _selectedBoardDead=arrName==='boardCards'&&_getPartyBoardUnit()?.hp<=0;
-      if(typeof applyCardVisual==='function') applyCardVisual(div,card);
-      else if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(card)));
+      if(typeof applyCardVisual==='function') applyCardVisual(div,_displayCard);
+      else if(typeof getCardAsset==='function'&&typeof assetUrl==='function') div.style.setProperty('--card-art',assetUrl(getCardAsset(_displayCard)));
       if(arrName==='boardCards'&&_mapPowerId&&Assets.mapBoard&&Assets.mapBoard[_mapPowerId]){
         const _boardWidth={eternal:'109.6%',resonance:'112.7%',duplicate:'105.5%'}[_mapPowerId]||'100%';
         div.style.setProperty('background',`url("${Assets.mapBoard[_mapPowerId]}") center/${_boardWidth} 100% no-repeat`,'important');
@@ -4696,11 +4700,11 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _costOwner=arrName==='boardCards'?_getPartyBoardUnit():null;
       const _costEnh=_costOwner&&typeof _collectAdjacentEnhancements==='function'?_collectAdjacentEnhancements(_costOwner,i):null;
       const _costCard=_costEnh
-        ?{...card,
-          keywords:[...(card.keywords||[]),...(_costEnh.keywords||[])],
+        ?{..._displayCard,
+          keywords:[...(_displayCard.keywords||[]),...(_costEnh.keywords||[])],
           _extraManaCosts:Array.isArray(_costEnh.manaThresholds)
             ?_costEnh.manaThresholds.map(t=>Number(t&&t.cost)||0).filter(Boolean):[]}
-        :card;
+        :_displayCard;
       const _manaCostEl=typeof cardManaCostHtml==='function'?cardManaCostHtml(_costCard):'';
       const _sealCostEl=typeof cardSealCostHtml==='function'?cardSealCostHtml(_costCard):'';
       const _isPassivePanel=card&&(card.type==='panel'||card.kind==='panel'||card.panelScope)&&String(card.category||'').includes('パッシブ');
@@ -4731,8 +4735,6 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
           // 還魂は右上のボタンを出さず、カードのクリックで行う（2026-10-23 利用者指定。_wireHeCardControls）。
           :'')
         :'';
-      const _powerId=_mapPowerId;
-      const _powerDef=_powerId&&typeof MAP_PANEL_POWERS!=='undefined'?MAP_PANEL_POWERS.find(p=>p.id===_powerId):null;
       if(_powerDef){
         div.setAttribute('data-panel-power-preview',[
           _powerDef.name,
@@ -4749,7 +4751,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       const _dirMarks=typeof panelDirectionMarksHtml==='function'?panelDirectionMarksHtml(card,_dirConnectivity):'';
       if(_isPanelCharacter){
         const _panelOwner=arrName==='boardCards'?_getPartyBoardUnit():null;
-        const st=_panelCharacterPreviewStats(_panelOwner,arrName==='boardCards'?i:null,card);
+        const st=_panelCharacterPreviewStats(_panelOwner,arrName==='boardCards'?i:null,_displayCard);
         const pAtk=st.atk, pHp=st.hp;
         // HPを減少させる強化でHPが0になったキャラクターは、出撃不可のキャラと同じ見た目で暗くする。
         // 「特殊マス以外に置かれて出撃できない」場合は魔導板の枠を明るく残す仕様なので、
@@ -4762,7 +4764,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // _unitPreviewText内部の_groupedEnchantEffectTexts()が接続中の強化カード効果全文も
         // 正しく含められるようにする（キーワードのみ渡すと接続効果文が別途二重表示されてしまう）。
         const _enh=_panelOwner&&typeof _collectAdjacentEnhancements==='function'?_collectAdjacentEnhancements(_panelOwner,i):{keywords:[]};
-        const _cardForPreview=_panelOwner?{...card,keywords:[...(card.keywords||[]),...(_enh.keywords||[])],boardCards:_panelOwner.boardCards,_ownedBoardPreview:true}:card;
+        const _cardForPreview=_panelOwner?{..._displayCard,keywords:[...(_displayCard.keywords||[]),...(_enh.keywords||[])],boardCards:_panelOwner.boardCards,_ownedBoardPreview:true}:_displayCard;
         // 「結界X」は_unitDisplayKeywords内でunit.shield（数値）から合成表示するため、戦闘中の
         // _applyAdjacentPanelEnhancementsと同じ計算（複数の結界付与元をXに合算）をここでも行っておく。
         // これがないと、接続した結界がいくつあっても編成画面のキーワード欄に「結界X」が出ない。
@@ -4771,13 +4773,13 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // 「〜を持つX/Xの」（召喚体の注釈）やGrade置換が抜け、魔導板に置いた途端に
         // 説明が商品と食い違う（ケットシー等。利用者報告 2026-09-22）。
         const _charDescForPreview=typeof _rawSubstitutedDesc==='function'
-          ?_rawSubstitutedDesc(card):String(card.desc||'');
+          ?_rawSubstitutedDesc(_displayCard):String(_displayCard.desc||'');
         const _keywordPreview=typeof _keywordOnlyPreviewText==='function'?_keywordOnlyPreviewText(_cardForPreview,_charDescForPreview,i):'';
         if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
         const preview=typeof _unitPreviewText==='function'?_unitPreviewText(_cardForPreview,_charDescForPreview,i):(card.name+'\n'+_charDescForPreview);
         if(preview) div.setAttribute('data-preview',preview);
         div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div><span class="card-summon-atk${_cardStatPairDigitClass(pAtk,pHp)}">${pAtk}</span><span class="card-summon-hp${_cardStatPairDigitClass(pAtk,pHp)}">${pHp}</span>${_spellBtn}`;
-        if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
+        if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,_displayCard);
         if(_panelOwner&&typeof _wireEnchantGlowHover==='function') _wireEnchantGlowHover(div,_panelOwner,G._selectedBoardUnitIdx,i);
       }else if(_isPanelCard&&['強化','エンチャント'].includes(String(card.category||''))){
         // data-previewはホバー時に_formatPreviewHtmlで改めてHTMLタグ除去→マナアイコン挿入を行うため、
@@ -4785,18 +4787,18 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
         // 除去されて色情報が消えてしまう。生のcard.descを渡す。
         // 本文に「効果なし」を含む場合は説明文を表示しない。シート「キーワード」列（adjacentKeywords）が
         // あれば「キーワード：〇〇」行として表示する（隣接キャラクターへ付与するキーワード）。
-        const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':(typeof _plainEffectTextForPreview==='function'?_plainEffectTextForPreview(card):(card.desc||'')).replace(/^荷物(?=\s|$)\s*/,'');
+        const _panelDescRaw=/効果なし/.test(String(_displayCard.desc||''))?'':(typeof _plainEffectTextForPreview==='function'?_plainEffectTextForPreview(_displayCard):(_displayCard.desc||''));
         const _panelDescForPreview=card.name==='封印されしもの'
           ?String(_panelDescRaw||'').replace(/^封印\d+\s*/,'').trim():_panelDescRaw;
         // キーワード欄の中身は render.js の _enchantPreviewKeywords() が唯一の実装。
-        const _adjKws=typeof _enchantPreviewKeywords==='function'?_enchantPreviewKeywords(card):[];
+        const _adjKws=typeof _enchantPreviewKeywords==='function'?_enchantPreviewKeywords(_displayCard):[];
         const preview=[typeof _cardUiName==='function'?_cardUiName(card):card.name,_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:'',_panelDescForPreview].filter(Boolean).join('\n');
         if(preview) div.setAttribute('data-preview',preview);
         const _keywordPreview=typeof _keywordOnlyPreviewText==='function'
-          ?_keywordOnlyPreviewText({...card,keywords:_adjKws}):'';
+          ?_keywordOnlyPreviewText({..._displayCard,keywords:_adjKws}):'';
         if(_keywordPreview) div.setAttribute('data-keyword-preview',_keywordPreview);
         div.innerHTML=`${_slotLabel}${_gradeEl}${_manaCostEl}${_sealCostEl}${_dirMarks}<div class="card-art"></div>${_spellBtn}`;
-        if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);
+        if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,_displayCard);
         if(arrName==='boardCards'&&typeof _wireEnchantSelfHover==='function') _wireEnchantSelfHover(div,_getPartyBoardUnit(),i);
       }else if(typeof _isSpellCard==='function'&&_isSpellCard(card)){
         div.classList.add('spell-card');

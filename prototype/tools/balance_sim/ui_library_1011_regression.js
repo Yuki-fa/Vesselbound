@@ -7,7 +7,7 @@ for(const slot of slots) {
   slot.querySelector=selector=>slot.children.find(c=>c.className.split(' ').includes(selector.slice(1)))||null;
   slot.appendChild=c=>{slot.children.push(c);c.remove=()=>slot.children.splice(slot.children.indexOf(c),1);return c;};
 }
-const elements=new Map(['library-merge-btn','library-merge-desc','library-howto-btn'].map(id=>[id,h.makeElement('button')]));
+const elements=new Map(['library-howto-btn'].map(id=>[id,h.makeElement('button')]));
 document.querySelectorAll=selector=>selector==='.reward-prod-item .reward-prod-slots i'?slots:[];
 document.getElementById=id=>elements.get(id)||null;
 renderHandEditor=renderFieldEditor=renderRewCards=_syncRewardProductionUi=updateHUD=refreshRewardGoldUi=()=>{};
@@ -42,8 +42,8 @@ renderHandEditor=renderFieldEditor=renderRewCards=_syncRewardProductionUi=update
     _syncRewardProductionItems();assert.equal(slots[0].querySelector('.item-shop-sell-action'),null,'通常編成・ゲームオーバー・祭壇に新しい売却UIを出さない');checked++;
   }
   localStorage.clear();SaveProfile.resetCache();initState();G._isLibraryMenu=true;G._isLibrary=true;
-  renderVillageScreen();assert.equal(elements.get('library-merge-btn').style.display,'none');
-  assert.equal(elements.get('library-merge-desc').style.display,'none');
+  renderVillageScreen();assert.equal(document.getElementById('library-merge-btn'),null,'図書館のマージ入口を削除');
+  assert.equal(document.getElementById('library-merge-desc'),null,'図書館のマージ説明を削除');
   let config;runBoardTutorial=cfg=>{config=cfg;};
   startLibraryBoardTutorial();assert.equal(config.id,'board');
   assert.equal(_libraryBoardTutorialCompleted(),false,'開始時には記録しない');
@@ -51,25 +51,13 @@ renderHandEditor=renderFieldEditor=renderRewCards=_syncRewardProductionUi=update
   G._isLibrary=true;startLibraryBoardTutorial();config.onFinish();
   assert.equal(SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY),true,'最終手順完了でプロフィールへ記録');
   SaveProfile.resetCache();initState();G._isLibraryMenu=true;renderVillageScreen();
-  assert.equal(elements.get('library-merge-btn').style.display,'none','合体停止中はプロフィールで完走しても非表示');
-  PANEL_MERGE_TRIAL.enabled=true;renderVillageScreen();
-  assert.equal(elements.get('library-merge-btn').style.display,'','スイッチを戻すと保存済みの完走記録で解放');
+  assert.equal(document.getElementById('library-merge-btn'),null,'プロフィール完走後もマージ入口を出さない');
   G._debugMode=true;delete window._libraryDebugBoardTutorialCompleted;
   assert.equal(_libraryBoardTutorialCompleted(),false,'デバッグは通常プロフィールを無視');
   localStorage.clear();SaveProfile.resetCache();G._isLibrary=true;startLibraryBoardTutorial();config.onFinish();
   assert.equal(_libraryBoardTutorialCompleted(),true,'デバッグは同じページ内で解放');
   assert.equal(SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY),false,'デバッグはプロフィールを書かない');
   G._debugMode=false;assert.equal(_libraryBoardTutorialCompleted(),false,'デバッグ完了を通常ランへ持ち込まない');checked+=7;
-  // 改名してもC062を借り、移動対象・説明文・合体判定まで同じカードになる。
-  const def=PANEL_POOL.find(c=>c.no==='C062'),old=def.name;def.name='C062検査名';
-  const loans=_libraryMergeLoanCards();assert.equal(loans.length,5);
-  assert.ok(loans.every(c=>c.no==='C062'&&c.name===def.name&&c._libraryLoan));
-  G._debugMode=true;openMapLibraryFormation=()=>{G._isLibrary=true;};_waitLibraryUIReady=fn=>fn();
-  openLibraryMergeTutorial();assert.equal(config.id,'merge');
-  assert.equal(config.buildSteps()[1][3],def.name,'移動対象もC062の改名に追従');
-  assert.ok(config.text('2','').includes(def.name),'シートの説明文の貸出名も追従');
-  G.mainBoard[1]={...loans[0],_tripleMerged:true,name:def.name+'+'};assert.ok(_libraryBoardHasMergedTutorialCard());
-  G.mainBoard[1].no='C063';assert.equal(_libraryBoardHasMergedTutorialCard(),false);def.name=old;checked++;
-  PANEL_MERGE_TRIAL.enabled=false;
-  console.log(`売却廃止・図書館: ${checked}件OK（全施設・デバッグでアイテム売却不可、合体停止と再有効化、プロフィール・C062×5）`);
+  assert.equal(panelMergeEnabled(),false,'図書館から合体入口を復帰させない');checked++;
+  console.log(`売却廃止・図書館: ${checked}件OK（全施設・デバッグでアイテム売却不可、魔導板チュートリアルのみ）`);
 })().catch(e=>{console.error(e);process.exitCode=1;});

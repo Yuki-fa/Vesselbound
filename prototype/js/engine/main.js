@@ -133,7 +133,7 @@ const SHEET_CSS_TEXTS=[
   {prop:'--title-board',key:'「魔導板枠」見出し'},
   {prop:'--title-reward',key:'「編成画面の報酬枠」見出し'},
   {prop:'--title-gold',key:'「所持金枠」見出し'},
-  {prop:'--title-shop',key:'「魔導店の報酬枠」見出し'},
+  {prop:'--title-shop',key:'「魔導取引所の報酬枠」見出し',altKeys:['「魔導店の報酬枠」見出し']},
   {prop:'--title-item-shop',key:'「道具屋の報酬枠」見出し'},
   {prop:'--title-forge',key:'「鍛冶屋の報酬枠」見出し'},
   {prop:'--title-altar',key:'「祭壇の報酬枠」見出し'},
@@ -191,6 +191,8 @@ function applySheetCssTexts(){
     // シートの行名が変わる途中でも拾えるよう、旧い行名も順に見る。
     (def.altKeys||[]).forEach(k=>{ if(!text) text=textMessage(k,'').trim(); });
     if(!text) return;
+    // 旧シートの見出しをフォールバックした場合も、画面上の施設名は現行名に揃える。
+    if(def.prop==='--title-shop') text=text.replace(/魔道店|魔導店/g,'魔導取引所');
     // content は文字列リテラルなので、引用符とバックスラッシュを閉じないようにする。
     document.documentElement.style.setProperty(def.prop,
       `"${text.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`);

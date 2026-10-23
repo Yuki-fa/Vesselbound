@@ -5,9 +5,9 @@
 
 // キャラクターのグレードを階層に応じて決定
 
-// PvE試験用。trueへ戻すと新規合体・関連品の抽選・案内をまとめて復帰する。
+// 合体は廃止済み。旧保存の合体済みカードを読むため、定数と関数の形だけ互換で残す。
 const PANEL_MERGE_TRIAL={enabled:false};
-function panelMergeEnabled(){ return PANEL_MERGE_TRIAL.enabled||!!(typeof G!=='undefined'&&G&&G._onlineMode); }
+function panelMergeEnabled(){ return false; }
 function panelMergeContentAvailable(card){
   return panelMergeEnabled()||!(card&&(card.itemEffectKey==='bond_scroll'
     ||typeof _isMagicMirrorPanel==='function'&&_isMagicMirrorPanel(card)));
@@ -255,9 +255,9 @@ const PANEL_POOL=[
   {id:'panel_healing_trait',no:'E012',name:'治癒能力',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['治癒能力'],desc:'負傷：HP+2を得る。'},
   {id:'panel_legacy',name:'遺産',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'死亡：1ゴールドを得る。'},
   {id:'panel_origin_seed',name:'マナの種',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'常時：このキャラクターのマナ効果は1回追加で発動する。'},
-  {id:'panel_jade_vase',no:'E040',name:'翡翠の壺',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:200,keywords:['荷物'],desc:'荷物\n高く売れそうだ。（200Gで売れる。）'},
-  {id:'panel_golden_vase',no:'E041',name:'黄金の壺',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:400,keywords:['荷物'],desc:'荷物\n高く売れそうだ。（400Gで売れる。）'},
-  {id:'panel_magic_mirror',name:'魔鏡',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,keywords:['荷物'],desc:'荷物\n荷物以外の全てのカードの3枚目として合体できる。'},
+  {id:'panel_jade_vase',no:'E040',name:'翡翠の壺',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:200,desc:'負傷：このキャラクター以外の、この効果を持つ全ての味方は+3/+1を得る。'},
+  {id:'panel_golden_vase',no:'E041',name:'黄金の壺',rarity:3,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,sellPrice:400,desc:'常時：このカードを還魂すると、最大ライフが1増える。（6以上にはならない）'},
+  {id:'panel_magic_mirror',name:'魔鏡',rarity:2,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,directionCount:0,desc:'常時：このカードを還魂すると、200Gを獲得する。'},
   {id:'panel_grace',name:'恩寵',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,adjacentKeywords:['恩寵'],desc:'常時：このキャラクターの開戦効果は1回追加で発動する。'},
   {id:'panel_copy',no:'E028',name:'複製',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'開戦：このキャラクターの1/1のコピーを召喚する。'},
   {id:'panel_alchemy',name:'錬成',rarity:1,grade:1,type:'panel',kind:'panel',panelScope:'unit',category:'エンチャント',cost:1,slot:1,desc:'開戦：ランダムなアイテムを得る。'},

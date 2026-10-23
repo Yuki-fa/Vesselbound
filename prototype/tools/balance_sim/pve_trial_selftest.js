@@ -67,14 +67,14 @@ async function testPveTrial(api,check=(name,fn)=>{fn();console.log('OK '+name);}
     assert.match(makePanel('魔鏡').desc,/還魂/);assert.equal(_canUseItemNow(scroll),false);
     for(let i=0;i<30;i++){assert.ok(drawRewards().every(c=>c&&c._implemented!==false));assert.ok(!drawItems(3).some(c=>c.itemEffectKey==='bond_scroll'));}
   });
-  fresh();check('停止スイッチを戻すと合体を復帰でき、オンラインは停止スイッチに影響されない',()=>{
-    const enabled=PANEL_MERGE_TRIAL.enabled;
-    try{
-      PANEL_MERGE_TRIAL.enabled=true;G.mainBoard[0]=makePanel('ノーム');G.mainBoard[2]=makePanel('ノーム');
-      assert.ok(_tryTripleMergeOnBoard(_getPartyBoardUnit(),2));assert.equal(panelMergeContentAvailable(makeItem('絆の巻物')),true);
-    }finally{PANEL_MERGE_TRIAL.enabled=enabled;}
-    G._onlineMode=true;assert.equal(panelMergeEnabled(),true);assert.equal(panelMergeContentAvailable(makePanel('魔鏡')),true);
-    G._isShop=true;G.spellSlots[0]=makeItem('盾の巻物');const gold=G.gold;_sellHeldItem(0);assert.ok(G.gold>gold);assert.equal(G.spellSlots[0],null);
+  fresh();check('合体の旧スイッチとオンライン経路を無視し、関連品も新規利用させない',()=>{
+    PANEL_MERGE_TRIAL.enabled=true;G.mainBoard[0]=makePanel('ノーム');G.mainBoard[2]=makePanel('ノーム');
+    assert.equal(panelMergeEnabled(),false);assert.equal(_tryTripleMergeOnBoard(_getPartyBoardUnit(),2),null);
+    assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll',name:'絆の巻物'}),false);
+    G._onlineMode=true;assert.equal(panelMergeEnabled(),false);assert.equal(panelMergeContentAvailable(makePanel('魔鏡')),false);
+    PANEL_MERGE_TRIAL.enabled=false;G._onlineMode=false;
+    G._isShop=true;G.spellSlots[0]=makeItem(ITEM_POOL[0].id);const gold=G.gold;
+    assert.equal(_sellHeldItem(0),false);assert.equal(G.gold,gold);assert.ok(G.spellSlots[0]);
   });
   const sync=_syncRewardProductionUi,body=document.body,journey=_syncRewardJourneyUi;
   try{
