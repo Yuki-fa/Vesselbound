@@ -2377,6 +2377,10 @@ async function startBattle(){
     if(u&&(!carryBattle||!(G.allies||[]).includes(u))) delete u._manaFireCounts;
   });
   G._battleEndEffectsApplied=false;
+  // 起動は「戦闘終了ごとに1回（累積しない）・獲得即使用は不可」（2026-10-23 利用者指定）。戦闘中に魔導板のカードは
+  // 入れ替わらないので、始まる時点の魔導板へ印を立てるのと同じ（勝ち・負け・闘技場のどの終わり方でも漏れない）。
+  // 試験戦闘（図書館・デバッグ）では立てない。
+  if(!G._testBattleMode&&!G._libraryTestBattleMode&&typeof chargeBoardCardActivations==='function') chargeBoardCardActivations();
   G._necromancerRingUsed=false;
   G._revivalRingUsed=false;
   G._oniRingAttackCount=0;

@@ -1416,6 +1416,17 @@ const PRESENT_BUFF_VFX_BY_TRIGGER = {
 // シートの「VFX/SE」列にバフの番号を書いたカード（ドワーフ＝S008）で、
 // 対象に選ばれていない本人の上にだけ出ていた。
 const PRESENT_BUFF_VFX_CODES = new Set(Object.values(PRESENT_BUFF_VFX_BY_TRIGGER));
+// ラン効果（run_effect：報酬とトレーダーの強化・リロール・接続エンチャントの強化）の演出。
+// 2026-10-23 利用者指摘「ゴーレムなど、出なくなったものがあります」：シート改訂で効果が能力変化から run_effect へ変わり、
+// 演出が無くなっていた（ゴーレム・ファミリア・ユミル・グリマルキン）。発生元の上に、トリガのバフ演出を出す。
+// 終戦は開戦・常時と同じ S009。接続エンチャントの強化は、実際に強化した回（4回目ごと）だけ出す。
+const PRESENT_RUN_EFFECT_TRIGGERS = { '攻撃': 'attack', '負傷': 'injury', '死亡': 'death', '開戦': 'opening', '終戦': 'passive' };
+function presentRunEffectVfxCode(ev) {
+  if (!ev || ev.type !== 'run_effect') return '';
+  if (ev.kind === 'enchant_upgrade' && !(Array.isArray(ev.targetSlots) && ev.targetSlots.length)) return '';
+  const trigger = PRESENT_RUN_EFFECT_TRIGGERS[String(ev.trigger || '')];
+  return trigger ? PRESENT_BUFF_VFX_BY_TRIGGER[trigger] : '';
+}
 // 列にバフの番号が無くても**一律でバフの演出にする**トリガ。
 // 攻撃＝カードごとの絵にすると攻撃のたびに別の絵が出て何の効果か読めない。
 // 開戦・常時＝利用者指定（S009）。マナ＝発生元の固有VFXと重ねないため。
@@ -1560,7 +1571,7 @@ const PRESENT_ACTION_BANNER_EVENT_TYPES = new Set([
   'gold_gain', 'gold_spend', 'item_reward', 'bonus_reward', 'life_gain', 'life_set',
   'summon', 'transform', 'unit_stolen', 'keyword_effect', 'instant_death', 'curse_death',
   'revive', 'seal_release', 'seal_apply', 'death_summon_grant', 'summon_buff_grant', 'blood_set', 'ring_effect',
-  'life_drain', 'effect_flash', 'attack', 'summon_buff',
+  'life_drain', 'effect_flash', 'attack', 'summon_buff', 'run_effect',
 ]);
 
 function presentActionBannerName(card) {
@@ -2343,6 +2354,7 @@ if (typeof window !== 'undefined') {
   window.presentSweepDamageEvents = presentSweepDamageEvents;
   window.presentStatChangeVfxAllowed = presentStatChangeVfxAllowed;
   window.presentStatChangeVfxCode = presentStatChangeVfxCode;
+  window.presentRunEffectVfxCode = presentRunEffectVfxCode;
   window.presentIsBuffVfxCode = presentIsBuffVfxCode;
   window.PRESENT_CARD_EFFECT_VFX_MS = PRESENT_CARD_EFFECT_VFX_MS;
   window.presentIsScreenBottomVfx = presentIsScreenBottomVfx;
@@ -2381,7 +2393,7 @@ if (typeof module !== 'undefined' && module.exports) {
     PRESENT_CONTACT_PIERCE_START_OFFSET, PRESENT_CONTACT_PIERCE_OVERSHOOT,
     PRESENT_MISSILE_NOSE_OFFSET_DEG, PRESENT_EFFECT_HIT_OFFSET_Y, presentMissileEase, presentMissileControlPoints, presentMissileFlightMs,
     presentIsProjectileEffect, presentEffectDamageEvents,
-    presentDamageVfxSource, presentStatChangeVfxAllowed, presentStatChangeVfxCode,
+    presentDamageVfxSource, presentStatChangeVfxAllowed, presentStatChangeVfxCode, presentRunEffectVfxCode,
     PRESENT_CARD_EFFECT_VFX_MS, presentIsScreenBottomVfx,
     presentManaEffectKey, presentManaWaveKey, presentManaWaveEvents, presentManaWaveInfo, presentManaStatChangeEvents,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,

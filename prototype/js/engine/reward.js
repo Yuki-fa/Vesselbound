@@ -157,7 +157,6 @@ function _restoreRewardReturnCard(card){
   delete returned._rewardReturnPhaseId;
   // 取る前の姿へ戻しても、アイテムを使った事実は残す（酒場の依頼カードの特殊拒否。quest.js）。
   if(card._itemBuffed) returned._itemBuffed=true;
-  if(card._activationUses) returned._activationUses={...returned._activationUses,...card._activationUses};
   if(!Array.isArray(_rewCards)) _rewCards=[];
   const idx=Number.isInteger(card._rewardReturnIdx)?card._rewardReturnIdx:-1;
   if(idx>=0&&idx<REWARD_GRID_CAPACITY&&!_rewCards[idx]){
@@ -2113,6 +2112,11 @@ function _mkRewDiv(card, onBuy, rewIdx){
     // 売却待ちカードはクリックでも魔導板へ戻せるようにする（売却ボタン以外の領域）。
     if(typeof onBuy==='function') div.onclick=onBuy;
   }else if(canBuy&&!exchange&&(G._isShop||G._isTavern)) div.onclick=onBuy;
+  // 破壊の起動（ヘルナイト）を選んでいる間は、報酬枠のキャラクターも対象にできる（2026-10-23 利用者指定）。
+  if(rewIdx!=null&&typeof cardActivationRewardTargetable==='function'&&cardActivationRewardTargetable(card)){
+    div.classList.add('card-activation-target');
+    div.onclick=e=>{ e.stopPropagation(); handleCardActivationRewardTarget(rewIdx); };
+  }
   _appendLibraryLoanBadge(div);
   if(rewIdx!=null){
     // 売却待ち（魔導板から販売枠へ戻した手持ちカード）は購入対象ではないので canBuy=false になるが、
@@ -2376,6 +2380,10 @@ function _pickAltarRingOffer(){
   return result.slice(0,3).map(r=>clone(r));
 }
 // 廃棄ボタンから呼ばれる：魔導板のカードを1枚廃棄し、3枚に達したら指輪提示を解放する。
+// 祭壇の指輪提示中に還魂できるカード（刻印は手放せない）。
+function _ringOfferDiscardableCard(card){
+  return !!(card&&!_cardIsEngraved(card)&&G&&G._ringOfferPhase&&Array.isArray(G._ringOffer)&&G._ringOffer.length>0&&!G._ringOfferUnlocked&&!G._ringOfferResolved);
+}
 function _discardBoardCardForRingOffer(idx,card){
   if(!Array.isArray(G._ringOffer)||!G._ringOffer.length||G._ringOfferUnlocked) return;
   if(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)) return;
@@ -4442,13 +4450,16 @@ function _wireHeCardControls(div,card,arrName,i){
   }
   if(arrName==='boardCards') div.onclick=e=>{
     e.stopPropagation();
-    if(typeof handleCardActivationTarget==='function'&&handleCardActivationTarget(i)) return;
+    // 起動（対象選び中の対象・起動できるカードのクリックで開始）。2026-10-23 からボタンではなくカードのクリック。
+    if(typeof cardActivationClick==='function'&&cardActivationClick(i)) return;
     // 対象外スロットは何も起こさない（アイテムを無駄に消費させない）。
     if(G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'&&!_isItemUseTargetSlot(i)) return;
     if(typeof handlePendingItemBoardTarget==='function'&&handlePendingItemBoardTarget(i)) return;
     if(G._isForge&&typeof _isMapForgeBlockedSlot==='function'&&_isMapForgeBlockedSlot(i)) return;
     if(G._isForge&&typeof applyPendingMapForgePower==='function'&&applyPendingMapForgePower(i)) return;
     if(G._pendingPanelPlacement){ placePendingPanelToSelectedUnit(i); return; }
+    // 還魂も右上のボタンではなくカードのクリック（2026-10-23 利用者指定）。
+    if(_ringOfferDiscardableCard(card)){ _discardBoardCardForRingOffer(i,card); return; }
     if(G.phase==='player') return;
   };
   if(arrName==='globalPanels') div.onclick=e=>{
@@ -4699,7 +4710,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       // 魔導板上の全カード（キャラクター・強化とも）を廃棄カウントの対象にする。
       // 以前は_isCurrentRewardReturnCardを除外していたため、そのカードの×が「報酬に戻す」として
       // 処理されて_boardDiscardCountが増えず、3枚のはずが4枚廃棄しないと解放されない不具合があった。
-      const _ringOfferDiscardable=arrName==='boardCards'&&!_cardIsEngraved(card)&&G&&G._ringOfferPhase&&Array.isArray(G._ringOffer)&&G._ringOffer.length>0&&!G._ringOfferUnlocked&&!G._ringOfferResolved;
+      const _ringOfferDiscardable=arrName==='boardCards'&&_ringOfferDiscardableCard(card);
       const _boardSellable=_boardCardSellEnabled(card);
       const _shopSellBaseGain=_boardSellable?_shopCardSellGain(card):0;
       const _shopSellGain=_boardSellable?(typeof goldIncomeAmount==='function'?goldIncomeAmount(_shopSellBaseGain):_shopSellBaseGain):0;
@@ -4717,9 +4728,8 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
           ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action quest-part-btn" data-sfx-silent="1">${_uiLabel('「別れる」ボタン','別れる')}</button>`
           :_boardSellable
           ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${_shopSellGain}G</button>`
-          :(_ringOfferDiscardable
-            ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action ring-offer-discard-btn" data-sfx-silent="1">${_uiLabel('「還魂」ボタン','還魂')}</button>`
-            :''))
+          // 還魂は右上のボタンを出さず、カードのクリックで行う（2026-10-23 利用者指定。_wireHeCardControls）。
+          :'')
         :'';
       const _powerId=_mapPowerId;
       const _powerDef=_powerId&&typeof MAP_PANEL_POWERS!=='undefined'?MAP_PANEL_POWERS.find(p=>p.id===_powerId):null;

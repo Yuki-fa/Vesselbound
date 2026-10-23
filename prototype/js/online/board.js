@@ -884,7 +884,11 @@
         }
         break;
       }
-      case 'run_effect': { applyCoreRunEffectEvent(ev); break; }
+      case 'run_effect': {
+        applyCoreRunEffectEvent(ev);
+        if (typeof presentRunEffectEvent === 'function') await presentRunEffectEvent(ev, { findUnit: (side, id) => _find(side, id) });
+        break;
+      }
       case 'summon_buff': {
         if(ev.persistent&&ev.side==='p1'&&typeof G!=='undefined'&&G) G.gameSummonBuff={atk:ev.gameTotalAtk,hp:ev.gameTotalHp};
         // 「この戦闘中、召喚された味方は+X/+Yを得る」の記録。

@@ -311,3 +311,5 @@ node prototype/tools/balance_sim/offline_online_regression.js
 
 ## カオス・インプの再発火（2026-10-14）
 - カオス・インプ（C094「常時：味方が解放された時、ランダムな味方の開戦効果を発動する。」）は、通常の開戦を済ませた体にも開戦効果をもう一度発動させる。`coreApplyOpeningEffectsInner` の二重発動防止は「同じ状態・同じ発動番号」の再入だけを止める仕組みだが、文字列の発動番号（`release:<観測>:<観測者>:<回>`）を0へ戻していたため通常の開戦（0）と重なり、再発火が止まっていた（VFX21 制作中に Codex が発見）。文字列の番号はそのまま別の発動として数える。検査は `tools/balance_sim/chaos_imp_retrigger_1014_regression.js`。
+
+- **「負傷&死亡：全ての敵に毒Nを与える」の死亡**（2026-10-23）：ラミア（2026-10-22 シート改訂）の死亡の側が読まれず、毒が入っていなかった。死亡効果にも「全ての敵に毒Nを与える」を足した（core.js `coreApplyDeathEffectsInner`。繰り返し回数は他の死亡効果と同じ）。

@@ -859,6 +859,21 @@ function _presentStatChangeEvent(ev, api) {
   return true;
 }
 
+// ── ラン効果（報酬とトレーダーの強化・リロール・接続エンチャントの強化）────────
+// 演出の番号は present.js presentRunEffectVfxCode が唯一の規則。尺・SEは能力変化の固有VFXと同じ。
+// api: findUnit(side,id)
+async function presentRunEffectEvent(ev, api) {
+  if (!ev || !api || presentIsSilentEvent(ev)) return false;
+  const code = typeof presentRunEffectVfxCode === 'function' ? presentRunEffectVfxCode(ev) : '';
+  const unit = code ? api.findUnit(ev.side, ev.unitId) : null;
+  if (!unit || typeof _playCardEffectVfx !== 'function') return false;
+  if (typeof presentFlushEffectFlashes === 'function') presentFlushEffectFlashes();
+  const duration = typeof PRESENT_CARD_EFFECT_VFX_MS === 'number' ? PRESENT_CARD_EFFECT_VFX_MS : 700;
+  if (typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(code, duration);
+  await _playCardEffectVfx(code, [unit], { gateMs: 0, hitDuration: duration });
+  return true;
+}
+
 // 2026-10-12 利用者指定: キーワードの意味は名前で引き、既存素材キーは共通対応表で解決する。
 // ── キーワードの付与（毒・弱体など）──────────────────────
 // **状態異常を受けた瞬間**の見せ方。キーワード専用のVFXとSEを対象の上に出す
@@ -1572,6 +1587,7 @@ if (typeof window !== 'undefined') {
   window.presentKeywordEffectEvent = presentKeywordEffectEvent;
   window.presentFledEvent = presentFledEvent;
   window.presentStatChangeEvent = presentStatChangeEvent;
+  window.presentRunEffectEvent = presentRunEffectEvent;
   window.presentSealReleaseEvent = presentSealReleaseEvent;
   window.presentTransformEvent = presentTransformEvent;
   window.presentDeathEvent = presentDeathEvent;
@@ -1601,7 +1617,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentBeginActionBannerEvent, presentEndActionBannerEvent,
     presentDamageEvent, presentDamageSfxBatch, presentShieldLostEvent, presentAttackContactHits, presentFledEvent,
     presentKeywordEffectEvent, presentInstantDeathEvent,
-    presentStatChangeEvent, presentSealReleaseEvent, presentTransformEvent,
+    presentStatChangeEvent, presentRunEffectEvent, presentSealReleaseEvent, presentTransformEvent,
     presentDeathEvent, presentDeathBatch, presentOutcomeEventLines, presentAttackContactOutcomeLines,
     presentPlayerDefeatLines, presentManaThresholdEvent, presentSummonPlacement, presentInsertSummonedUnit, presentReviveEvent,
     presentEffectFlashEvent, presentUnitStolenEvent, presentFledBatch, presentQueueEffectFlash, presentFlushEffectFlashes, presentResetEffectFlashes,

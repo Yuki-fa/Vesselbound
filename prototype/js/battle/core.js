@@ -380,7 +380,7 @@ function coreApplyRewardGrowth(unit, trigger, state, emit) {
     const effects = state.runEffects[unit.side] = state.runEffects[unit.side] || {};
     const buff = effects.rewardBuff = effects.rewardBuff || { atk: 0, hp: 0 };
     buff.atk += Number(m[2]); buff.hp += Number(m[3]);
-    emit({ type: 'run_effect', kind: 'reward_buff', side: unit.side, unitId: unit.id,
+    emit({ type: 'run_effect', kind: 'reward_buff', side: unit.side, unitId: unit.id, trigger,
       effects: JSON.parse(JSON.stringify(effects)), atk: Number(m[2]), hp: Number(m[3]) });
   }
 }
@@ -4821,6 +4821,13 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'weaken', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(m[1]) });
     });
   }
+  // 「負傷&死亡：全ての敵に毒2を与える。」（ラミア。2026-10-22 シート改訂）：負傷の側だけ読まれ、死亡では毒が入っていなかった。
+  for (const m of coreTriggerEffectEntries(unit, '死亡', /^全ての敵に毒(\d+)を与える/)) {
+    for (let i = 0; i < repeats; i++) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
+      x.poison = (Number(x.poison) || 0) + Number(m[1]);
+      coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(m[1]) });
+    });
+  }
   for (const m of coreTriggerEffectEntries(unit, '死亡', /ランダムな([赤青緑黄紫])、([赤青緑黄紫])、([赤青緑黄紫])の味方1体ずつは\+(\d+)\/\+(\d+)を得る/)) {
     for (let i = 0; i < repeats; i++) for (const color of m.slice(1, 4)) {
       const target = rng.pick(allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x) && x.color === color));
@@ -5597,13 +5604,13 @@ function coreTriggerBattleEnd(state, emit, rng, applyHit) {
         state.runEffects = state.runEffects || {};
         const effects = state.runEffects[side] = state.runEffects[side] || {};
         effects.rerolls = (effects.rerolls || 0) + Number(m[1]) * repeats;
-        emit({ type: 'run_effect', kind: 'reroll', side, unitId: unit.id, effects: JSON.parse(JSON.stringify(effects)) });
+        emit({ type: 'run_effect', kind: 'reroll', side, unitId: unit.id, trigger: '終戦', effects: JSON.parse(JSON.stringify(effects)) });
       }
       for (const m of coreTriggerEffectEntries(unit, '終戦', /^(\d+)回目の終戦ごとに、このキャラクターに接続しているランダムなエンチャント(\d+)枚を強化する/)) {
         unit._battleEndCount = (Number(unit._battleEndCount) || 0) + 1;
         const eligible = (unit.boardCards || []).filter(c => c && /エンチャント|強化/.test(c.category || '') && !c._tripleMerged && (c.mergedForm || c._mergedForm));
         const targets = unit._battleEndCount % Number(m[1]) === 0 ? corePickDistinct(rng, eligible, Number(m[2])) : [];
-        emit({ type: 'run_effect', kind: 'enchant_upgrade', side, unitId: unit.id, boardSlot: unit._mainBoardSlot,
+        emit({ type: 'run_effect', kind: 'enchant_upgrade', side, unitId: unit.id, trigger: '終戦', boardSlot: unit._mainBoardSlot,
           count: unit._battleEndCount, targetSlots: targets.map(c => c._mainBoardSlot).filter(Number.isInteger) });
       }
       // 終戦：全ての味方は永久に+X/+Yを得る。数値は通常・合体効果の本文から読む。

@@ -692,7 +692,7 @@ function _handlePendingItemBoardTarget(slotIdx){
     if(!_isBoardCharacterCard(card)||slotIdx===pending.firstIdx) return true;
     const previous=boardList[pending.firstIdx];
     const next=makePanel(card.id);
-    if(previous&&previous._activationUses) next._activationUses={...previous._activationUses};
+    if(previous&&previous._activationReady) next._activationReady=true;
     boardList[pending.firstIdx]=next;
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); return true;
   }

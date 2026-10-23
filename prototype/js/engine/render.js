@@ -2800,7 +2800,10 @@ function playSpecialProductionVfx(slot, sfxKey, vfxUrl, onMidpoint, options){
 // **逆再生の開始（onMidpoint）が「効果が確定する瞬間」**。生贄奉納はそこで消し、
 // 召喚はそこで出す（逆の関係）。
 const _SPECIAL_VFX_TIMING={forwardMs:750,reverseMs:750};
-const _SEAL_RELEASE_VFX_TIMING={forwardMs:1750,reverseMs:1750};
+// 封印の解放（LAB の seal-release・K019。展開→収束の折り返しが解封の合図）。
+// 2026-10-23 利用者指摘「サイズが合っていません。演出時間が長いです」：旧動画用の3倍の枠と 3.5秒（1750+1750）をやめ、
+// カードの枠そのもの（LAB と同じ大きさ）で、折り返しまで 1000ms・全体 2000ms にする。
+const _SEAL_RELEASE_VFX_TIMING={forwardMs:1000,reverseMs:1000};
 
 // 生贄キャラを1体、S003演出付きで破棄する（封印解放の生贄コスト用）
 function playSacrificeDestroyVfx(unit, side, onReverseStart){
@@ -2863,7 +2866,6 @@ function playSealReleaseVfx(unit, side){
   _syncEffectFlashWithVfx();
   const slot=getCurrentUnitSlot(side,unit);
   const url=Assets?.vfx?.specialProduction?.[getKeywordAssetKey('封印')]||'';
-  const slotH=slot?.getBoundingClientRect?.().height||0;
   const fadeMs=Math.max(0,_SEAL_RELEASE_VFX_TIMING.forwardMs+_SEAL_RELEASE_VFX_TIMING.reverseMs-250);
   if(slot){
     slot.querySelectorAll('.seal-cost-badge').forEach(el=>{ el.style.display='none'; });
@@ -2906,7 +2908,7 @@ function playSealReleaseVfx(unit, side){
   return playSpecialProductionVfx(slot,getKeywordAssetKey('封印'),url,()=>{
     unit._sealed=false;
     delete unit._sealValue;
-  },{..._SEAL_RELEASE_VFX_TIMING,scale:3,fit:'cover',objectPosition:'center center',offsetY:-slotH*0.05});
+  },{..._SEAL_RELEASE_VFX_TIMING,scale:1});
 }
 
 // 攻撃キャラクターのカード先端を起点に、実際の距離・角度で対象群（最も左〜最も右、最も近い〜最も遠い）

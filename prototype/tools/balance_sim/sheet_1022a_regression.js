@@ -112,19 +112,36 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    const expected=units.find(x=>x._mainBoardSlot===u._mainBoardSlot);assert.equal(u._mapPanelPowerText,expected._mapPanelPowerText);
   }
  });
- check('起動の回数：カード別・編成/魔導店/行商、再入店・保存再開・戦闘中の禁止',()=>{
+ check('起動の回数：戦闘終了ごとに1回（累積しない）・獲得即使用は不可・保存再開・戦闘中の禁止（2026-10-23 利用者指定）',()=>{
   initState();G.phase='reward';G.activationFormationSeq=1;G._wave=1;G._waveStage=2;G._waveLife=3;G.gold=800;G._runId='sheet1022a';G._runSeed=1022;G._runRngState=1022;G.mainBoard.fill(null);const source=G.mainBoard[1]=card('C084');G.mainBoard[3]=card('C001');
   const renderers=[renderHandEditor,renderRewCards,updateHUD];renderHandEditor=renderRewCards=updateHUD=()=>{};
   try{
-   const use=()=>{_pendingCardActivation={card:source,index:1,key:cardActivationVisitKey()};assert.equal(handleCardActivationTarget(3),true);};
-   assert.ok(cardActivationCanUse(source));use();assert.equal(cardActivationCanUse(source),false);
-   G._isShop=true;G._facilityCacheKey='town1';assert.ok(cardActivationCanUse(source));use();assert.equal(cardActivationCanUse(source),false);
-   G._isShop=false;G._isShop=true;assert.equal(cardActivationCanUse(source),false,'同じ店の再入店');
+   const use=()=>{assert.equal(cardActivationClick(1),true,'カードのクリックで対象選びを始める');assert.equal(cardActivationClick(3),true);};
+   assert.equal(cardActivationCanUse(source),false,'獲得したばかりのカードは使えない');assert.equal(cardActivationClick(1),false);
+   chargeBoardCardActivations();chargeBoardCardActivations();
+   assert.ok(cardActivationCanUse(source));use();assert.equal(cardActivationCanUse(source),false,'累積しない');
+   G._isShop=true;G._facilityCacheKey='town1';assert.equal(cardActivationCanUse(source),false,'店へ入り直しても戻らない');
+   chargeBoardCardActivations();assert.ok(cardActivationCanUse(source),'魔導店でも使える');
    const saved=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(saved);
-   assert.equal(cardActivationCanUse(G.mainBoard[1]),false,'再開で使用回数を戻さない');
-   G._isShop=false;G._isPeddler=true;G._waveDefeatCount=1;assert.ok(cardActivationCanUse(G.mainBoard[1]));
-   G.phase='player';assert.equal(cardActivationCanUse(G.mainBoard[1]),false);
+   assert.ok(cardActivationCanUse(G.mainBoard[1]),'保存再開で印を保つ');
+   G.mainBoard[1]._activationReady=false;const used=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(used);
+   assert.equal(cardActivationCanUse(G.mainBoard[1]),false,'再開で使用を戻さない');
+   G._isShop=false;G._isForge=true;G.mainBoard[1]._activationReady=true;assert.equal(cardActivationCanUse(G.mainBoard[1]),false,'鍛冶屋では使えない');
+   G._isForge=false;G.phase='player';assert.equal(cardActivationCanUse(G.mainBoard[1]),false,'戦闘中は使えない');
+   assert.match(fs.readFileSync('js/engine/battle.js','utf8'),/_libraryTestBattleMode&&typeof chargeBoardCardActivations==='function'\) chargeBoardCardActivations\(\)/,'戦闘ごとに印を立てる（試験戦闘を除く）');
   }finally{[renderHandEditor,renderRewCards,updateHUD]=renderers;_pendingCardActivation=null;}
+ });
+ check('起動できるカード：枠の緑の発光と「起動可」ラベル、ボタンは無い（2026-10-23）',()=>{
+  initState();G.phase='reward';G.mainBoard.fill(null);G.mainBoard[1]=card('C084');
+  // 検査用のDOMの代用は classList を持たないので、付けたクラスを数える要素を作る。
+  const el=()=>{const set=new Set(),n=document.createElement('div');n.children=[];n.appendChild=c=>{n.children.push(c);return c;};
+   n.classList={add:c=>set.add(c),remove:c=>set.delete(c),toggle:(c,f)=>{if(f??!set.has(c))set.add(c);else set.delete(c);},contains:c=>set.has(c)};return n;};
+  const node=el();wireCardActivation(node,G.mainBoard[1],1);
+  assert.equal(node.children.length,0,'使えない時は何も付けない');
+  G.mainBoard[1]._activationReady=true;const ready=el();wireCardActivation(ready,G.mainBoard[1],1);
+  assert.equal(ready.classList.contains('card-activation-ready'),true);
+  assert.equal(ready.children.length,1);assert.equal(ready.children[0].className,'card-activation-ready-label');assert.equal(ready.children[0].textContent,'起動可');
+  assert.equal(ready.children[0].tagName==='BUTTON'||ready.children[0].onclick!=null,false,'ラベルは押す物ではない');
  });
  check('ラン効果の出口：報酬/行商・再抽選権・セーブで絶対値を保つ',()=>{
   initState();const event={type:'run_effect',side:'p1',kind:'reward_buff',effects:{rewardBuff:{atk:2,hp:3},rerolls:2}};
@@ -140,18 +157,44 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
   h.state.runEffects.p1.rewardBuff.atk=99;h.state.itemFreeSlots.p1=0;coreRestoreDeferredState(h.state,snapshot);
   assert.deepEqual(h.state.runEffects.p1,event.effects);assert.deepEqual(h.state.itemFreeSlots,{p1:1,p2:2});
  });
- check('対象選択：アイテムから起動/起動からアイテムへ切り替え、復元後のカードを参照',()=>{
-  initState();G.phase='reward';G.mainBoard.fill(null);G.mainBoard[1]=card('C084');G.mainBoard[3]=card('C001');
+ check('対象選択：アイテム使用中のクリックはアイテムへ、起動中にアイテムを始めると起動を外す',()=>{
+  initState();G.phase='reward';G.mainBoard.fill(null);G.mainBoard[1]=card('C084');G.mainBoard[3]=card('C001');G.mainBoard[1]._activationReady=true;
   const names=['renderHandEditor','renderRewCards','updateHUD','_syncRewardProductionUi','_syncItemUsePickingUi'];
   const old=Object.fromEntries(names.map(n=>[n,globalThis[n]]));names.forEach(n=>globalThis[n]=()=>{});
   try{
    const item=makeItem('巨大化の巻物');_beginBoardItemUse(0,item);
-   const node=document.createElement('div');wireCardActivation(node,G.mainBoard[1],1);node.children.at(-1).onclick({stopPropagation(){}});
-   assert.equal(G._pendingItemUse,null);assert.equal(_pendingCardActivation.card,G.mainBoard[1]);
-   assert.ok(handleCardActivationTarget(3));assert.equal(cardActivationCanUse(G.mainBoard[1]),false);
-   _pendingCardActivation={card:G.mainBoard[1],index:1,key:cardActivationVisitKey()};_beginBoardItemUse(0,item);
+   assert.equal(cardActivationClick(1),false,'アイテムの対象選び中は起動を始めない');assert.equal(_pendingCardActivation,null);
+   G._pendingItemUse=null;
+   assert.equal(cardActivationClick(1),true);assert.equal(_pendingCardActivation.card,G.mainBoard[1]);
+   assert.equal(cardActivationClick(1),true,'同じカードをもう一度押すと取り消す');assert.equal(_pendingCardActivation,null);
+   assert.ok(cardActivationClick(1));assert.ok(cardActivationClick(3));assert.equal(cardActivationCanUse(G.mainBoard[1]),false);
+   G.mainBoard[1]._activationReady=true;assert.ok(cardActivationClick(1));_beginBoardItemUse(0,item);
    assert.equal(_pendingCardActivation,null);assert.ok(G._pendingItemUse);
   }finally{Object.assign(globalThis,old);G._pendingItemUse=null;_pendingCardActivation=null;}
+ });
+ check('ヘルナイトの起動は報酬枠のキャラクターも対象にできる（2026-10-23 利用者指定）',()=>{
+  initState();G.phase='reward';G.activationFormationSeq=2;G.mainBoard.fill(null);
+  const names=['renderHandEditor','renderRewCards','updateHUD','_persistCurrentShopStock'];
+  const old=Object.fromEntries(names.map(n=>[n,globalThis[n]]));names.forEach(n=>globalThis[n]=()=>{});
+  try{
+   const hk=G.mainBoard[1]=card('C091'),base=[hk.power,hk.life],offer=card('C001');hk._activationReady=true;
+   _rewCards=[card('E001'),offer,{...card('C003'),_questOfferCard:true}];
+   assert.equal(cardActivationRewardTargetable(offer),false,'起動を選ぶ前は対象でない');
+   _pendingCardActivation={card:hk,index:1,key:cardActivationVisitKey()};
+   assert.equal(cardActivationRewardTargetable(offer),true);
+   assert.equal(cardActivationRewardTargetable(_rewCards[0]),false,'エンチャントは対象でない');
+   assert.equal(cardActivationRewardTargetable(_rewCards[2]),false,'依頼のカードは対象でない');
+   assert.ok(handleCardActivationRewardTarget(1));
+   assert.deepEqual([hk.power,hk.life],[base[0]+offer.power,base[1]+offer.life]);
+   assert.equal(_rewCards.length,2,'戦闘報酬は詰める');assert.equal(_rewCards.includes(offer),false);
+   assert.equal(cardActivationCanUse(hk),false);assert.equal(_pendingCardActivation,null);
+   G._isShop=true;G._facilityCacheKey='town-hk';const ware=card('C001');_rewCards=[ware,card('C003')];
+   hk._activationReady=true;_pendingCardActivation={card:hk,index:1,key:cardActivationVisitKey()};assert.ok(handleCardActivationRewardTarget(0));
+   assert.equal(_rewCards[0],null,'店の品は空き枠にする');
+   const sylph=G.mainBoard[2]=card('C084');_rewCards=[card('C001')];G._facilityCacheKey='town-sylph';
+   _pendingCardActivation={card:sylph,index:2,key:cardActivationVisitKey()};
+   assert.equal(cardActivationRewardTargetable(_rewCards[0]),false,'破壊以外の起動は報酬枠を選ばない');
+  }finally{Object.assign(globalThis,old);G._isShop=false;_pendingCardActivation=null;_rewCards=[];}
  });
  check('終戦：接続エンチャント強化・回数保存・錬成の空き欄と支払い',()=>{
   for(const side of ['p1','p2'])for(const enhanced of [false,true]){

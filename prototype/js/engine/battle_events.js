@@ -353,7 +353,11 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       _pendingContactVfx=e;
       continue;
     }
-    if(e.type==='run_effect'){ applyCoreRunEffectEvent(e); continue; }
+    if(e.type==='run_effect'){
+      applyCoreRunEffectEvent(e);
+      if(typeof presentRunEffectEvent==='function') await presentRunEffectEvent(e,{findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id))});
+      continue;
+    }
     if(e.type==='summon_buff'){
       if(e.persistent&&e.side==='p1') G.gameSummonBuff={atk:e.gameTotalAtk,hp:e.gameTotalHp};
       // 「この戦闘中、召喚された味方は+X/+Yを得る」の記録。
