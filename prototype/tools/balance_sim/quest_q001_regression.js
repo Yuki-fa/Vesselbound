@@ -211,7 +211,7 @@ function runTrigger(unit,trigger,side='p1'){
     assert.equal(refusals,1,'エルムの交換は一度だけ拒否台詞を出す');
     }finally{showVillageShopSpecialDialogue=specialDialogue;}
   });
-  check('エルム以外の店で交換・報酬への放棄・合成素材化により所持から消えた場合だけ終了する',()=>{
+  check('エルム以外の店で交換・報酬への放棄で所持から消えた場合だけ終了し、合体では消えない',()=>{
     const entry=accept();G._wave=2;G._waveVillage=true;G._isShop=true;G._isItemShop=false;
     const soul=G.mainBoard[0];assert.equal(questCardRemovalLocked(soul),false);assert.equal(_boardCardSellEnabled(soul),false);
     _rewCards=[makePanel('ノーム'),makePanel('ラミア'),makePanel('ゴーレム')];const gold=G.gold;
@@ -224,7 +224,8 @@ function runTrigger(unit,trigger,side='p1'){
     const enabled=PANEL_MERGE_TRIAL.enabled;
     try{
       assert.equal(_mergedPanelCard(ingredient,ingredient),null,'停止中は合成素材化でも所持を失わない');
-      PANEL_MERGE_TRIAL.enabled=true;G.mainBoard[0]=_mergedPanelCard(ingredient,ingredient);assert.ok(G.mainBoard[0]);renderHandEditor();assert.equal(merged.status,'ended');
+      PANEL_MERGE_TRIAL.enabled=true;assert.equal(_mergedPanelCard(ingredient,ingredient),null,'旧スイッチでも合成素材化を復帰させない');
+      renderHandEditor();questCheckRetainedCards();assert.equal(merged.status,'accepted');
     }finally{PANEL_MERGE_TRIAL.enabled=enabled;PANEL_POOL.splice(PANEL_POOL.indexOf(recipe),1);}
   });
   check('元に戻すはカードとQ001の終了・割り振りを対で戻し、他クエストには触れない',()=>{

@@ -26,45 +26,23 @@ function node(id){
   return el;
 }
 (async()=>{
-  await loadGameData();let merges=0,blocked=0;
-  assert.equal(panelMergeEnabled(),false,'通常プレイの3枚合体は停止中');
-  // 停止中の合体形・旧保存の契約は、検査の間だけ有効にして従来どおり全行検査する。
-  PANEL_MERGE_TRIAL.enabled=true;
-  for(const row of sheetRows('card')) {
-    initState();const original=def(row['No.']);assert.ok(original,row['No.']);
-    const atk=sheetNumber(row['パワー']),hp=sheetNumber(row['ライフ']);
-    _collectionKind='character';_collectionMerged=true;
-    const display=_collectionDisplayCard(original);
-    // 2026-10-19：図鑑の「強化」表示は祝福の炎と同じ強化後の姿（基本ATK/HP×2）。3枚合体（×3）は停止中。
-    // 強化効果・強化キーワードが両方空欄のカード（ペリカン等）は強化できないので、図鑑も元の値のまま。
-    const enhanceable=!!String(row['強化効果']||'').trim()||!!String(row['強化キーワード']||'').trim();
-    assert.deepEqual([display.power,display.life],enhanceable?[atk*2,hp*2]:[atk,hp],row['No.']+' 図鑑');
-    const slots=[1,3,5];
-    slots.forEach((idx,i)=>{
-      const c=makePanel(original.id);c._permBasePower=atk;c._permBaseLife=hp;
-      c.power=atk+i+1;c.life=hp+(i+1)*2;c.keywords=[...(c.keywords||[]),'隠密'];G.mainBoard[idx]=c;
-    });
-    const board=_getPartyBoardUnit(),info=_tryTripleMergeOnBoard(board,slots[2]);
-    if(isTripleMergeBlockedCard(original)||_isLuggagePanel(original)) {assert.equal(info,null);blocked++;continue;}
-    assert.ok(info,row['No.']+' 合体できない');const merged=board.boardCards[info.targetIdx];
-    assert.deepEqual([merged.power,merged.life,merged._permBasePower,merged._permBaseLife],[atk*3+6,hp*3+12,atk*3,hp*3],row['No.']+' 3枚の個別補正');
-    assert.deepEqual([...merged.directions].sort(),['down','left','right','up']);
-    assert.equal(merged.rarity,Math.max(1,Number(original.rarity)||1)+1);
-    assert.equal(merged._displayName,original.name+'+');assert.ok(merged.keywords.includes('隠密'));
-    assert.equal(board.boardCards.filter(Boolean).length,1);assert.ok(merged._tripleMerged);
-    G.mapPanelPowers={[info.targetIdx]:'summon'};
-    const pve=buildBoardFormation(board,{persistEternal:false}).ordered.map(e=>[e.unit.atk,e.unit.hp,e.lane]);
-    const online=buildOnlineSelfFormation({persistEternal:false}).units.map(u=>[u.atk,u.hp,u.lane]);
-    assert.deepEqual(online,pve,row['No.']+' PvE／オンライン入力');merges++;
-  }
-  // 旧保存の×2＋補正はそのまま。復元で新しい×3へ作り直さない。
+  await loadGameData();
+  assert.equal(panelMergeEnabled(),false,'PvEの合体は廃止済み');
+  G._onlineMode=true;assert.equal(panelMergeEnabled(),false,'オンラインの合体も廃止済み');G._onlineMode=false;
+  PANEL_MERGE_TRIAL.enabled=true;assert.equal(panelMergeEnabled(),false,'旧スイッチで合体を復帰させない');PANEL_MERGE_TRIAL.enabled=false;
+  initState();G.phase='reward';G.mainBoard[1]=makePanel('ノーム');G.mainBoard[3]=makePanel('ノーム');G.mainBoard[5]=makePanel('ノーム');
+  const mergeBoard=clone(G.mainBoard);assert.equal(_tryTripleMergeOnBoard(_getPartyBoardUnit(),5),null);
+  assert.deepEqual(G.mainBoard,mergeBoard,'3枚合体で盤面を書き換えない');
+  assert.equal(_mergedPanelCard(G.mainBoard[1],G.mainBoard[3]),null,'2枚レシピを実行しない');
+  assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll',name:'絆の巻物'}),false,'絆の巻物を新規利用させない');
+  assert.equal(panelMergeContentAvailable(makePanel('魔鏡')),false,'魔鏡を新規抽選へ戻さない');
+  // 旧保存の合体済みカードはそのまま。復元で新しい合体を作り直さない。
   initState();const old=makePanel(def('C006').id),base=def('C006');
   applyMergedPanelForm(old);Object.assign(old,{name:base.name+'+',_tripleMerged:true,_permBasePower:base.power*2,
     _permBaseLife:base.life*2,power:base.power*2+7,life:base.life*2+9});G.mainBoard[1]=old;
   const saved=saveAtReward();SaveRun.restoreRunState(copy(saved));
   assert.deepEqual(G.mainBoard[1],saved.state.player.mainBoard[1],'旧合体済みカードの保存値を保持');
-  PANEL_MERGE_TRIAL.enabled=false;
-  console.log(`OK 1: ${merges}合体／${blocked}制限カード、図鑑、3枚の補正、4ポート、PvE／オンライン、旧セーブ`);
+  console.log('OK 1: PvE／オンラインの3枚・2枚合体停止、関連品の新規利用停止、旧合体済みカードの保存');
 
   // 貸出を番号で引く。改名しても同じカード・並び・ポート・返却先となる。
   const codes=['C050','C099','E013','E032','E014'],names=codes.map(code=>def(code).name);

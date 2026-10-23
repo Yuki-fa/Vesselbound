@@ -692,24 +692,31 @@ function _keywordDescLine(name,lookupKey){
 }
 function _keywordOnlyPreviewText(card,desc,slotIdx){
   const seen=new Set();
+  const mapText=card&&card._mapPanelPowerText||'';
+  const adjustMapText=value=>typeof coreMapPanelPowerAdjustManaText==='function'
+    ?coreMapPanelPowerAdjustManaText(value,mapText):String(value||'');
   const rawDesc=[desc,typeof _rawSubstitutedDesc==='function'&&card?_rawSubstitutedDesc(card):'',card&&card.desc]
-    .filter(Boolean).join('\n');
+    .filter(Boolean).map(adjustMapText).join('\n');
   const sourceKws=slotIdx!=null&&typeof _unitDisplayKeywords==='function'
     ?_unitDisplayKeywords(card,desc||'',slotIdx):(card&&card.keywords||[]);
   // 「マナ効果」は説明専用の擬似キーワード。キャラクター本文のキーワード一覧には加えず、
   // manaCostを持つキャラ、または接続強化を含む効果文に「Xマナ（毎）：」があるキャラの
   // keyword-tooltipだけに追加する。
-  let manaEffectText=`${rawDesc}\n${card&&card._manaThresholdDesc||''}`;
+  let manaEffectText=`${rawDesc}\n${adjustMapText(card&&card._manaThresholdDesc||'')}`;
   if(card&&slotIdx!=null&&typeof _groupedEnchantEffectTexts==='function'){
     const grouped=_groupedEnchantEffectTexts(card,slotIdx);
-    manaEffectText+=`\n${[...(grouped.normalTexts||[]),...(grouped.charTexts||[])].join('\n')}`;
+    manaEffectText+=`\n${[...(grouped.normalTexts||[]),...(grouped.charTexts||[])].map(adjustMapText).join('\n')}`;
   }
-  const tooltipKws=[...sourceKws];
+  const pseudoKeywords=[];
+  if(typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP['マナ効果']
+    &&/(?:^|\n)\s*\d+\s*マナ(?:毎)?\s*[:：]/.test(manaEffectText)) pseudoKeywords.push('マナ効果');
+  if(typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP['起動効果']
+    &&/(?:^|\n)\s*起動\s*[:：]/.test(manaEffectText)) pseudoKeywords.push('起動効果');
+  const tooltipKws=[...sourceKws,...pseudoKeywords];
   _findPreviewKeywordMatches(manaEffectText).forEach(hit=>tooltipKws.push(hit.name));
   // **説明は種類ごとに1回だけ、変数はXのまま出す。**
   // 結界は固定の1回として説明し、その他の数値キーワードは一般的な説明を出す。
   return tooltipKws.map(k=>String(k||'').trim()).filter(Boolean)
-    .filter(k=>String(k||'').trim()!=='マナ効果')
     .filter(k=>typeof _INTERNAL_ONLY_ENCHANT_NAMES==='undefined'||!_INTERNAL_ONLY_ENCHANT_NAMES.has(k))
     .flatMap(k=>{
       // 数値・変数記号付きのキーワードは、説明辞書を引く際だけ基底名へ戻す。
@@ -4064,10 +4071,10 @@ function _stripOwnNameFromEffectText(text, name){
   return out;
 }
 
-const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','熟練','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','即死','先制','防戦','帰滅','隠密','貫通','結界','生命吸収','封印','荷物']);
+const _ENCHANT_KEYWORD_ONLY=new Set(['毒','毒牙','邪眼','衝撃','熟練','復活','根性','二段攻撃','三段攻撃','三方向攻撃','全体攻撃','即死','先制','防戦','帰滅','隠密','貫通','結界','生命吸収','封印']);
 // 強化・エンチャントカードの「キーワード：〜」欄に出す語の唯一の実装。
 // 魔導板・報酬画面・コレクションはすべてこれを呼ぶ（同じカードが画面ごとに違う欄を出さないため）。
-// 出すのはシート「キーワード」列（adjacentKeywords）と、カード自身が持つ「荷物」だけ。
+// 出すのはシート「キーワード」列（adjacentKeywords）。
 // **効果文に出てくる語は拾わない。** 「衝撃波（攻撃：全ての敵に弱体1を与える）」の弱体1や、
 // 「栄光の歌」の結界1は相手や味方に与えるものであって、そのカードのキーワードではない。
 // カード名と同じ語は、単純キーワード付与パネル（_ENCHANT_KEYWORD_ONLY）と
@@ -4077,7 +4084,6 @@ function _enchantPreviewKeywords(card){
   const internal=typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'?_INTERNAL_ONLY_ENCHANT_NAMES:new Set();
   const ownName=String(card.name||'').trim();
   return [...new Set([
-    ...(card.keywords||[]).filter(k=>String(k||'').trim()==='荷物'),
     ...(card.adjacentKeywords||[]),
   ].map(k=>coreShieldValueFromKeyword(k)?'結界':String(k||'').trim()).filter(Boolean))].filter(k=>{
     if(internal.has(k)) return false;
@@ -4291,24 +4297,35 @@ function _ringCharacterDescriptionsForUnit(unit){
 }
 // キャラクターカードの説明欄HTML：本来の効果の下に線を引き、その下に強化カードが与えている効果の全文を並べる
 function _unitCombinedDescHtml(unit,baseDesc,slotIdx){
-  const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
+  const mapText=unit&&unit._mapPanelPowerText||'';
+  const adjustMapText=value=>typeof coreMapPanelPowerAdjustManaText==='function'
+    ?coreMapPanelPowerAdjustManaText(value,mapText):String(value||'');
+  const {normalTexts:rawNormalTexts,charTexts:rawCharTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
+  const normalTexts=rawNormalTexts.map(adjustMapText);
+  const charTexts=rawCharTexts.map(adjustMapText);
   const ringCharTexts=_ringCharacterDescriptionsForUnit(unit);
   const battleNormalTexts=normalTexts.map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
   const battleCharTexts=[...charTexts,...ringCharTexts].map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
-  const kws=typeof _unitDisplayKeywords==='function'?_unitDisplayKeywords(unit,baseDesc,slotIdx):[];
+  const shownBaseDesc=adjustMapText(baseDesc);
+  const kws=typeof _unitDisplayKeywords==='function'?_unitDisplayKeywords(unit,shownBaseDesc,slotIdx):[];
   const kwHtml=kws.length?`<div class="slot-desc-keywords"><strong>${kws.map(k=>typeof _escapePreviewHtml==='function'?_escapePreviewHtml(k):k).join(' / ')}</strong></div>`:'';
-  const baseSafe=baseDesc&&(typeof _escapePreviewHtml==='function'?_escapePreviewHtml(baseDesc):baseDesc);
+  const baseSafe=shownBaseDesc&&(typeof _escapePreviewHtml==='function'?_escapePreviewHtml(shownBaseDesc):shownBaseDesc);
   const baseDecorated=baseSafe?(_boldKeywordsInHtml(baseSafe)):'';
   const baseHtml=baseDecorated?`<div class="slot-desc-base">${typeof _injectManaIcons==='function'?_injectManaIcons(baseDecorated):baseDecorated}</div>`:'';
-  if(!battleNormalTexts.length&&!battleCharTexts.length) return (kwHtml||baseHtml)?`<div class="slot-desc">${kwHtml}${baseHtml}</div>`:'';
   const toLineHtml=line=>{
     const safe=typeof _escapePreviewHtml==='function'?_escapePreviewHtml(line):line;
     const decorated=_boldKeywordsInHtml(safe);
     return `<div class="slot-desc-enchant-line">${typeof _injectManaIcons==='function'?_injectManaIcons(decorated):decorated}</div>`;
   };
+  const pseudoLines=typeof _keywordOnlyPreviewText==='function'
+    ?_keywordOnlyPreviewText(unit,shownBaseDesc,slotIdx).split('\n')
+      .filter(line=>/^(?:マナ効果|起動効果)：/.test(String(line||''))):[];
+  const pseudoHtml=pseudoLines.map(toLineHtml).join('');
+  if(!battleNormalTexts.length&&!battleCharTexts.length) return (kwHtml||pseudoHtml||baseHtml)
+    ?`<div class="slot-desc">${kwHtml}${baseHtml}${pseudoHtml?`<div class="slot-desc-enchant">${pseudoHtml}</div>`:''}</div>`:'';
   const effectsHtml=battleNormalTexts.map(toLineHtml).join('');
   const charHtml=battleCharTexts.map(toLineHtml).join('');
-  return `<div class="slot-desc">${kwHtml}${baseHtml}${effectsHtml?`<div class="slot-desc-sep"></div><div class="slot-desc-enchant">${effectsHtml}</div>`:''}${charHtml?`<div class="slot-desc-sep"></div><div class="slot-desc-enchant">${charHtml}</div>`:''}</div>`;
+  return `<div class="slot-desc">${kwHtml}${baseHtml}${pseudoHtml?`<div class="slot-desc-enchant">${pseudoHtml}</div>`:''}${effectsHtml?`<div class="slot-desc-sep"></div><div class="slot-desc-enchant">${effectsHtml}</div>`:''}${charHtml?`<div class="slot-desc-sep"></div><div class="slot-desc-enchant">${charHtml}</div>`:''}</div>`;
 }
 // キャラクターカードにホバーした時、効果を及ぼしている強化カード（装備欄側の表示）を青く発光させる
 // slotIdx：ホバーしたカード自身のスロット番号（キャラクター本体は0、装備欄内の召喚キャラクターパネルはその番号）
@@ -4386,8 +4403,13 @@ const _INTERNAL_ONLY_ENCHANT_NAMES=new Set([
 // _unitCombinedDescHtml（カード常時表示）の両方で同じ一覧を使うための共通ヘルパー。
 function _unitDisplayKeywords(unit, desc, slotIdx){
   if(!unit) return [];
+  const displayUnit=unit&&unit._mapPanelPowerText&&typeof coreMapPanelPowerDisplayCard==='function'
+    ?coreMapPanelPowerDisplayCard(unit,unit._mapPanelPowerText):unit;
   const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
-  const panelEffects=[...normalTexts,...charTexts].map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
+  const mapText=unit&&unit._mapPanelPowerText||'';
+  const adjustMapText=value=>typeof coreMapPanelPowerAdjustManaText==='function'
+    ?coreMapPanelPowerAdjustManaText(value,mapText):String(value||'');
+  const panelEffects=[...normalTexts,...charTexts].map(t=>adjustMapText(_stripBattleParentheticalText(t))).filter(Boolean);
   // シート上「キーワード」欄に単独で載っているキーワード（_ENCHANT_KEYWORD_ONLY）以外は、
   // 説明文や効果全文の中に同じ文字列がそのまま含まれていれば、そちらの文脈で既に表示されるため
   // キーワード欄には重複して出さない（例：ゾンビの説明文が「死亡：青強化」の場合、
@@ -4397,7 +4419,7 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // desc/panelEffectsはマナアイコンが<img alt="色">に変換済みのHTMLの場合があるため、
   // 文字列比較の前にアイコンを元の色文字に戻し、タグを除去しておく
   const _stripIconsForMatch=s=>String(s||'').replace(/<img[^>]*alt="([^"]*)"[^>]*>/g,'$1').replace(/<[^>]*>/g,'');
-  const fullText=_stripIconsForMatch(`${desc||''} ${panelEffects.join(' ')}`);
+  const fullText=_stripIconsForMatch(`${adjustMapText(desc||'')} ${panelEffects.join(' ')}`);
   // loader.jsのシート同期時にdescから内部集計用に自動生成されるショートハンド（battle.jsのcount()判定専用で、
   // desc文と文字列としては一致しないため通常の重複除外に引っかからない）はUI上には表示しない
   const _isInternalOnlyKeyword=k=>/^[赤青緑黄紫茶]全体強化\d*(_\d+)?$/.test(k)||_INTERNAL_ONLY_ENCHANT_NAMES.has(k);
@@ -4412,7 +4434,7 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // battle.js はエリート戦／ボス戦の判定に keywords の「エリート」「ボス」を使うので、データからは消さず表示で除く。
   // 戦闘中のバッジ（renderField）は以前から除いていたが、ホバー説明のキーワード欄だけ残っていた。
   const _isRemovedKeyword=k=>typeof CORE_REMOVED_KEYWORDS!=='undefined'&&CORE_REMOVED_KEYWORDS.has(String(k||'').trim().replace(/\d+$/,''));
-  const normalizedKws=[...(unit.keywords||[]).filter(k=>!/^結界\d*$/.test(String(k||'').trim())&&!cardNames.has(String(k||'').trim())),...dynamicKws]
+  const normalizedKws=[...(displayUnit.keywords||[]).filter(k=>!/^結界\d*$/.test(String(k||'').trim())&&!cardNames.has(String(k||'').trim())),...dynamicKws]
     .map(k=>String(k||'').replace(/^毒(\d+)$/,'毒牙$1'))
     .filter(k=>k&&!_isInternalOnlyKeyword(k)&&!_isRemovedKeyword(k));
   // 邪眼X・毒牙X等、末尾に数値を持つキーワードは複数所持時にXを合算した1つの表示にまとめる
@@ -4445,13 +4467,23 @@ function _unitPreviewText(unit, desc, slotIdx){
   if(!unit) return desc||'';
   const lines=[];
   if(unit.name) lines.push(_cardUiName(unit));
-  const {normalTexts,charTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
+  const mapText=unit&&unit._mapPanelPowerText||'';
+  const adjustMapText=value=>typeof coreMapPanelPowerAdjustManaText==='function'
+    ?coreMapPanelPowerAdjustManaText(value,mapText):String(value||'');
+  const {normalTexts:rawNormalTexts,charTexts:rawCharTexts}=_groupedEnchantEffectTexts(unit,slotIdx);
+  const normalTexts=rawNormalTexts.map(adjustMapText);
+  const charTexts=rawCharTexts.map(adjustMapText);
   const characterTexts=[...charTexts,..._ringCharacterDescriptionsForUnit(unit)];
   const _stripIconsForMatch=s=>String(s||'').replace(/<img[^>]*alt="([^"]*)"[^>]*>/g,'$1').replace(/<[^>]*>/g,'');
-  const kws=_unitDisplayKeywords(unit,desc,slotIdx);
+  const shownDesc=adjustMapText(desc);
+  const kws=_unitDisplayKeywords(unit,shownDesc,slotIdx);
   // 「キーワード：」というラベルは表示せず、キーワードそのものを太字で並べる
   // （_formatPreviewHtmlがこのマーカー行を検出してラベルなし・太字表示に変換する）
   if(kws.length) lines.push(`キーワード：${kws.join(' / ')}`);
+  const pseudoPreview=typeof _keywordOnlyPreviewText==='function'
+    ?_keywordOnlyPreviewText(unit,shownDesc,slotIdx).split('\n')
+      .filter(line=>/^(?:マナ効果|起動効果)：/.test(String(line||''))):[];
+  if(pseudoPreview.length) lines.push(pseudoPreview.join('\n'));
   // 戦闘実行後に付与された状態異常（毒など）は静的なdesc/keywordsには含まれないため、
   // 現在値をここで都度追記しないとホバー説明文に反映されない
   // **「状態」は戦闘中だけ出す。** 編成画面では結界はキーワード欄に出ており、
@@ -4464,7 +4496,7 @@ function _unitPreviewText(unit, desc, slotIdx){
   // スケルトンキングの「復活\n攻撃：…」は、復活だけが本文色で二重表示されていた。
   const shownKeywordNames=new Set([...(unit.keywords||[]),...kws]
     .map(k=>String(k||'').trim().replace(/\d+$/,'')).filter(Boolean));
-  const visibleDesc=_stripIconsForMatch(desc).split('\n').filter(line=>{
+  const visibleDesc=_stripIconsForMatch(shownDesc).split('\n').filter(line=>{
     const tokens=String(line||'').trim().split(/[\s　]+/).filter(Boolean);
     return !(tokens.length&&tokens.every(t=>shownKeywordNames.has(t.replace(/\d+$/,''))));
   }).join('\n').trim();
@@ -5435,7 +5467,7 @@ function mkCardEl(card,_idx,_ctx){
     // キーワード欄の中身は _enchantPreviewKeywords() が唯一の実装。
     const _adjKws=_enchantPreviewKeywords(card);
     // 本文に「効果なし」を含む強化カード（方向接続専用パネル等）は説明文を表示しない
-    const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card).replace(/^荷物(?=\s|$)\s*/,'');
+    const _panelDescRaw=/効果なし/.test(String(card.desc||''))?'':_plainEffectTextForPreview(card);
     const _panelDescForPreview=card.name==='封印されしもの'
       ?String(_panelDescRaw||'').replace(/^封印\d+\s*/,'').trim():_panelDescRaw;
     const preview=[_cardUiName(card),_adjKws.length?`キーワード：${_adjKws.join(' / ')}`:'',_panelDescForPreview].filter(Boolean).join('\n');

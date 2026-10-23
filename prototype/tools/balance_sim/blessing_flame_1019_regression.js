@@ -131,14 +131,14 @@ function simulate(units){
     assert.equal(G.mainBoard[1]._tripleMerged,undefined);
     assert.equal(blessingFlameSelect(3),true);assert.equal(blessingFlameUsed(),false);
   });
-  check('強化不可：空欄・強化後の無いエンチャント・依頼/NPC・荷物・強化済みを暗くし、選択しない。エンチャントは強化できる',()=>{
+  check('強化不可：空欄・強化後の無いエンチャント・依頼/NPC・木箱・強化済みを暗くし、選択しない。エンチャントは強化できる',()=>{
     const raw=card('C003');
     assert.equal(blessingFlameCardEligible(card('E002')),true,'エンチャントも強化できる（2026-10-20）');
     const enchant=enhancedPanelCopy(card('E001'));assert.ok(enchant&&enchant._tripleMerged&&enchant.desc!==card('E001').desc);
     const cases=[null,{...raw,_mergedSource:{desc:'',keywords:''}},
       {...raw,mergedForm:null},card('E010'),{...raw,_npcCard:true},{...raw,_npcDeployOnly:true},
       {...raw,_questOfferCard:true},{...raw,_questTransportId:'Q005'},{...raw,no:'BC001'},
-      {...raw,keywords:['荷物']},enhancedPanelCopy(raw),{...raw,_merged:true}];
+      card('E102'),enhancedPanelCopy(raw),{...raw,_merged:true}];
     for(const invalid of cases){
       assert.equal(blessingFlameCardEligible(invalid),false);
       G.mainBoard[5]=invalid;assert.equal(blessingFlameSelect(5),false);

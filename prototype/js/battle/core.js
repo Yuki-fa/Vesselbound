@@ -957,11 +957,51 @@ function corePanelStatBonuses(card, state) {
 // 合計するのはキーワード（unit.keywords＝本体＋接続した強化）の「封印N」だけ。効果文から拾う封印は、
 // キーワードが無い時だけ従来どおり1つ使う（同じ封印を本文とキーワードの両方から二重に数えない）。
 // 我慢の刻印（封印X＝ステージ×5）もそこへ足す。
-// マナ閾値と表示は、魔導板の本文による同じ補正を使う。元のカード値は変更しない。
+// 魔導板強化の表示・戦闘補正。説明文の文言ではなく、ここで同じ純粋計算を使う。
+function coreMapPanelPowerReduction(powerText, kind) {
+  const source=String(powerText||'');
+  const pattern=kind==='seal'?/封印の値を(\d+)減らして/:/マナ効果の値を(\d+)減らして/;
+  const match=source.match(pattern);
+  return match?Math.max(0,Number(match[1])||0):0;
+}
+function coreMapPanelPowerAdjustManaText(text, powerText) {
+  const reduction=coreMapPanelPowerReduction(powerText,'mana');
+  const source=String(text||'');
+  if(!reduction||!source) return source;
+  return source.replace(/(\d+)\s*マナ(毎)?(?=\s*[:：])/g,(_match,value,every)=>
+    `${Math.max(1,(Number(value)||0)-reduction)}マナ${every||''}`);
+}
+function coreMapPanelPowerDisplayCard(card, powerText) {
+  if(!card) return card;
+  const text=String(powerText||card._mapPanelPowerText||'');
+  if(!text) return { ...card };
+  const out={ ...card, _mapPanelPowerText:text };
+  ['desc','effectText','effect','characterDesc','manaThresholdDesc','_manaThresholdDesc'].forEach(key=>{
+    if(out[key]!=null) out[key]=coreMapPanelPowerAdjustManaText(out[key],text);
+  });
+  ['extraManaThresholds','_extraManaThresholds'].forEach(key=>{
+    if(Array.isArray(out[key])) out[key]=out[key].map(entry=>({
+      ...entry,
+      desc:coreMapPanelPowerAdjustManaText(entry&&entry.desc,text),
+    }));
+  });
+  const originalKeywords=Array.isArray(card.keywords)?card.keywords.slice():[];
+  const sealKeywords=originalKeywords.filter(k=>/^封印(?:\d+|∞)$/.test(String(k||'').trim()));
+  if(sealKeywords.length){
+    const seal=coreSealValue({ ...card, keywords:originalKeywords, _mapPanelPowerText:text });
+    const kept=originalKeywords.filter(k=>!/^封印(?:\d+|∞)$/.test(String(k||'').trim()));
+    if(seal>0) kept.push(`封印${seal===Infinity?'∞':seal}`);
+    out.keywords=kept;
+    ['desc','effectText','effect'].forEach(key=>{
+      if(out[key]!=null) out[key]=String(out[key]).replace(/封印(?:\d+|∞)/,seal>0?`封印${seal===Infinity?'∞':seal}`:'').replace(/^[\s　]+/,'');
+    });
+  }
+  return out;
+}
 function coreManaThresholdCost(unit, value) {
   const cost=Math.max(0,Number(value)||0);
-  const reduction=String(unit&&unit._mapPanelPowerText||'').match(/マナ効果の値を(\d+)減らして/);
-  return cost>0 ? Math.max(1,cost-(reduction?Number(reduction[1]):0)) : 0;
+  const reduction=coreMapPanelPowerReduction(unit&&unit._mapPanelPowerText,'mana');
+  return cost>0 ? Math.max(1,cost-reduction) : 0;
 }
 function coreSealValue(unit) {
   if (unit && unit._sealInfinity) return Infinity;
@@ -980,8 +1020,8 @@ function coreSealValue(unit) {
     const engraving = coreEngravingStageValue(unit, '我慢の刻印');
     if (!own.includes('封印' + engraving)) total += engraving;
   }
-  const reduction = String(unit && unit._mapPanelPowerText || '').match(/封印の値を(\d+)減らして/);
-  return Math.max(0, total - (reduction ? Number(reduction[1]) : 0));
+  const reduction = coreMapPanelPowerReduction(unit && unit._mapPanelPowerText,'seal');
+  return Math.max(0, total - reduction);
 }
 
 // 戦闘開始時の封印状態を決める。units は盤面順（味方→敵）に並んだ全キャラクター。
@@ -6990,6 +7030,9 @@ if (typeof window !== 'undefined') {
   window.coreEngravingStageNumber = coreEngravingStageNumber;
   window.coreEngravingStageValue = coreEngravingStageValue;
   window.corePanelStatBonuses = corePanelStatBonuses;
+  window.coreMapPanelPowerReduction = coreMapPanelPowerReduction;
+  window.coreMapPanelPowerAdjustManaText = coreMapPanelPowerAdjustManaText;
+  window.coreMapPanelPowerDisplayCard = coreMapPanelPowerDisplayCard;
   window.coreSealValue = coreSealValue;
   window.coreManaThresholdCost = coreManaThresholdCost;
   window.coreInitSealStates = coreInitSealStates;
@@ -7069,7 +7112,9 @@ if (typeof module !== 'undefined' && module.exports) {
     coreSnapshotDeferredState,
     coreSelectAttackTarget, corePierceRearTargets, coreTriDirectionTargets,
     coreToughValue, coreResolveIncomingDamage, coreConsumeWardCharge,
-    coreUnitHasSacrifice, coreEngravingStageNumber, coreEngravingStageValue, corePanelStatBonuses, coreSealValue, coreManaThresholdCost, coreInitSealStates,
+    coreUnitHasSacrifice, coreEngravingStageNumber, coreEngravingStageValue, corePanelStatBonuses,
+    coreMapPanelPowerReduction, coreMapPanelPowerAdjustManaText, coreMapPanelPowerDisplayCard,
+    coreSealValue, coreManaThresholdCost, coreInitSealStates,
     coreSacrificeUnits, coreSacrificeCount, coreSealRelease,
     coreNormalizeRunLevels, coreRunLevelIsFamiliar, coreApplyCardRunLevels, coreApplyUnitRunLevels, coreApplySummonBoon, coreNormalizeBoon, coreMergeBoons, coreApplyCardBoon, coreBoonText, coreBoonDisplayText,
     coreBoonForEffect, coreBoonDynamicValue, coreBoonFamiliarStats,

@@ -1268,7 +1268,7 @@ function questShopExchangeState(card){
   }
   return card._questOfferCard||card._questTransportId||/^BC\d+/.test(no)||cfg
     ||configs.some(c=>c.rewardMix&&String(c.rewardMix.cardNo||'').toUpperCase()===no)
-    ||typeof coreUnitHasKeyword==='function'&&(coreUnitHasKeyword(card,'帰滅')||coreUnitHasKeyword(card,'荷物'))
+    ||typeof coreUnitHasKeyword==='function'&&coreUnitHasKeyword(card,'帰滅')
     ?'blocked':'allow';
 }
 function questTryBlockedCardExchange(card){

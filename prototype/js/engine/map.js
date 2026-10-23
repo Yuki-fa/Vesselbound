@@ -473,6 +473,7 @@ const VILLAGE_FACILITY_DEFS={
   'ホーム':   {key:'home'},
   '図書館':   {key:'library'},
   'ショップ': {key:'shop'},
+  '魔導取引所': {key:'shop'},
   '魔導店':   {key:'shop'},
   '魔道店':   {key:'shop'},
   '道具屋':   {key:'item'},
@@ -488,9 +489,12 @@ const VILLAGE_FACILITY_DEFS={
   '五聖の座': {key:'landing'},
   [BLESSING_FLAME_CONFIG.name]: {key:BLESSING_FLAME_CONFIG.key},
 };
-// 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導店／魔道店、旧称ショップ）を吸収した候補名を返す。
+// 施設名の表記揺れ（鍛冶屋／鍛治屋、魔導取引所／旧称魔導店・魔道店・ショップ）を吸収した候補名を返す。
 function villageFacilityNameVariants(name){
   if(['踊り場','五聖の座'].includes(String(name||''))) return ['五聖の座','踊り場'];
+  if(['魔導取引所','魔導店','魔道店','ショップ'].includes(String(name||''))){
+    return ['魔導取引所','魔導店','魔道店','ショップ'];
+  }
   const out=[String(name||'')];
   const push=v=>{ if(v&&out.indexOf(v)<0) out.push(v); };
   out.slice().forEach(v=>{
@@ -499,9 +503,11 @@ function villageFacilityNameVariants(name){
     if(v.indexOf('魔道')>=0) push(v.replace('魔道','魔導'));
     if(v.indexOf('魔導')>=0) push(v.replace('魔導','魔道'));
   });
-  // 「ショップ」は「魔導店」へ改称済み。どちらの表記でも引けるようにする。
-  if(out.some(v=>v==='魔導店'||v==='魔道店')) push('ショップ');
-  if(out.indexOf('ショップ')>=0){ push('魔導店'); push('魔道店'); }
+  // 新しいシートと旧セーブ／会話シートのどちらからでも店を引けるようにする。
+  if(out.some(v=>v==='魔導取引所'||v==='魔導店'||v==='魔道店')){
+    push('魔導取引所'); push('魔導店'); push('魔道店'); push('ショップ');
+  }
+  if(out.indexOf('ショップ')>=0){ push('魔導取引所'); push('魔導店'); push('魔道店'); }
   return out;
 }
 // シートに行が無い施設用の予備テキスト（「テキストメッセージ」シートに
@@ -524,7 +530,7 @@ function villageFacilityLabelText(name){
   for(const pre of prefixes){
     for(const v of variants){
       const hit=textMessage(`${pre}「${v}」ボタン`,'');
-      if(hit) return String(hit);
+      if(hit) return String(hit).replace(/魔道店|魔導店/g,'魔導取引所');
     }
   }
   return String(name||'');
@@ -1379,22 +1385,6 @@ function renderVillageScreen(){
     if(actions) actions.style.display='block';
     const btn=document.getElementById('library-howto-btn');
     if(btn) btn.textContent=textMessage('図書館「魔導板の使い方」ボタン','魔導板の使い方');
-    const mergeBtn=document.getElementById('library-merge-btn');
-    const mergeUnlocked=panelMergeEnabled()&&_libraryBoardTutorialCompleted();
-    if(mergeBtn){
-      // 2026-10-11: 魔導板の説明を最後まで終えたプロフィールだけ、マージの入口を表示する。
-      mergeBtn.style.display=mergeUnlocked?'':'none';
-      mergeBtn.textContent=textMessage('図書館「マージとは」ボタン','マージとは');
-      mergeBtn.onclick=()=>{
-        if(typeof playSfx==='function') playSfx('bookOpening',{group:'ui'});
-        openLibraryMergeTutorial();
-      };
-    }
-    const mergeDesc=document.getElementById('library-merge-desc');
-    if(mergeDesc){
-      mergeDesc.style.display=mergeUnlocked?'':'none';
-      mergeDesc.textContent=textMessage('図書館「マージとは」直下','マージのシステムを確認する。');
-    }
     if(btn) btn.onclick=()=>{
       if(typeof playSfx==='function') playSfx('bookOpening',{group:'ui'});
       openMapLibraryFormation();
@@ -1800,7 +1790,7 @@ function _prepareLibraryLoanMode(mode){
     G.globalPanels=copy(entry.globalPanels||[]);
     if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
   }
-  _rewCards=mode==='merge'?_libraryMergeLoanCards():_libraryLoanCards();
+  _rewCards=_libraryLoanCards();
   G._libraryLoanInitialCards=copy(_rewCards);
   G._libraryLoanCardsState=null;
   G._libraryLoanMode=mode;
@@ -1887,7 +1877,7 @@ function _waitLibraryUIReady(fn,tries){
   if(ok||tries>90){ fn(); return; }
   requestAnimationFrame(()=>_waitLibraryUIReady(fn,tries+1));
 }
-// ── 画面上のチュートリアル（図書館「魔導板の使い方」「マージとは」、店の初回説明）──────────
+// ── 画面上のチュートリアル（図書館「魔導板の使い方」、店の初回説明）──────────
 // 手順・文言・移動の条件は設定（cfg）で渡す。動かし方（暗転の穴・発光・操作の制限・クリック送り）は共通。
 //   cfg.id        … 'board'（魔導板の使い方）など。手順固有の小細工の切り替えに使う
 //   cfg.introText … 最初にオーバーレイ上へ大きく出す文字（テキストメッセージ「…説明開始」）
@@ -1938,56 +1928,6 @@ function _libraryBoardTutorialSteps({cardByName,boardSlot}){
     ['7',null,'相手を全滅させれば勝利です。敗北するとライフを1つ失い、ライフがなくなるとゲームオーバーです。それでは、試験戦闘を行ってみましょう。']
   ];
 }
-// ── 図書館「マージとは」──────────────────────────────
-// 貸出カードをシート番号で選んだ5枚にし、「マージとは」2 の後に3枚を魔導板へ置いて合体したら先へ進む。
-// 貸出カード・魔導板・オプション以外は操作させない（魔導板の使い方と同じ）。
-// 「マージとは」の貸出カード（利用者指定 2026-09-25。旧ノーム）
-// 2026-10-11: 貸出をC062の5枚へ変更。改名に追従するためシート番号から定義・表示名を引く。
-const MERGE_TUTORIAL_CARD_NO='C062';
-function _libraryMergeTutorialCard(){
-  return typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL.find(c=>c&&c.no===MERGE_TUTORIAL_CARD_NO):null;
-}
-function _libraryMergeLoanCards(){
-  const def=_libraryMergeTutorialCard();
-  if(!def||typeof makePanel!=='function') return [];
-  return Array.from({length:5},(_,index)=>{
-    const card=makePanel(def.id);
-    if(card){
-      card._libraryLoan=true;
-      card._libraryLoanSlot=index;
-      card._isOriginalReward=false;
-    }
-    return card;
-  }).filter(Boolean);
-}
-function _libraryBoardHasMergedTutorialCard(){
-  return (G&&Array.isArray(G.mainBoard)?G.mainBoard:[]).some(c=>c&&c._tripleMerged
-    &&c.no===MERGE_TUTORIAL_CARD_NO);
-}
-function openLibraryMergeTutorial(){
-  if(!panelMergeEnabled()) return;
-  if(!G||G._libraryTutorialActive||!_libraryBoardTutorialCompleted()) return;
-  openMapLibraryFormation();
-  _prepareLibraryLoanMode('merge');
-  if(window._libraryMergeTutorialPlayed) return;
-  window._libraryMergeTutorialPlayed=true;
-  _waitLibraryUIReady(()=>runBoardTutorial({
-    id:'merge',
-    introText:textMessage('図書館「マージとは」説明開始','マージとは'),
-    text:(key,fallback)=>{
-      const message=textMessage(`「マージとは」${key}`,fallback);
-      // 2026-10-11: シートの説明文を保ち、貸出名の箇所だけ現在のC062の表示名に合わせる。
-      return key==='2'?message.replace(/「[^「」]*」/,`「${_libraryMergeTutorialCard()?.name||''}」`):message;
-    },
-    buildSteps:()=>[
-      ['1',null,'同じカードを魔導板に3枚置くと、合体して1枚のカードになります。これを「マージ」と呼びます。'],
-      ['2',null,`貸出キャラクターの「${_libraryMergeTutorialCard()?.name||''}」を魔導板に3枚置いてみましょう。`,_libraryMergeTutorialCard()?.name||'',{destIndex:null,done:()=>_libraryBoardHasMergedTutorialCard()&&!window._tripleMergeAnimationActive}],
-      ['3',()=>Array.from(document.querySelectorAll('#hand-slots.board-slots > *')).filter((el,i)=>{const c=(G.mainBoard||[])[i];return !!(c&&c._tripleMerged);}),'マージ成功です！マージしたカードは効果が強化され、矢印が4方向になります。'],
-      ['4',null,'既にマージしたカードを更にマージすることはできません。また、「荷物」という効果を持つカードもマージすることはできません。'],
-    ],
-  }));
-}
-
 // ── 施設の会話（会話メッセージシート）─────────────────────
 // 現在の街の見出しだけを見る。場面名には「ヴァルガ「宿屋」入店時」のような街名が付く。
 function villageTalkEntry(scene){
@@ -2192,7 +2132,7 @@ async function showVillageShopSpecialDialogue(column){
 }
 function _facilityArenaAfterTalkEntry(fac){
   const names=villageFacilityNameVariants(fac&&fac.name);
-  const isMagicShop=fac&&fac.key==='shop'&&names.some(v=>['魔導店','魔道店','ショップ'].includes(v));
+  const isMagicShop=fac&&fac.key==='shop'&&names.some(v=>['魔導取引所','魔導店','魔道店','ショップ'].includes(v));
   if(!isMagicShop) return null;
   for(const v of names){
     const t=villageTalkEntry(`「${v}」入店時（闘技場後）`);
@@ -2372,10 +2312,9 @@ function _hideFacilityGreetingScene(){
 }
 
 // ── 店の初回説明（ゲーム内で初めてその店に入った時。入店時の台詞の後、商品画面の上で）──
-// 店ごとにシート上の場面名が異なる（魔道店の説明開始だけ旧表記）ため、
-// 存在するキーを1つだけ使う。存在しない表記揺れを順にtextMessageへ渡さない。
+// 改称前後のシートが混在するため、新しいキーを先に読み、無ければ旧キーへ戻る。
 const SHOP_TUTORIAL_TEXT_KEYS={
-  shop:{intro:'「魔道店」説明開始',step:'「魔導店」'},
+  shop:{intro:'「魔導取引所」説明開始',introAlts:['「魔導店」説明開始','「魔道店」説明開始'],step:'「魔導取引所」',stepAlts:['「魔導店」','「魔道店」']},
   item:{intro:'「道具屋」説明開始',step:'「道具屋」'},
   forge:{intro:'「鍛冶屋」説明開始',step:'「鍛冶屋」'},
 };
@@ -2383,7 +2322,16 @@ function _shopTutorialText(facKey,suffix,fallback){
   const def=SHOP_TUTORIAL_TEXT_KEYS[facKey];
   if(!def) return fallback;
   const key=suffix==='説明開始'?def.intro:`${def.step}${suffix}`;
-  return textMessage(key,fallback);
+  const current=textMessage(key,'');
+  if(current) return current;
+  const altKeys=suffix==='説明開始'
+    ?(def.introAlts||[def.introAlt].filter(Boolean))
+    :(def.stepAlts||[def.stepAlt].filter(Boolean)).map(prefix=>`${prefix}${suffix}`);
+  for(const alt of altKeys){
+    const text=textMessage(alt,'');
+    if(text) return text;
+  }
+  return fallback;
 }
 function _maybeStartShopTutorial(fac){
   const facKey=fac&&fac.key;
@@ -2395,8 +2343,9 @@ function _maybeStartShopTutorial(fac){
     if(typeof SaveProfile!=='undefined') SaveProfile.markTutorialShown(flag);
     runBoardTutorial({
       id:`shop-${facKey}`,
-      introText:facKey==='shop'?SHOP_EXCHANGE_TRIAL.text.shopIntro:_shopTutorialText(facKey,'説明開始',facKey),
-      text:(key,fallback)=>facKey==='shop'?SHOP_EXCHANGE_TRIAL.text.shopSteps[Number(key)-1]:_shopTutorialText(facKey,key,fallback),
+      introText:_shopTutorialText(facKey,'説明開始',facKey==='shop'?SHOP_EXCHANGE_TRIAL.text.shopIntro:facKey),
+      text:(key,fallback)=>_shopTutorialText(facKey,key,facKey==='shop'
+        ?(SHOP_EXCHANGE_TRIAL.text.shopSteps[Number(key)-1]||fallback):fallback),
       // 売却の説明（道具屋の2・鍛冶屋の3）は、売却が無くなったので出さない（2026-10-18）。
       buildSteps:()=>[['1',null,''],['2',null,''],['3',null,'']].filter(([k])=>_cardTradingRules().sellItems||!(facKey==='item'&&k==='2'||facKey==='forge'&&k==='3')),
     });

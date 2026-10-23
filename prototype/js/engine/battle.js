@@ -4401,8 +4401,8 @@ function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
     // **カード名がそのまま能力になる強化の一覧はコアが持つ**（CORE_KEYWORD_CARD_NAMES）。
     // ここに別の一覧を書くと片方だけ取り残される（攻防一体が抜けていて機能していなかった）。
     const keywordPanels=new Set([...CORE_KEYWORD_CARD_NAMES,'防戦']);
-    // 「刻印」「荷物」はそのカード自身の性質（手放せない・合体できない）なので、接続したキャラへは付けない（2026-10-01 利用者指定）。
-    const panelKeywords=[...(panel.adjacentKeywords||[])].filter(k=>!['刻印','荷物'].includes(String(k||'').trim()));
+    // 「刻印」はそのカード自身の性質なので、接続したキャラへは付けない。
+    const panelKeywords=[...(panel.adjacentKeywords||[])].filter(k=>String(k||'').trim()!=='刻印');
     if(keywordPanels.has(coreEffectKey(panel.name))&&!enh.abilities.includes(coreEffectKey(panel.name))) enh.abilities.push(coreEffectKey(panel.name));
     // 策士は倍率を本文から読む（基本2倍／合体3倍）。合体後の本文が入っているなら
     // 枚数で二重に強くしない（上の copies と同じ理由）。

@@ -329,7 +329,13 @@ async function pveBridgeChecks() {
       const loaded=subjectFor(row,merged).p;
       assert.equal(loaded.desc,desc,`${row['No.']} 本文がloaderで上書きされた`);
       const kw=words((merged?row['合体キーワード']:row['キーワード'])||row['キーワード']);
-      if(kw.length) for(const k of kw) assert.ok((loaded.keywords||loaded.adjacentKeywords||[]).includes(k)||(loaded.adjacentKeywords||[]).includes(k),`${row['No.']} ${k}`);
+      if(kw.length) for(const k of kw){
+        if(k==='荷物'){
+          assert.equal((loaded.keywords||loaded.adjacentKeywords||[]).includes(k),false,`${row['No.']} 廃止キーワードを残している`);
+          continue;
+        }
+        assert.ok((loaded.keywords||loaded.adjacentKeywords||[]).includes(k)||(loaded.adjacentKeywords||[]).includes(k),`${row['No.']} ${k}`);
+      }
       for(const side of ['p1','p2']) {
         const result=exercise(row,merged,desc,1,side);concrete(row,merged,desc,result);
         for(const k of kw) {

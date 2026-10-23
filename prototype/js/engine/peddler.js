@@ -27,8 +27,10 @@ function _defeatPeddlerLines(){
 // 行が無い時だけ、会話シートの「キャラクターの名前」（行商人 ガーラ）の空白より前を使う。
 function defeatPeddlerTitle(){
   const name=String((_defeatPeddlerLines().talk||{}).characterName||'').trim();
-  const fallback=name.split(/[ 　]+/)[0]||name;
-  return typeof textMessage==='function'?textMessage('「行商人」見出し',fallback):fallback;
+  const fallback=name.replace(/^行商人?(?=[ 　]|$)/,'トレーダー').split(/[ 　]+/)[0]||'トレーダー';
+  if(typeof textMessage!=='function') return fallback;
+  const title=textMessage('「トレーダー」見出し','')||textMessage('「行商人」見出し',fallback);
+  return String(title||fallback).replace(/^行商人?(?=[ 　]|$)/,'トレーダー');
 }
 // 敗北の後に行商人が来るか（毎回）。オンライン・試験戦闘・闘技場では来ない。
 function defeatPeddlerPending(){
@@ -129,7 +131,7 @@ async function runDefeatPeddlerEvent(){
       firstLines:shownLines,faceA:typeof _storyFirstFace==='function'?_storyFirstFace(shownLines,'MC001'):undefined,
       withoutNamePlate:true});
   }
-  const name=talk&&talk.characterName?String(talk.characterName).trim():'';
+  const name=talk&&talk.characterName?String(talk.characterName).trim().replace(/^行商人?(?=[ 　]|$)/,'トレーダー'):'';
   if(typeof _qStartDialogue==='function') await _qStartDialogue(shownLines,{screen:'village',
     ...(name?{namePlateText:name,namePlateLine:1,namePlateAnySpeaker:true}:{})});
   if(typeof _qRemoveDialogue==='function') _qRemoveDialogue();
