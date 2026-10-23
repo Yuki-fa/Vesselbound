@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # Astra の効果案（EFFECT_PROPOSALS_1023.md）を Claude が独自に検証する。
 import re, json, csv, io, difflib, statistics, collections
-MD = __import__('os').path.join(__import__('os').path.dirname(__import__('os').path.abspath(__file__)), 'EFFECT_PROPOSALS_1023.md')
+import sys, os
+MD = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EFFECT_PROPOSALS_1023.md')
 DATA = __import__('os').path.join(__import__('os').path.dirname(__import__('os').path.abspath(__file__)), '../../js/data/local_xlsx_data.js')
 s = open(DATA, encoding='utf-8').read(); d = json.loads(s[s.index('{'):s.rindex('}') + 1])
 cards = list(csv.DictReader(io.StringIO(d['card']))); enchants = list(csv.DictReader(io.StringIO(d['enchant'])))
@@ -69,6 +70,10 @@ impl = collections.Counter('既存構文' if r['impl'].startswith('既存構文'
 print('実装見込み', impl)
 limits = sum(1 for r in rows if re.search(r'\d+回まで', r['text']))
 print('「1戦闘にN回まで」を使う案', limits, '/', len(rows))
+capish = [r['id'] for r in rows if re.search(r'回まで|初めて|まだこの効果を受けていない|1戦闘に', r['text'] + r['up'])]
+print('回数制限の言い回し（回まで・初めて・まだ受けていない）', len(capish), capish[:20])
+shape = [r['id'] for r in rows if re.search(r'ランダムな(?:[赤青緑黄紫]の)?味方1体は(?:HP|ATK)?\+', r['text'])]
+print('「ランダムな味方1体に能力」型', len(shape))
 trig = collections.Counter(re.match(TRIG, r['text']).group(0) if re.match(TRIG, r['text']) else '?' for r in rows)
 print('トリガの内訳', dict(trig.most_common()))
 for k, v in issues.items():
