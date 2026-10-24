@@ -6313,7 +6313,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "アラストル：紅蓮の呪印を味方に刻む",
       "sha256": "0eefc554463410efc8cba5b7dc0a78a2edb982df0d82fbfb244538395999d473"
@@ -6367,7 +6367,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "エリニュス：紅紫の復讐の火が敵へ飛ぶ",
       "sha256": "ade6d5eff55a8217f3d0578452fddf96b60c828e30a8dac6fc31642746695424"
@@ -6421,7 +6421,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "エキドナ：毒蛇の波が全員へ広がる",
       "sha256": "7fe351fd7986e4e54b6c7f87a8f4303a9cd707b0f7b1b8c1e16a4c11b5fe2d09"
@@ -6475,7 +6475,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "アトラス：重い衝撃を味方へ分ける",
       "sha256": "314a51520816191d46d77743dc63f8006209ab784d380f1080a0ba66eefb0464"
@@ -6529,7 +6529,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "サンダーバード：暗雲から落ちる稲妻",
       "sha256": "b43edd513e7737d246a9f9549b2def28e543e6c15ee97ac17546c393e928b201"
@@ -6619,7 +6619,7 @@ var VbFxSeCatalog = {
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "ケール：深紅の衝撃波が敵全体へ",
       "sha256": "7855d4f88061b53c89ea5a583ceccb1795d5dda5ce251cc2d2dc2fa9a133dd8e"

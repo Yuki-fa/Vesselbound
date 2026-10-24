@@ -91,6 +91,19 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | C108 | gremlin | asfx-christmas-freebies-2024/David Dumais - ASFX - Steampunk Mech Freebies/Steampunk Mech SFX - Free Samples/MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav | 1.6秒 | 0.341896 |
 | R031 | speed-ring | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Hypersonic Missile_RTSB_COL-04.wav | 1.04秒 | 0.12 |
 
+## 2026-10-25 正式採用（利用者がLABで選択）
+
+台帳 adopted_1025.json。ゲームの assets/sfx に配置済み。
+
+| 番号 | 演出 | 元の素材 | 長さ | peak |
+|---|---|---|---|---|
+| C001 | alastor-brand | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav | 1.95秒 | 0.242771 |
+| C002 | erinyes-flame | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-03.wav | 1.95秒 | 0.438229 |
+| C004 | echidna-wave | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav | 1.95秒 | 0.45 |
+| C005 | atlas-burden | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Stone Crush_RTSB_COL-01.wav | 1.401秒 | 0.247667 |
+| C052 | thunderbird-charge | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-04.wav | 1.316625秒 | 0.45 |
+| C105 | kele-blood-nova | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Annihilating Blast_RTSB_COL-01.wav | 1.95秒 | 0.296875 |
+
 ## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 
 10/12に仮配置した候補1のうち利用者がOKとしたもの（サテュロス・ヘカトンケイル・ゾンビ・シルフ・フィーンド・リリス）と、2026-10-18に利用者がLABで選んだ候補（台帳 adopted_1018.json）。ゲームの assets/sfx に配置済み。

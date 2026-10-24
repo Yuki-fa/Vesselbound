@@ -122,7 +122,7 @@ const Assets = {
       'R018': 'vfx:R018:revival-ring',       // 復活の指輪：最初に死んだ味方が蘇った時
       'E016': 'vfx:E016:dragonnet',          // 強化「変化」：終戦の永久変身（ドラゴネットと同じ変身の霧）
       'C006': 'vfx:S003:gold-gain', // 金貨（素材名はS003へ変更済み）
-      'C007': 'vfx:C007:attack-recoil',
+      // 'C007'（マータの肩代わり attack-recoil）は 2026-10-25 シート改訂で本文が「負傷：全ての敵に弱体1」になったので外した。
       'C008': 'vfx:S006:injury-buff', // ゴーレム（素材名はS006へ変更済み）
       'C013': 'vfx:C013:arachne-ring',
       'C016': 'vfx:C016:siren-wave', // サイレン（攻撃：全体へ広がる波）
@@ -324,6 +324,12 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    C105: 'assets/sfx/C105.wav', // LAB採用（2026-10-25 kele-blood-nova 候補3）
+    C052: 'assets/sfx/C052.wav', // LAB採用（2026-10-25 thunderbird-charge 候補1）
+    C005: 'assets/sfx/C005.wav', // LAB採用（2026-10-25 atlas-burden 候補1）
+    C004: 'assets/sfx/C004.wav', // LAB採用（2026-10-25 echidna-wave 候補1）
+    C002: 'assets/sfx/C002.wav', // LAB採用（2026-10-25 erinyes-flame 候補1）
+    C001: 'assets/sfx/C001.wav', // LAB採用（2026-10-25 alastor-brand 候補1）
     R031: 'assets/sfx/R031.wav', // LAB採用（2026-10-21 speed-ring 候補2）
     E078: 'assets/sfx/E078.wav', // LAB採用（2026-10-21 gold-loss 候補1）
     R012: 'assets/sfx/R012.wav', // LAB採用（2026-10-21 penance-ring 候補2）

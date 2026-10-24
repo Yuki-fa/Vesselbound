@@ -22,7 +22,10 @@ async function run(){
   const runtime=read('js/vfx/textures.js')+read('js/vfx/schema.js')+read('assets.js');
   assert.ok(!/vfx\/[^'"\s]+\.webp/.test(runtime),'実行時に演出のWebPを読み込まない');
   const game=read('assets.js')+read('js/engine/render.js')+read('js/engine/map.js')+read('js/engine/battle.js');
+  // 2026-10-25 シート改訂：マータ（C007）の本文が肩代わりから「負傷：全ての敵に弱体1」へ変わり、肩代わりの演出 attack-recoil は使い道が無くなった（定義と LAB は残す）。
+  const retired=new Set(['attack-recoil']);
   for(const effect of effects){
+    if(retired.has(effect.name))continue;
     assert.ok(game.includes('vfx:'+effect.sourceCode+':'+effect.name),effect.name+' を実際の入口に登録');
     assert.ok(!effect.layers.some(layer=>layer.type==='sprite'),effect.name+' は画像部品を含まない');
     const ref=JSON.parse(read('tools/vfx_capture/refs/'+effect.sourceCode+'/reference.json'));

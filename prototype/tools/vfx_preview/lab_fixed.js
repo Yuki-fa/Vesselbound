@@ -47,7 +47,7 @@ var VbFxLabFixed = {
  * VbFxLabStarNotes：戦闘中に演出を出さないもの（－）の理由。 */
 var VbFxLabPending = {
   C067:'mana-buff（ウォーグのバフに出ていなかった）', C070:'aura-buff（敵が状態異常を得るたびHP+）', C047:'aura-buff（眷属が召喚されるたび）',
-  C092:'eidolon（エイドロンと同じ。2026-10-25）', C012:'injury-buff＋S006の音（音が鳴っていなかった）',
+  C092:'aura-buff（2026-10-25 本文変更：味方の攻撃効果が発動するたび永久+1/+1。シートの列 S009）', C012:'injury-buff＋S006の音（音が鳴っていなかった）',
   R035:'aura-buff＋S009の音（味方が結界を失うたび全ての味方+1/+1。2026-10-25 音が鳴らなかった）', M003:'map-life（開戦の着地。旧・生命の力の演出）',
   I015:'keyword-grant', I016:'keyword-grant', I017:'keyword-grant', I018:'keyword-grant', I019:'keyword-grant',
   I020:'keyword-grant', I021:'keyword-grant', I022:'keyword-grant', I023:'keyword-grant',
@@ -63,6 +63,11 @@ var VbFxLabPending = {
   C114:'reward-blessing（新作。報酬とトレーダーの強化）', C008:'reward-blessing（新作。報酬とトレーダーの強化）',
   C116:'hellknight-slash（新作。起動の剣戟と血の吸収）', R018:'revival-ring（新作）',
   K013:'stealth-veil（新作。ゲームでいつ出すかは確認待ち）', K014:'guard-stance（新作。ゲームでいつ出すかは確認待ち）',
+  // 2026-10-25 新しいキャラクター25枚（新作6種はSE候補を仮に採用。流用・汎用は既存の演出）
+  C001:'alastor-brand（新作）', C002:'erinyes-flame（新作）', C004:'echidna-wave（新作）', C005:'atlas-burden（新作）',
+  C052:'thunderbird-charge（新作）', C105:'kele-blood-nova（新作）', C026:'scylla（流用）', C051:'scylla（流用）', C027:'dark-fire（流用）',
+  C053:'melusine（流用）', C077:'eidolon（流用。旧シャナの本文）', C003:'gold-gain（起動）', C080:'activation-transform（起動）',
+  C055:'reward-blessing（報酬とトレーダーの強化）', C007:'弱体の汎用演出（2026-10-25 本文変更。肩代わりの attack-recoil を外した）',
 };
 var VbFxLabStarNotes = {
   E029:'開戦で死亡効果を発動する（発動した死亡効果の演出が出る）',

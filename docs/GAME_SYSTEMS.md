@@ -398,3 +398,7 @@ PvEではコアの状態を `prototype/js/engine/battle.js: _syncCoreLifeToG()`�
   画面に入った時の盤面のカードを元の枠へ戻し、その後に盤面へ来たカードは報酬・商品枠へ返す。リロール後の報酬・商品、アイテムの使用、カードに付いた強化は戻さない。
   戻り先は画面に入った時（_rewPhaseId が変わった最初の _storeRewardStartSnapshot）だけ取り、カードに印 `_placeKey` を付けて追う（カードごとに一度だけ付ける。交換は写しなので物では追えない。変身しても印は引き継ぐ）。
   最初のカードが盤面にも報酬・商品枠にも無い時はボタンを暗くし、押すと「初期カード不存在時」のエラー（reward.js `resetRewardPlacement`／`rewardPlacementInitialMissing`。検査 placement_reset_1025_regression.js）。
+- 2026-10-25 シート改訂（新しいキャラクター25枚・既存カード約20枚の本文変更・E006/E084/E085・敵の所持金を固定値に）をコアへ実装（Codex sheet1025b）。
+  カード別の挙動・出来事の形・解釈で決めた点は prototype/tools/balance_sim/SHEET_1025B_REPORT.md、検査は sheet_1025b_regression.js（通常・強化後×両陣営を数値まで）。
+  解釈：アムピスバエナは味方の色が「ちょうど」3種類、E084 は最大HPの半分、ケールの連鎖は1体最大20波（CORE_BLOOD_MULTIPLE_MAX_WAVES）、チェンジリングは本人も最初の対象に選べる。
+  新しい25枚はシートの「実装」列が空（報酬・店に出すには true にする）。

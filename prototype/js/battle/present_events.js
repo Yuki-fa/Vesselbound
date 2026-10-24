@@ -220,7 +220,7 @@ function _presentLabPlan(ev, events, index, api, context) {
   if(PRESENT_LAB_1012_CODES.has(code))return _presentLab1012Plan(code,ev,events,index,api,source);
   const spec = typeof presentLabFx === 'function' ? presentLabFx(code) : null;
   if (!spec || ['S001',getKeywordAssetKey('復活'),getKeywordAssetKey('全体攻撃')].includes(code)) return null;
-  if (ev.type === 'effect_flash' && !['C035','C096'].includes(code)) return null;
+  if (ev.type === 'effect_flash' && !['C035','C096','C005'].includes(code)) return null;
   if (ev.type === 'attack' && !ev.controlled) return null;
   if (ev.type === 'damage' && ev.damageKind === 'combat' && code !== 'E062') return null;
   if (ev.type === 'revive' || ev.type === 'shield_lost' || ev.type === 'shield_set') return null;
@@ -235,7 +235,13 @@ function _presentLabPlan(ev, events, index, api, context) {
     || (source && source.kind === 'enchant' && spec[2] === 'self' ? find(ev.unitId) : null);
   const members = presentLabEffectEvents(events,index,code,sourceId).filter(e=>presentAssignedLabEventMatches(code,e));
   let targets = members.filter(e=>!['mana_threshold','effect_flash'].includes(e.type)).map(e=>find(e.type==='summon'&&e.unit?e.unit.id:e.unitId)).filter(Boolean);
-  if (ev.type === 'effect_flash') {
+  // 2026-10-25 アトラス：常時の発光から、続く「割り振られたダメージ」（damage.redirectedFrom＝アトラス）を受けた味方へ。
+  if (ev.type === 'effect_flash' && code === 'C005') {
+    const shared=[];for(let i=index+1;i<(events||[]).length;i++){const e=events[i];if(!e||['attack','turn_begin','battle_end'].includes(e.type))break;
+      if(e.type==='damage'&&e.redirectedFrom===ev.unitId)shared.push(e);}
+    targets=[...new Set(shared.map(e=>find(e.unitId)).filter(Boolean))];
+    if (!targets.length) return null;
+  } else if (ev.type === 'effect_flash') {
     const next = presentLabManualTarget(events,index,code);
     targets = next ? [find(next.unitId)].filter(Boolean) : [];
     if (!targets.length) return null;

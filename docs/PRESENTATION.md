@@ -841,3 +841,9 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
     隠密 stealth-veil・防戦 guard-stance は LAB だけ（ゲームでいつ出すかは確認待ち）。SE は LAB の3候補から選ぶまで無し。
   - 攻撃・負傷・死亡バフ（S005〜S007）の粒子はマナ効果のバフと同じくカードの1.15倍から収束（以前は1.9倍でカード外に光が出ていた）。
   - インキュバスの起動：色の変化で古い枠を重ねて 400ms でフェード（activation.js `ACTIVATION_COLOR_FADE_MS`）。
+- 2026-10-25 新しいキャラクターの演出（確認待ち＝LAB で☆）：新作6種（additions_1025.js）＝アラストル alastor-brand（呪印の付与）・エリニュス erinyes-flame（復讐の火）・
+  エキドナ echidna-wave（全員への毒蛇の波）・アトラス atlas-burden（割り振りのダメージ。常時の発光から damage.redirectedFrom の味方へ）・サンダーバード thunderbird-charge（2マナの実体で自分に）・
+  ケール kele-blood-nova（血の倍数の全体ダメージ）。SE は3候補から仮に1つ採用（adopted_1025.json）。流用：ナハツェーラー・マンティコア＝scylla、ドラウグル＝dark-fire、
+  ヒュドラ＝melusine、ティアマト＝eidolon（旧シャナの本文）、マモンの起動＝gold-gain、チェンジリングの起動＝activation-transform、ノルン＝reward-blessing。ほかはトリガ・キーワードの汎用演出。
+  本文が変わったシャナからエイドロンを外し（列の S009）、マータの肩代わりの演出 attack-recoil を外した。
+  **VFX 定義JSONの1MB上限（tools/vfx_export.js、UTF-8バイト）がほぼ満杯（999,214）。** 次に演出を足す時は上限を上げるか、重複する層を整理する。

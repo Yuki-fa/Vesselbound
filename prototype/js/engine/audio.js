@@ -147,6 +147,12 @@ const SFX_SETTINGS={
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    C105: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 kele-blood-nova 候補3）
+    C052: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 thunderbird-charge 候補1）
+    C005: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 atlas-burden 候補1）
+    C004: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 echidna-wave 候補1）
+    C002: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 erinyes-flame 候補1）
+    C001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 alastor-brand 候補1）
     R031: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 speed-ring 候補2）
     K001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 death-mark 候補1）
     R016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 intimidate-ring 候補1・長めに切り直した候補）

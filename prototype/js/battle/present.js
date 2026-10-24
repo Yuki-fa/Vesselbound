@@ -1994,10 +1994,15 @@ const PRESENT_LAB_FX = {
   C020:['aura-buff',.45,'target','S009'], C047:['aura-buff',.45,'target','S009'],
   C070:['aura-buff',.45,'target','S009'], E005:['aura-buff',.45,'target','S009'],
   E023:['aura-buff',.45,'target','S009'], C040:['aura-buff',.45,'target','S009'],
-  C092:['eidolon',.218375,'kenzoku','C044'], E028:['leprechaun',.9,'self','C088'],
+  E028:['leprechaun',.9,'self','C088'],
   E044:['attack-buff',.511,'target','S005'], E016:['dragonnet',.58,'morph','C064'],
   E027:['death-mark',null,'target',getKeywordAssetKey('即死')],
   E015:['fang-poison',null,'target',getKeywordAssetKey('毒牙')],
+  // 2026-10-25 新しいキャラクター（additions_1025.js の新作6種と、既存演出の流用）。第2要素は採用したSEのピーク（秒）。
+  C001:['alastor-brand',0.242771,'friend'], C002:['erinyes-flame',0.438229,'foe'], C004:['echidna-wave',0.45,'foes'],
+  C005:['atlas-burden',0.247667,'friends'], C052:['thunderbird-charge',0.45,'self'], C105:['kele-blood-nova',0.296875,'foes'],
+  C026:['scylla',.45,'foes','C071'], C051:['scylla',.45,'foes','C071'], C027:['dark-fire',.5,'foes'],
+  C053:['melusine',.9,'foe'], C077:['eidolon',.218375,'kenzoku','C044'],
   E006:['dark-fire',.5,'foes'], E035:['resentment',.7,'foe'],
   C050:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
   E071:['shockwave',0.45,'foes'], E075:['demon-soul',.9,'foes'], C042:['vrykolakas',.9,'friend'],
@@ -2058,7 +2063,8 @@ const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'
   // 変身の巻物＝起動の変身と同じ演出（additions_1023.js）。
   I002:'activation-transform' };
 // 起動（魔導板で対象に使う効果）の演出。activation.js が対象のカードの上（破壊は破壊したカードからヘルナイトへ）に出す。
-const PRESENT_ACTIVATION_FX = { C084:'dragonnet', C109:'activation-empower', C116:'hellknight-slash' };
+// 2026-10-25：マモン（アイテムを破壊して金貨）＝金貨、チェンジリング（魔導板と報酬の入れ替え）＝翡翠の変身。
+const PRESENT_ACTIVATION_FX = { C084:'dragonnet', C109:'activation-empower', C116:'hellknight-slash', C003:'gold-gain', C080:'activation-transform' };
 function presentActivationFx(code, available) {
   const name = PRESENT_ACTIVATION_FX[String(code || '')];
   return name === 'hellknight-slash' && !available.includes(name) ? 'activation-devour' : name || '';
@@ -2067,8 +2073,14 @@ function presentActivationFx(code, available) {
 const PRESENT_ASSIGNED_SHARED_FX = new Set(['C020','C047','C070','E005','E023','C040','E044','E015','E027']);
 function presentAssignedLabEventMatches(code, ev) {
   if (PRESENT_ASSIGNED_SHARED_FX.has(code)) return false;
-  if (code === 'C011' || code === 'EN060') return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0
-    && (!ev.effectTrigger || (code === 'C011' ? ['injury','death'] : ['opening']).includes(ev.effectTrigger));
+  if (['C011','EN060','C026','C051'].includes(code)) return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0
+    && (!ev.effectTrigger || ({ C011:['injury','death'], EN060:['opening'], C026:['death'], C051:['injury'] })[code].includes(ev.effectTrigger));
+  // 2026-10-25 新しいキャラクター：効果の実体（コアの reason）だけで出す。
+  if (code === 'C001') return ev.type === 'keyword_effect' && ev.effect === 'trigger_grant';
+  if (code === 'C002') return ev.type === 'damage' && ev.reason === 'ally_color_injury_damage';
+  if (code === 'C004') return ev.type === 'damage' && ev.reason === 'ally_death_all_damage';
+  if (code === 'C105') return ev.type === 'damage' && ev.reason === 'blood_multiple_damage';
+  if (code === 'C053') return ev.type === 'damage' && ev.reason === 'attack_poison_damage';
   if (code === 'E028') return ev.type === 'stat_change' && ev.reason === 'battle_end_permanent_buff'
     && ev.unitId === ev.sourceId && (!ev.effectText || /^このキャラクターは永久に/.test(ev.effectText))
     && (Number(ev.atk) > 0 || Number(ev.hp) > 0);
@@ -2083,16 +2095,17 @@ const PRESENT_DIRECT_LAB_FX = [
 ];
 // 2026-10-22 シート改訂：効果が移った番号へ付け替え（C025→E083・C031→E043・C084→E031・C057→E056・C109→E024、
 // アークデーモン C082 とフィーンド C099 は効果が入れ替わったので演出も入れ替え）。ファミリア C089 は効果が変わったので外した。
-const PRESENT_LAB_1012_CODES=new Set(['C009','E083','E043','C075','E031','C091','C124','C039','C044','C092','C107','C108','C120','C122','C014','E056','C071','C086','C099','E024','C119']);
+const PRESENT_LAB_1012_CODES=new Set(['C052','C009','E083','E043','C075','E031','C091','C124','C039','C044','C077','C107','C108','C120','C122','C014','E056','C071','C086','C099','E024','C119']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
 // 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
 function presentLab1012EventMatches(code,ev){
   if(!ev||ev.effectSource===false)return false;
-  if(['C009','C071','C086','C099'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
+  if(['C009','C071','C086','C099','C052'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
   if(['E083','E043','E031','C091'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({E083:'injury_chance_mana',E043:'manaOnDeath',E031:'manaOnAttack',C091:'nymph_colors'})[code];
   if(code==='C075')return ev.type==='mana_set'&&ev.reason==='behemoth'&&Number(ev.gained)>0;
   if(code==='C039'||code==='C044')return ev.type==='summon_buff';
-  if(code==='C092')return ev.type==='summon_buff'&&(Number(ev.atk)>0||Number(ev.hp)>0);
+  // 2026-10-25：ティアマト（旧シャナの本文）。シャナは本文が変わったので外した。
+  if(code==='C077')return ev.type==='summon_buff'&&(Number(ev.atk)>0||Number(ev.hp)>0);
   if(code==='C107')return ev.type==='damage'&&ev.damageKind!=='combat';
   if(code==='C124')return ev.type==='stat_change'&&ev.reason==='arch_demon_purple_buff';
   if(code==='C108')return ev.type==='stat_change'&&ev.reason==='injury_enemy_atk_down';
@@ -2105,7 +2118,7 @@ function presentLab1012EventMatches(code,ev){
 }
 const PRESENT_LAB_SPEED = 1.5;
 // ファントム／エイドロンは最後の層が消えた後に空白がある。絵の速さは保ち、空白だけ省く。
-const PRESENT_LAB_TRIM_TAIL_CODES = new Set(['C039','C044','C092']);
+const PRESENT_LAB_TRIM_TAIL_CODES = new Set(['C039','C044','C077']);
 function presentLabPlaybackEndRatio(code, definition, hasTargets = true) {
   if (!PRESENT_LAB_TRIM_TAIL_CODES.has(code) || !definition) return 1;
   const layers=definition.layers.filter(layer=>hasTargets||layer.anchor!=='each-target');
