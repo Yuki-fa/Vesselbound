@@ -124,9 +124,10 @@ function rendererClock() {
     const found = ['card', 'enchant', 'enemy', 'ring', 'item'].flatMap(kind => h.sheetRows(kind)
       .filter(r => ['効果', '強化効果'].some(k => /このゲーム中、味方の眷属は/.test(r[k] || '')))
       .map(r => r['No.'])).sort();
-    assert.deepEqual(found, ['C039', 'C044', 'C092']);
+    assert.deepEqual(found, ['C039', 'C044', 'C052', 'C077']);
   });
-  for (const no of ['C039', 'C044', 'C092']) for (const merged of [false, true]) {
+  // C052は能力値でなく衝撃。持続・保存はsheet_1025b_regression.jsで検査する。
+  for (const no of ['C039', 'C044', 'C077']) for (const merged of [false, true]) {
     await check(`3：${no} ${merged ? '強化後' : '通常'}の累積値がカード・ホバー・戦闘説明と次戦の召喚へ一致`, async () => {
       const effect = definition(no); if (merged) applyMergedPanelForm(effect);
       const source = h.unit('buffer', no, { desc: effect.desc });
@@ -134,7 +135,7 @@ function rendererClock() {
         summonDefs: [...PANEL_POOL, ...ENEMY_POOL] });
       if (no === 'C039') { x.find('buffer').hp = 0; coreApplyDeathEffects(x.find('buffer'), x.state, x.rng, x.emit, x.hit); }
       if (no === 'C044') coreApplyInjuryEffects(x.find('buffer'), 1, x.state, x.rng, x.emit, x.hit);
-      if (no === 'C092') coreSummonUnit(x.state, 'p1', { name: '青スケルトン' }, x.emit, 'summoner', undefined, x.rng, x.hit);
+      if (no === 'C077') coreSummonUnit(x.state, 'p1', { name: '青スケルトン' }, x.emit, 'summoner', undefined, x.rng, x.hit);
       const cumulative = h.clone(x.state.gameSummonBuff.p1);
       // 付与元がいなくなった次の戦闘でも累積値は残る。
       const next = h.setup({ sides: { p1: { units: [h.unit('summoner', 'C045')] }, p2: { units: [h.unit('foe')] } },
@@ -155,12 +156,12 @@ function rendererClock() {
   }
 
   for(const side of ['p1','p2']) for(const boosted of [false,true]) {
-    await check(`3：${side} 眷属倍率・指輪・熟練・生存シャナ${boosted?'あり':'なし'}も実際の召喚と一致`,()=>{
+    await check(`3：${side} 眷属倍率・指輪・熟練・生存ティアマト${boosted?'あり':'なし'}も実際の召喚と一致`,()=>{
       const rings=boosted?['青い瞳の指輪','虹の瞳の指輪','召喚師の指輪'].map(name=>{
         const ring=RING_POOL.find(c=>c.name===name);assert.ok(ring,name);return ring;
       }):[];
       const source=h.unit('summoner','C045',boosted?{boon:{famMul:2},keywords:['熟練3']}:{});
-      const extra=boosted?[h.unit('shana','C092',{keywords:['熟練2']})]:[];
+      const extra=boosted?[h.unit('tiamat','C077',{keywords:['熟練2']})]:[];
       const x=h.setup({sides:{[side]:{units:[source,...extra]},[side==='p1'?'p2':'p1']:{units:[h.unit('foe')]}},
         rings:{[side]:rings},items:{[side]:boosted?[{itemEffectKey:'bond_scroll'}]:[]},
         gameSummonBuff:{p1:{atk:7,hp:11},p2:{atk:13,hp:17}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});

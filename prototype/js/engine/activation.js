@@ -46,7 +46,7 @@ function wireCardActivation(element, card, index) {
 // 戻り値 true：起動の操作として受け取った（他のクリック処理へ渡さない）。
 function cardActivationClick(index) {
   if (_pendingCardActivation) {
-    if (_pendingCardActivation.index === index) { cancelCardActivation(); return true; }
+    if (_pendingCardActivation.index === index && !/対象の魔導板のカードと、報酬のカード/.test(coreUnitTriggerText(_pendingCardActivation.card, '起動'))) { cancelCardActivation(); return true; }
     return handleCardActivationTarget(index);
   }
   if (G._pendingItemUse || G._pendingPanelPlacement) return false;
@@ -64,8 +64,14 @@ function handleCardActivationTarget(index) {
   const cards = _mainBoardCards(), source = pending.card, target = cards[index];
   if (cards[pending.index] !== source) { cancelCardActivation(); return true; }
   if (!target) return true;
+  if (/対象の魔導板のカードと、報酬のカード/.test(coreUnitTriggerText(source, '起動'))) {
+    if (typeof _cardIsEngraved === 'function' && _cardIsEngraved(target)) return true;
+    pending.targetIndex = index; pending.targetCard = target;
+    renderHandEditor(); renderRewCards();
+    return true;
+  }
   const quest = typeof questRequiredEntryOnBoard === 'function' ? questRequiredEntryOnBoard() : null;
-  const run = () => coreActivateBoardCard(source, target, PANEL_POOL, coreMathRng);
+  const run = () => coreActivateBoardCard(source, target, PANEL_POOL, coreMathRng, { targetZone: 'board' });
   const result = typeof runWithKeyedRandom === 'function' ? runWithKeyedRandom(`activation:${pending.key}:${pending.index}:${index}`, run) : run();
   if (!result) return true;
   delete source._activationReady;
@@ -97,9 +103,39 @@ function handleCardActivationTarget(index) {
 // 魔導店・行商の品も報酬枠に並ぶので同じく選べる（代金は掛からない）。依頼・NPCのカードと売却待ちの自分のカードは選ばない。
 function cardActivationRewardTargetable(card) {
   const pending = _pendingCardActivation;
-  if (!pending || !card || card.category !== 'キャラクター') return false;
+  if (!pending || !card) return false;
   if (card._npcCard || card._npcDeployOnly || card._questOfferCard || card._questTransportId || card._shopSalePending) return false;
-  return /対象のキャラクターを破壊し/.test(coreUnitTriggerText(pending.card, '起動'));
+  const text = coreUnitTriggerText(pending.card, '起動');
+  if (/対象の魔導板のカードと、報酬のカード/.test(text)) {
+    if (!Number.isInteger(pending.targetIndex) || !/キャラクター|エンチャント|強化/.test(card.category || '')) return false;
+    const board = _getPartyBoardUnit(), cards = _mainBoardCards();
+    if (cards[pending.targetIndex] !== pending.targetCard) return false;
+    if (typeof questRewardSlotAcceptsCard === 'function' && !questRewardSlotAcceptsCard(pending.targetCard)) return false;
+    if (typeof questShopExchangeState === 'function' && (questShopExchangeState(pending.targetCard) === 'blocked' || questShopExchangeState(card) !== 'allow')) return false;
+    if (typeof _canCardUseBoardSlot === 'function' && !_canCardUseBoardSlot(card, pending.targetIndex, board)) return false;
+    const next = cards.slice(); next[pending.targetIndex] = card;
+    return typeof _canApplyBoardChange !== 'function' || _canApplyBoardChange(board, next);
+  }
+  return card.category === 'キャラクター' && /対象の(?:報酬の)?キャラクターを破壊し/.test(text);
+}
+// マモン：報酬欄のアイテムではなく、所持しているアイテム枠だけを選ぶ。
+function handleCardActivationItemTarget(index) {
+  const pending = _pendingCardActivation;
+  if (!pending) return false;
+  if (pending.key !== cardActivationVisitKey() || !cardActivationCanUse(pending.card)
+    || _mainBoardCards()[pending.index] !== pending.card) { cancelCardActivation(); return true; }
+  const target = (G.spellSlots || [])[index];
+  const result = coreActivateBoardCard(pending.card, target, PANEL_POOL, coreMathRng, { targetZone: 'item' });
+  if (!result || result.kind !== 'destroy_item_gold') return true;
+  const rect = document.querySelectorAll('.reward-prod-item .reward-prod-slots i')[index]?.getBoundingClientRect();
+  const quest = typeof questRequiredEntryOnBoard === 'function' ? questRequiredEntryOnBoard() : null;
+  G.spellSlots[index] = null;
+  delete pending.card._activationReady;
+  gainEventGold(result.gold);
+  if (typeof _syncRewardProductionItems === 'function') _syncRewardProductionItems();
+  _finishCardActivation(pending, quest);
+  _playActivationFx(pending.card, { rect, kind: result.kind, result }, pending.index);
+  return true;
 }
 function handleCardActivationRewardTarget(rewIdx) {
   const pending = _pendingCardActivation;
@@ -110,7 +146,27 @@ function handleCardActivationRewardTarget(rewIdx) {
   if (!cardActivationRewardTargetable(target)) return true;
   const rewEl = typeof document !== 'undefined' ? document.querySelector(`#reward-offer-row [data-merge-rew-idx="${rewIdx}"]`) : null;
   const quest = typeof questRequiredEntryOnBoard === 'function' ? questRequiredEntryOnBoard() : null;
-  const result = coreActivateBoardCard(source, target, PANEL_POOL, coreMathRng);
+  if (/対象の魔導板のカードと、報酬のカード/.test(coreUnitTriggerText(source, '起動'))) {
+    const result = coreActivateBoardCard(source, pending.targetCard, PANEL_POOL, coreMathRng,
+      { targetZone: 'board', rewardTarget: target });
+    if (!result || result.kind !== 'exchange_reward') return true;
+    const rewardRect = rewEl?.getBoundingClientRect();
+    delete source._activationReady;
+    // カードの個体を交換する。配置を戻す印 _placeKey も個体と一緒に移す。
+    const incoming = _exchangeShopCardCopy(target), outgoing = pending.targetCard;
+    cards[pending.targetIndex] = incoming;
+    _rewCards[rewIdx] = _exchangeShopCardCopy(outgoing);
+    // 本人が交換された場合も、報酬欄へ移った同じ個体に永久の減少を残す。
+    const holder = outgoing === source ? _rewCards[rewIdx] : source;
+    persistBoardCharacterStats({ boardCards: [holder] }, 0, result.atk, result.hp);
+    _syncUnitPanelEffectsAfterMove(_getPartyBoardUnit());
+    if (typeof markCardAcquired === 'function') markCardAcquired(incoming);
+    if (G._isShop && typeof _persistCurrentShopStock === 'function') _persistCurrentShopStock();
+    _finishCardActivation(pending, quest);
+    _playActivationFx(source, { index: pending.targetIndex, rewardRect, kind: result.kind, result }, pending.index);
+    return true;
+  }
+  const result = coreActivateBoardCard(source, target, PANEL_POOL, coreMathRng, { targetZone: 'reward' });
   if (!result || result.kind !== 'destroy') return true;
   const visual = _activationCaptureVisual(rewEl), hold = _activationHoldStats(source,pending.index);
   delete source._activationReady;

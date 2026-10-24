@@ -6,7 +6,7 @@ const fs = require('node:fs'), vm = require('node:vm');
 const { sheetRows, effectRepetitions, damageRepetitions } = require('./sheet_data');
 require('./load');
 console.table=()=>{};
-const internals = vm.runInNewContext(fs.readFileSync('js/battle/core.js', 'utf8') + '\n({coreFireWargThreshold,coreMataSplit,coreGainResource});', {});
+const internals = vm.runInNewContext(fs.readFileSync('js/battle/core.js', 'utf8') + '\n({coreFireWargThreshold,coreGainResource});', {});
 const rows = [...sheetRows('card'), ...sheetRows('enchant')].filter(r=>String(r['実装']).toLowerCase()!=='false');
 const copy = v => JSON.parse(JSON.stringify(v));
 const words = t => String(t || '').split(/[\s　、,]+/).filter(Boolean);
@@ -166,7 +166,6 @@ function concrete(row,merged,text,result) {
   if((m=match(/このキャラクターの(死亡|攻撃|負傷|開戦|マナ|解放)効果は(\d+)回追加/))) {
     assert.equal(coreExtraTriggerTimes(u,m[1],1),Number(m[2]));return;
   }
-  if(text.includes('ダメージを1にし')) {const split=internals.coreMataSplit(u,13);const d=text.includes('半分')?2:Number((match(/(\d+)分の1/)||[])[1])||1;assert.deepEqual(copy(split),{target:1,redirected:Math.floor(12/d)});return;}
   if((m=match(/緑の味方から得るマナは\+(\d+)/))) {
     const before=state.resources[side].mana;internals.coreGainResource(state,side,'mana',1,createCoreUnit(plain('green','緑'),side,9),()=>{},'fixture');assert.equal(state.resources[side].mana-before,1+Number(m[1]));return;
   }

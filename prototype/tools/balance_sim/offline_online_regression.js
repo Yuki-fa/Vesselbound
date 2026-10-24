@@ -548,8 +548,8 @@ function main() {
   const splitEvents = [];
   core.coreResolveHit(splitState, splitState.units.p2[0], splitState.units.p1[0], 4, false,
     createSeededRng(20), event => splitEvents.push(event));
-  assert.equal(splitState.units.p1[0].hp, 8, 'マータ分散後の本体ダメージが不正');
-  assert.equal(splitState.units.p1[2].hp, 8, 'マータ分散先のダメージが不正');
+  assert.equal(splitState.units.p1[0].hp, 6, 'マータの廃止した肩代わりが残っている');
+  assert.equal(splitState.units.p1[2].hp, 10, 'マータが旧本文の肩代わりを受けている');
   const shieldedSplitState = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
     sides: {p1: {units: [

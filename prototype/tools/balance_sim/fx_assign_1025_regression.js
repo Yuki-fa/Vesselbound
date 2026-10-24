@@ -16,7 +16,7 @@ const cases=[
   {no:'C047',fx:'S009',targets:1,fire:summon},
   {no:'C070',fx:'S009',targets:1,fire:x=>coreEmitAilment(x.state,x.emit,{type:'keyword_effect',side:x.find('foe0').side,unitId:'foe0',sourceId:'owner',effect:'poison',amount:1})},
   {no:'E005',fx:'S009',targets:1,fire:x=>{const dead=x.find('foe0');dead.hp=0;dead._lastDamageSource=x.find('owner');coreApplyDeathEffects(dead,x.state,x.rng,x.emit,x.hit);}},
-  {no:'C092',fx:'eidolon',targets:1,fire:summon},
+  {no:'C092',fx:'S009',targets:1,support:'C104',fire:x=>coreApplyAttackEffects(x.find('support'),x.state,x.rng,x.emit,x.hit)},
   {no:'E027',fx:'keyword:即死',targets:1,fire:x=>{x.rng.next=()=>0;x.hit(x.find('owner'),x.find('foe0'),1);}},
   {no:'E028',fx:'leprechaun',targets:1,fire:x=>coreTriggerBattleEnd(x.state,x.emit,x.rng,x.hit)},
   // 現行コアが実体を出さない4種も、将来の実体イベントで選ぶ割り当てを契約として検査する。
@@ -69,14 +69,17 @@ async function play(x,mode){
       await x.pve();assert.ok(!h.calls.some(v=>v.name==='scylla'));
     }
   });
-  await check('シャナ：既存眷属と新しい眷属への同じ付与は1回',async()=>{
+  await check('シャナ：眷属召喚では発動せず、味方の攻撃効果で本人へ常時強化を1回',async()=>{
     for(const mode of ['pve','online','saved']){const x=h.setup({sides:{p1:{units:[h.unit('owner','C092'),h.unit('old',null,{keywords:['眷属']})]},p2:{units:[h.unit('foe0')]}}});
-      summon(x);await play(x,mode);const effects=h.calls.filter(v=>v.name==='eidolon');assert.equal(effects.length,1);assert.equal(effects[0].options.targets.length,2);
+      summon(x);assert.equal(x.events.filter(e=>e.type==='summon_buff').length,0);
+      coreApplyAttackEffects(x.find('old'),x.state,x.rng,x.emit,x.hit);assert.equal(x.events.filter(e=>e.reason==='ally_attack_permanent_buff').length,0,'攻撃効果なしでは観測しない');
+      x.find('old').desc='攻撃：血を得る。';coreApplyAttackEffects(x.find('old'),x.state,x.rng,x.emit,x.hit);await play(x,mode);
+      const effects=h.calls.filter(v=>v.name==='S009');assert.equal(effects.length,1);assert.equal(effects[0].targets.length,1);
     }
   });
-  await check('シャナが複数いても、同じ召喚への各付与を落とさない',async()=>{
+  await check('シャナが複数いても、同じ味方の攻撃効果への各永久強化を落とさない',async()=>{
     for(const mode of ['pve','online','saved']){const x=h.setup({sides:{p1:{units:[h.unit('owner','C092'),h.unit('second','C092')]},p2:{units:[h.unit('foe0')]}}});
-      summon(x);await play(x,mode);assert.equal(h.calls.filter(v=>v.name==='eidolon').length,2);
+      x.find('owner').desc+='\n攻撃：血を得る。';coreApplyAttackEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit);await play(x,mode);assert.equal(h.calls.filter(v=>v.name==='S009').length,2);
     }
   });
   await check('ラミアの毒がハイドラを誘発しても、全体へのscyllaは1回',async()=>{
@@ -114,14 +117,17 @@ async function play(x,mode){
     const clean=value=>JSON.parse(JSON.stringify(value,(key,v)=>key==='_coreOpeningEffectsState'?'<state>'
       :['effectTrigger','fxBatch','_presentationBatchSeq'].includes(key)?undefined:key==='effectText'&&typeof v==='string'&&/永久に/.test(v)?undefined:v));
     let count=0;
-    for(const row of h.sheetRows('card'))for(const side of ['p1','p2']){
+    // 本文・ルールを改訂したカードはsheet_1025b_regression.jsで通常／強化の数値を検査する。
+    const changed=new Set('C001 C002 C003 C004 C005 C007 C010 C017 C018 C020 C021 C026 C027 C028 C029 C030 C031 C034 C046 C047 C051 C052 C053 C054 C055 C058 C067 C070 C076 C077 C078 C079 C080 C092 C099 C101 C102 C103 C104 C105 C116 C121'.split(' '));
+    const unchanged=h.sheetRows('card').filter(row=>!changed.has(row['No.']));
+    for(const row of unchanged)for(const side of ['p1','p2']){
       const options={sides:{[side]:{units:[h.unit('owner',row['No.'])]},[side==='p1'?'p2':'p1']:{units:[h.unit('foe0'),h.unit('foe1')]}},resources:{[side]:{mana:5,gold:20}}};
       const outputs=[base,global].map(api=>{const state=api.createBattleState(h.clone(options)),rng=createSeededRng(1025),events=[];
         const result=api.runBattleCore(state,rng,{turnLimit:5,onEvent:e=>events.push(e)});
         return clean({result,events,final:api.battleCoreFinalState(state),next:rng.next()});});
       assert.deepEqual(outputs[1],outputs[0],row['No.']+'/'+side);count++;
     }
-    assert.equal(count,h.sheetRows('card').length*2);assert.ok(count>0);console.log('  比較 '+count+'ケース（追加した表示用メタデータだけ除外）');
+    assert.equal(count,unchanged.length*2);assert.ok(count>0);console.log('  比較 '+count+'ケース（改訂カードは新本文の回帰検査へ）');
   });
   // 2026-10-25 利用者指定で4枚の効果をコアへ実装した（enchant_1025_regression.js）。以前は未発火を固定していたが、今は実戦の元イベントが出ることを確かめる。
   await check('4種（武威・復讐の炎・毒袋・変化）の実戦の元イベントがコアから出る',()=>{

@@ -200,6 +200,7 @@ async function playOnlineBattleEvents(result, handlers) {
       if (ev.effect === 'effect_value') coreApplyPermanentDamageEvent(ctx.board, ev);
       const u = ctx.unitById(ev.unitId);
       if (u) {
+        if (ev.effect === 'trigger_grant') coreApplyInjuryGrantEvent(u, ev);
         if (ev.effect === 'poison') u.poison = (Number(u.poison) || 0) + (Number(ev.amount) || 0);
         if (ev.effect === 'shield') u.shield = (Number(u.shield) || 0) + (Number(ev.amount) || 0);
         if (ev.effect === 'weaken') {
@@ -207,8 +208,9 @@ async function playOnlineBattleEvents(result, handlers) {
         } else if (ev.effect === 'evil_eye') {
           u.atk = Math.max(0, (Number(u.atk) || 0) - (Number(ev.amount) || 0));
         }
-        if (ev.effect === 'keyword_gain' && ev.keyword && !(u.keywords || []).includes(ev.keyword)) {
-          u.keywords = [...(u.keywords || []), ev.keyword];
+        if (ev.effect === 'keyword_gain' && ev.keyword) {
+          if (Array.isArray(ev.keywords)) u.keywords = ev.keywords.slice();
+          else if (!(u.keywords || []).includes(ev.keyword)) u.keywords = [...(u.keywords || []), ev.keyword];
         }
       }
     } else if (ev.type === 'life_drain') {

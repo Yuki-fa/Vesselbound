@@ -974,7 +974,8 @@ async function loadGameData() {
     const _setPanelKeywordsFromDesc = panel => {
       const desc = String(panel.desc || '');
       const passiveDesc = desc.replace(/(^|\n)\s*\d+マナ(?:毎)?[:：][^\n。]*(?:。|$)/g, ' ');
-      const ownPassiveDesc = passiveDesc.replace(/(?:ランダムな)?(?:味方|敵|キャラクター|.+?キャラクター)(?:に|が)[^。]*(?:結界|生贄|復活|封印\d*)を(?:付与する|得る)。?/g, ' ');
+      const ownPassiveDesc = passiveDesc.replace(/(?:ランダムな)?(?:味方|敵|キャラクター|.+?キャラクター)(?:に|が)[^。]*(?:結界|生贄|復活|封印\d*)を(?:付与する|得る)。?/g, ' ')
+        .replace(/ランダムな味方(?:\d+体)?に復活を与える。?/g, ' ');
       const kws = [];
       // 「復活を付与する」は自身ではなく他者に付与する効果のため、自身の復活キーワードとしては扱わない
       if (/復活/.test(ownPassiveDesc)) kws.push('復活');
@@ -989,7 +990,7 @@ async function loadGameData() {
       if (/(?:^|\n|\s)生贄(?:\s|。|\n|$)/.test(ownPassiveDesc)) kws.push('生贄');
       const seal = ownPassiveDesc.match(/封印\s*(\d+)/);
       if (seal) kws.push('封印' + (seal[1] || '1'));
-      const poison = passiveDesc.match(/毒牙\s*(\d*)/);
+      const poison = passiveDesc.replace(/味方の色が\d+種類なら、全ての味方は毒牙\d+を得る。?/g, ' ').match(/毒牙\s*(\d*)/);
       if (poison) kws.push('毒牙' + (poison[1] || '1'));
       const strengthen = passiveDesc.match(/([赤青緑黄紫茶])強化/);
       if (strengthen) kws.push(`${_normalizeColorText(strengthen[1])}強化`);

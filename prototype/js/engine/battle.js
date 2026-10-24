@@ -4028,17 +4028,6 @@ async function applyDamageBatch(entries, options){
       effectSource:opt.effect?source:null,keywordEffect:opt.keywordEffect||null,
       counterDamage:!!ev.counter};
   });
-  // コアのマータ分散で肩代わりした対象にも、従来どおりC007の専用VFXを出す。
-  prepared.forEach(original=>{
-    if(!(Number(original.amount)>=2)||!original.unit) return;
-    const side=original.side||_battleSideOfUnit(original.unit);
-    const mata=(side==='ally'?G.allies:G.enemies||[]).find(u=>u&&u!==original.unit&&u.hp>0&&
-      (typeof coreHasEffect==='function'?coreHasEffect(u,'マータ'):_unitHasEffectName(u,'マータ')));
-    if(!mata) return;
-    const redirected=results.find(r=>r.unit===mata&&
-      String(r.redirectedFrom||'')===String(original.unit.id))||results.find(r=>r.unit===mata);
-    if(redirected){ redirected.effectVfxCode='C007'; redirected.effectVfxTarget=mata; }
-  });
   results.forEach(r=>{
     if(!r.unit||r.actualDmg<=0) return;
     if(typeof _recordRunStatsDamage==='function') _recordRunStatsDamage(r.actualDmg,r.source&&r.source._damageType||'');
