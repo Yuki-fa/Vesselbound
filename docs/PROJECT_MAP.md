@@ -555,6 +555,9 @@ tools/
 - `reward_items.js` … 「アイテムの表示・使用・対象選択」を分離済み
 - `reward_journey.js` … 「旅の進捗」を分離済み
 - `reward_drag.js` … 「ドラッグの見た目（自前のドラッグゴースト・置き場の明暗）」を分離済み（2026-10-25）
+- `reward_debug.js` … 「デバッグモードの編成画面のカード一覧」を分離済み（2026-10-25）
+- `battle_debug.js` … 「演出確認用の試験戦闘（デバッグ専用）」を battle.js から分離済み（2026-10-25）
+- 分けたファイルは、決め打ちの一覧で本体を読む道具（tools/vfx_preview/cards_scan.cjs・balance_sim/run_bot.js・fixed_engine.js）にも足すこと。index.html の読み込み順に従う検査（load.js 等）は足さなくてよい
 - `reward.js` … 「報酬・店の画面」と「魔導板の編集」
 
 **分割は1ファイルずつ、検査を通しながら**行う。まとめて動かすと切り分けができない。
