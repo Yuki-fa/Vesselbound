@@ -120,8 +120,6 @@ function _namedPool(grade){
   );
 }
 
-const EFFECT_IDS=[];
-
 // ENEMY_POOL からグレードに合った敵定義を抽選
 function _pickEnemyDef(grade){
   const pool=ENEMY_POOL.filter(e=>_enemySpawnAllowed(e)&&e.grade===grade && !e.unique && !e._isNamed && !e.bossOnly);

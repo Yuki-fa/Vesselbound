@@ -27,7 +27,8 @@ function check(name, fn) {
 check('PvEの全state定義がlifeを持つ', () => {
   const states = battleSrc.match(/resources:\{p1:\{mana:Number\(_ensureMana\(\)\)\|\|0,gold:Number\(G\.gold\)\|\|0\},p2:\{mana:0,gold:0\}\}[,}]/g) || [];
   // 旧攻撃専用stateの2件は、本番の共通コアへの移行で削除済み。
-  assert.ok(states.length >= 11, `state定義が想定より少ない: ${states.length}`);
+  // 2026-10-25 リファクタリング：呼ばれていなかった旧PvEの攻撃効果（_applyUnitAttackEffects）の1件も削除した。
+  assert.ok(states.length >= 10, `state定義が想定より少ない: ${states.length}`);
   // ライフの実値は G._waveLife（表示に使われている方）。_currentBattleLife() が唯一の入口。
   const lifeCount = (battleSrc.match(/life:\{p1:_currentBattleLife\(\),p2:0\}/g) || []).length;
   assert.equal(lifeCount, states.length,

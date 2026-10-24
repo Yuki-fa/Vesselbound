@@ -507,6 +507,8 @@ tools/
 | --- | --- |
 | `_shopSalePending` 一式（`js/engine/reward.js` 13箇所） | 魔導店の商品枠へ魔導板のカードを置く機能。**確認ダイアログは廃止済み。** ただし `_canReturnDragSrcToRewardArea()` が魔導店を弾いていないため経路だけ残っている。**「置けなくする」か「一式消す」かを決めてから**手を付ける |
 
+2026-10-25：index.html が読み込む全スクリプトで「定義の1回しか出てこない最上位の関数・定数」を洗い出し、検査からも参照されない14関数・5定数を消した（旧PvEの攻撃効果 `_applyUnitAttackEffects` 一式など）。検査だけが使う `_mapDeepLevelsPerMap`・`canSacrificeRingCards`・`playArassusAttackMotion`・`towerBoonChoose` は残した。
+
 **消す前に必ず到達解析をやり直すこと**（他セッションが参照を足している可能性がある）。
 関数ごとに「外部ファイル＋トップレベルから辿れるか」を見る方法で、
 `js/engine/map.js` では到達不能13関数を見つけて消した実績がある。
@@ -552,6 +554,7 @@ tools/
 - `battle.js` … 「戦闘開始・終了の段取り」と残るPvE進行
 - `reward_items.js` … 「アイテムの表示・使用・対象選択」を分離済み
 - `reward_journey.js` … 「旅の進捗」を分離済み
+- `reward_drag.js` … 「ドラッグの見た目（自前のドラッグゴースト・置き場の明暗）」を分離済み（2026-10-25）
 - `reward.js` … 「報酬・店の画面」と「魔導板の編集」
 
 **分割は1ファイルずつ、検査を通しながら**行う。まとめて動かすと切り分けができない。

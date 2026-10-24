@@ -4928,7 +4928,7 @@ function renderField(id,units,isEnemy,_lane){
       (front.length?front:liveUnits).forEach(x=>prioritySet.add(x.i));
     }
   } else {
-    // hate（前衛・タウント）→ 全生存味方（getAttackTargetと同じロジック）
+    // hate（前衛・タウント）→ 全生存味方（コアの coreSelectAttackTarget と同じロジック）
     const hated=liveUnits.filter(x=>x.u.hate&&x.u.hateTurns>0&&!x.u.stealth);
     (hated.length?hated:liveUnits.filter(x=>!x.u.stealth)).forEach(x=>prioritySet.add(x.i));
   }

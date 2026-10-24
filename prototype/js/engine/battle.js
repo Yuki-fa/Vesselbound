@@ -3318,132 +3318,6 @@ function _onAllEnemiesDefeated(){
 
 // ── 味方攻撃アクション ──────────────────────────
 
-// 共通コアが即時確定した二次ヒットを、PvEの既存演出・死亡処理へ接続する。
-// 数値・対象・死亡判定は coreResolveHit() が確定済みであり、ここでは再計算しない。
-async function _applyUnitAttackEffects(unit,isEnemySide){
-  if(!unit||unit.hp<=0||_isSealed(unit)) return;
-  _recordBattleTrace('attack_effect_dispatch_start',{unitId:unit.id,isEnemySide});
-  if((unit._scrollSilencedUntilAttack||unit._silenced)){
-    delete unit._scrollSilencedUntilAttack;
-    delete unit._silenced;
-    return;
-  }
-  const allies=isEnemySide?(G.enemies||[]):(G.allies||[]);
-  const foes=isEnemySide?(G.allies||[]):(G.enemies||[]);
-  const state={
-    units:{p1:G.allies||[],p2:G.enemies||[]},
-    summonDefs:[...(typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'&&Array.isArray(ENEMY_POOL)?ENEMY_POOL:[])],
-    itemDefs:typeof ITEM_POOL!=='undefined'&&Array.isArray(ITEM_POOL)?ITEM_POOL:[],
-    rings:{p1:typeof _effectiveRings==='function'?_effectiveRings():[],p2:[]},
-    items:{p1:Array.isArray(G.activeBattleItems)?G.activeBattleItems:[],p2:[]},
-    resources:{p1:{mana:Number(_ensureMana())||0,gold:Number(G.gold)||0},p2:{mana:0,gold:0}},
-    ..._pveCoreStageFields(),
-    life:{p1:_currentBattleLife(),p2:0},
-    maxLife:{p1:_currentBattleLifeMax(),p2:_currentBattleLifeMax()},
-    blood:{p1:Math.max(0,Number(G._blood)||0),p2:0},
-    deferManaThresholdEffects:true,
-  };
-  const touched=[];
-  // コアはside/slotを見て判定するため、呼ぶ前に一時的に付け替える。
-  // 反復ごとに演出を挟むので、付け替えと復帰を関数にして往復できるようにする。
-  const _applyCoreSideSlots=()=>{
-    [...state.units.p1,...state.units.p2].forEach((u,i)=>{
-      if(!u) return;
-      u.side=state.units.p1.includes(u)?'p1':'p2';
-      u.slot=i;
-    });
-  };
-  const _restoreSideSlots=()=>{
-    touched.forEach(([u,side,slot])=>{
-      if(side==null) delete u.side; else u.side=side;
-      if(slot==null) delete u.slot; else u.slot=slot;
-    });
-  };
-  [...state.units.p1,...state.units.p2].forEach(u=>{ if(u) touched.push([u,u.side,u.slot]); });
-  _applyCoreSideSlots();
-  const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
-  const localEvents=[];
-  const emit=ev=>{ localEvents.push(ev); if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev); };
-  // **オプションをコアへそのまま渡すこと。** ここで落とすと、コアが
-  // 「全員にダメージを入れてからまとめて誘発」（coreHitAll の deferTriggers/collect）を
-  // 指示しても PvE 側だけ1体ずつ即誘発になり、オンラインと結果が食い違う。
-  const applyHit=(source,target,amount,counter,skipSourceEffects,skipTough,options)=>{
-    return coreResolveHit(state,source,target,amount,counter,coreMathRng,emit,
-      Object.assign({skipSourceEffects:!!skipSourceEffects,skipTough:!!skipTough},options||{}));
-  };
-  const beforeUnits=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
-  const previousDeferMana=!!G._deferManaThresholdEffects;
-  let skipAttack=false;
-  // 反復ごとに再生した位置。残りは最後にまとめて再生する。
-  let flushedEventCount=0;
-  G._deferManaThresholdEffects=true;
-  try{
-    // 攻撃効果の反復回数は共通コアと同じ入口で一度だけ計算する。
-    // 旧互換ラッパー側でも同じ回数を呼ぶと、ユミル等が二重発動する。
-    const attackRepeats=1+coreExtraTriggerTimes(unit,'攻撃',coreEffectCount(unit,'闇の儀式'))
-      +coreAllyExtraTriggerTimes(unit,{units:{[unit.side]:unit.side==='p2'?G.enemies:G.allies}},'攻撃')
-      +_ringCount('狂戦士の指輪')+(Number(unit.effectData&&unit.effectData.effectRepeatBonus)||0);
-    for(let i=0;i<attackRepeats&&unit.hp>0;i++){
-      const effectBeforeAtk=Number(unit.atk)||0, effectBeforeHp=Number(unit.hp)||0;
-      _recordBattleTrace('attack_effect_iteration',{unitId:unit.id,index:i+1,total:attackRepeats,
-        effectCount:coreEffectCount(unit,unit.name),targetId:unit._currentAttackTarget&&unit._currentAttackTarget.id||null,
-        beforeAtk:effectBeforeAtk,beforeHp:effectBeforeHp});
-      // 攻撃時マナも攻撃効果の一部として、PvE/PvP共通コアから解決する。
-      coreTriggerManaOnAttack(unit,state,emit);
-      const attackEventSeq=state._coreAttackEventSeq=(Number(state._coreAttackEventSeq)||0)+1;
-      const coreResult=coreApplyAttackEffects(unit,state,coreMathRng,emit,applyHit,`${attackEventSeq}:${i}`);
-      if(coreResult&&coreResult.skipAttack) skipAttack=true;
-      if(typeof coreFlushPendingLichSummons==='function') coreFlushPendingLichSummons(state,emit);
-      _recordBattleTrace('attack_effect_iteration_result',{unitId:unit.id,index:i+1,
-        afterAtk:Number(unit.atk)||0,afterHp:Number(unit.hp)||0,
-        deltaAtk:(Number(unit.atk)||0)-effectBeforeAtk,deltaHp:(Number(unit.hp)||0)-effectBeforeHp});
-      // 反復ごとにここまでの分を再生する。全反復を解決し切ってから再生すると、
-      // HPは最後に一度だけ動いて見え、ミノタウロスの「直ちに攻撃」も
-      // まとめて連続発火して見える。1回分ずつ「効果→割り込み攻撃」を見せる。
-      if(flushedEventCount<localEvents.length){
-        const slice=localEvents.slice(flushedEventCount);
-        flushedEventCount=localEvents.length;
-        _restoreSideSlots();
-        try{ await _flushCorePveHitEvents(state,slice,beforeUnits); }
-        finally{ _applyCoreSideSlots(); }
-      }
-    }
-    _recordBattleTrace('mana_threshold_scan',{phase:'attack',unitId:unit.id,mana:Number(state.resources.p1?.mana)||0});
-    coreApplyManaThresholdEffects(state,coreMathRng,emit,applyHit);
-    if(typeof coreFlushPendingLichSummons==='function') coreFlushPendingLichSummons(state,emit);
-    _syncCoreResourcesToG(state);
-    _refreshManaDisplays();
-  }finally{
-    G._deferManaThresholdEffects=previousDeferMana;
-    _restoreSideSlots();
-  }
-  // コア召喚をPvEの盤面・演出へ接続する。反復中に再生済みの分は除く。
-  await _flushCorePveHitEvents(state,localEvents.slice(flushedEventCount),beforeUnits);
-  _syncCoreManaToG(state);
-  _refreshManaDisplays();
-  _recordBattleTrace('attack_effect_dispatch_end',{unitId:unit.id});
-  return skipAttack;
-}
-
-async function _applyAllyAttackEffects(ally){
-  return await _applyUnitAttackEffects(ally,false);
-}
-
-async function _applyEnemyAttackEffects(enemy){
-  return await _applyUnitAttackEffects(enemy,true);
-}
-
-async function _applyAllyAttackEffectsWithElf(ally){
-  if(!ally||ally.hp<=0) return;
-  return await _applyAllyAttackEffects(ally);
-}
-
-async function _applyEnemyAttackEffectsWithElf(enemy){
-  if(!enemy||enemy.hp<=0) return;
-  return await _applyEnemyAttackEffects(enemy);
-}
-
-
 // ── 戦闘ルールは js/battle/core.js が唯一の実装場所 ──────────────
 // 以下は既存の呼び出し名を保つための委譲。ここに条件やルールを書き足さないこと
 // （書き足すとPvEとPvPでルールが食い違う）。変更はコア側で行う。
@@ -3485,12 +3359,6 @@ function _addBattleStats(unit, atk, hp, side, includeSealed){
 
 
 
-
-function _grantUnitKeyword(unit, kw){
-  if(!unit||!kw) return false;
-  if(!(unit.keywords||[]).includes(kw)) unit.keywords=[...(unit.keywords||[]),kw];
-  return true;
-}
 
 function _setBattleUnitForm(unit, name, fallbackAtk, fallbackHp, color){
   if(!unit||!name) return;
@@ -3633,38 +3501,7 @@ function _fieldOrderOfUnit(unit){
 }
 
 
-function _shieldValueFromKeyword(k){ return coreShieldValueFromKeyword(k); }
-
 function _unitShieldValue(unit){ return coreUnitShieldValue(unit); }
-
-// 強化カード由来の効果は「キーワードとして持っている数」と「接続している同名パネルの枚数」の
-// 大きい方で数える（錬成・野生の力と同じ数え方）。
-// シートの「キーワード」列が空の強化カードは _unitHasKeyword() では絶対に拾えない
-// （_adjacentPanelAbilities に載るのは keywordPanels のハードコード集合だけ）ため、
-// 強化カード名で判定する箇所は必ずこれを使うこと。
-function _enhancementCount(unit, name){
-  return Math.max(_unitKeywordCount(unit,name),_unitEffectPanelCount(unit,name));
-}
-
-function _unitEffectPanelCount(unit, kw){
-  if(!unit||!kw) return 0;
-  if(Number.isInteger(unit._mainBoardSlot)&&typeof _getPartyBoardUnit==='function'&&typeof _collectEnhancementPanelsForSlot==='function'){
-    const board=_getPartyBoardUnit();
-    if(board&&Array.isArray(board.boardCards)){
-      return _panelEffectKeywordCount(_collectEnhancementPanelsForSlot(board,unit._mainBoardSlot),kw);
-    }
-  }
-  // 接続数のカウントはboardCards配列の添字（盤面上の位置＝物理的に別々の接続）で数える。
-  // p.id/p.uidは同じ強化カードを複数枚接続した場合でも同じ値（テンプレート由来）になるため、
-  // これをキーにすると2枚目以降が「同一パネル」とみなされ重複発動しなくなるバグの原因だった。
-  let count=0;
-  (Array.isArray(unit.boardCards)?unit.boardCards:[]).forEach((p,i)=>{
-    if(!p||String(p.category||'')==='キャラクター') return;
-    const names=[p.name,...(p.keywords||[]),...(p.adjacentKeywords||[])].filter(Boolean);
-    if(names.includes(kw)) count+=(p._tripleMerged?2:1)+(Number(p._effectRepeatBonus||p.effectRepeatBonus)||0);
-  });
-  return count;
-}
 
 
 function _panelEffectKeywordCount(panels, kw){
@@ -3699,11 +3536,6 @@ function _unitHasEffectName(unit, name){
 
 
 function _attackDamageValue(unit){ return coreAttackDamage(unit); }
-
-async function _applyAttackEffectsForSide(unit,isEnemySide){
-  if(isEnemySide) return await _applyEnemyAttackEffectsWithElf(unit);
-  return await _applyAllyAttackEffectsWithElf(unit);
-}
 
 function _battleUnitSnapshot(unit, hpOverride){
   if(!unit) return null;
@@ -3758,7 +3590,6 @@ function _captureUnitDamageRect(unit, side){
 // 通常攻撃の大ダメージ用画面揺れ。後から設定でON/OFF・強度変更できるよう、
 // 攻撃処理やダメージ計算から分離しておく。
 const BATTLE_SCREEN_SHAKE_CONFIG={enabled:true,strength:1};
-const BATTLE_DESIGN_H=2160;
 const BATTLE_SCREEN_SHAKE_TIERS=[
   {min:50,max:74,amplitude:7,duration:150,hitStop:0},
   {min:75,max:99,amplitude:11,duration:180,hitStop:0},
@@ -4938,18 +4769,6 @@ function _ensureMana(){
   G.mana=Number(G.mana)||0;
   return G.mana;
 }
-function _gainMana(amount, source){
-  let n=Math.max(1,Number(amount)||1);
-  const srcUnit=source&&typeof source==='object'?source:(G.allies||[]).find(u=>u&&u.hp>0&&u.name===source);
-  const sourceName=source&&typeof source==='object'?source.name:source;
-  G.mana=_ensureMana()+n;
-  _refreshManaDisplays();
-  // ユニットのマナ閾値は共通コアがイベント単位で一度だけ解決する。
-  // 旧マナ閾値走査をここで予約すると、コア処理と
-  // 二重実行され、召喚・VFX・効果回数が崩れる。
-  if(!G._deferManaThresholdEffects) _queueRingManaThresholdEffects();
-  _recomputeDynamicPanelStats();
-}
 function _queueRingManaThresholdEffects(){
   if(!_hasRingNamed('嵐の指輪')) return;
   G._ringManaEffectPromise=(G._ringManaEffectPromise||Promise.resolve())
@@ -5615,13 +5434,6 @@ function _onEnemyDeathPanelSummons(deadEnemy){
 
 
 function _onAllyDeathPanelSummons(){
-}
-
-// 攻撃ターゲットを決定する
-function getAttackTarget(attacker, targets){
-  // 守護が常時有効なのは敵側の盤面か、魔導板から召喚された味方だけ。
-  // その区別（G.enemies かどうか）はG依存なので、ここで判定してコアへ渡す。
-  return coreSelectAttackTarget(attacker, targets, coreMathRng, { defendersAreEnemies: targets===G.enemies });
 }
 
 // 貫通：前衛キャラクターへの攻撃時、その後ろに位置する後衛キャラクター（最大3人）にも同じダメージを与える。
