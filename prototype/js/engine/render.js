@@ -1699,7 +1699,8 @@ function _vfxClipLayer(){
   // 焼失中のカード（.death-burn-clone）が攻撃の始まり・戻りのたびに元の姿へ戻って焼け直す
   // ＝「既に死んだキャラの残像」になっていた（数値・波打ちなども同じ）。作り済みの演出は作った入れ物に置いたままにし、
   // 毎コマこの関数を呼ぶ VbFx の描画面（中身は毎コマ描き直す canvas 1枚）だけを今の入れ物へ移す。
-  const motionClone=battleActive&&!!document.querySelector('.attack-motion-clone');
+  // 起動の切断カードもbody直下のz=10000。剣戟がカードの下に隠れないよう同じ上層を使う。
+  const motionClone=battleActive&&!!document.querySelector('.attack-motion-clone,.activation-cut-half');
   const layer=_vfxClipLayerEl('vfx-frame-clip','10035');
   if(battleActive){
     // 結果カットイン(z=10000)・行動表示(z=10002)より下。既存VFXの画面座標・寸法を保つ。

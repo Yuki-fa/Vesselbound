@@ -145,8 +145,10 @@ function towerBoonRerollRewards() {
     () => _arrangeRewardRarity(drawRewards().filter(Boolean).slice(0, old.filter(c => c && c._isOriginalReward).length)));
   fresh.forEach(c => { c._isOriginalReward = true; });
   _rewCards = old.map(c => c && c._isOriginalReward ? (fresh.shift() || null) : c);
+  _markRewardAppearancePending(_rewCards);
   renderRewCards();
   if(reveal) void _playRewardRerollReveal(reveal,_rewCards.slice());
+  else _completeRewardAppearance(_rewCards);
   _storeRewardStartSnapshot();
   if (paid && typeof updateHUD === 'function') updateHUD();
   if (typeof SaveRun !== 'undefined') SaveRun.checkpoint('reward');

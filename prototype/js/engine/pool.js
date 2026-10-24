@@ -737,11 +737,11 @@ function drawRewards(count=5,opts){
   // **同じ提示の中で矢印の向きが完全に同じカードを重ねない。**
   // 規則は _dedupePanelDirections() が唯一の実装。魔導店もこの抽選を使う。
   _dedupePanelDirections(res);
-  return applyRewardCharacterEffects(towerBoonGeneratedOffers(res),!(opts&&opts.trader));
+  return applyRewardCharacterEffects(towerBoonGeneratedOffers(res));
 }
 
-// 提示された時にだけ報酬強化と報酬観測を解決する。再描画やカード移動では発動しない。
-function applyRewardCharacterEffects(cards, observe = true) {
+// 抽選時は提示カード自身の強化だけ。報酬を観測する常時効果は、実際に表を見せるreward.jsの出口で解決する。
+function applyRewardCharacterEffects(cards) {
   const buff = G.runEffects && G.runEffects.rewardBuff;
   for (const card of cards || []) {
     if (!card || card.category !== 'キャラクター') continue;
@@ -751,12 +751,27 @@ function applyRewardCharacterEffects(cards, observe = true) {
       card.life += (Number(buff.hp)||0)-(Number(applied.hp)||0);
       card._rewardGrowthApplied={atk:Number(buff.atk)||0,hp:Number(buff.hp)||0};
     }
-    if (!observe) continue;
-    for (const observer of (G.mainBoard || []).filter(Boolean)) {
-      for (const m of coreTriggerEffectEntries(observer, '常時', /報酬に([赤青緑黄紫])キャラクターが出るたび、このキャラクターは\+(\d+)\/\+(\d+)を得る/)) {
-        if (card.color === m[1]) { observer.power += Number(m[2]); observer.life += Number(m[3]); }
-      }
-    }
   }
   return cards;
+}
+// 本文から色・加算値を読む。1枚の出現＝1波、同じ効果を持つ魔導板の全カードが対象。
+function applyRewardAppearanceEffects(cards) {
+  const waves=[];
+  for(const card of cards||[]) {
+    if(!card||!card._rewardAppearancePending) continue;
+    card._rewardAppearancePending=false; // カード丸ごとの既存セーブ・復元で保持する。
+    if(card.category!=='キャラクター') continue;
+    const targets=[];
+    (G.mainBoard||[]).forEach((observer,index)=>{
+      if(!observer||observer.category!=='キャラクター') return;
+      for(const m of coreTriggerEffectEntries(observer,'常時',/報酬に([赤青緑黄紫])キャラクターが出るたび、このキャラクターは\+(\d+)\/\+(\d+)を得る/)) {
+        if(card.color!==m[1]) continue;
+        observer.power=(Number(observer.power)||0)+Number(m[2]);
+        observer.life=(Number(observer.life)||0)+Number(m[3]);
+        targets.push(index);
+      }
+    });
+    if(targets.length) waves.push([...new Set(targets)]);
+  }
+  return waves;
 }

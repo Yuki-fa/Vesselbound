@@ -414,6 +414,11 @@ function coreEmitAilment(state, emit, event) {
     }
   }
 }
+// 演出の束だけを識別する。対象・数値・乱数・ダメージのbatchには関与しない。
+function corePresentationBatch(state) {
+  state._presentationBatchSeq=(Number(state._presentationBatchSeq)||0)+1;
+  return state._presentationBatchSeq;
+}
 
 // 還魂の報酬は本文から読み、実際の受取・保存は呼び出し側で行う。
 function coreAscensionSpec(card) {
@@ -3456,10 +3461,13 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
     coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'weaken', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(weakenAll[1]) });
   });
   const poisonAll = /開戦：全ての敵に毒(\d+)/.exec(desc);
-  if (poisonAll && !coreHasEffect(unit, '原初の大蛇"エイトルヴォルム"')) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
-    x.poison = Math.max(0, Number(x.poison) || 0) + Number(poisonAll[1]);
-    coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(poisonAll[1]) });
-  });
+  if (poisonAll && !coreHasEffect(unit, '原初の大蛇"エイトルヴォルム"')) {
+    const fxBatch=corePresentationBatch(state);
+    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
+      x.poison = Math.max(0, Number(x.poison) || 0) + Number(poisonAll[1]);
+      coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(poisonAll[1]), effectTrigger:'opening', fxBatch });
+    });
+  }
   if (coreHasEffect(unit, 'ウェンディゴ')) {
     const baseHp = Number(unit.maxHp || unit.hp || 0);
     // **1回あたりの修正値も、何HPにつき1回かも本文から読む**（合体後は-2/-2）。
@@ -3495,10 +3503,13 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
     x.keywords = coreUnitKeywords(x).concat(['貫通']);
     emit({ type: 'keyword_effect', effect: 'keyword_gain', side: x.side, unitId: x.id, keyword: '貫通', sourceId: unit.id });
   });
-  if (coreHasEffect(unit, '原初の大蛇"エイトルヴォルム"')) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
-    x.poison = (Number(x.poison) || 0) + 12;
-    coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, amount: 12, sourceId: unit.id });
-  });
+  if (coreHasEffect(unit, '原初の大蛇"エイトルヴォルム"')) {
+    const fxBatch=corePresentationBatch(state);
+    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
+      x.poison = (Number(x.poison) || 0) + 12;
+      coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, amount: 12, sourceId: unit.id, effectTrigger:'opening', fxBatch });
+    });
+  }
   coreApplyTriggeredShieldGrants(unit, '開戦', allies, rng, emit);
   // **効果は文ごとに見る。**（同じトリガの効果は複数あり得る＝本体＋強化カード）
   const openingTexts = coreTriggerTextParts(unit, '開戦');
@@ -4392,9 +4403,10 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
   }
   // **効果は文ごとに見る。**（同じトリガの効果は複数あり得る＝本体＋強化カード）
   for (const m of coreTriggerEffectEntries(unit, '負傷', /^全ての敵に毒(\d+)を与える/)) {
+    const fxBatch=corePresentationBatch(state);
     foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
       x.poison = (Number(x.poison) || 0) + Number(m[1]);
-      coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(m[1]) });
+      coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(m[1]), effectTrigger:'injury', fxBatch });
     });
   }
   const injuryTexts = coreTriggerTextParts(unit, '負傷');
@@ -4670,7 +4682,7 @@ function coreApplyKeywordOnHit(attacker, target, damageDone, targetPreHp, state,
     const multiplier = target.side === 'p2' && coreRingCount(state, 'p2', '毒沼の指輪') ? 2 : 1;
     const applied = (poisonAmount + bonus) * multiplier;
     target.poison = Math.max(0, Number(target.poison) || 0) + applied;
-    coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: target.side, unitId: target.id, sourceId: attacker.id, amount: applied });
+    coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: target.side, unitId: target.id, sourceId: attacker.id, amount: applied, effectTrigger:'hit' });
   }
   const eye = amounts.evilEye;
   // 2026-10-12: 邪眼・衝撃の戦闘修正も紫の与え手にだけ、通常／合体の本文の値を適用する。
@@ -4863,10 +4875,13 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   }
   // 「負傷&死亡：全ての敵に毒2を与える。」（ラミア。2026-10-22 シート改訂）：負傷の側だけ読まれ、死亡では毒が入っていなかった。
   for (const m of coreTriggerEffectEntries(unit, '死亡', /^全ての敵に毒(\d+)を与える/)) {
-    for (let i = 0; i < repeats; i++) foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
-      x.poison = (Number(x.poison) || 0) + Number(m[1]);
-      coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(m[1]) });
-    });
+    for (let i = 0; i < repeats; i++) {
+      const fxBatch=corePresentationBatch(state);
+      foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
+        x.poison = (Number(x.poison) || 0) + Number(m[1]);
+        coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(m[1]), effectTrigger:'death', fxBatch });
+      });
+    }
   }
   for (const m of coreTriggerEffectEntries(unit, '死亡', /ランダムな([赤青緑黄紫])、([赤青緑黄紫])、([赤青緑黄紫])の味方1体ずつは\+(\d+)\/\+(\d+)を得る/)) {
     for (let i = 0; i < repeats; i++) for (const color of m.slice(1, 4)) {
@@ -5638,7 +5653,7 @@ function coreTriggerBattleEnd(state, emit, rng, applyHit) {
         const atk = Number(m[1]) * repeats, hp = Number(m[2]) * repeats;
         unit.atk += atk; unit.hp += hp; unit.maxHp += hp;
         emit({ type: 'stat_change', side, unitId: unit.id, atk, hp, sourceId: unit.id,
-          reason: 'battle_end_permanent_buff', persistent: true, boardSlot: unit._mainBoardSlot });
+          reason: 'battle_end_permanent_buff', effectText: m.input, persistent: true, boardSlot: unit._mainBoardSlot });
       }
       for (const m of coreTriggerEffectEntries(unit, '終戦', /^リロール(\d+)を得る/)) {
         state.runEffects = state.runEffects || {};
@@ -5670,7 +5685,7 @@ function coreTriggerBattleEnd(state, emit, rng, applyHit) {
             target.maxHp = Math.max(1, (Number(target.maxHp) || 1) + hp);
             target.hp = Math.max(0, (Number(target.hp) || 0) + hp);
             emit({ type: 'stat_change', side, unitId: target.id, atk, hp,
-              reason: 'battle_end_permanent_buff', sourceId: unit.id,
+              reason: 'battle_end_permanent_buff', effectText: permanentTeamBuff[0], sourceId: unit.id,
               persistent: true, boardSlot: target._mainBoardSlot });
           });
       }

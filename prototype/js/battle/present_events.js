@@ -43,6 +43,7 @@ function presentHoldForms(units) {
 let _presentLabLists = new WeakMap();
 let _presentLabClaims = new WeakMap();
 let _presentLabContacts = new WeakMap();
+let _presentLabSummons = new WeakMap();
 let _presentContactHits = new WeakSet();
 let _presentDamageImpacts = new WeakSet();
 let _presentStatChangesShown = new WeakSet();
@@ -50,7 +51,7 @@ let _presentLabOrigins = {death:new Map(),shield:new Map()};
 let _presentDeathOrigins = new WeakMap();
 function presentLabEventHandled(ev) { const plan=ev&&_presentLabClaims.get(ev); return !!(plan&&!plan.hitReactions?.has(ev)); }
 function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C098'); }
-function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentStatChangesShown = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; _presentDeathOrigins=new WeakMap(); presentResetSummonPreview(); }
+function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentLabSummons=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentStatChangesShown = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; _presentDeathOrigins=new WeakMap(); presentResetSummonPreview(); }
 // 死亡位置は生きていたDOMを消す前に、イベントごとに固定する。
 // 束の後半が既に盤面から消えていても、以前倒れた別の体の位置へ戻さない。
 function _presentRememberDeathOrigin(ev, unit) {
@@ -94,7 +95,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   const own=data?data.ownCard(owner):owner;
   // エンチャントが持つ効果は、そのエンチャントの本文で発動の種類を確かめる（2026-10-22 シート改訂で多くの効果がエンチャントへ移った）。
   const textCard=source&&source.kind==='enchant'?source.card:own;
-  const trigger={C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
+  const trigger={C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C092:'passive',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
   if(!presentActionBannerEffectText(textCard,trigger))return null;
   const members=[ev];
   for(let i=index+1;i<events.length;i++){
@@ -104,12 +105,15 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
       if(next.sourceId!=null&&next.sourceId!==sourceId)break;
       if(['mana_gain','keyword_effect'].includes(next.type))members.push(next);
       else if(!['log'].includes(next.type))break;
-    }else if(code==='C039'||code==='C044'){
+    }else if(code==='C039'||code==='C044'||code==='C092'){
       if(next.type==='stat_change'&&next.reason==='summon_buff'&&next.sourceId===sourceId)members.push(next);else break;
     }else if(['C124','C108','C120'].includes(code)&&presentLab1012EventMatches(code,next)&&next.sourceId===sourceId)members.push(next);
     else break;
   }
-  let targets=members.filter(e=>e.type==='stat_change'||e.type==='keyword_effect'||e.type==='damage').map(e=>find(e.unitId)).filter(Boolean);
+  // シャナの付与は、召喚の実体イベントより前に来る。対象の写しを控え、登場してから同じ波を見せる。
+  const joining=code==='C092'?events.slice(index+1).find(e=>e.type==='summon'&&members.some(m=>m.unitId===e.unit?.id)):null;
+  let targets=members.filter(e=>e.type==='stat_change'||e.type==='keyword_effect'||e.type==='damage')
+    .map(e=>find(e.unitId)||(joining?.unit.id===e.unitId?joining.unit:null)).filter(Boolean);
   let value=1,contactEvent=null,sourceRect=null,colors=null;
   if(['C009','E083','E043','C075','E031','C122','E056'].includes(code))targets=[owner];
   if(code==='C009'&&!members.some(e=>e.type==='mana_gain'&&Number(e.amount)>0))return null;
@@ -125,6 +129,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   if(code==='C120'){value=targets.length;if(!value)return null;}
   else if(code!=='C124')targets=[...new Set(targets)];
   if(code==='C044')value=2;
+  if(code==='C092'){value=Number(ev.hp)||1;if(!targets.length)return null;}
   if(code==='E043'||code==='E056')sourceRect=battleFxRect(owner,owner.side==='p2'?'enemy':'ally');
   if(code==='E056'||code==='E024')value=Number(ev.gained);
   if(code==='E024'){
@@ -151,6 +156,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   }
   const plan={code,spec:presentLabFx(code),owner,targets,members,value,colors,sourceRect,contactEvent,events,index,
     side:owner.side==='p2'?'enemy':'ally',generation:battleFxGeneration(),started:false,done:null,impact:new Map(),gains:[]};
+  if(joining){plan.summonEvent=joining;_presentLabSummons.set(joining,[..._presentLabSummons.get(joining)||[],plan]);}
   members.forEach(e=>_presentLabClaims.set(e,plan));_presentLabClaimHitReactions(plan,events);return plan;
 }
 function presentLabManaGainVfx(ev,unit,side){
@@ -210,6 +216,7 @@ function _presentLabPlan(ev, events, index, api, context) {
   if(!presentLabFx(code)) {
     if(ev.type==='keyword_effect'&&ev.effect==='weaken') code=getKeywordAssetKey('弱体');
   }
+  if (!presentAssignedLabEventMatches(code,ev)) return null;
   if(PRESENT_LAB_1012_CODES.has(code))return _presentLab1012Plan(code,ev,events,index,api,source);
   const spec = typeof presentLabFx === 'function' ? presentLabFx(code) : null;
   if (!spec || ['S001',getKeywordAssetKey('復活'),getKeywordAssetKey('全体攻撃')].includes(code)) return null;
@@ -226,7 +233,7 @@ function _presentLabPlan(ev, events, index, api, context) {
   // その強化を付けた体（イベントのunitId）を発動者にする（2026-10-17）。
   const owner = find(sourceId) || (source && source.kind === 'item' ? api.units(ownerSide).find(Boolean) : null)
     || (source && source.kind === 'enchant' && spec[2] === 'self' ? find(ev.unitId) : null);
-  const members = presentLabEffectEvents(events,index,code,sourceId);
+  const members = presentLabEffectEvents(events,index,code,sourceId).filter(e=>presentAssignedLabEventMatches(code,e));
   let targets = members.filter(e=>!['mana_threshold','effect_flash'].includes(e.type)).map(e=>find(e.type==='summon'&&e.unit?e.unit.id:e.unitId)).filter(Boolean);
   if (ev.type === 'effect_flash') {
     const next = presentLabManualTarget(events,index,code);
@@ -240,6 +247,7 @@ function _presentLabPlan(ev, events, index, api, context) {
   if (spec[2] === 'pair') targets = [find(ev.attackerId),find(ev.targetId)].filter(Boolean);
   if (spec[2] === 'foes') targets = targets.filter(u=>api.units(ownerSide==='p2'?'p1':'p2').includes(u));
   targets = [...new Set(targets)];
+  if (['C011','EN060','E028'].includes(code) && !targets.length) return null;
   // field：発動元のカードが盤面に無い効果（不死・鬼神・魔力の指輪）。その陣営の陣の中央を起点にする。
   if (spec[2] === 'field') targets = [];
   const origin = spec[2] === 'dead' ? _presentLabOrigins.death.get(ownerSide) : spec[2] === 'lost' ? _presentLabOrigins.shield.get(ownerSide)
@@ -247,6 +255,7 @@ function _presentLabPlan(ev, events, index, api, context) {
   if (!owner && !origin && !targets.length) return null;
   if (spec[2] === 'morph') {
     targets = [...new Set(members.filter(e=>e.type==='transform').map(e=>find(e.unitId)).filter(Boolean))];
+    if (!targets.length) return null;
     targets.forEach(u=>{
       const shown = battleFxShownForm(u);
       const old = shown !== u ? shown : actionBannerPresentationApi().unit(u.id) || u;
@@ -300,7 +309,7 @@ function _presentLabClaimHitReactions(plan,events){
   }
 }
 function _presentLabStart(plan, options) {
-  if (!plan || plan.started || typeof playBattleLabFx !== 'function') return;
+  if (!plan || plan.started || plan.summonEvent&&!plan.summonReady || typeof playBattleLabFx !== 'function') return;
   plan.started = true;
   const mana = plan.events[plan.index]?.type === 'mana_threshold' ? plan.events[plan.index] : null;
   plan.repeat = options && options.repeat != null ? options.repeat
@@ -368,7 +377,7 @@ async function _presentLabFinish(plan) {
 // 隕石の巻物は、隕石が墜落した直後にダメージを出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。
 // アラクネ（C013）は熱波が届いた瞬間に強化とダメージを同時に出す（2026-10-15）。
 // 竜の契約（E008）・逆上（E032）・嵐の指輪（R023）・苦行の指輪（R012）・受難の刻印（E077）も着弾の瞬間に数値を出す（2026-10-17）。
-const PRESENT_LAB_WAIT_IMPACT = new Set(['C069','E067','I006','C124','C071','C086','C099','C120','C107','C013','E008','E032','R023','R012','E077']);
+const PRESENT_LAB_WAIT_IMPACT = new Set(['C069','E067','I006','C124','C071','C011','EN060','C086','C099','C120','C107','C013','E008','E032','R023','R012','E077']);
 async function presentLabBeginEvent(ev, events, index, api) {
   // 決着後のイベントへ来たら、以後の演出を速くする（present.js presentDecidedSpeedScale）。
   if (typeof presentNoteDecidedEvent === 'function') presentNoteDecidedEvent(ev);
@@ -419,6 +428,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
     }
   }
   if (claimed) {
+    if(['C011','EN060'].includes(claimed.code)&&!context.active)context.active=claimed;
     if(PRESENT_LAB_1012_CODES.has(claimed.code)&&!claimed.contactEvent&&!context.active&&ev.type!=='attack')context.active=claimed;
     if(ev.type==='mana_gain'&&PRESENT_LAB_1012_CODES.has(claimed.code)&&!claimed.contactEvent)await claimed.done;
     if(claimed.code==='C014'&&ev.type==='attack'){
@@ -492,7 +502,7 @@ async function presentLabEndEvent(ev, events, index, api) {
     // 演出を省く時も、結界・毒・弱体などの最終状態表示は進める。
     if(silent)return;
     const gains = [];
-    if(plan&&plan.code==='C071'&&ev.type==='keyword_effect'&&ev.effect==='poison'){
+    if(plan&&plan.spec[0]==='scylla'&&ev.type==='keyword_effect'&&ev.effect==='poison'){
       (plan.keywordGains||(plan.keywordGains=[])).push({ev,api});
     }
     if (ev.type==='keyword_effect' && ev.effect==='weaken' && (!plan||plan.code!==getKeywordAssetKey('弱体'))) gains.push(getKeywordAssetKey('弱体'));
@@ -513,6 +523,15 @@ async function presentLabEndEvent(ev, events, index, api) {
   }
   if(!silent&&ev.type==='mana_set'&&plan&&plan.code==='C075'&&plan.owner&&Number(ev.gained)>0&&typeof playManaGainVfx==='function'){
     _presentLabManaAfter(plan,plan.owner,plan.side);
+  }
+  const joined=_presentLabSummons.get(ev);
+  if(joined&&!silent){
+    for(const pending of joined){
+      pending.targets=pending.targets.map(u=>api.findUnit('p1',u.id)||api.findUnit('p2',u.id)).filter(Boolean);
+      pending.summonReady=true;
+      if(pending.targets.length){_presentLabStart(pending);await _presentLabFinish(pending);}
+    }
+    _presentLabSummons.delete(ev);
   }
   if (index === events.length-1 && context.active) { await _presentLabFinish(context.active); context.active = null; }
 }

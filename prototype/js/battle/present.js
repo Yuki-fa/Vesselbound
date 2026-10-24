@@ -1413,7 +1413,7 @@ const PRESENT_STAT_CHANGE_TRIGGER_REASONS = {
     // 常時（「〜たび」／召喚された味方への上乗せ）
     'warg_count_buff', 'summon_scaling_buff', 'naga_summon', 'jack_o_lantern',
     // 2026-10-23：ハイドラ（敵が状態異常を得るたびHP+）・デュラハン／シャナ（眷属が召喚されるたび）
-    'enemy_ailment_hp', 'summon_observer_stats']),
+    'enemy_ailment_hp', 'summon_observer_stats', 'kill_permanent_buff']),
 };
 const PRESENT_BUFF_VFX_BY_TRIGGER = {
   attack: 'S005', injury: 'S006', death: 'S007', mana: 'S008', opening: 'S009', passive: 'S009',
@@ -1759,6 +1759,17 @@ function presentActionBannerUnitEffectSource(unit, api, pattern, trigger) {
 function presentActionBannerReasonSource(ev, api) {
   const reason = String(ev.reason || '');
   const make = (card, kind) => card && card.name ? { card, side: ev.side, kind } : null;
+  // 同じ体の別効果へ固有演出を流用しない。終戦の自己強化と全体強化はコアの本文で区別する。
+  if (reason === 'battle_end_permanent_buff' && ev.effectText) {
+    const owner = api.unit(ev.sourceId);
+    const attached = owner ? api.enchants(owner) : [];
+    const card = owner && [api.ownCard(owner), ...attached].find(c => String(c.desc || '').includes(ev.effectText));
+    if (card) return {card, side: owner.side, kind: attached.includes(card) ? 'enchant' : 'character'};
+  }
+  if (reason === 'kill_permanent_buff')
+    return presentActionBannerUnitEffectSource(api.unit(ev.sourceId), api, /このキャラクターが敵を倒した(?:場合|時)、このキャラクターは永久に/, 'passive');
+  if (ev.type === 'instant_death' && reason === 'basilisk')
+    return presentActionBannerUnitEffectSource(api.unit(ev.sourceId), api, /ダメージを受けた敵は、\d+%の確率で即死する/, 'passive');
   if (['strange_bond', 'strategy', 'tactician', 'fate_engraving'].includes(reason))
     return make(api.card(PRESENT_ACTION_BANNER_ENCHANT_BY_REASON[reason], 'enchant'), 'enchant');
   if (reason === 'color_ring' || reason === 'color_ring_summon') {
@@ -1967,6 +1978,15 @@ const PRESENT_VFX_SCALE = {
 };
 // LABで承認された置換だけ。効果の判定・数値はコア、ここは演出の対応表。
 const PRESENT_LAB_FX = {
+  // 2026-10-25：既存演出の割り当て。第4要素は共有するSEの番号（LABとゲームで同じ表）。
+  C011:['scylla',.45,'foes','C071'], EN060:['scylla',.45,'foes','C071'],
+  C020:['aura-buff',.45,'target','S009'], C047:['aura-buff',.45,'target','S009'],
+  C070:['aura-buff',.45,'target','S009'], E005:['aura-buff',.45,'target','S009'],
+  E023:['aura-buff',.45,'target','S009'], C040:['aura-buff',.45,'target','S009'],
+  C092:['eidolon',.218375,'kenzoku','C044'], E028:['leprechaun',.9,'self','C088'],
+  E044:['attack-buff',.511,'target','S005'], E016:['dragonnet',.58,'morph','C064'],
+  E027:['death-mark',null,'target',getKeywordAssetKey('即死')],
+  E015:['fang-poison',null,'target',getKeywordAssetKey('毒牙')],
   E006:['dark-fire',.5,'foes'], E035:['resentment',.7,'foe'],
   C050:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
   E071:['shockwave',0.45,'foes'], E075:['demon-soul',.9,'foes'], C042:['vrykolakas',.9,'friend'],
@@ -1997,7 +2017,7 @@ const PRESENT_LAB_FX = {
   R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.450021,'foes'],
   // 2026-10-23 VFX の全検査で割り当て（利用者の確認待ち）：絶魔の指輪（味方が結界を失うたび全ての味方+1/+1）＝常時の強化、
   // 永劫の力（開戦のたびに永久に+1/+1）＝使われなくなった生命の力の演出。
-  R035:['aura-buff',0.45,'friends'], 'map:eternal':['map-life',0.45,'self'],
+  R035:['aura-buff',0.45,'friends','S009'], 'map:eternal':['map-life',0.45,'self'],
   // 新しく作った演出（additions_1023.js）：残響の魔導師の負傷（ランダムな敵へ）・凍てつく亡霊の負傷（ダメージを与えた敵へ）。
   EN013:['echo-bolt',0.45,'foes'], EN031:['frost-retaliate',0.45,'foes'],
   'map:duplicate':['map-duplicate',0.45,'self'],
@@ -2027,7 +2047,23 @@ const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'
   // 変身の巻物＝起動の変身と同じ演出（additions_1023.js）。
   I002:'activation-transform' };
 // 起動（魔導板で対象に使う効果）の演出。activation.js が対象のカードの上（破壊は破壊したカードからヘルナイトへ）に出す。
-const PRESENT_ACTIVATION_FX = { C084:'activation-transform', C109:'activation-empower', C116:'activation-devour' };
+const PRESENT_ACTIVATION_FX = { C084:'dragonnet', C109:'activation-empower', C116:'hellknight-slash' };
+function presentActivationFx(code, available) {
+  const name = PRESENT_ACTIVATION_FX[String(code || '')];
+  return name === 'hellknight-slash' && !available.includes(name) ? 'activation-devour' : name || '';
+}
+// この割り当ては既存の対象バフ／キーワード入口が描画する。LABの表を追加しても二重に再生しない。
+const PRESENT_ASSIGNED_SHARED_FX = new Set(['C020','C047','C070','E005','E023','C040','E044','E015','E027']);
+function presentAssignedLabEventMatches(code, ev) {
+  if (PRESENT_ASSIGNED_SHARED_FX.has(code)) return false;
+  if (code === 'C011' || code === 'EN060') return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0
+    && (!ev.effectTrigger || (code === 'C011' ? ['injury','death'] : ['opening']).includes(ev.effectTrigger));
+  if (code === 'E028') return ev.type === 'stat_change' && ev.reason === 'battle_end_permanent_buff'
+    && ev.unitId === ev.sourceId && (!ev.effectText || /^このキャラクターは永久に/.test(ev.effectText))
+    && (Number(ev.atk) > 0 || Number(ev.hp) > 0);
+  if (code === 'E016') return ev.type === 'transform';
+  return true;
+}
 // マップの力（PRESENT_LAB_FX の 'map:<id>'）とシートの番号（map.js のシート読み込みも使う）。
 const PRESENT_MAP_POWER_NO = { summon:'M001', life:'M002', eternal:'M003', resonance:'M004', duplicate:'M005' };
 // 番号を持たない場面で直接再生する演出。
@@ -2036,7 +2072,7 @@ const PRESENT_DIRECT_LAB_FX = [
 ];
 // 2026-10-22 シート改訂：効果が移った番号へ付け替え（C025→E083・C031→E043・C084→E031・C057→E056・C109→E024、
 // アークデーモン C082 とフィーンド C099 は効果が入れ替わったので演出も入れ替え）。ファミリア C089 は効果が変わったので外した。
-const PRESENT_LAB_1012_CODES=new Set(['C009','E083','E043','C075','E031','C091','C124','C039','C044','C107','C108','C120','C122','C014','E056','C071','C086','C099','E024','C119']);
+const PRESENT_LAB_1012_CODES=new Set(['C009','E083','E043','C075','E031','C091','C124','C039','C044','C092','C107','C108','C120','C122','C014','E056','C071','C086','C099','E024','C119']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
 // 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
 function presentLab1012EventMatches(code,ev){
@@ -2045,6 +2081,7 @@ function presentLab1012EventMatches(code,ev){
   if(['E083','E043','E031','C091'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({E083:'injury_chance_mana',E043:'manaOnDeath',E031:'manaOnAttack',C091:'nymph_colors'})[code];
   if(code==='C075')return ev.type==='mana_set'&&ev.reason==='behemoth'&&Number(ev.gained)>0;
   if(code==='C039'||code==='C044')return ev.type==='summon_buff';
+  if(code==='C092')return ev.type==='summon_buff'&&(Number(ev.atk)>0||Number(ev.hp)>0);
   if(code==='C107')return ev.type==='damage'&&ev.damageKind!=='combat';
   if(code==='C124')return ev.type==='stat_change'&&ev.reason==='arch_demon_purple_buff';
   if(code==='C108')return ev.type==='stat_change'&&ev.reason==='injury_enemy_atk_down';
@@ -2057,7 +2094,7 @@ function presentLab1012EventMatches(code,ev){
 }
 const PRESENT_LAB_SPEED = 1.5;
 // ファントム／エイドロンは最後の層が消えた後に空白がある。絵の速さは保ち、空白だけ省く。
-const PRESENT_LAB_TRIM_TAIL_CODES = new Set(['C039','C044']);
+const PRESENT_LAB_TRIM_TAIL_CODES = new Set(['C039','C044','C092']);
 function presentLabPlaybackEndRatio(code, definition, hasTargets = true) {
   if (!PRESENT_LAB_TRIM_TAIL_CODES.has(code) || !definition) return 1;
   const layers=definition.layers.filter(layer=>hasTargets||layer.anchor!=='each-target');
@@ -2074,6 +2111,7 @@ const PRESENT_LAB_SPEED_BY_CODE = { S001:2.5 };
 function presentLabSpeed(code) { return PRESENT_LAB_SPEED * (PRESENT_LAB_SPEED_BY_CODE[String(code || '').trim()] || 1); }
 const PRESENT_LAB_SOUND_FADE_MS = 1100;
 function presentLabFx(code) { return PRESENT_LAB_FX[String(code || '').trim()] || null; }
+function presentLabSoundCode(code) { return presentLabFx(code)?.[3] || code; }
 function presentLabManualTarget(events, index, code) {
   for(let i=index+1;i<(events||[]).length;i++) {
     const e=events[i];
@@ -2088,6 +2126,9 @@ function presentLabManualTarget(events, index, code) {
 function presentLabEffectEvents(events, index, code, ownerId) {
   const list = Array.isArray(events) ? events : [], first = list[index];
   if (!first) return [];
+  // 毒の付与がハイドラ等を誘発しても、コアが確定した同じ効果の束を分裂させない。
+  if (['C011','EN060'].includes(code) && first.fxBatch != null)
+    return list.filter(ev=>ev.type===first.type&&ev.sourceId===ownerId&&ev.fxBatch===first.fxBatch);
   const out = [first], mana = first.type === 'mana_threshold';
   // マナ効果の直後に指輪が発動することがある。末尾の発動記録が指す命中の束は
   // 独立した効果なので、直前の効果のclaimsへ取り込まない（落雷が出なくなる）。
@@ -2097,6 +2138,7 @@ function presentLabEffectEvents(events, index, code, ownerId) {
     if (!ev || ['turn_begin','battle_end','mana_threshold','effect_flash'].includes(ev.type)) break;
     if (ringHits.has(ev) && ringHits.get(ev).name !== ringHits.get(first)?.name) break;
     if (ev.type === 'attack' && !(code === 'C098' && ev.controlled)) break;
+    if (code === 'E028' && ev.type === first.type && ev.effectText !== first.effectText) break;
     if (first.type === 'damage' && ev.type === 'damage' &&
       ((first.batch || ev.batch) && presentDamageGroupKey(ev) !== presentDamageGroupKey(first)
       || presentDamageKind(ev) !== presentDamageKind(first) || ev.sourceId !== first.sourceId || ev.fxEffect !== first.fxEffect
