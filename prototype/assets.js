@@ -113,6 +113,13 @@ const Assets = {
     // ナンバー（CXXX）に対応する定義があれば、通常の被弾定義の代わりに再生する。
     // 存在するものだけをここに登録する（未登録＝通常の被弾定義を使用）。
     characterEffect: {
+      // 2026-10-25 利用者指定の新しい演出（additions_1025.js）。ラン効果・復活の指輪の演出（present.js presentRunEffectVfxCode・presentReviveEvent）。
+      // SE は LAB で候補を選ぶまで無し（Assets.sfx に登録しない）。
+      'C062': 'vfx:C062:ymir-aura',          // ユミル：終戦のリロール
+      'C095': 'vfx:C095:grimalkin-pillar',   // グリマルキン：4回目の終戦でエンチャントを強化した時
+      'C095_1': 'vfx:C095:grimalkin-glint',  // グリマルキン：1〜3回目の終戦（あとX戦）
+      'C114': 'vfx:C114:reward-blessing',    // ファミリア・ゴーレム：報酬とトレーダーのキャラクターの強化
+      'R018': 'vfx:R018:revival-ring',       // 復活の指輪：最初に死んだ味方が蘇った時
       'C006': 'vfx:S003:gold-gain', // 金貨（素材名はS003へ変更済み）
       'C007': 'vfx:C007:attack-recoil',
       'C008': 'vfx:S006:injury-buff', // ゴーレム（素材名はS006へ変更済み）
@@ -578,7 +585,7 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   // 「BC002」などがどの分岐にも当たらず空文字になり、絵が出ない。
   // 「EN075_1」のような枝番付きのNo.も受け付ける（ラスボス戦の後衛3体など、
   // 同じ番号で複数の個体が並ぶケース）。枝番はそのままファイル名へ残す。
-  const prefixed=text.match(/^(BC|NPC|MC|EN|CF|P|[ECS])\s*0*(\d+)(_\d+)?$/i);
+  const prefixed=text.match(/^(BC|NPC|MC|EN|CF|P|[ECSR])\s*0*(\d+)(_\d+)?$/i);
   if(prefixed){
     let p=prefixed[1].toUpperCase();
     if(p==='P') p='MC';

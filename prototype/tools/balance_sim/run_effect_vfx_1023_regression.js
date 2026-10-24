@@ -30,16 +30,19 @@ function check(name, fn) {
       assert.equal(events.filter(e => e.type === 'keyword_effect' && e.effect === 'poison').length, 3, trigger);
     }
   });
-  check('run_effect はトリガを載せ、トリガのバフ演出を出す', () => {
+  // 2026-10-25 利用者指定：効果の種類ごとの専用演出へ（報酬への祝福・神秘のオーラ・煌めき／光の柱）。
+  check('run_effect はトリガを載せ、効果の種類ごとの専用演出を出す', () => {
     const golem = fire('C008', 'injury').events.find(e => e.type === 'run_effect');
     assert.equal(golem.kind, 'reward_buff'); assert.equal(golem.trigger, '負傷');
-    assert.equal(presentRunEffectVfxCode(golem), 'S006', 'ゴーレム（負傷）');
+    assert.equal(presentRunEffectVfxCode(golem), 'C114', 'ゴーレム（負傷）＝報酬への祝福');
     const familiar = fire('C114', 'attack').events.find(e => e.type === 'run_effect');
-    assert.equal(familiar && familiar.trigger, '攻撃'); assert.equal(presentRunEffectVfxCode(familiar), 'S005', 'ファミリア（攻撃）');
+    assert.equal(familiar && familiar.trigger, '攻撃'); assert.equal(presentRunEffectVfxCode(familiar), 'C114', 'ファミリア（攻撃）＝報酬への祝福');
     const ymir = fire('C062', 'battleEnd').events.find(e => e.type === 'run_effect' && e.kind === 'reroll');
-    assert.equal(ymir && ymir.trigger, '終戦'); assert.equal(presentRunEffectVfxCode(ymir), 'S009', 'ユミル（終戦）');
-    assert.equal(presentRunEffectVfxCode({ type: 'run_effect', kind: 'enchant_upgrade', trigger: '終戦', targetSlots: [] }), '', '強化しなかった回は出さない');
-    assert.equal(presentRunEffectVfxCode({ type: 'run_effect', kind: 'enchant_upgrade', trigger: '終戦', targetSlots: [2] }), 'S009', 'グリマルキン（4回目の終戦）');
+    assert.equal(ymir && ymir.trigger, '終戦'); assert.equal(presentRunEffectVfxCode(ymir), 'C062', 'ユミル（終戦）＝神秘のオーラ');
+    assert.equal(presentRunEffectVfxCode({ type: 'run_effect', kind: 'enchant_upgrade', trigger: '終戦', targetSlots: [] }), 'C095_1', '強化しなかった回（あとX戦）は小さな煌めき');
+    assert.equal(presentRunEffectVfxCode({ type: 'run_effect', kind: 'enchant_upgrade', trigger: '終戦', targetSlots: [2] }), 'C095', 'グリマルキン（4回目の終戦）＝光の柱');
+    for (const [code, name] of [['C114', 'reward-blessing'], ['C062', 'ymir-aura'], ['C095', 'grimalkin-pillar'], ['C095_1', 'grimalkin-glint'], ['R018', 'revival-ring']])
+      assert.equal(getVfxDefinitionName(getCharacterEffectVfxPath({ fxCode: code })), name, code + ' の演出');
   });
   check('PvE とオンラインの受け口が同じ処理を呼ぶ', () => {
     for (const f of ['js/engine/battle_events.js', 'js/online/board.js'])

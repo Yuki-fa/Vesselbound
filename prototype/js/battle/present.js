@@ -1427,13 +1427,21 @@ const PRESENT_BUFF_VFX_CODES = new Set(Object.values(PRESENT_BUFF_VFX_BY_TRIGGER
 // 2026-10-23 利用者指摘「ゴーレムなど、出なくなったものがあります」：シート改訂で効果が能力変化から run_effect へ変わり、
 // 演出が無くなっていた（ゴーレム・ファミリア・ユミル・グリマルキン）。発生元の上に、トリガのバフ演出を出す。
 // 終戦は開戦・常時と同じ S009。接続エンチャントの強化は、実際に強化した回（4回目ごと）だけ出す。
+// 2026-10-25 利用者指定：効果の種類ごとの専用演出へ（assets.js characterEffect の番号）。戦闘中の強化と雰囲気を分ける。
+//   報酬とトレーダーの強化（ファミリア・ゴーレム）＝報酬への祝福、リロール（ユミル）＝神秘のオーラ、
+//   接続エンチャントの強化（グリマルキン）＝強化した回は光の柱・それ以外の終戦（あとX戦）は小さな煌めき。
 const PRESENT_RUN_EFFECT_TRIGGERS = { '攻撃': 'attack', '負傷': 'injury', '死亡': 'death', '開戦': 'opening', '終戦': 'passive' };
+const PRESENT_RUN_EFFECT_FX = { reward_buff: 'C114', reroll: 'C062' };
+// 専用演出の尺（ms）。LAB の標準の速さ（1.5倍）と同じに見せる。無い番号は能力変化の固有VFXと同じ尺。
+const PRESENT_RUN_EFFECT_FX_MS = { C114: 1000, C062: 1070, C095: 1200, C095_1: 600, R018: 1000 };
 function presentRunEffectVfxCode(ev) {
   if (!ev || ev.type !== 'run_effect') return '';
-  if (ev.kind === 'enchant_upgrade' && !(Array.isArray(ev.targetSlots) && ev.targetSlots.length)) return '';
+  if (ev.kind === 'enchant_upgrade') return Array.isArray(ev.targetSlots) && ev.targetSlots.length ? 'C095' : 'C095_1';
+  if (PRESENT_RUN_EFFECT_FX[ev.kind]) return PRESENT_RUN_EFFECT_FX[ev.kind];
   const trigger = PRESENT_RUN_EFFECT_TRIGGERS[String(ev.trigger || '')];
   return trigger ? PRESENT_BUFF_VFX_BY_TRIGGER[trigger] : '';
 }
+function presentRunEffectVfxMs(code, fallback) { return PRESENT_RUN_EFFECT_FX_MS[String(code || '')] || fallback; }
 // 列にバフの番号が無くても**一律でバフの演出にする**トリガ。
 // 攻撃＝カードごとの絵にすると攻撃のたびに別の絵が出て何の効果か読めない。
 // 開戦・常時＝利用者指定（S009）。マナ＝発生元の固有VFXと重ねないため。
@@ -2427,6 +2435,7 @@ if (typeof window !== 'undefined') {
   window.presentStatChangeVfxAllowed = presentStatChangeVfxAllowed;
   window.presentStatChangeVfxCode = presentStatChangeVfxCode;
   window.presentRunEffectVfxCode = presentRunEffectVfxCode;
+  window.presentRunEffectVfxMs = presentRunEffectVfxMs;
   window.PRESENT_ACTIVATION_FX = PRESENT_ACTIVATION_FX;
   window.presentIsBuffVfxCode = presentIsBuffVfxCode;
   window.PRESENT_CARD_EFFECT_VFX_MS = PRESENT_CARD_EFFECT_VFX_MS;
@@ -2466,7 +2475,7 @@ if (typeof module !== 'undefined' && module.exports) {
     PRESENT_CONTACT_PIERCE_START_OFFSET, PRESENT_CONTACT_PIERCE_OVERSHOOT,
     PRESENT_MISSILE_NOSE_OFFSET_DEG, PRESENT_EFFECT_HIT_OFFSET_Y, presentMissileEase, presentMissileControlPoints, presentMissileFlightMs,
     presentIsProjectileEffect, presentEffectDamageEvents,
-    presentDamageVfxSource, presentStatChangeVfxAllowed, presentStatChangeVfxCode, presentRunEffectVfxCode,
+    presentDamageVfxSource, presentStatChangeVfxAllowed, presentStatChangeVfxCode, presentRunEffectVfxCode, presentRunEffectVfxMs,
     PRESENT_CARD_EFFECT_VFX_MS, presentIsScreenBottomVfx,
     presentManaEffectKey, presentManaWaveKey, presentManaWaveEvents, presentManaWaveInfo, presentManaStatChangeEvents,
     presentBeginPlayback, presentEndPlayback, presentIsPlaying, presentResetPlayback,

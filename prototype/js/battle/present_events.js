@@ -887,7 +887,8 @@ async function presentRunEffectEvent(ev, api) {
   const unit = code ? api.findUnit(ev.side, ev.unitId) : null;
   if (!unit || typeof _playCardEffectVfx !== 'function') return false;
   if (typeof presentFlushEffectFlashes === 'function') presentFlushEffectFlashes();
-  const duration = typeof PRESENT_CARD_EFFECT_VFX_MS === 'number' ? PRESENT_CARD_EFFECT_VFX_MS : 700;
+  const base = typeof PRESENT_CARD_EFFECT_VFX_MS === 'number' ? PRESENT_CARD_EFFECT_VFX_MS : 700;
+  const duration = typeof presentRunEffectVfxMs === 'function' ? presentRunEffectVfxMs(code, base) : base;
   if (typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(code, duration);
   await _playCardEffectVfx(code, [unit], { gateMs: 0, hitDuration: duration });
   return true;
@@ -1216,7 +1217,14 @@ async function presentReviveEvent(ev, api) {
   // ダメージで0まで進めた表示をそのままにすると、根性で耐えたのに
   // 戦闘終了時のHPが0のまま残る。
   if (unit0 && typeof api.applyStats === 'function') api.applyStats(unit0, ev);
-  // 専用の演出があるのはキーワード「復活」だけ（指輪・根性は演出なし）。
+  // 2026-10-25 利用者指定：復活の指輪で蘇った時は専用の演出（revival-ring。assets.js の R018）を蘇った体の上に出す。
+  if (String(ev.reason || '') === 'revival_ring' && unit0 && typeof _playCardEffectVfx === 'function') {
+    if (typeof api.render === 'function') api.render();
+    const duration = typeof presentRunEffectVfxMs === 'function' ? presentRunEffectVfxMs('R018', 1000) : 1000;
+    await _playCardEffectVfx('R018', [unit0], { gateMs: 0, hitDuration: duration });
+    return true;
+  }
+  // 専用の演出があるのはキーワード「復活」と復活の指輪だけ（根性は演出なし）。
   if (String(ev.reason || '') !== '復活') return false;
   const unit = unit0;
   if (!unit || typeof playReviveVfx !== 'function') return false;

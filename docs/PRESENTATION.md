@@ -831,3 +831,13 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
   - 既存の FIX 済み演出の割り当て（確認待ち）：絶魔の指輪 R035＝aura-buff（味方全体）、永劫の力 M003＝map-life（開戦の着地。battle.js `_battleOpeningLandingVfx`。PvE・オンライン共通）、キーワードの巻物 I015〜I023＝keyword-grant（いずれもシートでは未実装）。
   - 新しく作った演出（js/vfx/defs/additions_1023.js。FIX 済みのフロスト・スプライト／サイレンの波／常時の強化の層の組み方を土台に Claude が作成。確認待ち）：残響の魔導師 EN013＝echo-bolt（三重の残響の輪と紫の魔導弾）、凍てつく亡霊 EN031＝frost-retaliate（菫の氷の針の反撃）、起動の変身 C064・変身の巻物 I002＝activation-transform、インキュバスの起動 C084＝activation-empower、ヘルナイトの起動 C091＝activation-devour（破壊したカードの位置からヘルナイトへ。血の滴は使わない）。起動の演出は activation.js `_playActivationFx`（表は present.js `PRESENT_ACTIVATION_FX`）、SE は巻物の共通音を仮に使う。
   - 血の指輪 R036 は画面上の発生場所が無いので演出なし（－）。強靭の指輪 R015・神速の指輪 R031 は SE を選び直し中で未FIX（☆）。
+- 2026-10-25 利用者指定の演出（確認待ち＝LAB で☆。lab_fixed.js `VbFxLabPending`）
+  - 既存演出の割り当て（present.js `PRESENT_LAB_FX`・第4要素は共有するSEの番号）：ラミア・エイトヴォルム＝scylla、エティン・デュラハン・ハイドラ・執念の炎・武威＝S009、シャナ＝eidolon、
+    マナの種の即死＝即死の演出、成長（そのカード自身の永久バフ）＝leprechaun、復讐の炎＝S005、毒袋＝毒を与えた時の演出、変化＝dragonnet、シルフの起動＝dragonnet（PRESENT_ACTIVATION_FX）。
+    絶魔の指輪は S009 の音を鳴らす（鳴っていなかった）。
+  - 新しい演出（js/vfx/defs/additions_1025.js、Claude 直接）：ヘルナイトの起動＝hellknight-slash（左上→右下の剣戟。対象のカードは activation.js が 260ms で斜めに切って40pxずらしながら消す）、
+    ユミル＝ymir-aura、グリマルキン＝強化した回は grimalkin-pillar・それ以外の終戦は grimalkin-glint、ファミリア・ゴーレム＝reward-blessing、復活の指輪＝revival-ring
+    （present.js `presentRunEffectVfxCode`／`PRESENT_RUN_EFFECT_FX_MS`、present_events.js `presentReviveEvent`。番号は assets.js characterEffect の C114・C062・C095・C095_1・R018）。
+    隠密 stealth-veil・防戦 guard-stance は LAB だけ（ゲームでいつ出すかは確認待ち）。SE は LAB の3候補から選ぶまで無し。
+  - 攻撃・負傷・死亡バフ（S005〜S007）の粒子はマナ効果のバフと同じくカードの1.15倍から収束（以前は1.9倍でカード外に光が出ていた）。
+  - インキュバスの起動：色の変化で古い枠を重ねて 400ms でフェード（activation.js `ACTIVATION_COLOR_FADE_MS`）。

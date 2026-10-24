@@ -5652,7 +5652,7 @@ VbFxDefs.register({
     },
     {
       "name": "stealth-veil",
-      "label": "隠密：迷彩 · K013",
+      "label": "隠密：迷彩",
       "ms": 1500,
       "color": "#a9b8a0",
       "light": "#eef4ea",
@@ -5671,7 +5671,6 @@ VbFxDefs.register({
         "cueMs": 560
       },
       "composites": [],
-      "sourceCode": "K013",
       "layers": [
         {
           "type": "card",
@@ -5991,7 +5990,7 @@ VbFxDefs.register({
     },
     {
       "name": "guard-stance",
-      "label": "防戦：構える盾 · K014",
+      "label": "防戦：構える盾",
       "ms": 1300,
       "color": "#c8b48a",
       "light": "#fff6e4",
@@ -6010,7 +6009,6 @@ VbFxDefs.register({
         "cueMs": 430
       },
       "composites": [],
-      "sourceCode": "K014",
       "layers": [
         {
           "type": "flash",
