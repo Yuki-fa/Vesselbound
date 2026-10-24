@@ -611,7 +611,10 @@ var VbFxPreview = (function () {
   window.addEventListener('resize', scaleBoard); scaleBoard();
   if (typeof MutationObserver === 'function') {
     new MutationObserver(function (changes) {
-      changes.forEach(function (change) { if (change.target.classList.contains('summon-slot')) layoutSummonRow(change.target, effect === 'direwolf'); });
+      // 2026-10-25 利用者指摘「ダイアウルフのVFXを再生すると、以後のプレビューでカードがズレたまま」：
+      // 再生が終わった後・別のページへ移った後も effect が direwolf のままなので、隠れたウルフを並びに数え続けていた。
+      // 隠れたウルフを数えるのは、ダイアウルフを再生している間（登場の光を最終の位置に出すため）だけにする。
+      changes.forEach(function (change) { if (change.target.classList.contains('summon-slot')) layoutSummonRow(change.target, effect === 'direwolf' && running > 0); });
     }).observe($('cards'), { subtree: true, attributes: true, attributeFilter: ['class'] });
   }
   select(effect);

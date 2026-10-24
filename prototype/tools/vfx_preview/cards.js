@@ -14,7 +14,15 @@ var VbFxCards = (function () {
     var codes=[card.kind==='keyword'?keywordKeys[card.name]:card.no].concat(card.kind==='specialFx'&&keywordKeys[card.name]?[keywordKeys[card.name]]:[],String(card.row['VFX/SE']||'').split(/[\s,、/]+/));
     // 番号とシートの「VFX/SE」列が同じ番号を指すと同じ演出が2回並び、見出しを押すと2回再生されていた（2026-10-23 利用者指摘：アラクネ・サイクロプス）。
     var seen={};
-    return codes.filter(function(c){if(!labFx[c]||seen[labFx[c][0]])return false;seen[labFx[c][0]]=1;return true;}).map(function(c){return {name:labFx[c][0]};});
+    var list=codes.filter(function(c){if(!labFx[c]||seen[labFx[c][0]])return false;seen[labFx[c][0]]=1;return true;}).map(function(c){return {name:labFx[c][0]};});
+    // 2026-10-25 利用者指摘「アイテムはほとんどバフがあるはずですが、プレビューでは見れません」：
+    // 番号の表（PRESENT_LAB_FX）に無い、巻物の使用（PRESENT_ITEM_USE_FX）・起動（PRESENT_ACTIVATION_FX）・マスの力の演出も、ゲームと同じ表から再生する。
+    var extra=[];
+    if(typeof PRESENT_ITEM_USE_FX!=='undefined'&&PRESENT_ITEM_USE_FX[card.no])extra.push(PRESENT_ITEM_USE_FX[card.no]);
+    if(window.VbFxLabActivationFx&&VbFxLabActivationFx[card.no])extra.push(VbFxLabActivationFx[card.no]);
+    if(card.kind==='mapPanelPower'&&typeof PRESENT_MAP_POWER_NO!=='undefined')Object.keys(PRESENT_MAP_POWER_NO).forEach(function(id){if(PRESENT_MAP_POWER_NO[id]===card.no&&labFx['map:'+id])extra.push(labFx['map:'+id][0]);});
+    extra.forEach(function(name){if(!seen[name]&&VbFx.effects.some(function(d){return d.name===name;})){seen[name]=1;list.push({name:name});}});
+    return list;
   }
   function allowed(card,vfx){return !M.suppressed(card,vfx,VbFxLabStore.get(),keywordKeys);}
   function previewPaths(card){

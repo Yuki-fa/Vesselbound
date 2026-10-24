@@ -19,7 +19,7 @@ async function baselineChecks(){
     assert.deepEqual(shapesOf(read('js/vfx/defs/webp_geometry.js')),shapesOf(sourceLoader('js/vfx/defs/webp_geometry.js')),'既存の全定義を保持: js/vfx/defs/webp_geometry.js（flare・crystal-gemを除く）');}
   {const keep=src=>literalDefinition(src,'effects').effects.filter(d=>!REDRAWN.has(d.name));
     assert.deepEqual(keep(read('js/vfx/defs/effects.js')),keep(sourceLoader('js/vfx/defs/effects.js')),'既存の全定義を保持: js/vfx/defs/effects.js（描き直した2種を除く）');}
-  const before=harness(false,null,{sourceLoader,excludeScripts:['js/vfx/defs/characters_1012.js','js/vfx/defs/additions_1017.js','js/vfx/defs/additions_1023.js']}),after=harness(false);
+  const before=harness(false,null,{sourceLoader,excludeScripts:['js/vfx/defs/characters_1012.js','js/vfx/defs/additions_1017.js','js/vfx/defs/additions_1023.js','js/vfx/defs/additions_1025.js']}),after=harness(false);
   assert.equal(before.fx.effects.length,82);
   // 描画命令の完全一致は元の50種（effects.js）だけ。置換32種（webp.js）は2026-10-14から作り直している。
   const original=new Set(literalDefinition(read('js/vfx/defs/effects.js'),'effects').effects.map(d=>d.name));assert.equal(original.size,50);
@@ -41,7 +41,8 @@ async function newDataChecks(){
   const shared=data.effects.find(d=>d.name==='phantom');assert.equal(shared.variants.length,1);assert.equal(shared.variants[0].name,'eidolon');
   // 2026-10-17: additions_1017.js の新規分を除いて数える（第2段の総数は変えない）。
   // 2026-10-23: additions_1023.js（VFX の全検査で新しく作った演出）も同じく除く。
-  const added1017=['additions_1017.js','additions_1023.js'].reduce((n,f)=>n+(t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/'+f),'utf8')).effects.length,0);
+  // 2026-10-25: additions_1025.js（利用者指定の新しい演出）も同じく除く。
+  const added1017=['additions_1017.js','additions_1023.js','additions_1025.js'].reduce((n,f)=>n+(t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/'+f),'utf8')).effects.length,0);
   assert.ok(jsonBytes<=1e6);assert.equal(bundle.effects.length,102+added1017);
   const h=harness(false);assert.equal(h.fx.effects.length,103+added1017);
   assert.equal(h.fx.effects.find(d=>d.name==='phantom').layers,h.fx.effects.find(d=>d.name==='eidolon').layers,'共有定義の層を参照し、複製しない');

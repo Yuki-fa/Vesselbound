@@ -1,0 +1,106 @@
+{
+ "frost-retaliate": {
+  "why": "亡霊の冷気の反撃：凍りつく氷の魔法",
+  "q": [
+   "MAGIC ICE Freeze Cast Small",
+   "MAGIC ICE Cast Large Frost",
+   "MAGIC ICE Break Out Of Spell"
+  ]
+ },
+ "echo-bolt": {
+  "why": "三重の残響と魔導弾：響きの残る魔力の弾",
+  "q": [
+   "WHOOSH HIT-Starfall Echo",
+   "Title Transition Delay Medium",
+   "MAGIC ELECTRIC Cast Medium"
+  ]
+ },
+ "activation-transform": {
+  "why": "翡翠の渦と変身の閃光：姿が変わる",
+  "q": [
+   "Title Transition Evolver Transformation",
+   "Title Transition Evolver Short",
+   "MAGIC WATER Cast Medium"
+  ]
+ },
+ "activation-empower": {
+  "why": "昇る薔薇金の光と五色の粒：力が満ちる明るい音",
+  "q": [
+   "Title Transition Bell Swell",
+   "MAGIC WHITE Cast Medium Energy",
+   "Title Transition Crystal Glow"
+  ]
+ },
+ "activation-devour": {
+  "why": "黒紅の瘴気を吸い込む：暗い吸い込み",
+  "q": [
+   "MAGIC BLACK Whoosh Large",
+   "WHOOSH HIT-Dark Void",
+   "Title Transition Stab Dark Demonic"
+  ]
+ },
+ "ymir-aura": {
+  "why": "ユミル：終戦にリロールを得る神秘的なオーラ",
+  "q": [
+   "Title Transition Crystal Eerie",
+   "Title Transition Bell Warble",
+   "Title Transition Musical Tone Warble"
+  ]
+ },
+ "grimalkin-glint": {
+  "why": "グリマルキン：終戦1〜3回目の小さな煌めき",
+  "q": [
+   "Title Transition Tinkly",
+   "Title Transition Glass Element",
+   "Title Transition Crystal Element"
+  ]
+ },
+ "grimalkin-pillar": {
+  "why": "グリマルキン：4回目の豪華な光の柱",
+  "q": [
+   "Title Transition Ascend",
+   "BOOM Aurora Burst",
+   "IMPACT GAME-Big Discovery"
+  ]
+ },
+ "reward-blessing": {
+  "why": "ファミリア・ゴーレム：報酬とトレーダーのキャラクターの強化（戦闘外）",
+  "q": [
+   "UIMisc-DS_MEDIEVAL-Purchase",
+   "UIMisc-DS_MEDIEVAL-Positive Heavy",
+   "Foley Coins Jingle In Envelope"
+  ]
+ },
+ "hellknight-slash": {
+  "why": "ヘルナイト：赤い剣戟の一閃と血の吸収",
+  "q": [
+   "WHOOSH HIT-Nemesis",
+   "SWORD Falchion Impale",
+   "MELEE - DESIGNED - WHOOSH Slow Mo"
+  ]
+ },
+ "revival-ring": {
+  "why": "復活の指輪：最初に死んだ味方が最大HPで蘇る",
+  "q": [
+   "IMPACT GAME-Mysterious Revelation",
+   "Title Transition Bell Element",
+   "BOOM Dawn Glow"
+  ]
+ },
+ "stealth-veil": {
+  "why": "隠密：迷彩で姿が溶ける",
+  "q": [
+   "Title Transition Reverse Whoosh Reverse",
+   "Title Transition Whoosh Drone",
+   "Title Transition Sweep Warble"
+  ]
+ },
+ "guard-stance": {
+  "why": "防戦：重い盾を構える（攻撃しない）",
+  "q": [
+   "SHIELD Metal Hit Heavy",
+   "IMPACT PHSYICS-Iron Clash",
+   "IMPACT-Hollow Slam"
+  ]
+ }
+}

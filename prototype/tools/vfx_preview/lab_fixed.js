@@ -47,14 +47,22 @@ var VbFxLabFixed = {
  * VbFxLabStarNotes：戦闘中に演出を出さないもの（－）の理由。 */
 var VbFxLabPending = {
   C067:'mana-buff（ウォーグのバフに出ていなかった）', C070:'aura-buff（敵が状態異常を得るたびHP+）', C047:'aura-buff（眷属が召喚されるたび）',
-  C092:'aura-buff（眷属の強化）', C095:'aura-buff（4回目の終戦でエンチャントを強化した時）', C008:'injury-buff（報酬とトレーダーの強化）',
-  C114:'attack-buff（報酬とトレーダーの強化）', C062:'aura-buff（終戦のリロール）', C012:'injury-buff＋S006の音（音が鳴っていなかった）',
-  R035:'aura-buff（味方が結界を失うたび全ての味方+1/+1）', M003:'map-life（開戦の着地。旧・生命の力の演出）',
+  C092:'eidolon（エイドロンと同じ。2026-10-25）', C012:'injury-buff＋S006の音（音が鳴っていなかった）',
+  R035:'aura-buff＋S009の音（味方が結界を失うたび全ての味方+1/+1。2026-10-25 音が鳴らなかった）', M003:'map-life（開戦の着地。旧・生命の力の演出）',
   I015:'keyword-grant', I016:'keyword-grant', I017:'keyword-grant', I018:'keyword-grant', I019:'keyword-grant',
   I020:'keyword-grant', I021:'keyword-grant', I022:'keyword-grant', I023:'keyword-grant',
   // 新しく作った演出（additions_1023.js）
   EN013:'echo-bolt（新作）', EN031:'frost-retaliate（新作）', C084:'activation-transform（新作。起動の変身）',
-  C109:'activation-empower（新作。起動の強化と色の変化）', C116:'activation-devour（新作。起動の破壊）', I002:'activation-transform（新作。変身の巻物）',
+  C109:'activation-empower（新作。起動の強化と色の変化）', I002:'activation-transform（新作。変身の巻物）',
+  // 2026-10-25 利用者指定の割り当て（流用）
+  C011:'scylla（スキュラと同じ）', EN060:'scylla（スキュラと同じ）', C020:'aura-buff（常時バフ）', E005:'aura-buff（常時バフ）', E023:'aura-buff（常時バフ）',
+  E027:'即死の演出（即死が起きた時）', E028:'leprechaun（レプラコーンと同じ。そのカード自身の永久バフ）', E044:'attack-buff（攻撃バフ）',
+  E015:'毒を与えた時の演出', E016:'dragonnet（ドラゴネットと同じ変身）', C040:'aura-buff（報酬に青キャラクターが出た時）',
+  // 2026-10-25 新しく作った演出（additions_1025.js）
+  C062:'ymir-aura（新作。終戦のリロール）', C095:'grimalkin-glint／grimalkin-pillar（新作。終戦1〜3回目／4回目）',
+  C114:'reward-blessing（新作。報酬とトレーダーの強化）', C008:'reward-blessing（新作。報酬とトレーダーの強化）',
+  C116:'hellknight-slash（新作。起動の剣戟と血の吸収）', R018:'revival-ring（新作）',
+  K013:'stealth-veil（新作。ゲームでいつ出すかは確認待ち）', K014:'guard-stance（新作。ゲームでいつ出すかは確認待ち）',
 };
 var VbFxLabStarNotes = {
   E029:'開戦で死亡効果を発動する（発動した死亡効果の演出が出る）',

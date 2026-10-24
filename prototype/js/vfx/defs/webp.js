@@ -13911,7 +13911,7 @@ VbFxDefs.register({
             "keys": [
               [
                 0.0,
-                1.9
+                1.15
               ],
               [
                 1.0,
@@ -14747,7 +14747,7 @@ VbFxDefs.register({
             "keys": [
               [
                 0,
-                1.9
+                1.15
               ],
               [
                 1,
@@ -15506,7 +15506,7 @@ VbFxDefs.register({
             "keys": [
               [
                 0.0,
-                1.9
+                1.15
               ],
               [
                 1.0,
@@ -15831,7 +15831,7 @@ VbFxDefs.register({
             "keys": [
               [
                 0,
-                1.5
+                1.15
               ],
               [
                 1,

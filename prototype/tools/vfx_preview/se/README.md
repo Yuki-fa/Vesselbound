@@ -116,6 +116,21 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 | intimidate-ring | [Production Element Title Transition Stab Dark Bell 01.wav](#intimidate-ring-1) · 1.610秒 / peak 0.450 | [AMBDsgn_Evil Spell Ambience_344 Audio_Ghostly Presences.wav](#intimidate-ring-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ACID Cast Large 01-03.wav](#intimidate-ring-3) · 1.950秒 / peak 0.450 |
 | magic-ring-mana | [SORCERY - DESIGNED - MAGIC WATER Cast Large-02.wav](#magic-ring-mana-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ICE Freeze Cast Large-02.wav](#magic-ring-mana-2) · 1.373秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-03.wav](#magic-ring-mana-3) · 1.373秒 / peak 0.450 |
 <!-- SE1017_ROWS_END -->
+<!-- SE1025_ROWS_BEGIN -->
+| frost-retaliate | [SORCERY - DESIGNED - MAGIC ICE Freeze Cast Small-01.wav](#frost-retaliate-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ICE Cast Large Frost-02.wav](#frost-retaliate-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-01.wav](#frost-retaliate-3) · 1.950秒 / peak 0.450 |
+| echo-bolt | [DSGNImpt-DS_WHOOSH HIT-Starfall Echo_RTSB_COL-01.wav](#echo-bolt-1) · 1.950秒 / peak 0.450 | [Production Element Title Transition Delay Medium 01.wav](#echo-bolt-2) · 1.950秒 / peak 0.026 | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-03.wav](#echo-bolt-3) · 1.786秒 / peak 0.450 |
+| activation-transform | [Production Element Title Transition Evolver Transformation 01.wav](#activation-transform-1) · 1.950秒 / peak 0.450 | [Production Element Title Transition Evolver Short 01.wav](#activation-transform-2) · 1.531秒 / peak 0.486 | [SORCERY - DESIGNED - MAGIC WATER Cast Medium-04.wav](#activation-transform-3) · 1.950秒 / peak 0.450 |
+| activation-empower | [Production Element Title Transition Bell Swell 02.wav](#activation-empower-1) · 1.103秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-04.wav](#activation-empower-2) · 1.950秒 / peak 0.450 | [Production Element Title Transition Crystal Glow 02.wav](#activation-empower-3) · 1.620秒 / peak 0.334 |
+| activation-devour | [SORCERY - DESIGNED - MAGIC BLACK Whoosh Large-01.wav](#activation-devour-1) · 1.950秒 / peak 0.450 | [DSGNImpt-DS_WHOOSH HIT-Dark Void_RTSB_COL-01.wav](#activation-devour-2) · 1.950秒 / peak 0.450 | [Production Element Title Transition Stab Dark Demonic 01.wav](#activation-devour-3) · 1.950秒 / peak 0.450 |
+| ymir-aura | [Production Element Title Transition Crystal Eerie 03.wav](#ymir-aura-1) · 1.950秒 / peak 0.555 | [Production Element Title Transition Bell Warble 05.wav](#ymir-aura-2) · 1.411秒 / peak 0.129 | [Production Element Title Transition Musical Tone Warble 01.wav](#ymir-aura-3) · 1.950秒 / peak 0.450 |
+| grimalkin-glint | [Production Element Title Transition Tinkly 01.wav](#grimalkin-glint-1) · 1.950秒 / peak 0.257 | [Production Element Title Transition Glass Element 01.wav](#grimalkin-glint-2) · 1.950秒 / peak 0.450 | [Production Element Title Transition Crystal Element 01.wav](#grimalkin-glint-3) · 1.950秒 / peak 0.441 |
+| grimalkin-pillar | [Production Element Title Transition Ascend 02.wav](#grimalkin-pillar-1) · 1.474秒 / peak 0.122 | [01 BOOM Aurora Burst_Gb.wav](#grimalkin-pillar-2) · 1.950秒 / peak 0.041 | [DSGNImpt-DS_IMPACT GAME-Big Discovery_RTSB_COL-01.wav](#grimalkin-pillar-3) · 1.950秒 / peak 0.524 |
+| reward-blessing | [UIMisc-DS_MEDIEVAL-Purchase_RTSB_INT-01.wav](#reward-blessing-1) · 1.261秒 / peak 0.387 | [UIMisc-DS_MEDIEVAL-Positive Heavy_RTSB_INT-01.wav](#reward-blessing-2) · 1.950秒 / peak 0.313 | [Foley Coins Jingle In Envelope 01.wav](#reward-blessing-3) · 1.950秒 / peak 0.450 |
+| hellknight-slash | [DSGNImpt-DS_WHOOSH HIT-Nemesis_RTSB_COL-01.wav](#hellknight-slash-1) · 1.950秒 / peak 0.450 | [HERO - DESIGNED - SWORD Falchion Impale-01.wav](#hellknight-slash-2) · 1.040秒 / peak 0.117 | [MELEE - DESIGNED - WHOOSH Slow Mo-01.wav](#hellknight-slash-3) · 1.950秒 / peak 0.218 |
+| revival-ring | [DSGNImpt-DS_IMPACT GAME-Mysterious Revelation_RTSB_COL-01.wav](#revival-ring-1) · 1.950秒 / peak 0.450 | [Production Element Title Transition Bell Element 01.wav](#revival-ring-2) · 1.950秒 / peak 0.450 | [03 BOOM Dawn Glow_G.wav](#revival-ring-3) · 1.950秒 / peak 0.052 |
+| stealth-veil | [Production Element Title Transition Reverse Whoosh Reverse 01.wav](#stealth-veil-1) · 1.021秒 / peak 0.450 | [Production Element Title Transition Whoosh Drone 02.wav](#stealth-veil-2) · 1.950秒 / peak 0.478 | [Production Element Title Transition Sweep Warble 01.wav](#stealth-veil-3) · 1.950秒 / peak 0.502 |
+| guard-stance | [HERO - DESIGNED - SHIELD Metal Hit Heavy-02.wav](#guard-stance-1) · 1.013秒 / peak 0.294 | [DSGNImpt-DS_IMPACT PHSYICS-Iron Clash_RTSB_COL-01.wav](#guard-stance-2) · 1.950秒 / peak 0.218 | [DSGNImpt-DS_IMPACT-Hollow Slam_RTSB_COL-01.wav](#guard-stance-3) · 1.950秒 / peak 0.156 |
+<!-- SE1025_ROWS_END -->
 
 ヴリコラカスは復活開始時に `revive.wav`、ダイアウルフはウルフ登場開始時に `opening.wav` を追加再生する。候補3つとは別の既存SE。
 
@@ -1902,3 +1917,280 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 - 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-03.wav`
 - 理由: 魔力の指輪：蒼い魔力の結晶が弾ける（水の魔法・凍る結晶・小さな電撃）
 - 原音 4.500秒 / 開始 3.127秒 / 出力 1.373秒 / peak 0.450秒 / 末尾フェード 30ms
+
+## 2026-10-25追加の原音と加工
+
+LAB の01〜05（10/23 に作った演出）と、2026-10-25 に作った演出の候補。ゲームの採用SE（assets/sfx）は変えていない（利用者が選ぶまで無音または仮の音）。聴感未確認。
+
+<a id="frost-retaliate-1"></a>
+### frost-retaliate-1 / SORCERY - DESIGNED - MAGIC ICE Freeze Cast Small-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Freeze Cast Small-01.wav`
+- 理由: 亡霊の冷気の反撃：凍りつく氷の魔法
+- 原音 4.760秒 / 開始 2.220秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="frost-retaliate-2"></a>
+### frost-retaliate-2 / SORCERY - DESIGNED - MAGIC ICE Cast Large Frost-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Cast Large Frost-02.wav`
+- 理由: 亡霊の冷気の反撃：凍りつく氷の魔法
+- 原音 6.640秒 / 開始 3.877秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="frost-retaliate-3"></a>
+### frost-retaliate-3 / SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-01.wav`
+- 理由: 亡霊の冷気の反撃：凍りつく氷の魔法
+- 原音 9.280秒 / 開始 5.549秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="echo-bolt-1"></a>
+### echo-bolt-1 / DSGNImpt-DS_WHOOSH HIT-Starfall Echo_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Starfall Echo_RTSB_COL-01.wav`
+- 理由: 三重の残響と魔導弾：響きの残る魔力の弾
+- 原音 7.810秒 / 開始 1.387秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="echo-bolt-2"></a>
+### echo-bolt-2 / Production Element Title Transition Delay Medium 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Delay Medium 01.wav`
+- 理由: 三重の残響と魔導弾：響きの残る魔力の弾
+- 原音 4.937秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.026秒 / 末尾フェード 400ms
+
+<a id="echo-bolt-3"></a>
+### echo-bolt-3 / SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-03.wav`
+- 理由: 三重の残響と魔導弾：響きの残る魔力の弾
+- 原音 3.530秒 / 開始 1.744秒 / 出力 1.786秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="activation-transform-1"></a>
+### activation-transform-1 / Production Element Title Transition Evolver Transformation 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Evolver Transformation 01.wav`
+- 理由: 翡翠の渦と変身の閃光：姿が変わる
+- 原音 10.363秒 / 開始 3.631秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="activation-transform-2"></a>
+### activation-transform-2 / Production Element Title Transition Evolver Short 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Evolver Short 01.wav`
+- 理由: 翡翠の渦と変身の閃光：姿が変わる
+- 原音 1.531秒 / 開始 0.000秒 / 出力 1.531秒 / peak 0.486秒 / 末尾フェード 30ms
+
+<a id="activation-transform-3"></a>
+### activation-transform-3 / SORCERY - DESIGNED - MAGIC WATER Cast Medium-04.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-04.wav`
+- 理由: 翡翠の渦と変身の閃光：姿が変わる
+- 原音 3.690秒 / 開始 0.663秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="activation-empower-1"></a>
+### activation-empower-1 / Production Element Title Transition Bell Swell 02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Swell 02.wav`
+- 理由: 昇る薔薇金の光と五色の粒：力が満ちる明るい音
+- 原音 1.969秒 / 開始 0.866秒 / 出力 1.103秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="activation-empower-2"></a>
+### activation-empower-2 / SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-04.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-04.wav`
+- 理由: 昇る薔薇金の光と五色の粒：力が満ちる明るい音
+- 原音 5.900秒 / 開始 1.443秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="activation-empower-3"></a>
+### activation-empower-3 / Production Element Title Transition Crystal Glow 02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Crystal Glow 02.wav`
+- 理由: 昇る薔薇金の光と五色の粒：力が満ちる明るい音
+- 原音 1.665秒 / 開始 0.045秒 / 出力 1.620秒 / peak 0.334秒 / 末尾フェード 30ms
+
+<a id="activation-devour-1"></a>
+### activation-devour-1 / SORCERY - DESIGNED - MAGIC BLACK Whoosh Large-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Large-01.wav`
+- 理由: 黒紅の瘴気を吸い込む：暗い吸い込み
+- 原音 9.400秒 / 開始 2.621秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="activation-devour-2"></a>
+### activation-devour-2 / DSGNImpt-DS_WHOOSH HIT-Dark Void_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Dark Void_RTSB_COL-01.wav`
+- 理由: 黒紅の瘴気を吸い込む：暗い吸い込み
+- 原音 6.520秒 / 開始 0.365秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="activation-devour-3"></a>
+### activation-devour-3 / Production Element Title Transition Stab Dark Demonic 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Demonic 01.wav`
+- 理由: 黒紅の瘴気を吸い込む：暗い吸い込み
+- 原音 5.459秒 / 開始 1.940秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="ymir-aura-1"></a>
+### ymir-aura-1 / Production Element Title Transition Crystal Eerie 03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Crystal Eerie 03.wav`
+- 理由: ユミル：終戦にリロールを得る神秘的なオーラ
+- 原音 4.315秒 / 開始 0.007秒 / 出力 1.950秒 / peak 0.555秒 / 末尾フェード 400ms
+
+<a id="ymir-aura-2"></a>
+### ymir-aura-2 / Production Element Title Transition Bell Warble 05.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Warble 05.wav`
+- 理由: ユミル：終戦にリロールを得る神秘的なオーラ
+- 原音 1.411秒 / 開始 0.000秒 / 出力 1.411秒 / peak 0.129秒 / 末尾フェード 30ms
+
+<a id="ymir-aura-3"></a>
+### ymir-aura-3 / Production Element Title Transition Musical Tone Warble 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Musical Tone Warble 01.wav`
+- 理由: ユミル：終戦にリロールを得る神秘的なオーラ
+- 原音 5.567秒 / 開始 0.438秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="grimalkin-glint-1"></a>
+### grimalkin-glint-1 / Production Element Title Transition Tinkly 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Tinkly 01.wav`
+- 理由: グリマルキン：終戦1〜3回目の小さな煌めき
+- 原音 2.733秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.257秒 / 末尾フェード 400ms
+
+<a id="grimalkin-glint-2"></a>
+### grimalkin-glint-2 / Production Element Title Transition Glass Element 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Glass Element 01.wav`
+- 理由: グリマルキン：終戦1〜3回目の小さな煌めき
+- 原音 7.232秒 / 開始 2.551秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="grimalkin-glint-3"></a>
+### grimalkin-glint-3 / Production Element Title Transition Crystal Element 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Crystal Element 01.wav`
+- 理由: グリマルキン：終戦1〜3回目の小さな煌めき
+- 原音 4.789秒 / 開始 0.050秒 / 出力 1.950秒 / peak 0.441秒 / 末尾フェード 400ms
+
+<a id="grimalkin-pillar-1"></a>
+### grimalkin-pillar-1 / Production Element Title Transition Ascend 02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ascend 02.wav`
+- 理由: グリマルキン：4回目の豪華な光の柱
+- 原音 1.474秒 / 開始 0.000秒 / 出力 1.474秒 / peak 0.122秒 / 末尾フェード 30ms
+
+<a id="grimalkin-pillar-2"></a>
+### grimalkin-pillar-2 / 01 BOOM Aurora Burst_Gb.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/01 BOOM Aurora Burst_Gb.wav`
+- 理由: グリマルキン：4回目の豪華な光の柱
+- 原音 12.873秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.041秒 / 末尾フェード 400ms
+
+<a id="grimalkin-pillar-3"></a>
+### grimalkin-pillar-3 / DSGNImpt-DS_IMPACT GAME-Big Discovery_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT GAME-Big Discovery_RTSB_COL-01.wav`
+- 理由: グリマルキン：4回目の豪華な光の柱
+- 原音 5.720秒 / 開始 0.070秒 / 出力 1.950秒 / peak 0.524秒 / 末尾フェード 400ms
+
+<a id="reward-blessing-1"></a>
+### reward-blessing-1 / UIMisc-DS_MEDIEVAL-Purchase_RTSB_INT-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Interactive/Sounds/分割/UIMisc-DS_MEDIEVAL-Purchase_RTSB_INT-01.wav`
+- 理由: ファミリア・ゴーレム：報酬とトレーダーのキャラクターの強化（戦闘外）
+- 原音 1.280秒 / 開始 0.019秒 / 出力 1.261秒 / peak 0.387秒 / 末尾フェード 30ms
+
+<a id="reward-blessing-2"></a>
+### reward-blessing-2 / UIMisc-DS_MEDIEVAL-Positive Heavy_RTSB_INT-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Interactive/Sounds/分割/UIMisc-DS_MEDIEVAL-Positive Heavy_RTSB_INT-01.wav`
+- 理由: ファミリア・ゴーレム：報酬とトレーダーのキャラクターの強化（戦闘外）
+- 原音 3.450秒 / 開始 0.028秒 / 出力 1.950秒 / peak 0.313秒 / 末尾フェード 400ms
+
+<a id="reward-blessing-3"></a>
+### reward-blessing-3 / Foley Coins Jingle In Envelope 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Coins Jingle In Envelope 01.wav`
+- 理由: ファミリア・ゴーレム：報酬とトレーダーのキャラクターの強化（戦闘外）
+- 原音 4.519秒 / 開始 1.643秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="hellknight-slash-1"></a>
+### hellknight-slash-1 / DSGNImpt-DS_WHOOSH HIT-Nemesis_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Nemesis_RTSB_COL-01.wav`
+- 理由: ヘルナイト：赤い剣戟の一閃と血の吸収
+- 原音 4.860秒 / 開始 1.532秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="hellknight-slash-2"></a>
+### hellknight-slash-2 / HERO - DESIGNED - SWORD Falchion Impale-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Hero/Sounds/分割/HERO - DESIGNED - SWORD Falchion Impale-01.wav`
+- 理由: ヘルナイト：赤い剣戟の一閃と血の吸収
+- 原音 1.050秒 / 開始 0.010秒 / 出力 1.040秒 / peak 0.117秒 / 末尾フェード 30ms
+
+<a id="hellknight-slash-3"></a>
+### hellknight-slash-3 / MELEE - DESIGNED - WHOOSH Slow Mo-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - WHOOSH Slow Mo-01.wav`
+- 理由: ヘルナイト：赤い剣戟の一閃と血の吸収
+- 原音 4.100秒 / 開始 0.044秒 / 出力 1.950秒 / peak 0.218秒 / 末尾フェード 400ms
+
+<a id="revival-ring-1"></a>
+### revival-ring-1 / DSGNImpt-DS_IMPACT GAME-Mysterious Revelation_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT GAME-Mysterious Revelation_RTSB_COL-01.wav`
+- 理由: 復活の指輪：最初に死んだ味方が最大HPで蘇る
+- 原音 5.930秒 / 開始 1.249秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="revival-ring-2"></a>
+### revival-ring-2 / Production Element Title Transition Bell Element 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Element 01.wav`
+- 理由: 復活の指輪：最初に死んだ味方が最大HPで蘇る
+- 原音 3.370秒 / 開始 0.332秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="revival-ring-3"></a>
+### revival-ring-3 / 03 BOOM Dawn Glow_G.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/03 BOOM Dawn Glow_G.wav`
+- 理由: 復活の指輪：最初に死んだ味方が最大HPで蘇る
+- 原音 12.327秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.052秒 / 末尾フェード 400ms
+
+<a id="stealth-veil-1"></a>
+### stealth-veil-1 / Production Element Title Transition Reverse Whoosh Reverse 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Reverse Whoosh Reverse 01.wav`
+- 理由: 隠密：迷彩で姿が溶ける
+- 原音 1.479秒 / 開始 0.457秒 / 出力 1.021秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="stealth-veil-2"></a>
+### stealth-veil-2 / Production Element Title Transition Whoosh Drone 02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Drone 02.wav`
+- 理由: 隠密：迷彩で姿が溶ける
+- 原音 3.637秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.478秒 / 末尾フェード 400ms
+
+<a id="stealth-veil-3"></a>
+### stealth-veil-3 / Production Element Title Transition Sweep Warble 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Sweep Warble 01.wav`
+- 理由: 隠密：迷彩で姿が溶ける
+- 原音 3.109秒 / 開始 0.030秒 / 出力 1.950秒 / peak 0.502秒 / 末尾フェード 400ms
+
+<a id="guard-stance-1"></a>
+### guard-stance-1 / HERO - DESIGNED - SHIELD Metal Hit Heavy-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Hero/Sounds/分割/HERO - DESIGNED - SHIELD Metal Hit Heavy-02.wav`
+- 理由: 防戦：重い盾を構える（攻撃しない）
+- 原音 1.030秒 / 開始 0.017秒 / 出力 1.013秒 / peak 0.294秒 / 末尾フェード 30ms
+
+<a id="guard-stance-2"></a>
+### guard-stance-2 / DSGNImpt-DS_IMPACT PHSYICS-Iron Clash_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Iron Clash_RTSB_COL-01.wav`
+- 理由: 防戦：重い盾を構える（攻撃しない）
+- 原音 2.940秒 / 開始 0.027秒 / 出力 1.950秒 / peak 0.218秒 / 末尾フェード 400ms
+
+<a id="guard-stance-3"></a>
+### guard-stance-3 / DSGNImpt-DS_IMPACT-Hollow Slam_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Hollow Slam_RTSB_COL-01.wav`
+- 理由: 防戦：重い盾を構える（攻撃しない）
+- 原音 3.390秒 / 開始 0.061秒 / 出力 1.950秒 / peak 0.156秒 / 末尾フェード 400ms
