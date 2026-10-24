@@ -511,11 +511,15 @@ async function webpPresenterChecks(){
     const summarize=()=>calls.filter(c=>names.has(c.name)).map(c=>[c.name,c.opts.durationMs,c.opts.size,!!c.opts.repeat]);
     for(const [no,trigger,expected,baselineSe]of vbWebpVfxCases){
       const state=fixture(no),initial=clone(state);setup(state);renderAll();
-      const run=vbLabVfxStartPve(no,state,trigger);await run.done;
+      const currentTrigger=no==='C007'?'injury':trigger;
+      const run=vbLabVfxStartPve(no,state,currentTrigger);await run.done;
       const events=clone(run.events),pve=summarize(),se=sounds.filter(c=>getEffectSfxKey(no)===c.code).map(c=>c.code);
-      assert.ok(pve.some(c=>c[0]===expected),no+' のコアのイベントから '+expected+' を再生: '+JSON.stringify(pve));
+      if(no==='C007') {
+        assert.ok(events.some(e=>e.type==='keyword_effect'&&e.effect==='weaken'),'現行マータは負傷で弱体を与える');
+        assert.ok(!pve.some(c=>c[0]===expected),'廃止した肩代わりVFXを流用しない');
+      } else assert.ok(pve.some(c=>c[0]===expected),no+' のコアのイベントから '+expected+' を再生: '+JSON.stringify(pve));
       const normal=fixture(no);setup(normal);G._savedBattleReplaying=false;renderAll();
-      await vbLabVfxStartPve(no,normal,trigger).done;
+      await vbLabVfxStartPve(no,normal,currentTrigger).done;
       assert.deepEqual(summarize(),pve,no+' 通常PvE／保存再生の新しい定義・尺・倍率・繰り返し');
       setup(initial);G._savedBattleReplaying=false;
       const result={events:[{type:'battle_start',sides:clone(initial.units)},...events],formations:{
@@ -523,7 +527,7 @@ async function webpPresenterChecks(){
         p2:{units:initial.units.p2,items:initial.items.p2,rings:initial.rings.p2}}};
       beginOnlineVersusField(result);await playOnlineBattleEvents(result,{onEvent:(ev,ctx)=>renderOnlineVersusBoard(ev,ctx)});
       assert.deepEqual(summarize(),pve,no+' PvE／オンラインの新しい定義・尺・倍率・繰り返し');
-      if(baselineSe){
+      if(baselineSe&&no!=='C007'){
         assert.deepEqual(se,baselineSe.pve,no+' PvEの元のSE番号・回数');
         assert.deepEqual(sounds.filter(c=>getEffectSfxKey(no)===c.code).map(c=>c.code),baselineSe.online,no+' オンラインの元のSE番号・回数');
       }else assert.deepEqual(sounds.filter(c=>getEffectSfxKey(no)===c.code).map(c=>c.code),se,no+' 元のSE番号・回数');

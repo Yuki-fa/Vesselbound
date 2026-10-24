@@ -36,7 +36,8 @@ const stats = events => events.filter(e => e.type === 'stat_change');
     const sentinel = setup([subject('C021', enhanced), subject('C021', true, { id: 'same-name' }), plain('recipient')], side);
     const m = data.effectText('C021', enhanced).match(/HP(?:の(\d+)倍)?に等しい/);
     coreApplyAttackEffects(sentinel.unit, sentinel.state, sentinel.rng, sentinel.emit, sentinel.hit);
-    assert.deepEqual(stats(sentinel.events).map(e => [e.unitId, e.atk, e.hp]), [['recipient', 0, 100 * (Number(m[1]) || 1)]], '指定名の全カードを除外してHP倍率を適用');
+    assert.deepEqual(stats(sentinel.events).map(e => [e.unitId, e.atk, e.hp]),
+      Array(data.effectRepetitions(data.effectText('C021', enhanced))).fill(['recipient', 0, 100 * (Number(m[1]) || 1)]), '指定名の全カードを除外してHP倍率と反復を適用');
 
     const recalled = setup([subject('C041', enhanced, { name: '改名された呼び戻し手' })], side);
     recalled.state.deadUnits = [plain('corpse', { name: '元の敵', side: recalled.other, hp: 0, atk: 13, maxHp: 21, _baseAtk: 8, _baseMaxHp: 16 })];
@@ -150,17 +151,17 @@ const stats = events => events.filter(e => e.type === 'stat_change');
   }
 
   // 熟練は付与時の与え手から確定し、後続の召喚者から再計算しない。
-  for (const no of ['C039', 'C044', 'C092']) {
+  for (const no of ['C039', 'C044', 'C077']) {
     const run = setup([subject(no, true, { keywords: ['熟練2'] }), plain('summoner', { keywords: ['熟練9'] })]);
     const first = coreSummonUnit(run.state, 'p1', { name: '先の眷属', atk: 10, hp: 20 }, run.emit, 'summoner');
     if (no === 'C039') { run.unit.hp = 0; coreApplyDeathEffects(run.unit, run.state, run.rng, run.emit, run.hit); }
     if (no === 'C044') coreApplyInjuryEffects(run.unit, 1, run.state, run.rng, run.emit, run.hit);
     const text = data.effectText(no, true), pair = text.match(/\+(\d+)\/\+(\d+)/);
     const expected = { atk: pair ? Number(pair[1]) + 2 : no === 'C044' ? Number(text.match(/ATK\+(\d+)/)[1]) + 2 : 0,
-      hp: pair ? Number(pair[2]) + 2 : no === 'C092' ? Number(text.match(/HP\+(\d+)/)[1]) + 2 : 0 };
+      hp: pair ? Number(pair[2]) + 2 : no === 'C077' ? Number(text.match(/HP\+(\d+)/)[1]) + 2 : 0 };
     assert.deepEqual(run.state.gameSummonBuff.p1, expected);
     const second = coreSummonUnit(run.state, 'p1', { name: '後の眷属', atk: 10, hp: 20 }, run.emit, 'summoner');
-    const repeats = no === 'C092' ? 2 : 1;
+    const repeats = no === 'C077' ? 2 : 1;
     assert.deepEqual([first.atk, first.hp, second.atk, second.hp],
       [10 + expected.atk * repeats, 20 + expected.hp * repeats, 10 + expected.atk * repeats, 20 + expected.hp * repeats]);
     const next = setup([plain('new-battle')], 'p1', { gameSummonBuff: h.copy(run.state.gameSummonBuff) });
@@ -169,7 +170,7 @@ const stats = events => events.filter(e => e.type === 'stat_change');
   }
 
   // 同じ入力のコア・オンライン計算・JSON保存再計算と、両受け口への書き戻し。
-  const prepared = setup([subject('C092', true), subject('C060', false, { id: 'mitera' }),
+  const prepared = setup([subject('C077', true), subject('C060', false, { id: 'mitera' }),
     subject('C044', false, { id: 'eidolon' })], 'p1', { gameSummonBuff: { p1: { atk: 3, hp: 5 }, p2: { atk: 2, hp: 4 } } }).state;
   const seed = 20261019;
   const input = SaveRun.copy({ seed, turnLimit: 8, sides: Object.fromEntries(['p1', 'p2'].map(side => [side, { units: prepared.units[side] }])),

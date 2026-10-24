@@ -141,7 +141,8 @@ function buildBoardFormation(board, opts) {
       if(panel._runLevelsApplied) unit._runLevelsApplied={...panel._runLevelsApplied};
       // 復活の半減基準は接続強化・常時修正を得る前のカード本体（祝福込み）。
       if (typeof coreStampUnitBaseStats === 'function') coreStampUnitBaseStats(unit);
-      if((panel.boon||panel._runLevelsApplied||contributingPanels.some(entry=>(entry.panel||entry).boon))
+      if((panel.boon||panel._runLevelsApplied||contributingPanels.some(entry=>(entry.panel||entry).boon)
+        || /エンチャントが接続していなければ/.test(spec.desc || ''))
         &&typeof _panelSummonDisplayBoardCards==='function'){
         unit.boardCards=_panelSummonDisplayBoardCards(panel,contributingPanels);
       }

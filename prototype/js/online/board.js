@@ -814,6 +814,9 @@
             (Number(u.shield) || 0) + (Number(ev.amount) || 0));
         }
         if (ev.effect === 'weaken') u.weaken = (Number(u.weaken) || 0) + (Number(ev.amount) || 0);
+        if (ev.effect === 'trigger_grant' && Array.isArray(ev.grantedInjuryEffects)) {
+          coreApplyInjuryGrantEvent(u, ev);
+        }
         if (ev.effect === 'evil_eye') {
           u.atk = Math.max(0, (Number(u.atk) || 0) - (Number(ev.amount) || 0));
         }
@@ -890,7 +893,7 @@
         break;
       }
       case 'summon_buff': {
-        if(ev.persistent&&ev.side==='p1'&&typeof G!=='undefined'&&G) G.gameSummonBuff={atk:ev.gameTotalAtk,hp:ev.gameTotalHp};
+        if(ev.persistent&&ev.side==='p1'&&typeof G!=='undefined'&&G) G.gameSummonBuff=coreSummonBuffEventValues(ev);
         // 「この戦闘中、召喚された味方は+X/+Yを得る」の記録。
         // 実際の加算はコアが召喚時に行い、summonイベントの中身に載っている（PvEと同じ）。
         break;

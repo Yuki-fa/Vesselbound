@@ -1319,6 +1319,9 @@ const PRESENT_STAT_CHANGE_VFX_REASONS = new Set([
   // 眷属の強化（この戦闘／ゲーム中、味方の眷属は〜）。固有VFX（ファントム・エイドロン）の体はそちらが受け持つ（presentLabEventHandled）。
   // それ以外（シャナの常時など）は本文のトリガのバフ演出（presentSummonBuffTrigger）。
   'summon_buff',
+  'attack_blood_spend_team_buff', 'attack_color_atk_buff', 'injury_unenchanted_team_buff',
+  'death_random_ally_shield_buff', 'death_blue_stat_transfer', 'death_all_atk',
+  'ally_attack_permanent_buff', 'ally_release_permanent_buff', 'opening_color_count_buff',
 ]);
 
 // カード固有の効果VFXの尺（ms）。**ゴーレムの負傷エフェクトと同じ長さに揃える。**
@@ -1394,12 +1397,12 @@ const PRESENT_STAT_CHANGE_TRIGGER_REASONS = {
     'attack_swap', 'different_color_attack', 'sentinel', 'arch_demon_purple_buff',
     // 扇動（強化）。無いとトリガが決まらず、付けた本人の固有番号へ落ちて何も出なかった（2026-10-16 ペガサス＋扇動）。
     // ヘルナイトの攻撃効果（血の数だけ+X/+X）も同じ理由で何も出ていなかった（2026-10-17）。
-    'incite', 'hell_knight_blood']),
+    'incite', 'hell_knight_blood', 'attack_blood_spend_team_buff', 'attack_color_atk_buff']),
   injury: new Set(['golem', 'gigantes', 'kobold', 'healing', 'brownie', 'fornjot', 'chaos_imp', 'umbra',
     'injury_self_buff', 'injury_allies_atk', 'injury_color_buff', 'injury_sacrifice_hp',
-    'injury_allies_hp', 'injury_enemy_atk_down', 'injury_allies_fixed_buff']),
+    'injury_allies_hp', 'injury_enemy_atk_down', 'injury_allies_fixed_buff', 'injury_unenchanted_team_buff']),
   death: new Set(['will', 'inherit', 'death_color_buff', 'ghost',
-    'death_random_blue_buff', 'death_random_ally_buff',
+    'death_random_blue_buff', 'death_random_ally_buff', 'death_random_ally_shield_buff', 'death_blue_stat_transfer', 'death_all_atk',
     // 献身・血の結束（強化）。トリガが決まらず何も出ていなかった（2026-10-17）。
     'devotion', 'blood_bond']),
   // 常時の誘発（「〜たび」）。開戦（opening_*）もここと同じ S009。
@@ -1413,7 +1416,7 @@ const PRESENT_STAT_CHANGE_TRIGGER_REASONS = {
     // 常時（「〜たび」／召喚された味方への上乗せ）
     'warg_count_buff', 'summon_scaling_buff', 'naga_summon', 'jack_o_lantern',
     // 2026-10-23：ハイドラ（敵が状態異常を得るたびHP+）・デュラハン／シャナ（眷属が召喚されるたび）
-    'enemy_ailment_hp', 'summon_observer_stats', 'kill_permanent_buff']),
+    'enemy_ailment_hp', 'summon_observer_stats', 'kill_permanent_buff', 'ally_attack_permanent_buff', 'ally_release_permanent_buff']),
 };
 const PRESENT_BUFF_VFX_BY_TRIGGER = {
   attack: 'S005', injury: 'S006', death: 'S007', mana: 'S008', opening: 'S009', passive: 'S009',
@@ -1430,7 +1433,7 @@ const PRESENT_BUFF_VFX_CODES = new Set(Object.values(PRESENT_BUFF_VFX_BY_TRIGGER
 // 2026-10-25 利用者指定：効果の種類ごとの専用演出へ（assets.js characterEffect の番号）。戦闘中の強化と雰囲気を分ける。
 //   報酬とトレーダーの強化（ファミリア・ゴーレム）＝報酬への祝福、リロール（ユミル）＝神秘のオーラ、
 //   接続エンチャントの強化（グリマルキン）＝強化した回は光の柱・それ以外の終戦（あとX戦）は小さな煌めき。
-const PRESENT_RUN_EFFECT_TRIGGERS = { '攻撃': 'attack', '負傷': 'injury', '死亡': 'death', '開戦': 'opening', '終戦': 'passive' };
+const PRESENT_RUN_EFFECT_TRIGGERS = { '攻撃': 'attack', '負傷': 'injury', '死亡': 'death', '開戦': 'opening', 'マナ': 'mana', '終戦': 'passive' };
 const PRESENT_RUN_EFFECT_FX = { reward_buff: 'C114', reroll: 'C062', board_transform: 'E016' };
 // 専用演出の尺（ms）。LAB の標準の速さ（1.5倍）と同じに見せる。無い番号は能力変化の固有VFXと同じ尺。
 const PRESENT_RUN_EFFECT_FX_MS = { C114: 1000, C062: 1070, C095: 1200, C095_1: 600, R018: 1000, E016: 1000 };

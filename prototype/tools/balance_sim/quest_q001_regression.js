@@ -92,7 +92,8 @@ function runTrigger(unit,trigger,side='p1'){
     const flame=PANEL_POOL.find(card=>card.name==='闇の炎');
     unit._adjacentPanelEffectTexts.push(flame.desc);unit._resonanceEffectNames.push(flame.name);
     const hits=runTrigger(unit,'死亡').hits;
-    assert.deepEqual(hits.map(event=>event.amount),[1,1,1]);
+    const amount=Number(flame.desc.match(/(\d+)ダメージ/)[1]),count=Number(flame.desc.match(/敵(\d+)体/)[1]);
+    assert.deepEqual(hits.map(event=>event.amount),Array(count*sheet.damageRepetitions(flame.desc)).fill(amount));
   });
   check('サイレン・アラッサスの固有効果を保ち、付与したE075は通常の全体ダメージで発動する',()=>{
     for(const name of ['サイレン','アラッサス']){

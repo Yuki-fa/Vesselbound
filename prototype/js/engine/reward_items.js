@@ -135,6 +135,7 @@ function _syncRewardProductionItems(){
     }
     slot.onclick=e=>{
       e.stopPropagation();
+      if (typeof handleCardActivationItemTarget === 'function' && handleCardActivationItemTarget(idx)) return;
       // 対象選択中に、選択中のアイテム自身を押したら中断する。
       if(G._pendingItemUse&&G._pendingItemUse.slotIdx===idx){ _cancelPendingItemUse(); return; }
       if(slot._rewardItem) _openItemUseConfirm(idx,slot);

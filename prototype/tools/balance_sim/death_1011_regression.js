@@ -41,8 +41,9 @@ function kill(units, shield, side = 'p1') {
     const row = sheetRows('enchant').find(r => r['No.'] === 'E006');
     const text = merged ? row['合体効果'] : row['効果'];
     const expected = damageRepetitions(text);
+    const targets = Number((text.match(/ランダムな敵(\d+)体/) || [])[1]) || 3;
     assert.equal(dead.length, 1, 'ケットシーの死亡は1件');
-    assert.equal(damages.length, expected * 3, '敵3体×本文の反復回数');
+    assert.equal(damages.length, expected * targets, '本文の対象数×反復回数');
     assert.equal(run.events.filter(e => e.type === 'effect_flash' && e.unitId === 'cat' && e.trigger === 'death').length, 1);
     const after = run.events.length;
     coreApplyDeathEffects(run.state.units[side][0], run.state, run.rng, run.emit, run.hit);
@@ -52,7 +53,7 @@ function kill(units, shield, side = 'p1') {
       h.setup(state); await h.replay(state, run.events, online);
       const fires = h.calls.filter(c => c.code === 'E006');
       assert.equal(fires.length, expected, `${side} 結界${shield} ${merged ? '合体' : '通常'} ${online ? 'オンライン' : 'PvE'} 闇の炎のVFXは${expected}回: ${JSON.stringify(h.calls)}`);
-      assert.ok(fires.every(c => new Set(c.targets).size === 3), '同時対象は1つの波');
+      assert.ok(fires.every(c => new Set(c.targets).size === targets), '同時対象は1つの波');
       checked++;
     }
   }
@@ -64,7 +65,9 @@ function kill(units, shield, side = 'p1') {
   runBattleCore(state, createSeededRng(7), { onEvent: e => events.push(e), turnLimit: 40 });
   assert.ok(events.some(e => e.type === 'summon' && /ナイトキャット/.test(e.unit.name)), '負傷召喚を含む');
   assert.equal(events.filter(e => e.type === 'death' && e.unitId === 'cat').length, 1);
-  assert.equal(events.filter(e => e.type === 'damage' && e.sourceId === 'cat' && e.damageKind === 'death_effect' && e.side==='p2').length,3);
+  const flame = sheetRows('enchant').find(r => r['No.'] === 'E006')['効果'];
+  assert.equal(events.filter(e => e.type === 'damage' && e.sourceId === 'cat' && e.damageKind === 'death_effect' && e.side==='p2').length,
+    (Number((flame.match(/ランダムな敵(\d+)体/) || [])[1]) || 3) * damageRepetitions(flame));
   assert.ok(events.some(e=>e.type==='shield_lost'),'エインセルの結界消失を含む');
   // 全ての死亡本文（キャラ・強化）で、同一死亡への再入は追加イベントを出さない。
   for (const key of ['card', 'enchant']) for (const row of sheetRows(key).filter(r => /(?:死亡|攻撃[＆&]死亡)\s*[：:；]/.test(r['効果'] || ''))) {

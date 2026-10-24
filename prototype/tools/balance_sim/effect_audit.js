@@ -178,9 +178,7 @@ function audit() {
   const phantom = plainEvents.filter(e => !['battle_start'].includes(e.type));
   const plainOk = phantom.length === 0;
   if (!plainOk) ng++;
-  // 団結／マータ回帰：分散はコアの1ヒット入口だけで解決し、各対象へ
-  // 個別のdamageイベントを出す。強靭キーワードは廃止済みで、マータは2以上の
-  // ダメージの半分を肩代わりする。
+  // 団結は共通入口で分散する。マータの旧肩代わりは2026-10-25に廃止。
   const uniteUnits = [0, 1, 2].map((i) => ({ id: `unite-${i}`, name: `団結${i}`, side: 'p1', atk: 1,
     hp: 20, maxHp: 20, keywords: [], desc: '', _uniteGroups: ['audit-unite'] }));
   const uniteState = core.createBattleState({ sides: { p1: { units: uniteUnits }, p2: { units: [] } },
@@ -198,10 +196,10 @@ function audit() {
   const mataEvents = [];
   core.coreResolveHit(mataState, null, mataState.units.p1[0], 4, false, createSeededRng(22), e => mataEvents.push(e));
   const mataDamage = mataEvents.filter(e => e.type === 'damage' && e.amount > 0);
-  const mataOk = mataDamage.length === 2 && mataState.units.p1[0].hp === 18 && mataState.units.p1[1].hp === 18;
+  const mataOk = mataDamage.length === 1 && mataState.units.p1[0].hp === 16 && mataState.units.p1[1].hp === 20;
   if (!mataOk) ng++;
   console.log(`団結分散回帰 ${uniteOk ? 'OK' : 'NG'}（${uniteDamage.map(e => e.amount).join(',')}）`);
-  console.log(`マータ肩代わり回帰 ${mataOk ? 'OK' : 'NG'}（${mataDamage.map(e => e.amount).join(',')}）`);
+  console.log(`マータ旧肩代わり廃止回帰 ${mataOk ? 'OK' : 'NG'}（${mataDamage.map(e => e.amount).join(',')}）`);
   // deferTriggers 契約回帰：PvEのapplyDamageBatchが後段で発火する前提のため、
   // coreResolveHit(..., {deferTriggers:true}) はダメージ確定以外のトリガイベントを出さない。
   // false 経路では、負傷・死亡・命中キーワード・マナが従来どおり発火することも併せて確認する。
@@ -727,7 +725,7 @@ function audit() {
 
   // ナーガ：本文のHP修正が召喚1件につき1回、ゲーム中の累積値へ入る。
   {
-    const naga = makeDirectUnit('シャナ', 'p1', { id: 'naga' });
+    const naga = makeDirectUnit('ティアマト', 'p1', { id: 'naga' });
     const s = makeDirectState([naga], [], undefined, [{ name: 'ペリカン', color: '緑', power: 1, life: 1 }]);
     const es = []; const child = core.coreSummonUnit(s, 'p1', { name: '緑ペリカン' }, e => es.push(e), 'naga');
     const hp=Number(naga.desc.match(/HP\+(\d+)/)[1]);

@@ -71,7 +71,7 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    const z=setup(side,[unit('C031','zombie',enhanced),...['青','緑','紫'].map(c=>plain(c,{color:c}))]);z.u.hp=0;
    coreApplyDeathEffects(z.u,z.state,z.rng,z.emit,z.hit);
    const pair=z.u.desc.match(/\+(\d+)\/\+(\d+)/);
-   assert.deepEqual(z.events.filter(e=>e.reason==='death_random_color_buff').map(e=>[e.atk,e.hp]),Array(3).fill([Number(pair[1]),Number(pair[2])]));
+   assert.deepEqual(z.events.filter(e=>e.reason==='death_random_color_buff').map(e=>[e.atk,e.hp]),Array(3*sheet.effectRepetitions(z.u.desc)).fill([Number(pair[1]),Number(pair[2])]));
   });
   check(`${side}/${enhanced}：起動3種の対象・量を本文から読む`,()=>{
    const target={...card('C006'),power:7,life:11},rng=createSeededRng(101);
@@ -80,7 +80,8 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    const incubus=card('C109',enhanced),result=coreActivateBoardCard(incubus,target,PANEL_POOL,rng),pair=incubus.desc.match(/\+(\d+)\/\+(\d+)/);
    assert.deepEqual([result.atk,result.hp],[Number(pair[1]),Number(pair[2])]);assert.ok(['赤','青','緑','黄','紫'].includes(result.color));
    const knight=card('C116',enhanced),mul=Number((knight.desc.match(/の(\d+)倍/)||[])[1])||1;
-   assert.deepEqual(coreActivateBoardCard(knight,target,PANEL_POOL,rng),{kind:'destroy',atk:7*mul,hp:11*mul});
+   assert.deepEqual(coreActivateBoardCard(knight,target,PANEL_POOL,rng,{targetZone:'reward'}),{kind:'destroy',atk:7*mul,hp:11*mul});
+   assert.equal(coreActivateBoardCard(knight,target,PANEL_POOL,rng,{targetZone:'board'})===null,enhanced);
    assert.equal(coreActivateBoardCard(knight,knight,PANEL_POOL,rng),null);
    assert.equal(coreActivateBoardCard(card('C084'),card('E001'),PANEL_POOL,rng),null,'通常のシルフはキャラクターだけを対象にする');
   });
