@@ -2719,6 +2719,15 @@ function coreApplyKenzokuSummonEffects(state, child, emit, sourceId, context, rn
       emit({ type: 'stat_change', side: observer.side, unitId: observer.id, atk, hp, sourceId: observer.id, reason: 'summon_observer_stats' });
       coreTriggerAtkGainEffects(observer, atk, state, rng, emit, applyHit);
     }
+    // 2026-10-25 利用者指定：数値が決まった形（強化「武威」：味方の眷属が召喚されるたび、このキャラクターは+4/+4を得る）。
+    for (const m of coreTriggerEffectEntries(observer, '常時', /^(?:味方の)?眷属が召喚され(?:るたび|る度)、このキャラクターは\+(\d+)\/\+(\d+)を得る/)) {
+      if (/^味方/.test(m.input) && observer.side !== side) continue;
+      const atk = coreStatBonus(observer, Number(m[1]), observer), hp = coreStatBonus(observer, Number(m[2]), observer);
+      observer.atk += atk; observer.hp += hp; observer.maxHp += hp;
+      coreEmitPassiveFlash(emit, observer);
+      emit({ type: 'stat_change', side: observer.side, unitId: observer.id, atk, hp, sourceId: observer.id, reason: 'summon_observer_stats' });
+      coreTriggerAtkGainEffects(observer, atk, state, rng, emit, applyHit);
+    }
   }
   // 確定は呼び出し元の配置成功時に行う。拒否された召喚は累計へ入れない。
   return summonCount + (isKenzoku ? 1 : 0);
@@ -3776,6 +3785,11 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
   for (const m of coreTriggerEffectEntries(unit, '攻撃', /^全ての味方は\+X\/\+Xを得る。Xは血(?:の(\d+)倍)?に等しい/)) {
     const value = coreBloodOf(unit.side) * (Number(m[1]) || 1);
     allies.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => addStats(x, value, value, 'attack_blood_team_buff'));
+  }
+  // 攻撃：このキャラクターは+X/+Xを得る。Xは血（の2倍）に等しい（強化「復讐の炎」。2026-10-25 利用者指定）。血が0なら何も起きない。
+  for (const m of coreTriggerEffectEntries(unit, '攻撃', /^このキャラクターは\+X\/\+Xを得る。Xは血(?:の(\d+)倍)?に等しい/)) {
+    const value = coreBloodOf(unit.side) * (Number(m[1]) || 1);
+    if (value > 0 && unit.hp > 0) addStats(unit, value, value, 'attack_self_buff');
   }
   // 攻撃：血がN以上なら全ての味方は+X/+Yを得る（シャドウ）
   const attackBloodTeamBuff = coreTriggerMatch(attackTexts, /^血が(\d+)以上なら全ての味方は\+(\d+)\/?\+(\d+)を得る/);
@@ -4883,6 +4897,16 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       });
     }
   }
+  // 死亡：ランダムな敵N体に毒Xを与える（強化「毒袋」。強化後は「これをもう一度繰り返す」＝本文の反復で2回。2026-10-25 利用者指定）。
+  for (const m of coreTriggerEffectEntries(unit, '死亡', /^ランダムな敵(\d+)体に毒(\d+)を与える/)) {
+    for (let i = 0; i < repeats; i++) {
+      const fxBatch=corePresentationBatch(state);
+      corePickDistinct(rng, foes.filter(x => x.hp > 0 && !coreIsSealed(x)), Number(m[1])).forEach(x => {
+        x.poison = (Number(x.poison) || 0) + Number(m[2]);
+        coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'poison', side: x.side, unitId: x.id, sourceId: unit.id, amount: Number(m[2]), effectTrigger:'death', fxBatch });
+      });
+    }
+  }
   for (const m of coreTriggerEffectEntries(unit, '死亡', /ランダムな([赤青緑黄紫])、([赤青緑黄紫])、([赤青緑黄紫])の味方1体ずつは\+(\d+)\/\+(\d+)を得る/)) {
     for (let i = 0; i < repeats; i++) for (const color of m.slice(1, 4)) {
       const target = rng.pick(allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x) && x.color === color));
@@ -5667,6 +5691,19 @@ function coreTriggerBattleEnd(state, emit, rng, applyHit) {
         const targets = unit._battleEndCount % Number(m[1]) === 0 ? corePickDistinct(rng, eligible, Number(m[2])) : [];
         emit({ type: 'run_effect', kind: 'enchant_upgrade', side, unitId: unit.id, trigger: '終戦', boardSlot: unit._mainBoardSlot,
           count: unit._battleEndCount, targetSlots: targets.map(c => c._mainBoardSlot).filter(Number.isInteger) });
+      }
+      // 終戦：このキャラクター以外の、生存した味方（の本来の姿）に永久に変身する（強化「変化」。2026-10-25 利用者指定）。
+      // 変身先は魔導板に置いた味方からランダムに1体（召喚体・眷属は魔導板のカードが無いので除く）。
+      // 「本来の姿」＝そのカードの元の定義（永久強化などを含まない）、強化後は今の姿の写し。魔導板への書き戻しは applyCoreRunEffectEvent。
+      for (const m of coreTriggerEffectEntries(unit, '終戦', /^このキャラクター以外の、生存した味方(の本来の姿)?に永久に変身する/)) {
+        if (!Number.isInteger(unit._mainBoardSlot)) break;
+        const choices = (state.units[side] || []).filter(x => x && x !== unit && x.hp > 0 && Number.isInteger(x._mainBoardSlot)
+          && x._mainBoardSlot !== unit._mainBoardSlot && !x._summonedInBattle && !coreUnitHasKeyword(x, '眷属'));
+        const pick = corePickDistinct(rng, choices, 1)[0];
+        if (!pick) break;
+        emit({ type: 'run_effect', kind: 'board_transform', side, unitId: unit.id, trigger: '終戦', boardSlot: unit._mainBoardSlot,
+          fromSlot: pick._mainBoardSlot, fromUnitId: pick.id, fromName: pick.name, mode: m[1] ? 'base' : 'copy' });
+        break;
       }
       // 終戦：全ての味方は永久に+X/+Yを得る。数値は通常・合体効果の本文から読む。
       // 戦闘中の召喚体には魔導板上の保存先が無いため、対象から除外する。

@@ -120,6 +120,7 @@ const Assets = {
       'C095_1': 'vfx:C095:grimalkin-glint',  // グリマルキン：1〜3回目の終戦（あとX戦）
       'C114': 'vfx:C114:reward-blessing',    // ファミリア・ゴーレム：報酬とトレーダーのキャラクターの強化
       'R018': 'vfx:R018:revival-ring',       // 復活の指輪：最初に死んだ味方が蘇った時
+      'E016': 'vfx:E016:dragonnet',          // 強化「変化」：終戦の永久変身（ドラゴネットと同じ変身の霧）
       'C006': 'vfx:S003:gold-gain', // 金貨（素材名はS003へ変更済み）
       'C007': 'vfx:C007:attack-recoil',
       'C008': 'vfx:S006:injury-buff', // ゴーレム（素材名はS006へ変更済み）

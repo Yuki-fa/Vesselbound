@@ -293,4 +293,21 @@ function applyCoreRunEffectEvent(event) {
       if (next) cards[slot] = next;
     }
   }
+  // 終戦の永久変身（強化「変化」）。base＝変身先の元の定義、copy＝変身先の今の姿の写し。
+  // 枠の矢印（接続の向き）は元のカードのものを引き継ぐ（作り直すと向きが振り直され、変化自身との接続が切れる）。
+  // 同じ出来事を保存から再生しても結果は同じ（変身先の枠の内容で上書きするだけ）。
+  if (event.kind === 'board_transform' && Array.isArray(cards)) {
+    const self = cards[event.boardSlot], from = cards[event.fromSlot];
+    if (self && from && from.category === 'キャラクター') {
+      const next = event.mode === 'base'
+        ? (typeof makePanel === 'function' ? makePanel(from.id || from.name) : null)
+        : JSON.parse(JSON.stringify(from));
+      if (next) {
+        next.directions = Array.isArray(self.directions) ? self.directions.slice() : next.directions;
+        delete next._activationReady; delete next._rewardAppearancePending;
+        if (event.mode === 'base') delete next._battleEndCount;   // 元の定義は終戦の数えを持たない（写しは変身先の数えを持つ）
+        cards[event.boardSlot] = next;
+      }
+    }
+  }
 }

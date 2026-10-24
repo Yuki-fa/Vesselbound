@@ -123,15 +123,15 @@ async function play(x,mode){
     }
     assert.equal(count,h.sheetRows('card').length*2);assert.ok(count>0);console.log('  比較 '+count+'ケース（追加した表示用メタデータだけ除外）');
   });
-  // 未発火を成功扱いにしない。計算を変えない指定のため、既存の欠落を明示して固定する。
-  await check('現行コアの未発火4種を区別して報告する',()=>{
+  // 2026-10-25 利用者指定で4枚の効果をコアへ実装した（enchant_1025_regression.js）。以前は未発火を固定していたが、今は実戦の元イベントが出ることを確かめる。
+  await check('4種（武威・復讐の炎・毒袋・変化）の実戦の元イベントがコアから出る',()=>{
     for(const no of ['E023','E044','E015','E016']){const x=setup({no},'p1');
       if(no==='E023')summon(x);
       if(no==='E044'){x.state.blood={p1:2,p2:2};coreApplyAttackEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit);}
       if(no==='E015'){x.find('owner').hp=0;coreApplyDeathEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit);}
       if(no==='E016')coreTriggerBattleEnd(x.state,x.emit,x.rng,x.hit);
-      assert.ok(!x.events.some(e=>no==='E023'?e.reason==='summon_observer_stats':no==='E044'?e.reason==='hell_knight_blood':no==='E015'?e.effect==='poison':e.type==='transform'));
-      console.log('  NOTE '+no+'：割り当て契約のみ検査。実戦の元イベントは現行コアから出ない。');
+      if(no==='E016')continue; // 変化は魔導板の枠を持つ味方が要る。enchant_1025_regression.js で検査する。
+      assert.ok(x.events.some(e=>no==='E023'?e.reason==='summon_observer_stats':no==='E044'?e.reason==='attack_self_buff':e.effect==='poison'),no);
     }
   });
   global.playKeywordEffectVfxSustained=kw;

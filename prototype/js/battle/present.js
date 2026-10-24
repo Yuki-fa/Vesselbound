@@ -1431,9 +1431,9 @@ const PRESENT_BUFF_VFX_CODES = new Set(Object.values(PRESENT_BUFF_VFX_BY_TRIGGER
 //   報酬とトレーダーの強化（ファミリア・ゴーレム）＝報酬への祝福、リロール（ユミル）＝神秘のオーラ、
 //   接続エンチャントの強化（グリマルキン）＝強化した回は光の柱・それ以外の終戦（あとX戦）は小さな煌めき。
 const PRESENT_RUN_EFFECT_TRIGGERS = { '攻撃': 'attack', '負傷': 'injury', '死亡': 'death', '開戦': 'opening', '終戦': 'passive' };
-const PRESENT_RUN_EFFECT_FX = { reward_buff: 'C114', reroll: 'C062' };
+const PRESENT_RUN_EFFECT_FX = { reward_buff: 'C114', reroll: 'C062', board_transform: 'E016' };
 // 専用演出の尺（ms）。LAB の標準の速さ（1.5倍）と同じに見せる。無い番号は能力変化の固有VFXと同じ尺。
-const PRESENT_RUN_EFFECT_FX_MS = { C114: 1000, C062: 1070, C095: 1200, C095_1: 600, R018: 1000 };
+const PRESENT_RUN_EFFECT_FX_MS = { C114: 1000, C062: 1070, C095: 1200, C095_1: 600, R018: 1000, E016: 1000 };
 function presentRunEffectVfxCode(ev) {
   if (!ev || ev.type !== 'run_effect') return '';
   if (ev.kind === 'enchant_upgrade') return Array.isArray(ev.targetSlots) && ev.targetSlots.length ? 'C095' : 'C095_1';
