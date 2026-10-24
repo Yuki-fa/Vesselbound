@@ -1,0 +1,50 @@
+{
+ "alastor-brand": {
+  "why": "アラストル：紅蓮の呪印を味方に刻む",
+  "q": [
+   "MAGIC FIRE Cast Small",
+   "Title Transition Whoosh Fire",
+   "MAGIC FIRE Cast Medium"
+  ]
+ },
+ "erinyes-flame": {
+  "why": "エリニュス：紅紫の復讐の火が敵へ飛ぶ",
+  "q": [
+   "MAGIC FIRE Cast Large Whiplash",
+   "BOOM Crimson Spark",
+   "MAGIC FIRE Deflect Spell"
+  ]
+ },
+ "echidna-wave": {
+  "why": "エキドナ：毒蛇の波が全員へ広がる",
+  "q": [
+   "MAGIC ACID Cast Large",
+   "Title Transition Gurgle Warble",
+   "MAGIC ACID Cast Medium"
+  ]
+ },
+ "atlas-burden": {
+  "why": "アトラス：重い衝撃を味方へ分ける",
+  "q": [
+   "IMPACT PHSYICS-Stone Crush",
+   "IMPACT-Submission",
+   "IMPACT PHSYICS-Large Metal Gate"
+  ]
+ },
+ "thunderbird-charge": {
+  "why": "サンダーバード：暗雲から落ちる稲妻",
+  "q": [
+   "MAGIC ELECTRIC Cast Large",
+   "Title Transition Electrical Surge",
+   "BOOM Thunder Doom"
+  ]
+ },
+ "kele-blood-nova": {
+  "why": "ケール：深紅の衝撃波が敵全体へ",
+  "q": [
+   "IMPACT-Dark Drum",
+   "BOOM Scarlet Blaze",
+   "IMPACT-Annihilating Blast"
+  ]
+ }
+}

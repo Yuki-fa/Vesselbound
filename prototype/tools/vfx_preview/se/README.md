@@ -131,6 +131,14 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 | stealth-veil | [Production Element Title Transition Reverse Whoosh Reverse 01.wav](#stealth-veil-1) · 1.021秒 / peak 0.450 | [Production Element Title Transition Whoosh Drone 02.wav](#stealth-veil-2) · 1.950秒 / peak 0.478 | [Production Element Title Transition Sweep Warble 01.wav](#stealth-veil-3) · 1.950秒 / peak 0.502 |
 | guard-stance | [HERO - DESIGNED - SHIELD Metal Hit Heavy-02.wav](#guard-stance-1) · 1.013秒 / peak 0.294 | [DSGNImpt-DS_IMPACT PHSYICS-Iron Clash_RTSB_COL-01.wav](#guard-stance-2) · 1.950秒 / peak 0.218 | [DSGNImpt-DS_IMPACT-Hollow Slam_RTSB_COL-01.wav](#guard-stance-3) · 1.950秒 / peak 0.156 |
 <!-- SE1025_ROWS_END -->
+<!-- SE1025B_ROWS_BEGIN -->
+| alastor-brand | [SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav](#alastor-brand-1) · 1.950秒 / peak 0.243 | [Production Element Title Transition Whoosh Fire 02.wav](#alastor-brand-2) · 1.950秒 / peak 0.332 | [SORCERY - DESIGNED - MAGIC FIRE Cast Medium-03.wav](#alastor-brand-3) · 1.950秒 / peak 0.450 |
+| erinyes-flame | [SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-03.wav](#erinyes-flame-1) · 1.950秒 / peak 0.438 | [34 BOOM Crimson Spark_B.wav](#erinyes-flame-2) · 1.950秒 / peak 0.054 | [SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-03.wav](#erinyes-flame-3) · 1.127秒 / peak 0.527 |
+| echidna-wave | [SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav](#echidna-wave-1) · 1.950秒 / peak 0.450 | [Production Element Title Transition Gurgle Warble 01.wav](#echidna-wave-2) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-04.wav](#echidna-wave-3) · 1.950秒 / peak 0.450 |
+| atlas-burden | [DSGNImpt-DS_IMPACT PHSYICS-Stone Crush_RTSB_COL-01.wav](#atlas-burden-1) · 1.401秒 / peak 0.248 | [DSGNImpt-DS_IMPACT-Submission_RTSB_COL-01.wav](#atlas-burden-2) · 1.950秒 / peak 0.122 | [DSGNImpt-DS_IMPACT PHSYICS-Large Metal Gate_RTSB_COL-01.wav](#atlas-burden-3) · 1.950秒 / peak 0.450 |
+| thunderbird-charge | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-04.wav](#thunderbird-charge-1) · 1.317秒 / peak 0.450 | [Production Element Title Transition Electrical Surge 01.wav](#thunderbird-charge-2) · 0.754秒 / peak 0.450 | [09 BOOM Thunder Doom_B.wav](#thunderbird-charge-3) · 1.950秒 / peak 0.036 |
+| kele-blood-nova | [DSGNImpt-DS_IMPACT-Dark Drum_RTSB_COL-01.wav](#kele-blood-nova-1) · 1.950秒 / peak 0.125 | [27 BOOM Scarlet Blaze_Bb.wav](#kele-blood-nova-2) · 1.950秒 / peak 0.305 | [DSGNImpt-DS_IMPACT-Annihilating Blast_RTSB_COL-01.wav](#kele-blood-nova-3) · 1.950秒 / peak 0.297 |
+<!-- SE1025B_ROWS_END -->
 
 ヴリコラカスは復活開始時に `revive.wav`、ダイアウルフはウルフ登場開始時に `opening.wav` を追加再生する。候補3つとは別の既存SE。
 
@@ -2194,3 +2202,133 @@ LAB の01〜05（10/23 に作った演出）と、2026-10-25 に作った演出�
 - 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Hollow Slam_RTSB_COL-01.wav`
 - 理由: 防戦：重い盾を構える（攻撃しない）
 - 原音 3.390秒 / 開始 0.061秒 / 出力 1.950秒 / peak 0.156秒 / 末尾フェード 400ms
+
+## 2026-10-25追加（新しいキャラクター）の原音と加工
+
+新しいキャラクター25枚のうち新作の演出6種（アラストル・エリニュス・エキドナ・アトラス・サンダーバード・ケール）の候補。ゲームの採用SE（assets/sfx）は変えていない（利用者が選ぶまで無音または仮の音）。聴感未確認。
+
+<a id="alastor-brand-1"></a>
+### alastor-brand-1 / SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav`
+- 理由: アラストル：紅蓮の呪印を味方に刻む
+- 原音 5.200秒 / 開始 0.008秒 / 出力 1.950秒 / peak 0.243秒 / 末尾フェード 400ms
+
+<a id="alastor-brand-2"></a>
+### alastor-brand-2 / Production Element Title Transition Whoosh Fire 02.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 02.wav`
+- 理由: アラストル：紅蓮の呪印を味方に刻む
+- 原音 2.842秒 / 開始 0.005秒 / 出力 1.950秒 / peak 0.332秒 / 末尾フェード 400ms
+
+<a id="alastor-brand-3"></a>
+### alastor-brand-3 / SORCERY - DESIGNED - MAGIC FIRE Cast Medium-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Medium-03.wav`
+- 理由: アラストル：紅蓮の呪印を味方に刻む
+- 原音 3.750秒 / 開始 0.348秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="erinyes-flame-1"></a>
+### erinyes-flame-1 / SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-03.wav`
+- 理由: エリニュス：紅紫の復讐の火が敵へ飛ぶ
+- 原音 3.700秒 / 開始 0.016秒 / 出力 1.950秒 / peak 0.438秒 / 末尾フェード 400ms
+
+<a id="erinyes-flame-2"></a>
+### erinyes-flame-2 / 34 BOOM Crimson Spark_B.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/34 BOOM Crimson Spark_B.wav`
+- 理由: エリニュス：紅紫の復讐の火が敵へ飛ぶ
+- 原音 10.574秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.054秒 / 末尾フェード 400ms
+
+<a id="erinyes-flame-3"></a>
+### erinyes-flame-3 / SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-03.wav`
+- 理由: エリニュス：紅紫の復讐の火が敵へ飛ぶ
+- 原音 1.130秒 / 開始 0.003秒 / 出力 1.127秒 / peak 0.527秒 / 末尾フェード 30ms
+
+<a id="echidna-wave-1"></a>
+### echidna-wave-1 / SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav`
+- 理由: エキドナ：毒蛇の波が全員へ広がる
+- 原音 4.010秒 / 開始 0.231秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="echidna-wave-2"></a>
+### echidna-wave-2 / Production Element Title Transition Gurgle Warble 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Gurgle Warble 01.wav`
+- 理由: エキドナ：毒蛇の波が全員へ広がる
+- 原音 9.274秒 / 開始 3.495秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="echidna-wave-3"></a>
+### echidna-wave-3 / SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-04.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-04.wav`
+- 理由: エキドナ：毒蛇の波が全員へ広がる
+- 原音 4.930秒 / 開始 2.624秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="atlas-burden-1"></a>
+### atlas-burden-1 / DSGNImpt-DS_IMPACT PHSYICS-Stone Crush_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Stone Crush_RTSB_COL-01.wav`
+- 理由: アトラス：重い衝撃を味方へ分ける
+- 原音 1.410秒 / 開始 0.009秒 / 出力 1.401秒 / peak 0.248秒 / 末尾フェード 30ms
+
+<a id="atlas-burden-2"></a>
+### atlas-burden-2 / DSGNImpt-DS_IMPACT-Submission_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Submission_RTSB_COL-01.wav`
+- 理由: アトラス：重い衝撃を味方へ分ける
+- 原音 3.220秒 / 開始 0.012秒 / 出力 1.950秒 / peak 0.122秒 / 末尾フェード 400ms
+
+<a id="atlas-burden-3"></a>
+### atlas-burden-3 / DSGNImpt-DS_IMPACT PHSYICS-Large Metal Gate_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Large Metal Gate_RTSB_COL-01.wav`
+- 理由: アトラス：重い衝撃を味方へ分ける
+- 原音 5.090秒 / 開始 0.213秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="thunderbird-charge-1"></a>
+### thunderbird-charge-1 / SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-04.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-04.wav`
+- 理由: サンダーバード：暗雲から落ちる稲妻
+- 原音 4.710秒 / 開始 3.393秒 / 出力 1.317秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="thunderbird-charge-2"></a>
+### thunderbird-charge-2 / Production Element Title Transition Electrical Surge 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Electrical Surge 01.wav`
+- 理由: サンダーバード：暗雲から落ちる稲妻
+- 原音 2.177秒 / 開始 1.422秒 / 出力 0.754秒 / peak 0.450秒 / 末尾フェード 30ms
+
+<a id="thunderbird-charge-3"></a>
+### thunderbird-charge-3 / 09 BOOM Thunder Doom_B.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/09 BOOM Thunder Doom_B.wav`
+- 理由: サンダーバード：暗雲から落ちる稲妻
+- 原音 10.761秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.036秒 / 末尾フェード 400ms
+
+<a id="kele-blood-nova-1"></a>
+### kele-blood-nova-1 / DSGNImpt-DS_IMPACT-Dark Drum_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Dark Drum_RTSB_COL-01.wav`
+- 理由: ケール：深紅の衝撃波が敵全体へ
+- 原音 3.260秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.125秒 / 末尾フェード 400ms
+
+<a id="kele-blood-nova-2"></a>
+### kele-blood-nova-2 / 27 BOOM Scarlet Blaze_Bb.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/27 BOOM Scarlet Blaze_Bb.wav`
+- 理由: ケール：深紅の衝撃波が敵全体へ
+- 原音 11.972秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.305秒 / 末尾フェード 400ms
+
+<a id="kele-blood-nova-3"></a>
+### kele-blood-nova-3 / DSGNImpt-DS_IMPACT-Annihilating Blast_RTSB_COL-01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Annihilating Blast_RTSB_COL-01.wav`
+- 理由: ケール：深紅の衝撃波が敵全体へ
+- 原音 3.260秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.297秒 / 末尾フェード 400ms
