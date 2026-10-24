@@ -61,7 +61,7 @@ function _battleFxSound(code, speed, duration, howl, cueMs) {
   const token = _battleFxGeneration;
   _battleFxTimer(() => {
     if (token !== _battleFxGeneration) return;
-    playSfx(code,{group:'magic',guardKey:`lab:${++_battleFxSequence}`,guardMs:0,maxPlayMs:0,playbackRate:1,
+    playSfx(presentLabSoundCode(code),{group:'magic',guardKey:`lab:${++_battleFxSequence}`,guardMs:0,maxPlayMs:0,playbackRate:1,
       offsetMs,fadeInMs:offsetMs>0?60:0,fadeAtMs,fadeEndMs,
       onVoice:voice=>{ _battleFxVoices.add(voice); voice.finished.then(()=>_battleFxVoices.delete(voice)); }});
   },startAt);

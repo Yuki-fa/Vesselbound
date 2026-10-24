@@ -101,8 +101,8 @@ async function testPveTrial(api,check=(name,fn)=>{fn();console.log('OK '+name);}
     finish.slice(0,4).forEach(resolve=>resolve());await Promise.resolve();await Promise.resolve();
     check('再抽選：5枚すべてが裏返るまでは新しい表もVFXも開始しない',()=>{assert.deepEqual(events,Array(5).fill('down'));assert.equal(played,null);});
     finish[4]();await task;
-    check('再抽選：裏返し完了後に新しい5枚を描き、左端の最高レア1枚だけ既存VFXを使う',()=>{
-      assert.deepEqual(played,[1,4,1,1,1]);assert.equal(events.filter(e=>e==='face').length,5);assert.equal(events.at(-1),'up');assert.equal(_rewardRerollReveal,null);
+    check('再抽選：裏返し完了後に新しい5枚を描き、設定が無効なら全札を通常めくりにする',()=>{
+      assert.deepEqual(played,REWARD_RARITY_REVEAL_ENABLED?[1,4,1,1,1]:[1,1,1,1,1]);assert.equal(events.filter(e=>e==='face').length,5);assert.equal(events.at(-1),'up');assert.equal(_rewardRerollReveal,null);
     });
   }finally{cardRevealTurnDown=turnDown;cardRevealPlaySequence=sequence;_rewardRerollFace=face;cardRevealReset=reset;_rewardRerollReveal=null;}
 }

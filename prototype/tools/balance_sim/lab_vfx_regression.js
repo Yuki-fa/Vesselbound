@@ -291,7 +291,11 @@ async function extraChecks() {
   const adopted=fs.readFileSync(path.join(ROOT,'tools/vfx_preview/se/ADOPTED.md'),'utf8');
   const moved={C025:'E083',C031:'E043',C084:'E031',C057:'E056',C109:'E024',C121:'E082',C049:'C050',C024:'E042',C107:'C124',C124:'C107'};
   for(const line of adopted.split('\n')){const cells=line.split('|').map(v=>v.trim());if(!/^[A-Z]+\d{3}(?:_gain)?$/.test(cells[1]||''))continue;
-    if(['C034','C047','C070','C114'].includes(cells[1])){
+    if(['C047','C070'].includes(cells[1])){
+      assert.equal(presentLabFx(cells[1])[0],'aura-buff','2026-10-25指定の常時バフへ再割り当て '+cells[1]);
+      assert.equal(presentLabSoundCode(cells[1]),'S009');assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'旧定義は残す '+cells[2]);continue;
+    }
+    if(['C034','C114'].includes(cells[1])){
       assert.equal(presentLabFx(cells[1]),null,'旧効果の割り当てを外す '+cells[1]);assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
     }
     cells[1]=moved[cells[1]]||cells[1];

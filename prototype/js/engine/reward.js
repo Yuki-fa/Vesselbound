@@ -787,6 +787,7 @@ function goToReward(options){
     if(!_noNewRewards&&!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
     G._retryRewardCards=null;
     _rewCards.forEach(c=>{ if(c){ towerBoonBlessGeneratedCard(c); c._isOriginalReward=true; } });
+    if(!_isFacilityEntry&&!G._onlineMode&&!_noNewRewards&&!_peddler) _markRewardAppearancePending(_rewCards);
     if(_saveCheckpoint&&!_isFacilityEntry&&!_noNewRewards) towerBoonGrantRewardRerolls();
     if(_peddler){
       // 商品は報酬ではない（1枚だけ取れる制限を掛けない）。交換は魔導店と共通。
@@ -868,6 +869,7 @@ function goToReward(options){
   // checkpoint付きで呼ばれるのは勝利・敗北後の2か所だけ（battle.js／main.js）。
   // 施設・再開（restoreCheckpoint）・オンラインの編成ではめくらない。
   if(_saveCheckpoint&&!_isFacilityEntry&&!_restoreCheckpoint&&!_noNewRewards) _playRewardReveal();
+  else _completeRewardAppearance(_rewCards);
   return autosaveDisplay;
 }
 
@@ -877,6 +879,7 @@ function goToReward(options){
 // 報酬欄のカードは goToReward() で既に描いてあり、めくりの間は隠しているだけ。
 // 最後に手前のカードと黒を消し、報酬欄の同じカードをフェードで出す。
 // 消える間は大きな縦長の光の帯を1本、左から右へ流す（2026-09-30 利用者指定。数本は多すぎて不自然）。
+const REWARD_RARITY_REVEAL_ENABLED=false; // trueで大きなカードのレア度順めくり・再抽選の最高レアVFXを戻す。
 const REWARD_REVEAL_CARD_W=480;  // 手前に並べるカードの幅（利用者指定）
 const REWARD_REVEAL_GAP=150;     // カードの間隔（利用者指定）
 const REWARD_REVEAL_START_MS=800;// 暗転が明けてからめくり始めるまで（暗転の戻りは0.7秒）
@@ -884,6 +887,33 @@ const REWARD_REVEAL_FADE_MS=520; // 手前のカードと黒が消える時間�
 const REWARD_REVEAL_SWEEP_MS=640; // 光の帯が流れ切るまで（CSSのアニメーションの長さと揃える）
 let _rewardRevealToken=0;        // 画面を離れる・出し直す時に、走っている演出を無効にする
 let _rewardRerollReveal=null;    // DOMと演出の参照はセーブへ入れない
+function _rewardAppearanceAllowed(){
+  return !G._onlineMode&&!G._isShop&&!G._isPeddler&&!G._isForge&&!G._isItemShop&&!G._isLibrary
+    &&!G._isTavern&&!G._isFiveSaints&&!G._isRingExchange&&!G._isVillageMenu&&!G._isWaveAltar;
+}
+function _markRewardAppearancePending(cards){
+  if(_rewardAppearanceAllowed()) (cards||[]).forEach(c=>{if(c&&c._isOriginalReward)c._rewardAppearancePending=true;});
+}
+function _completeRewardAppearance(cards){
+  if(G.phase!=='reward'||!_rewardAppearanceAllowed()||!(cards||[]).some(c=>c&&c._rewardAppearancePending)) return;
+  const waves=applyRewardAppearanceEffects(cards);
+  renderHandEditor();
+  // 表示と加算の済んだ報酬・盤面を一緒に確定する。再開／元に戻すで同じ出現を数え直さない。
+  _storeRewardStartSnapshot();
+  if(typeof SaveRun!=='undefined'&&SaveRun.enabled()) SaveRun.checkpoint('reward');
+  void _playRewardAppearanceBuffs(waves,_rewardRevealToken);
+}
+async function _playRewardAppearanceBuffs(waves,token){
+  for(const indices of waves){
+    if(token!==_rewardRevealToken||G.phase!=='reward') return;
+    const targets=indices.map(i=>_activationSlotEl(i)).filter(el=>el&&el.isConnected);
+    if(!targets.length||typeof VbFx==='undefined') continue;
+    const duration=PRESENT_CARD_EFFECT_VFX_MS;
+    if(typeof _vfxClipLayer==='function') VbFx.settings.layer=_vfxClipLayer;
+    _playCardEffectSfxAtCue('S009',duration);
+    await Promise.all(targets.map(el=>VbFx.play(presentLabFx('C040')[0],{source:el,targets:[el],durationMs:duration,speed:1,seed:53,dir:1}).catch(()=>{})));
+  }
+}
 function _rewardRevealRarity(card){ return Math.max(1,Math.min(5,Number(card&&card.rarity)||1)); }
 function _rewardRerollVfxIndex(cards){
   let best=-1;
@@ -896,7 +926,7 @@ function _rewardRerollFace(card){
   if(typeof applyCardVisual==='function') applyCardVisual(front,card);
   return front;
 }
-function _prepareRewardRerollReveal(cards){
+function _prepareRewardRerollReveal(cards,options){
   const host=document.getElementById('scr-battle'),row=document.getElementById('reward-offer-row');
   if(!host||!row||typeof cardRevealCreateRig!=='function') return null;
   const bounds=host.getBoundingClientRect(),scale=host.offsetWidth?bounds.width/host.offsetWidth:0;
@@ -909,7 +939,8 @@ function _prepareRewardRerollReveal(cards){
     if(!card||!(rect.width>0)) return;
     const rig=cardRevealCreateRig(_rewardRerollFace(card),rect.width/scale);
     rig.style.left=`${(rect.left-bounds.left)/scale}px`;rig.style.top=`${(rect.top-bounds.top)/scale}px`;
-    cardRevealShowFace(rig);layer.appendChild(rig);rigs.push({idx,rig});
+    if(!(options&&options.faceDown)) cardRevealShowFace(rig);
+    layer.appendChild(rig);rigs.push({idx,rig});
   });
   if(!rigs.length) return null;
   host.appendChild(layer);
@@ -917,28 +948,39 @@ function _prepareRewardRerollReveal(cards){
   _rewardRerollReveal={layer,rigs,token:_rewardRevealToken};
   return _rewardRerollReveal;
 }
-async function _playRewardRerollReveal(reveal,cards){
+async function _playRewardRerollReveal(reveal,cards,options){
   try{
-    await Promise.all(reveal.rigs.map(({rig})=>cardRevealTurnDown(rig)));
+    if(options&&options.initial){
+      await new Promise(resolve=>setTimeout(resolve,REWARD_REVEAL_START_MS));
+      if(_rewardRerollReveal!==reveal||reveal.token!==_rewardRevealToken||G.phase!=='reward') return;
+      _playRewardRevealSweep(reveal.layer.parentElement);
+      await new Promise(resolve=>setTimeout(resolve,REWARD_REVEAL_SWEEP_MS));
+    }else await Promise.all(reveal.rigs.map(({rig})=>cardRevealTurnDown(rig)));
     if(_rewardRerollReveal!==reveal||reveal.token!==_rewardRevealToken||G.phase!=='reward') return;
-    const best=_rewardRerollVfxIndex(cards);
+    const best=REWARD_RARITY_REVEAL_ENABLED?_rewardRerollVfxIndex(cards):-1;
     reveal.rigs=reveal.rigs.filter(({rig,idx})=>{if(cards[idx]) return true;rig.remove();return false;});
     reveal.rigs.forEach(({rig,idx})=>{
       rig._cr.faceFront.querySelector('.cr-front-content').replaceChildren(_rewardRerollFace(cards[idx]));
       rig.style.zIndex=idx===best?'2':'1';
     });
-    // 全部が裏になった後、最高レア1枚だけ既存VFXを出す。他の札は通常めくり。
+    // 全部が裏になった後、その場で通常めくり。スイッチを戻した時だけ最高レア1枚のVFXを出す。
     await cardRevealPlaySequence(reveal.rigs.map(x=>x.rig),reveal.rigs.map(x=>x.idx===best?_rewardRevealRarity(cards[x.idx]):1));
   }catch(e){console.error('[reward reroll]',e);}
   finally{
     if(_rewardRerollReveal===reveal){
       reveal.rigs.forEach(({rig})=>cardRevealReset(rig));reveal.layer.remove();
       _rewardRerollReveal=null;document.body.classList.remove('reward-reroll-active');
+      _completeRewardAppearance(cards);
       towerBoonSyncRerollButton();
     }
   }
 }
 function _playRewardReveal(){
+  if(!REWARD_RARITY_REVEAL_ENABLED){
+    const cards=(_rewCards||[]).slice(),reveal=_prepareRewardRerollReveal(cards,{faceDown:true});
+    if(reveal) return _playRewardRerollReveal(reveal,cards,{initial:true});
+    _completeRewardAppearance(cards);return;
+  }
   const host=document.getElementById('scr-battle');
   const cards=(_rewCards||[]).filter(Boolean);
   if(!host||!cards.length||typeof cardRevealCreateRig!=='function'||typeof mkCardEl!=='function') return;
@@ -973,6 +1015,7 @@ function _playRewardReveal(){
     catch(e){ console.error('[reward reveal]',e); }
     if(token!==_rewardRevealToken) return;
     _finishRewardReveal(false);
+    _completeRewardAppearance(cards);
   },REWARD_REVEAL_START_MS);
 }
 // immediate=true：演出なしで即座に片付ける（画面を離れた時・次の報酬画面に入る時）。
@@ -991,7 +1034,9 @@ function _finishRewardReveal(immediate){
   layer.classList.add('is-leaving');
   window.setTimeout(()=>layer.remove(),REWARD_REVEAL_FADE_MS+60);
   // 流れる光。手前の層と一緒に薄くならないよう、層の外（同じ画面の直下）に置く。
-  const host=layer.parentElement;
+  _playRewardRevealSweep(layer.parentElement);
+}
+function _playRewardRevealSweep(host){
   if(host){
     document.getElementById('reward-reveal-sweep')?.remove();
     const sweep=document.createElement('div');
@@ -4752,7 +4797,8 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
       if(_isPanelCharacter){
         const _panelOwner=arrName==='boardCards'?_getPartyBoardUnit():null;
         const st=_panelCharacterPreviewStats(_panelOwner,arrName==='boardCards'?i:null,_displayCard);
-        const pAtk=st.atk, pHp=st.hp;
+        const shown=arrName==='boardCards'&&typeof cardActivationShownStats==='function'?cardActivationShownStats(card,st):st;
+        const pAtk=shown.atk, pHp=shown.hp;
         // HPを減少させる強化でHPが0になったキャラクターは、出撃不可のキャラと同じ見た目で暗くする。
         // 「特殊マス以外に置かれて出撃できない」場合は魔導板の枠を明るく残す仕様なので、
         // HP0だけは別クラス（board-hp-zero）も付け、枠画像とマナ／生贄アイコンまで暗くする。

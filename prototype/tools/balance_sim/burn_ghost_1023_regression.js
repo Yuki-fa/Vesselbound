@@ -33,13 +33,14 @@ function el(tag) {
 }
 const body = el('body'), screen = el('div');
 screen.id = 'scr-battle'; screen.classList.add('active'); body.appendChild(screen);
-let motion = false;
+let motion = false, cut = false;
 const fxRoot = el('div'); fxRoot.dataset.vbFxLayer = '1';
 const document = {
   body, documentElement: body,
   createElement: el,
   getElementById: id => { const n = byId.get(id); return n && isConnected(n) ? n : null; },
-  querySelector: sel => sel === '.attack-motion-clone' ? (motion ? {} : null) : sel === '[data-vb-fx-layer]' ? (fxRoot.parentNode ? fxRoot : null) : null,
+  querySelector: sel => sel.split(',').some(s=>s==='.attack-motion-clone'&&motion||s==='.activation-cut-half'&&cut)
+    ? {} : sel === '[data-vb-fx-layer]' ? (fxRoot.parentNode ? fxRoot : null) : null,
 };
 function isConnected(n) { for (; n; n = n.parentNode) if (n === body) return true; return false; }
 const ctx = { document, window: { innerWidth: 1920, innerHeight: 1080 }, _gameScale: () => 1, _battleVfxClipRect: () => ({ left: 0, top: 0, width: 1920, height: 1080 }) };
@@ -66,4 +67,11 @@ assert.equal(base.parentNode, screen, '入れ物そのものは付け替えな�
 assert.equal(burn.parentNode, base, '焼失中のカードは作った入れ物のまま');
 assert.equal(label.parentNode, over, '攻撃中に作った演出も作った入れ物のまま');
 assert.equal(detaches, 2, '付け替わったのは VbFx の描画面（往復2回）だけ＝焼失・数値の CSS アニメーションはやり直しにならない');
+cut = true;
+assert.equal(ctx._vfxClipLayer(),over,'起動の切断カードの剣戟もbody直下の上層へ');
+assert.equal(fxRoot.parentNode,over,'切断したカードの上にVFXの描画面を置く');
+assert.equal(burn.parentNode,base,'切断中も焼失中のカードは付け替えない');
+cut = false;
+assert.equal(ctx._vfxClipLayer(),base);assert.equal(fxRoot.parentNode,base);
+assert.equal(detaches,4,'切断の出入りでも描画面だけが往復する');
 console.log('残像1023：成功');
