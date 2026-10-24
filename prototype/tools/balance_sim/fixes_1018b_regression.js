@@ -32,9 +32,9 @@ function formed(c, online = false) {
   fresh();
   if (c.category === 'キャラクター') {
     c.directions = ['left', 'right']; G.mainBoard[1] = c;
-    if(c.no==='C099'){const e=card('E003');e.directions=['right'];G.mainBoard[0]=e;}
+    if(c.no==='C124'){const e=card('E003');e.directions=['right'];G.mainBoard[0]=e;}
   }
-  else { G.mainBoard[1] = card('C001'); G.mainBoard[1].directions = ['left']; c.directions = ['right']; G.mainBoard[0] = c; }
+  else { G.mainBoard[1] = card('C006'); G.mainBoard[1].directions = ['left']; c.directions = ['right']; G.mainBoard[0] = c; }
   const u = online ? buildOnlineSelfFormation().units[0]
     : buildBoardFormation(_getPartyBoardUnit(), { persistEternal: false }).ordered[0].unit;
   u.id = 'subject'; u.atk = 17; u.hp = u.maxHp = 10000;
@@ -113,7 +113,7 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
     for (const [no, kind] of [['E006','死亡'],['E008', '攻撃'], ['E032', '負傷'], ['E035', '死亡'], ['E037','攻撃'], ['E058', 'マナ'], ['E067', '攻撃'], ['E070','召喚後死亡'], ['E077', '死亡']]) {
       for (const online of [false, true]) for (const side of ['p1', 'p2']) {
         const one = card(no), two = copy(one); coreApplyCardBoon(two, { dmgMul: 3 });
-        fresh(); const c = card('C001'); c.directions = ['left', 'right']; one.directions = ['right']; two.directions = ['left'];
+        fresh(); const c = card('C006'); c.directions = ['left', 'right']; one.directions = ['right']; two.directions = ['left'];
         G.mainBoard[0] = one; G.mainBoard[1] = c; G.mainBoard[2] = two;
         const raw = online ? buildOnlineSelfFormation().units[0] : buildBoardFormation(_getPartyBoardUnit(), { persistEternal: false }).ordered[0].unit;
         raw.id = 'subject'; raw.atk = 17; raw.hp = raw.maxHp = 10000;
@@ -158,7 +158,7 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
   });
   await check('1：指輪・アイテムは祝福対象外、装備者のdmgMulを受け継がない', () => {
     const run=blessed=>{
-      fresh();const c=card('C001');if(blessed)coreApplyCardBoon(c,{dmgMul:3});
+      fresh();const c=card('C006');if(blessed)coreApplyCardBoon(c,{dmgMul:3});
       const state=createBattleState({sides:{p1:{units:[formed(c)]},p2:{units:[dummy('foe')]}},resources:{p1:{mana:10}},
         rings:{p1:RING_POOL.filter(r=>['苦行の指輪','嵐の指輪'].includes(r.name))},items:{p1:[makeItem(ITEM_POOL.find(i=>i.itemEffectKey==='meteor_scroll').id)]}});
       const events=[],emit=e=>events.push(e),rng=createSeededRng(3);
@@ -293,7 +293,7 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
   await check('6：依頼品・NPC・帰滅は両方向の交換不可、通常カードは交換可', () => {
     for (const peddler of [false, true]) for (const no of ['BC001', 'BC002', 'BC004', 'E102', 'E101']) {
       fresh(); G._isShop = true; G._isPeddler = peddler; G._wave = 3;
-      G.mainBoard[0] = card(no); G.mainBoard[1] = card('C001'); _rewCards = [card('E003')];
+      G.mainBoard[0] = card(no); G.mainBoard[1] = card('C006'); _rewCards = [card('E003')];
       assert.equal(canExchangeShopCardAt(0, 0), false, no); assert.equal(exchangeShopCard(0, 0), false, no);
       _dragSrc = { arr: 'boardCards', idx: 0 }; assert.equal(_exchangeShopOfferDropAllowedAt(0), false); _dragSrc = null;
       assert.equal(canExchangeShopCardAt(0, 1), true);
@@ -301,7 +301,7 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
   });
   await check('6：魔族の魂はエルムで一度拒否・保存、到達前行商人は不可、以後は交換してQ001終了', () => {
     fresh(); G._isShop = true; G._waveVillage = true; G._wave = 1;
-    G.mainBoard[0] = card('E075'); G.mainBoard[1] = card('C001'); _rewCards = [card('E003')];
+    G.mainBoard[0] = card('E075'); G.mainBoard[1] = card('C006'); _rewCards = [card('E003')];
     const entry=questDebugForceWaveQuest(1,'Q001');entry.status='accepted';entry.rewardCardTaken=true;
     const originalDialogue = showVillageShopSpecialDialogue, originalRender = renderHandEditor, originalRew = renderRewCards;
     let dialogues = 0; showVillageShopSpecialDialogue = async column => { assert.equal(column, '特殊台詞A1'); dialogues++; };

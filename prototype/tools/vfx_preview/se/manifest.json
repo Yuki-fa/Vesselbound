@@ -559,7 +559,7 @@
       "start": 0.0,
       "trimmed": true,
       "peakDbfs": -1,
-      "reason": "既存の状態付与（C053の音ではない）",
+      "reason": "既存の状態付与（C068の音ではない）",
       "sha256": "70aec264e290017be174d1c773e45e7998f0abca0410c61d020429dd06c4850f"
     },
     "old-all": {
@@ -577,8 +577,8 @@
     },
     "dark-ref": {
       "id": "dark-ref",
-      "filename": "C090.wav",
-      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/C090.wav",
+      "filename": "C115.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/Vesselbound/prototype/assets/sfx/C115.wav",
       "url": "vfx_preview/se/dark-ref.wav",
       "duration": 1.2107,
       "originalDuration": 1.2107,

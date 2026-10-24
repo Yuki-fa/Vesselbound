@@ -46,8 +46,8 @@ for (const c of cards) {
   // 2026-10-23：固有VFXが無いカードは「戦闘で出るこのカードのVFXを順に」（-1）。
   assert.equal(model.defaultVfxIndex(c), dedicated, c.no + ' 既定は固有素材、無ければ順に');
 }
-assert.equal(cards.find(c => c.no === 'C008').vfx[model.defaultVfxIndex(cards.find(c => c.no === 'C008'))].path,
-  'vfx:C008:arachne-ring', '通常攻撃が先頭でもC008の固有定義を選ぶ');
+assert.equal(cards.find(c => c.no === 'C013').vfx[model.defaultVfxIndex(cards.find(c => c.no === 'C013'))].path,
+  'vfx:C013:arachne-ring', '通常攻撃が先頭でもC013の固有定義を選ぶ');
 const assets = new Map();
 for (const c of cards) for (const vfx of c.vfx.filter(v => v.path)) {
   if (vfx.definition) {
@@ -87,9 +87,9 @@ assert.ok(css.includes('width:var(--lab-card-w);height:var(--lab-card-h)'), 'カ
 assert.ok(css.includes('.lab-card .name{display:none}'), '本体の戦闘カードと同じ名前非表示');
 const nodes = ['ally', 'enemy'].map(side => { const p = lab.position(side, 'front', 3, 1);
   return { offsetLeft: p.left, offsetTop: p.top, offsetWidth: game.cardWidth, offsetHeight: game.cardHeight }; });
-const c008 = cards.find(c => c.no === 'C008').vfx.find(v => v.definition === 'arachne-ring');
-assert.equal(lab.mediaBox(c008, ...nodes).width, game.cardWidth, 'C008の定義の基準幅');
-assert.equal(lab.mediaBox(c008, ...nodes).height, game.cardHeight, 'C008の定義の基準高さ');
+const c008 = cards.find(c => c.no === 'C013').vfx.find(v => v.definition === 'arachne-ring');
+assert.equal(lab.mediaBox(c008, ...nodes).width, game.cardWidth, 'C013の定義の基準幅');
+assert.equal(lab.mediaBox(c008, ...nodes).height, game.cardHeight, 'C013の定義の基準高さ');
 const front = [0, 1, 2].map(i => { const p = lab.position('enemy', 'front', 3, i);
   return { offsetLeft: p.left, offsetTop: p.top, offsetWidth: game.cardWidth, offsetHeight: game.cardHeight }; });
 const tri = cards.find(c => c.no === 'K008').vfx.find(v => v.definition === 'tri-streak');
@@ -105,11 +105,11 @@ for (const kind of Object.keys(model.kinds)) {
 for (const setting of ['専用', '汎用', '無し', '不明']) for (const kind of ['vfx', 'se']) {
   assert.equal(model.filter(cards, { [kind]: setting }).length, cards.filter(c => c[kind + 'Setting'] === setting).length, kind + '/' + setting + ' フィルタ');
 }
-assert.equal(model.filter(cards, { search: 'c037' })[0].no, 'C037', '番号検索');
-assert.equal(model.filter(cards, { search: 'デュラハン' })[0].no, 'C037', '名前検索');
+assert.equal(model.filter(cards, { search: 'c037' })[0].no, 'C047', '番号検索');
+assert.equal(model.filter(cards, { search: 'デュラハン' })[0].no, 'C047', '名前検索');
 assert.equal(model.filter(cards, { lab: 'yes' }).length + model.filter(cards, { lab: 'no' }).length, cards.length, 'LAB有無を全部表示');
 const changed = { ...input, card: input.card.replace('デュラハン', '検査用の改名') };
-assert.equal(model.build(changed, context._parseCSVWithHeader, context.VbFxCardRoutes, [], {}).find(c => c.no === 'C037').vfxSetting, '不明', 'シート変更を古い台帳で確定しない');
+assert.equal(model.build(changed, context._parseCSVWithHeader, context.VbFxCardRoutes, [], {}).find(c => c.no === 'C047').vfxSetting, '不明', 'シート変更を古い台帳で確定しない');
 const summary = JSON.parse(JSON.stringify(model.summary(cards)));
 console.log('全カード一覧: ' + summary.total + '件 / ' + JSON.stringify(summary.kinds));
 console.log('現行VFX: ' + JSON.stringify(summary.vfx) + ' / 現行SE: ' + JSON.stringify(summary.se) + ' / LAB割当: ' + summary.lab);
@@ -134,8 +134,8 @@ if (process.argv.includes('--report')) {
     '| 項目 | ゲーム | LAB |', '|---|---:|---:|', ...rows.map(r => '| ' + r.join(' | ') + ' |'), '',
     '左右の計算はrender.jsの`_unitX`を実行し、前衛／後衛それぞれ1〜7枚・両陣営の計' + layoutCases + '配置で差分0。人数が少ない列は行ごとに中央へ詰める。召喚前は3枚、召喚表示の時に発生元陣営の前衛を4枚の並びへ詰める。再再生の4→3枚も、VFXの座標取得前に同期する（`cards_runtime_check.cjs --layout-only`で確認）。', '',
     '## VFXの寸法', '',
-    '- 通常素材：`.damage-vfx-host .vfx-hit-video`の幅460%、高さauto。`presentCharacterVfxScale`とimgの実transformを適用。例：通常命中1196px、K003/S008は598px、C019_1は74.75px。',
-    '- C008は専用の100%×100%画像へ倍率2をかけるので520×790px。復活K020は幅598px、Xはカード幅の-12%。',
+    '- 通常素材：`.damage-vfx-host .vfx-hit-video`の幅460%、高さauto。`presentCharacterVfxScale`とimgの実transformを適用。例：通常命中1196px、K003/S008は598px、C024_1は74.75px。',
+    '- C013は専用の100%×100%画像へ倍率2をかけるので520×790px。復活K020は幅598px、Xはカード幅の-12%。',
     '- マナ回復は`playManaGainVfx`のmax(8, 64, カード幅×.55)から143×143px。初期Yは中心からカード高×-.18、上昇量はカード高×.35。',
     '- 貫通K007はカード幅×1.1＝286px。三方向K008は実対象列の幅×3、絵の幅×-.2だけXをずらす（前衛3枚で2484px）。全体K009はフィールド幅1964×4.6×.2875＝2597.39px。',
     '- 結界はportraitと同じ幅87.68%・高さ92.85%・top3.58%。封印解除／特殊マスは`playSpecialProductionVfx`のhostとobject-fitを採取する。',

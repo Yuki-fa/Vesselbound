@@ -67,7 +67,7 @@ function endBoard(){
     _corePassiveOpeningApplied:true,customStatus:{stacks:7}});
   const summoned=unit('summoned',2,{name:'召喚された敵',atk:16,hp:9,maxHp:15,
     _summonedInBattle:true,_openingDuplicate:true,keywords:['復活'],_starterRegenUsed:false});
-  const transformed=unit('transformed',3,{name:'ドラゴン',no:'C104',artCode:'C104',_artCode:'C104',art:'',
+  const transformed=unit('transformed',3,{name:'ドラゴン',no:'CF004',artCode:'CF004',_artCode:'CF004',art:'',
     lane:'rear',atk:25,hp:2,maxHp:40,keywords:['結界3'],shield:0,effectData:{effectTexts:['攻撃：1マナを得る。']}});
   const dead=unit('dead',4,{hp:0,atk:0,_starterRegenUsed:true,keywords:['復活']});
   const sealed=unit('sealed',5,{lane:'rear',keywords:['封印9'],_sealed:true,_sealValue:6,_sealOrder:101.5});
@@ -119,7 +119,7 @@ function assertCarry(expected,actual){
   // コアが再スタンプするside/slotも含め、終了時の全保存可能データを比較する。
   assert.deepEqual(SaveRun.copy(actual,{battleCarry:true}),expected);
   assert.equal(actual[4].hp,0,'死亡した敵を復活させない');
-  assert.equal(actual[3].artCode,'C104','変身後の絵を維持');
+  assert.equal(actual[3].artCode,'CF004','変身後の絵を維持');
   assert.equal(actual[2]._summonedInBattle,true,'召喚された体を維持');
   assert.equal(actual[5]._sealValue,6,'封印の残量を維持');
   assert.equal(actual[6]._sealed,false,'解放済みを再封印しない');

@@ -2283,8 +2283,8 @@
       "price": 800
     },
     {
-      "key": "panel_sheet_C049:base",
-      "baseId": "panel_sheet_C049",
+      "key": "panel_sheet_C064:base",
+      "baseId": "panel_sheet_C064",
       "name": "ドラゴネット",
       "category": "キャラクター",
       "form": "通常",
@@ -2293,8 +2293,8 @@
       "price": 560
     },
     {
-      "key": "panel_sheet_C049:merged",
-      "baseId": "panel_sheet_C049",
+      "key": "panel_sheet_C064:merged",
+      "baseId": "panel_sheet_C064",
       "name": "ドラゴネット+",
       "category": "キャラクター",
       "form": "合体",
@@ -2303,8 +2303,8 @@
       "price": 800
     },
     {
-      "key": "panel_sheet_C050:base",
-      "baseId": "panel_sheet_C050",
+      "key": "panel_sheet_C065:base",
+      "baseId": "panel_sheet_C065",
       "name": "リザードマン",
       "category": "キャラクター",
       "form": "通常",
@@ -2313,149 +2313,9 @@
       "price": 80
     },
     {
-      "key": "panel_sheet_C050:merged",
-      "baseId": "panel_sheet_C050",
+      "key": "panel_sheet_C065:merged",
+      "baseId": "panel_sheet_C065",
       "name": "リザードマン+",
-      "category": "キャラクター",
-      "form": "合体",
-      "rarity": 2,
-      "grade": 1,
-      "price": 160
-    },
-    {
-      "key": "panel_sheet_C051:base",
-      "baseId": "panel_sheet_C051",
-      "name": "コカトリス",
-      "category": "キャラクター",
-      "form": "通常",
-      "rarity": 3,
-      "grade": 2,
-      "price": 320
-    },
-    {
-      "key": "panel_sheet_C051:merged",
-      "baseId": "panel_sheet_C051",
-      "name": "コカトリス+",
-      "category": "キャラクター",
-      "form": "合体",
-      "rarity": 4,
-      "grade": 2,
-      "price": 560
-    },
-    {
-      "key": "panel_sheet_C052:base",
-      "baseId": "panel_sheet_C052",
-      "name": "ウォーグ",
-      "category": "キャラクター",
-      "form": "通常",
-      "rarity": 2,
-      "grade": 3,
-      "price": 160
-    },
-    {
-      "key": "panel_sheet_C052:merged",
-      "baseId": "panel_sheet_C052",
-      "name": "ウォーグ+",
-      "category": "キャラクター",
-      "form": "合体",
-      "rarity": 3,
-      "grade": 3,
-      "price": 320
-    },
-    {
-      "key": "panel_sheet_C054:base",
-      "baseId": "panel_sheet_C054",
-      "name": "ワーム",
-      "category": "キャラクター",
-      "form": "通常",
-      "rarity": 3,
-      "grade": 4,
-      "price": 320
-    },
-    {
-      "key": "panel_sheet_C054:merged",
-      "baseId": "panel_sheet_C054",
-      "name": "ワーム+",
-      "category": "キャラクター",
-      "form": "合体",
-      "rarity": 4,
-      "grade": 4,
-      "price": 560
-    },
-    {
-      "key": "panel_sheet_C058:base",
-      "baseId": "panel_sheet_C058",
-      "name": "ワイバーン",
-      "category": "キャラクター",
-      "form": "通常",
-      "rarity": 1,
-      "grade": 1,
-      "price": 80
-    },
-    {
-      "key": "panel_sheet_C058:merged",
-      "baseId": "panel_sheet_C058",
-      "name": "ワイバーン+",
-      "category": "キャラクター",
-      "form": "合体",
-      "rarity": 2,
-      "grade": 1,
-      "price": 160
-    },
-    {
-      "key": "panel_sheet_C059:base",
-      "baseId": "panel_sheet_C059",
-      "name": "バジリスク",
-      "category": "キャラクター",
-      "form": "通常",
-      "rarity": 4,
-      "grade": 3,
-      "price": 560
-    },
-    {
-      "key": "panel_sheet_C059:merged",
-      "baseId": "panel_sheet_C059",
-      "name": "バジリスク+",
-      "category": "キャラクター",
-      "form": "合体",
-      "rarity": 5,
-      "grade": 3,
-      "price": 800
-    },
-    {
-      "key": "panel_sheet_C063:base",
-      "baseId": "panel_sheet_C063",
-      "name": "ジャック・オ・ランタン",
-      "category": "キャラクター",
-      "form": "通常",
-      "rarity": 1,
-      "grade": 2,
-      "price": 80
-    },
-    {
-      "key": "panel_sheet_C063:merged",
-      "baseId": "panel_sheet_C063",
-      "name": "ジャック・オ・ランタン+",
-      "category": "キャラクター",
-      "form": "合体",
-      "rarity": 2,
-      "grade": 2,
-      "price": 160
-    },
-    {
-      "key": "panel_sheet_C064:base",
-      "baseId": "panel_sheet_C064",
-      "name": "シルフ",
-      "category": "キャラクター",
-      "form": "通常",
-      "rarity": 1,
-      "grade": 1,
-      "price": 80
-    },
-    {
-      "key": "panel_sheet_C064:merged",
-      "baseId": "panel_sheet_C064",
-      "name": "シルフ+",
       "category": "キャラクター",
       "form": "合体",
       "rarity": 2,
@@ -2465,6 +2325,146 @@
     {
       "key": "panel_sheet_C066:base",
       "baseId": "panel_sheet_C066",
+      "name": "コカトリス",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 2,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_C066:merged",
+      "baseId": "panel_sheet_C066",
+      "name": "コカトリス+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 2,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C067:base",
+      "baseId": "panel_sheet_C067",
+      "name": "ウォーグ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 2,
+      "grade": 3,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C067:merged",
+      "baseId": "panel_sheet_C067",
+      "name": "ウォーグ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 3,
+      "grade": 3,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_C069:base",
+      "baseId": "panel_sheet_C069",
+      "name": "ワーム",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 3,
+      "grade": 4,
+      "price": 320
+    },
+    {
+      "key": "panel_sheet_C069:merged",
+      "baseId": "panel_sheet_C069",
+      "name": "ワーム+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 4,
+      "grade": 4,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C073:base",
+      "baseId": "panel_sheet_C073",
+      "name": "ワイバーン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C073:merged",
+      "baseId": "panel_sheet_C073",
+      "name": "ワイバーン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C074:base",
+      "baseId": "panel_sheet_C074",
+      "name": "バジリスク",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 4,
+      "grade": 3,
+      "price": 560
+    },
+    {
+      "key": "panel_sheet_C074:merged",
+      "baseId": "panel_sheet_C074",
+      "name": "バジリスク+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 5,
+      "grade": 3,
+      "price": 800
+    },
+    {
+      "key": "panel_sheet_C083:base",
+      "baseId": "panel_sheet_C083",
+      "name": "ジャック・オ・ランタン",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 2,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C083:merged",
+      "baseId": "panel_sheet_C083",
+      "name": "ジャック・オ・ランタン+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 2,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C084:base",
+      "baseId": "panel_sheet_C084",
+      "name": "シルフ",
+      "category": "キャラクター",
+      "form": "通常",
+      "rarity": 1,
+      "grade": 1,
+      "price": 80
+    },
+    {
+      "key": "panel_sheet_C084:merged",
+      "baseId": "panel_sheet_C084",
+      "name": "シルフ+",
+      "category": "キャラクター",
+      "form": "合体",
+      "rarity": 2,
+      "grade": 1,
+      "price": 160
+    },
+    {
+      "key": "panel_sheet_C086:base",
+      "baseId": "panel_sheet_C086",
       "name": "ウンディーネ",
       "category": "キャラクター",
       "form": "通常",
@@ -2473,8 +2473,8 @@
       "price": 160
     },
     {
-      "key": "panel_sheet_C066:merged",
-      "baseId": "panel_sheet_C066",
+      "key": "panel_sheet_C086:merged",
+      "baseId": "panel_sheet_C086",
       "name": "ウンディーネ+",
       "category": "キャラクター",
       "form": "合体",
@@ -2483,8 +2483,8 @@
       "price": 320
     },
     {
-      "key": "panel_sheet_C067:base",
-      "baseId": "panel_sheet_C067",
+      "key": "panel_sheet_C087:base",
+      "baseId": "panel_sheet_C087",
       "name": "フロスト・スプライト",
       "category": "キャラクター",
       "form": "通常",
@@ -2493,8 +2493,8 @@
       "price": 80
     },
     {
-      "key": "panel_sheet_C067:merged",
-      "baseId": "panel_sheet_C067",
+      "key": "panel_sheet_C087:merged",
+      "baseId": "panel_sheet_C087",
       "name": "フロスト・スプライト+",
       "category": "キャラクター",
       "form": "合体",
@@ -2503,8 +2503,8 @@
       "price": 160
     },
     {
-      "key": "panel_sheet_C068:base",
-      "baseId": "panel_sheet_C068",
+      "key": "panel_sheet_C088:base",
+      "baseId": "panel_sheet_C088",
       "name": "レプラコーン",
       "category": "キャラクター",
       "form": "通常",
@@ -2513,8 +2513,8 @@
       "price": 560
     },
     {
-      "key": "panel_sheet_C068:merged",
-      "baseId": "panel_sheet_C068",
+      "key": "panel_sheet_C088:merged",
+      "baseId": "panel_sheet_C088",
       "name": "レプラコーン+",
       "category": "キャラクター",
       "form": "合体",
@@ -2523,8 +2523,8 @@
       "price": 800
     },
     {
-      "key": "panel_sheet_C069:base",
-      "baseId": "panel_sheet_C069",
+      "key": "panel_sheet_C089:base",
+      "baseId": "panel_sheet_C089",
       "name": "メリュジーヌ",
       "category": "キャラクター",
       "form": "通常",
@@ -2533,8 +2533,8 @@
       "price": 560
     },
     {
-      "key": "panel_sheet_C069:merged",
-      "baseId": "panel_sheet_C069",
+      "key": "panel_sheet_C089:merged",
+      "baseId": "panel_sheet_C089",
       "name": "メリュジーヌ+",
       "category": "キャラクター",
       "form": "合体",
@@ -2543,8 +2543,8 @@
       "price": 800
     },
     {
-      "key": "panel_sheet_C070:base",
-      "baseId": "panel_sheet_C070",
+      "key": "panel_sheet_C090:base",
+      "baseId": "panel_sheet_C090",
       "name": "リアナンシー",
       "category": "キャラクター",
       "form": "通常",
@@ -2553,8 +2553,8 @@
       "price": 80
     },
     {
-      "key": "panel_sheet_C070:merged",
-      "baseId": "panel_sheet_C070",
+      "key": "panel_sheet_C090:merged",
+      "baseId": "panel_sheet_C090",
       "name": "リアナンシー+",
       "category": "キャラクター",
       "form": "合体",
@@ -2563,8 +2563,8 @@
       "price": 160
     },
     {
-      "key": "panel_sheet_C071:base",
-      "baseId": "panel_sheet_C071",
+      "key": "panel_sheet_C091:base",
+      "baseId": "panel_sheet_C091",
       "name": "ニンフ",
       "category": "キャラクター",
       "form": "通常",
@@ -2573,8 +2573,8 @@
       "price": 80
     },
     {
-      "key": "panel_sheet_C071:merged",
-      "baseId": "panel_sheet_C071",
+      "key": "panel_sheet_C091:merged",
+      "baseId": "panel_sheet_C091",
       "name": "ニンフ+",
       "category": "キャラクター",
       "form": "合体",
@@ -2583,8 +2583,8 @@
       "price": 160
     },
     {
-      "key": "panel_sheet_C072:base",
-      "baseId": "panel_sheet_C072",
+      "key": "panel_sheet_C092:base",
+      "baseId": "panel_sheet_C092",
       "name": "シャナ",
       "category": "キャラクター",
       "form": "通常",
@@ -2593,8 +2593,8 @@
       "price": 80
     },
     {
-      "key": "panel_sheet_C072:merged",
-      "baseId": "panel_sheet_C072",
+      "key": "panel_sheet_C092:merged",
+      "baseId": "panel_sheet_C092",
       "name": "シャナ+",
       "category": "キャラクター",
       "form": "合体",
@@ -2603,8 +2603,8 @@
       "price": 160
     },
     {
-      "key": "panel_sheet_C075:base",
-      "baseId": "panel_sheet_C075",
+      "key": "panel_sheet_C095:base",
+      "baseId": "panel_sheet_C095",
       "name": "グリマルキン",
       "category": "キャラクター",
       "form": "通常",
@@ -2613,8 +2613,8 @@
       "price": 160
     },
     {
-      "key": "panel_sheet_C075:merged",
-      "baseId": "panel_sheet_C075",
+      "key": "panel_sheet_C095:merged",
+      "baseId": "panel_sheet_C095",
       "name": "グリマルキン+",
       "category": "キャラクター",
       "form": "合体",
@@ -2623,8 +2623,8 @@
       "price": 320
     },
     {
-      "key": "panel_sheet_C076:base",
-      "baseId": "panel_sheet_C076",
+      "key": "panel_sheet_C096:base",
+      "baseId": "panel_sheet_C096",
       "name": "ペガサス",
       "category": "キャラクター",
       "form": "通常",
@@ -2633,8 +2633,8 @@
       "price": 80
     },
     {
-      "key": "panel_sheet_C076:merged",
-      "baseId": "panel_sheet_C076",
+      "key": "panel_sheet_C096:merged",
+      "baseId": "panel_sheet_C096",
       "name": "ペガサス+",
       "category": "キャラクター",
       "form": "合体",
@@ -2643,8 +2643,8 @@
       "price": 160
     },
     {
-      "key": "panel_sheet_C078:base",
-      "baseId": "panel_sheet_C078",
+      "key": "panel_sheet_C098:base",
+      "baseId": "panel_sheet_C098",
       "name": "ピクシー",
       "category": "キャラクター",
       "form": "通常",
@@ -2653,8 +2653,8 @@
       "price": 800
     },
     {
-      "key": "panel_sheet_C078:merged",
-      "baseId": "panel_sheet_C078",
+      "key": "panel_sheet_C098:merged",
+      "baseId": "panel_sheet_C098",
       "name": "ピクシー+",
       "category": "キャラクター",
       "form": "合体",
@@ -2663,8 +2663,8 @@
       "price": 800
     },
     {
-      "key": "panel_sheet_C079:base",
-      "baseId": "panel_sheet_C079",
+      "key": "panel_sheet_C099:base",
+      "baseId": "panel_sheet_C099",
       "name": "スプリガン",
       "category": "キャラクター",
       "form": "通常",
@@ -2673,8 +2673,8 @@
       "price": 80
     },
     {
-      "key": "panel_sheet_C079:merged",
-      "baseId": "panel_sheet_C079",
+      "key": "panel_sheet_C099:merged",
+      "baseId": "panel_sheet_C099",
       "name": "スプリガン+",
       "category": "キャラクター",
       "form": "合体",

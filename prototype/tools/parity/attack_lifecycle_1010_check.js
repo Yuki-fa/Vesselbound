@@ -22,7 +22,7 @@ const variants = [
 const routes = ['生存', '初撃で対象死亡', '反撃死', '呪詛', '自傷死', '帰滅の反撃死', '呪詛と根性'];
 function setupFor(v, route) {
   const c = sheet.characterCards().find(x => x.name === 'アラッサス');
-  const actor = { ...c, id: 'A', no: 'C043', artCode: 'C043', atk: 7, hp: 100, maxHp: 100,
+  const actor = { ...c, id: 'A', no: 'C058', artCode: 'C058', atk: 7, hp: 100, maxHp: 100,
     keywords: v.keywords.slice(), _panelSummoned:false, effectData: v.effectData || {} };
   const support = { id: 'S', name: v.supportName || 'ゴブリン', atk: 1, hp: 100, maxHp: 100,
     keywords: [], desc: v.supportDesc || '' };
@@ -167,7 +167,8 @@ function sweepStepChecks() {
 async function nodeChecks() {
   sweepStepChecks();
   const baseline = { module: { exports: {} }, console };
-  vm.runInNewContext(execFileSync('git', ['show', '3cac2e0:prototype/js/battle/core.js'], { cwd: ROOT, encoding: 'utf8' }), baseline);
+  // 2026-10-24：カード番号を振り直したので、前の版のコアも今の番号（C043→C058 等）へ読み替えて動かす。
+  vm.runInNewContext(require('../balance_sim/card_renumber').relabelSource(execFileSync('git', ['show', '3cac2e0:prototype/js/battle/core.js'], { cwd: ROOT, encoding: 'utf8' })), baseline);
   const oldCore = baseline.module.exports;
   const normalize = value => JSON.parse(JSON.stringify(value, function (key, v) {
     return key === 'targetId' && this.type === 'effect_flash' ? undefined : v;

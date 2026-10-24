@@ -13,8 +13,8 @@ from ingame_compare import compare_ingame, presence, roi, mask_iou, card_crops
 
 def main(root):
     geometry = dict(stage=dict(x=0, y=0, width=128, height=96, scale=1), cards=[
-        dict(id='source', no='C041', left=36, top=26, width=16, height=24),
-        dict(id='target', no='C018', left=68, top=26, width=16, height=24)],
+        dict(id='source', no='C056', left=36, top=26, width=16, height=24),
+        dict(id='target', no='C023', left=68, top=26, width=16, height=24)],
         source='source', targets=['target'])
     entry = dict(source='source', targets=['target'])
     mask, card_area, identities = roi(geometry, entry, 128, 96)

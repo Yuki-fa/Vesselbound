@@ -10,7 +10,7 @@ async function check(name, run) {
   await h.ready;
   await check('活性化のATK獲得誘発を挟んでもrepeatが途切れない', async () => {
     const a = h.card('E045');
-    const x = h.setup({ sides: { p1: { units: [h.unit('wyvern', 'C058', {
+    const x = h.setup({ sides: { p1: { units: [h.unit('wyvern', 'C073', {
       boardCards: [a], _adjacentPanelEffectTexts: [a.desc], manaCost: 1, manaRepeat: true,
       manaThresholdNo: 'E045', manaThresholdDesc: a.desc.replace(/^\d+マナ毎：/, '') })] },
     p2: { units: [h.unit('foe')] } }, resources: { p1: { mana: 3 } } });
@@ -20,7 +20,7 @@ async function check(name, run) {
   });
   for (const extra of ['激怒の指輪', 'ヘカトンケイル']) await check(`${extra}：負傷バフを間引かず2回目から既存repeatの尺にする`, async () => {
     const e = h.card('E001');
-    const x = h.setup({ sides: { p1: { units: [h.enchantUnit('golem','E001'),...(extra==='ヘカトンケイル'?[h.unit('support','C020')]:[])] }, p2: { units: [h.unit('foe')] } },
+    const x = h.setup({ sides: { p1: { units: [h.enchantUnit('golem','E001'),...(extra==='ヘカトンケイル'?[h.unit('support','C025')]:[])] }, p2: { units: [h.unit('foe')] } },
       rings: extra === '激怒の指輪' ? { p1: [h.card('R008', 'ring')] } : {} });
     x.hit(x.find('foe'), x.find('golem'), 1);
     const expected = x.events.filter(ev => ev.type === 'stat_change' && ev.reason === 'injury_self_buff').length;
@@ -58,7 +58,7 @@ async function check(name, run) {
     await x.online();
     assert.deepEqual(h.calls.filter(c=>c.name==='S006').map(c=>c.options.hitDuration),fx.map(c=>c.options.hitDuration));
   });
-  for(const [no,trigger,name]of [['C056','mana','scylla'],['C082','release','fiend']])await check(`${no}：${trigger==='mana'?'マナ閾値':'解放'}の固有VFXにもrepeatを渡す`,async()=>{
+  for(const [no,trigger,name]of [['C071','mana','scylla'],['C107','release','fiend']])await check(`${no}：${trigger==='mana'?'マナ閾値':'解放'}の固有VFXにもrepeatを渡す`,async()=>{
     const x=h.setup({sides:{p1:{units:[h.unit('source',no,{keywords:[],boardCards:[h.card('E005'),h.card('E005'),h.card('E005')]})]},
       p2:{units:[h.unit('foe')]}},resources:{p1:{mana:6}}});
     if(trigger==='mana')coreApplyManaThresholdEffects(x.state,x.rng,x.emit,x.hit);

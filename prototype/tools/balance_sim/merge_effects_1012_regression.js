@@ -19,7 +19,7 @@ function subjectFor(row, merged, override, includeRegular=false) {
   const p = makePanel(def.id); if (merged) {applyMergedPanelForm(p);p.name+='+';p._tripleMerged=true;}
   if (override != null) p.desc = override;
   if (p.category === 'キャラクター') return { p, unit: _makePanelSummonUnit(_panelSummonSpec(p), []) };
-  const base = makePanel(PANEL_POOL.find(c => c.no === 'C064').id);
+  const base = makePanel(PANEL_POOL.find(c => c.no === 'C084').id);
   base.desc = ''; base.keywords = /キーワードの数/.test(p.desc) ? ['先制','隠密'] : []; base.manaOnAttack = 0; base.directions = includeRegular?['left','right']:['left'];
   p.directions = ['right']; G.mainBoard[1] = base; G.mainBoard[0] = p;
   if(includeRegular){const regular=makePanel(def.id);regular.directions=['left'];G.mainBoard[2]=regular;}
@@ -173,7 +173,7 @@ function concrete(row,merged,text,result) {
   if((m=match(/紫の味方が与える戦闘修正の値は(\d+)/))) {
     coreRefreshVoidWalkerBonus(state);const source=state.units[side].find(x=>x.color==='紫');assert.equal(coreStatBonus(u,1,source),1+Number(m[1]));return;
   }
-  // 2026-10-12: 現行C093は開戦で熟練Nを与え、旧常時補正は持たない。
+  // 2026-10-12: 現行C118は開戦で熟練Nを与え、旧常時補正は持たない。
   if((m=match(/全ての紫の味方は熟練(\d+)を得る/))) {
     for(const x of state.units[side].filter(x=>x.color==='紫')) {
       assert.equal(coreKeywordSum(x,'熟練'),Number(m[1]));
@@ -186,7 +186,7 @@ function concrete(row,merged,text,result) {
   if((m=match(/味方の攻撃回数は(\d+)/))) {assert.equal(coreExtraAttackTotal(u,state.units[side],0),Number(m[1]));return;}
   if((m=match(/キーワードの数の(\d+)倍/))) {
     // 編成における常時値をシートの倍率とキーワード実数で確認する。
-    const formed=subjectFor(row,merged).unit,base=PANEL_POOL.find(c=>c.no==='C064');
+    const formed=subjectFor(row,merged).unit,base=PANEL_POOL.find(c=>c.no==='C084');
     assert.deepEqual([formed.atk,formed.maxHp],[base.power+2*Number(m[1]),base.life+2*Number(m[1])]);return;
   }
   if((m=match(/この効果を持つ味方の数の(\d+)倍/))) {
@@ -197,7 +197,7 @@ function concrete(row,merged,text,result) {
   }
   // 宿業の刻印（常時：-X/-X）は 2026-10-20 から内なる大力などと同じく編成の時点で入る（戦闘中のイベントは出ない）。
   if(text.includes('-X/-X')) {
-    const formed=subjectFor(row,merged).unit,base=PANEL_POOL.find(c=>c.no==='C064');
+    const formed=subjectFor(row,merged).unit,base=PANEL_POOL.find(c=>c.no==='C084');
     assert.ok(formed.atk<base.power||formed.atk===0,`ATKが編成で下がる ${formed.atk}/${base.power}`);
     assert.ok(formed.maxHp<base.life||formed.maxHp===0,`HPが編成で下がる ${formed.maxHp}/${base.life}`);return;
   }
@@ -259,7 +259,7 @@ async function pveBridgeChecks() {
     G.activeBattleItems=[];G.rings=[];G.mana=0;G.gold=0;G._blood=0;G._enemyBlood=0;
     _keepPveSummonState({});
   };
-  const hellhound=rows.find(r=>r['No.']==='C086');
+  const hellhound=rows.find(r=>r['No.']==='C111');
   for(const merged of [false,true]) {
     const desc=String(merged?hellhound['合体効果']:hellhound['効果']);
     const input={sides:{p1:{units:[plain('hound1','赤',{desc}),plain('p1-a'),plain('p1-b')]},

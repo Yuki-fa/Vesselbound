@@ -6,7 +6,7 @@ var VbFxPreview = (function () {
   var audioVoices = new Set(), audioTimers = new Set();
   var poseHosts = new Set();
   var choices = {}, playCount = 0, lastImpacts = [], running = 0, generation = 0;
-  var allyPortraits = ['C041', 'C024', 'C046', 'C067', 'C077'];
+  var allyPortraits = ['C056', 'C034', 'C061', 'C087', 'C097'];
   var enemyPortraits = ['EN001', 'EN020', 'EN005', 'EN010', 'EN011'];
   var colorFrames = { 赤: 1, 青: 2, 緑: 3, 黄: 4, 紫: 5 };
   var allNames = VbFx.effects.map(function (d) { return d.name; }), activeScene = null;
@@ -17,12 +17,12 @@ var VbFxPreview = (function () {
   function cardsFor(side) { return Array.from(document.querySelectorAll('.lab-card[data-side="' + side + '"]:not(.summon-slot)')); }
   function card(id) { return document.getElementById(id); }
   function def(name) { return VbFx.effects.find(function (d) { return d.name === (name || effect); }); }
-  function config(name) { return VbFxPreviewCatalog[name || effect] || {source:'C041',mode:'self',note:'プレビュー設定未採取。戦闘盤面のカード上で確認します。'}; }
+  function config(name) { return VbFxPreviewCatalog[name || effect] || {source:'C056',mode:'self',note:'プレビュー設定未採取。戦闘盤面のカード上で確認します。'}; }
   function applyPortrait(el, no) {
     var c = VbFxPreviewCards[no];
     if (!c) throw new Error('プレビュー用カードがありません: ' + no);
     var dir = /^(BC|NPC|MC)/.test(no)?'npcs':no.indexOf('EN') === 0 ? 'enemies' : 'characters';
-    var artNo = no === 'C081' ? 'C061' : no;
+    var artNo = no === 'C106' ? 'C081' : no;
     el.querySelector('.art').src = '../assets/art/' + dir + '/' + artNo + '.jpg';
     el.querySelector('.frame').src = '../assets/cards/' + (el.dataset.side === 'enemy' ? 'enemy_frame.svg' : 'character_frame' + (colorFrames[c.color] || 3) + '.svg');
     el.querySelector('.name').textContent = c.name; el.dataset.previewName = c.name; el.dataset.no = no; el.dataset.color = c.color;
@@ -49,18 +49,18 @@ var VbFxPreview = (function () {
     var own = cardsFor(side);
     sourceId = own[1].id; applyPortrait(own[1], conf.source);
     if (conf.deadOrigin) {
-      applyPortrait(own[2], conf.source); applyPortrait(own[1], 'C102');
+      applyPortrait(own[2], conf.source); applyPortrait(own[1], 'CF002');
       own[1].classList.add('is-dead'); own[1].querySelector('.card-caption').textContent = '死亡した味方';
     }
-    if (conf.mode === 'green' && side === 'enemy') { applyPortrait(own[0], 'C046'); applyPortrait(own[4], 'C041'); }
+    if (conf.mode === 'green' && side === 'enemy') { applyPortrait(own[0], 'C061'); applyPortrait(own[4], 'C056'); }
     if(conf.mode==='colors'){
       var palette=['赤','青','緑','黄','紫'];
       palette.forEach(function(color,i){var no=Object.keys(VbFxPreviewCards).find(function(k){return /^C\d/.test(k)&&VbFxPreviewCards[k].color===color;});if(no)applyPortrait(own[i],no);});
       var at=palette.indexOf(VbFxPreviewCards[conf.source].color);sourceId=own[at>=0?at:1].id;applyPortrait(card(sourceId),conf.source);
     }
-    if (conf.mode === 'purple') { applyPortrait(own[0], 'C082'); applyPortrait(own[3], 'C082'); }
+    if (conf.mode === 'purple') { applyPortrait(own[0], 'C107'); applyPortrait(own[3], 'C107'); }
     if (conf.mode === 'summon') {
-      var wolf = buildCard(side, 5, 'C102', true, frontCount); cards.appendChild(wolf);
+      var wolf = buildCard(side, 5, 'CF002', true, frontCount); cards.appendChild(wolf);
     }
     if (effect === 'worm') cardsFor(side === 'ally' ? 'enemy' : 'ally').forEach(function (el, i) {
       if (i % 2 === 0) { var tag = document.createElement('span'); tag.className = 'poison'; tag.textContent = '毒'; el.appendChild(tag); }
@@ -81,7 +81,7 @@ var VbFxPreview = (function () {
       var heading=document.createElement('span');heading.className='lab-board-decoration lab-board-heading';heading.textContent='魔導板';board.appendChild(heading);
       board.classList.add('lab-board-scene');$('cards').replaceChildren();
       for(var i=0;i<15;i++) {
-        var el=buildCard('ally',i,'C041',false,3);el.id='lab-board-'+i;el.classList.add('lab-board-cell');
+        var el=buildCard('ally',i,'C056',false,3);el.id='lab-board-'+i;el.classList.add('lab-board-cell');
         el.dataset.cell=String(i);el.dataset.lane='board';el.style.left=(1214+(i%5)*288)+'px';el.style.top=(465+Math.floor(i/5)*423)+'px';
         el.querySelector('.frame').src='../assets/cards/magic_board6.svg';
         el.querySelector('.art').hidden=i!==7;el.querySelector('.stats-overlay').hidden=i!==7;el.querySelector('.stats').hidden=i!==7;
@@ -167,7 +167,7 @@ var VbFxPreview = (function () {
   function gameSound(name) {
     var def = VbFx.effects.find(function (d) { return d.name === name; }), code = def && def.sourceCode;
     var key = code === 'appearance_sheet' ? 'appearance' : code === 'hit' ? 'attack' : code;
-    // 飛ぶ矢と着弾で番号が分かれる効果（C019_1／C019_2、E058_1／E058_2）は、ゲームの音のキーが「番号」と「番号_HIT」。
+    // 飛ぶ矢と着弾で番号が分かれる効果（C024_1／C024_2、E058_1／E058_2）は、ゲームの音のキーが「番号」と「番号_HIT」。
     var split = /^(.+)_([12])$/.exec(key || '');
     if (split) key = split[1] + (split[2] === '2' ? '_HIT' : '');
     var file = key && typeof Assets !== 'undefined' && Assets.sfx && Assets.sfx[key];

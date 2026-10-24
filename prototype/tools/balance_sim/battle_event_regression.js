@@ -263,7 +263,7 @@ function runArassusReflowCoreScenario() {
     const summon = kind === 'summon';
     const state = core.createBattleState({
       sides: {
-        p1: {units: [{id: `arassus-${kind}`, name: 'アラッサス', no: 'C043', atk: 3, hp: 30, maxHp: 30,
+        p1: {units: [{id: `arassus-${kind}`, name: 'アラッサス', no: 'C058', atk: 3, hp: 30, maxHp: 30,
           desc: '攻撃：全ての敵に1ダメージを与える。'}]},
         p2: {units: [
           {id: `left-${kind}`, name: '左の敵', atk: 1, hp: summon ? 8 : 1, maxHp: summon ? 8 : 1},
@@ -605,7 +605,7 @@ function runPersistentDeathObserverScenario() {
       p1: {units: [{id: 'eidolon', name: 'エイドロン', atk: 1, hp: 5, maxHp: 5},
         {id: 'hellhound', name: 'ヘルハウンド', atk: 1, hp: 5, maxHp: 5,
           // 2026-10-12: 旧い+X/+Xの直書きでなく、現在のシート本文を使う。
-          desc: sheetRows('card').find(row => row['No.'] === 'C086')['効果']},
+          desc: sheetRows('card').find(row => row['No.'] === 'C111')['効果']},
         {id: 'ally-a', name: '味方A', atk: 1, hp: 1, maxHp: 1},
         {id: 'ally-b', name: '味方B', atk: 1, hp: 1, maxHp: 1},
         {id: 'ally-c', name: '味方C', atk: 1, hp: 1, maxHp: 1}]},
@@ -1127,7 +1127,7 @@ function main() {
       '固有VFXの大きさの規則が present.js に無い');
     assert.match(read('js/engine/render.js'), /presentCharacterVfxScale\(charVfxCode\)/,
       '被弾演出が固有VFXの大きさを present.js に委ねていない（マータ等が巨大に出る）');
-    assert.doesNotMatch(currentBattle, /code==='C001'\|\|code==='C002'\|\|code==='C003'/,
+    assert.doesNotMatch(currentBattle, /code==='C006'\|\|code==='C007'\|\|code==='C008'/,
       '固有VFXの大きさの一覧を呼び出し側が持っている（present.jsへ戻すこと）');
     // 死亡演出に入るまでは暗くしない。暗くすると「死体が場に残る」ように見える。
     assert.match(read('js/engine/render.js'), /if\(_visualHp\(u\)<=0&&!_pendingDeath\) slot\.classList\.add\('dead-unit'\);/,
@@ -1464,7 +1464,7 @@ function main() {
     '2撃目の薙ぎ払いが1撃目のダメージへ戻っている');
   assert.doesNotMatch(currentBattle, /for\(const e of \(events\|\|\[\]\)\.filter\(x=>x&&x\.type==='sweep_vfx'\)\)/,
     'PvEが全ての薙ぎ払いをイベント再生より前にまとめて出している');
-  const centaur={id:'centaur',no:'C019'};
+  const centaur={id:'centaur',no:'C024'};
   assert.equal(present.presentDamageVfxSource(
     {effect:true,damageKind:'injury_effect'},null,centaur,
     ()=>'攻撃：ランダムな敵に2ダメージを与える。'),null,
@@ -1474,12 +1474,12 @@ function main() {
     ()=>'攻撃：ランダムな敵に2ダメージを与える。'),centaur,
   'キャラクター自身の攻撃効果で固有VFXが出ない');
   assert.equal(present.presentStatChangeVfxCode(
-    {sourceId:'centaur',reason:'injury_self_buff'},'C019',
-    {codes:['C019'],ownEffectText:'攻撃：ランダムな敵に2ダメージを与える。'}),'S006',
+    {sourceId:'centaur',reason:'injury_self_buff'},'C024',
+    {codes:['C024'],ownEffectText:'攻撃：ランダムな敵に2ダメージを与える。'}),'S006',
   '付与された負傷バフでキャラクター自身の固有VFXが出ている');
   assert.equal(present.presentStatChangeVfxCode(
-    {sourceId:'golem',reason:'golem'},'C003',
-    {codes:['C003'],ownEffectText:'負傷：このキャラクターは+2/+2を得る。'}),'C003',
+    {sourceId:'golem',reason:'golem'},'C008',
+    {codes:['C008'],ownEffectText:'負傷：このキャラクターは+2/+2を得る。'}),'C008',
   'キャラクター本来の負傷効果で固有VFXが出ない');
   // 「全てのキャラクター」に自分自身は含めない。
   assert.match(read('js/battle/core.js'), /\[\.\.\.allies, \.\.\.foes\]\.filter\(x => x !== unit && x\.hp > 0/,

@@ -89,7 +89,7 @@ function fixture(count, manySpriggans) {
   const row = h.sheetRows('enchant').find(r => r['No.'] === activation.no);
   const threshold = { cost: Number(activation.desc.match(/^(\d+)マナ/)[1]), repeat: true,
     no: activation.no, desc: coreManaThresholdDescFromText(activation.desc), order: Number(row['マナ順位']) };
-  const units = Array.from({ length: count }, (_, i) => h.unit('ally' + i, manySpriggans || i === 0 ? 'C079' : 'C087', {
+  const units = Array.from({ length: count }, (_, i) => h.unit('ally' + i, manySpriggans || i === 0 ? 'C099' : 'C112', {
     // コピー出撃後に20マナへ到達した状況。全員へ活性化2枚を接続する。
     boardCards: [activation, activation], _adjacentPanelEffectTexts: [activation.desc, activation.desc],
     _extraManaThresholds: [h.clone(threshold), h.clone(threshold)],
@@ -173,7 +173,7 @@ async function measure(mode, count, manySpriggans = false) {
             const byTime = new Map();
             for (const v of main) byTime.set(v.at, (byTime.get(v.at) || 0) + 1);
             assert.ok([...byTime.values()].every(n => n === r.count), '同じwaveの固有VFXを全員同時に開始する');
-            assert.equal(r.sounds.filter(s => s.code === 'C079').length, byTime.size, '固有SEもwaveにつき1本');
+            assert.equal(r.sounds.filter(s => s.code === 'C099').length, byTime.size, '固有SEもwaveにつき1本');
             const gains = r.visuals.filter(v => v.name === 'shield-gain');
             assert.equal(gains.length, byTime.size, '結界獲得の引き継ぎもwaveにつき1組');
             for (const gain of gains) {
@@ -196,7 +196,7 @@ async function measure(mode, count, manySpriggans = false) {
   }
   await check('固有VFXの対象ごとの命中時刻を、同時発動の能力更新で追い越さない', async () => {
     reset();
-    const sources = [h.unit('early', 'C008'), h.unit('late', 'C008')];
+    const sources = [h.unit('early', 'C013'), h.unit('late', 'C013')];
     const x = h.setup({ sides: { p1: { units: sources }, p2: { units: [h.unit('foe')] } },
       resources: { p1: { mana: sources[0].manaCost } } });
     renderAll(); coreApplyManaThresholdEffects(x.state, x.rng, x.emit, x.hit); reset();
@@ -216,7 +216,7 @@ async function measure(mode, count, manySpriggans = false) {
     const stat = { type: 'stat_change', side: 'p1', unitId: 'a', sourceId: 'a', reason: 'mana_threshold', atk: 1, hp: 1 };
     for (const boundary of [
       [{ ...threshold, side: 'p2', unitId: 'b' }],
-      [{ ...threshold, effectNo: 'C088', unitId: 'b' }],
+      [{ ...threshold, effectNo: 'C113', unitId: 'b' }],
       [{ ...threshold, wave: 2, unitId: 'b' }],
       [{ type: 'attack' }, { ...threshold, unitId: 'b' }],
       [{ type: 'death' }, { ...threshold, unitId: 'b' }],

@@ -9,8 +9,8 @@
 // 2026-10-22 利用者指定：シートの「VFX/SE」列をやめてコードへ移した。列で S005〜S009（発動の種類ごとの汎用の強化）を
 // 指していたものは、present.js の規則（攻撃・マナ・開戦・常時＝汎用、負傷・死亡＝固有の絵が無ければ汎用）で同じ演出になる。
 // マミーの金貨（S003）だけは規則で決まらないので書く。
-// 2026-10-23：コボルド（シートの S006）を入れ漏らし、battle.js の古い代わり（C007→C003）に落ちて負傷強化の音が鳴っていなかった。
-const CARD_PRESENTATION_FX_CODES = Object.freeze({ C023: 'S003', C007: 'S006' });
+// 2026-10-23：コボルド（シートの S006）を入れ漏らし、battle.js の古い代わり（C012→C008）に落ちて負傷強化の音が鳴っていなかった。
+const CARD_PRESENTATION_FX_CODES = Object.freeze({ C033: 'S003', C012: 'S006' });
 
 const _EXPORT_BASE =
   'https://docs.google.com/spreadsheets/d/e/' +
@@ -326,7 +326,7 @@ function _sheetArtCode(row, fallbackPrefix) {
   if (!row) return '';
   const raw = String(row['No.'] || row['No'] || row['NO'] || row['コード'] || row['画像No'] || row['画像番号'] || row['__col0'] || '').trim();
   if (!raw) return '';
-  const prefixed = raw.match(/^(BC|NPC|MC|EN|P|[RECS])\s*0*(\d+)$/i);
+  const prefixed = raw.match(/^(BC|NPC|MC|EN|CF|P|[RECS])\s*0*(\d+)$/i);
   if (prefixed) {
     let p = prefixed[1].toUpperCase();
     if (p === 'P') p = 'MC';
@@ -384,7 +384,7 @@ function _filterBySheetName(list, name) {
   return (list || []).filter(item => _normCardName(item && item.name) === n);
 }
 
-// ExcelのNo.（C043/E028/Sxxx）を、コード側のno/artCode（043/C043）に照合する。
+// ExcelのNo.（C058/E028/Sxxx）を、コード側のno/artCode（043/C058）に照合する。
 // 同名カードが存在する場合でも、シートの番号を優先して正しいカードへ同期する。
 function _filterBySheetCode(list, code, category) {
   const c = String(code || '').trim().toUpperCase();
@@ -933,7 +933,7 @@ async function loadGameData() {
       return !_falseySheet(row['実装']);
     };
     // 召喚でしか出ないカード（報酬・ショップに出さない）。
-    // **C022＝シャドウ／C101＝スケルトンへ入れ替え。** 召喚されるのは「青スケルトン」で、
+    // **C032＝シャドウ／CF001＝スケルトンへ入れ替え。** 召喚されるのは「青スケルトン」で、
     // 「青シャドウ」を召喚する効果は無くなったため、summon専用はスケルトン側になる。
     const _summonOnlyPanelNames = new Set(['スケルトン', 'ウルフ', 'ペリカン', 'ドラゴン', 'ナイトキャット', 'イフリート'].map(_normCardName));
     const _forcedPanelSyncNames = new Set([..._summonOnlyPanelNames, _normCardName('剣技')]);
@@ -1395,8 +1395,8 @@ async function loadGameData() {
       if (!name) return;
       const code = _sheetArtCode(row, forcedCategory === 'スペル' ? 'S' : (forcedCategory === 'エンチャント' ? 'E' : 'C'));
       if (forcedCategory === 'キャラクター') {
-        if (code === 'C047') name = 'ユミル';
-        if (code === 'C048') name = 'マーメイド';
+        if (code === 'C062') name = 'ユミル';
+        if (code === 'C063') name = 'マーメイド';
       }
       const forceSync = _forcedPanelSyncNames.has(_normCardName(name));
       const implemented = _rowImplemented(row);
@@ -1565,16 +1565,16 @@ async function loadGameData() {
       'E046': { name: '攻防一体', desc: '常時：このキャラクターのATKは常にHPに等しい。' },
       'E047': { desc: '常時：このキャラクターの攻撃、及び効果ダメージは前衛か後衛かに関わらず最もHPの低い敵を対象にする。' },
       'E057': { desc: '封印9　解放：このキャラクターは+20/+20を得る。', adjacentKeywords: ['封印9'] },
-      'C013': { desc: '負傷：ランダムな赤、青、緑キャラクター1体ずつは+2/+2を得る。' },
-      'C060': { desc: '解放：マナを2倍にする。', keywords: ['封印10'] },
-      'C081': { desc: '攻撃：全てのキャラクターからATKを1奪う。' },
-      'C082': { desc: '解放：全ての紫のキャラクターは+1/+1を得る。このキャラクターに接続しているエンチャントの数だけ繰り返す。', keywords: ['封印12'] },
-      'C085': { desc: '開戦：ランダムな黄、緑、紫キャラクター1体ずつは+5/+5を得る。' },
-      'C089': { desc: '攻撃：血が5以上なら2マナ得る。' },
-      'C091': { desc: '攻撃：このキャラクターは+X/+Xを得る。Xは血に等しい。' },
-      'C094': { desc: '常時：味方が解放された時、ランダムな味方の開戦効果を発動する。' },
-      'C096': { desc: '死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。' },
-      'C100': { desc: '常時：味方が解放された時、このキャラクターは+X/+Xと結界を得る。Xは血に等しい。' },
+      'C018': { desc: '負傷：ランダムな赤、青、緑キャラクター1体ずつは+2/+2を得る。' },
+      'C075': { desc: '解放：マナを2倍にする。', keywords: ['封印10'] },
+      'C106': { desc: '攻撃：全てのキャラクターからATKを1奪う。' },
+      'C107': { desc: '解放：全ての紫のキャラクターは+1/+1を得る。このキャラクターに接続しているエンチャントの数だけ繰り返す。', keywords: ['封印12'] },
+      'C110': { desc: '開戦：ランダムな黄、緑、紫キャラクター1体ずつは+5/+5を得る。' },
+      'C114': { desc: '攻撃：血が5以上なら2マナ得る。' },
+      'C116': { desc: '攻撃：このキャラクターは+X/+Xを得る。Xは血に等しい。' },
+      'C119': { desc: '常時：味方が解放された時、ランダムな味方の開戦効果を発動する。' },
+      'C121': { desc: '死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。' },
+      'C125': { desc: '常時：味方が解放された時、このキャラクターは+X/+Xと結界を得る。Xは血に等しい。' },
     };
     Object.entries(_requestedCardUpdates).forEach(([code, cfg]) => {
       const hit = _filterBySheetCode(PANEL_POOL, code).concat(_filterBySheetCode(PANEL_POOL, code.slice(0, 1) + String(parseInt(code.slice(1), 10)).padStart(3, '0')));
@@ -1588,7 +1588,7 @@ async function loadGameData() {
         if (useDesc) panel.desc = cfg.desc;
         if (useKeywords) panel.keywords = cfg.keywords.slice();
         if (useAdjacent) panel.adjacentKeywords = cfg.adjacentKeywords.slice();
-        if (code === 'C089' && useDesc) delete panel.manaOnAttack;
+        if (code === 'C114' && useDesc) delete panel.manaOnAttack;
         if (!useDesc && !useKeywords && !useAdjacent) return;
         if (panel.category === 'キャラクター') _setPanelKeywordsFromDesc(panel);
         else _setEnchantFieldsFromDesc(panel);
@@ -1600,7 +1600,7 @@ async function loadGameData() {
     // 派生データだけを正規化する。合体前後とも「復活」を持ち、スケルトンの攻撃後に
     // 本体も同じ対象へ攻撃する（旧文の「代わりに」ではない）。
     // 2026-10-12: シートの合体反復を古い2体の予備文で上書きしない。
-    _filterBySheetCode(PANEL_POOL, 'C026').filter(panel => !panel._sheetDescLoaded).forEach(panel => {
+    _filterBySheetCode(PANEL_POOL, 'C036').filter(panel => !panel._sheetDescLoaded).forEach(panel => {
       panel.desc = '復活\n攻撃：「青スケルトン」を召喚し、このキャラクターの前に攻撃させる。';
       panel.keywords = _mergeUniqueKeywords(panel.keywords, ['復活']);
       if (panel.mergedForm) {
@@ -1611,7 +1611,7 @@ async function loadGameData() {
     const strongRing = (RING_POOL || []).find(r => r && r.name === '強靭の指輪');
     if (strongRing) strongRing.desc = '開戦：全ての味方は「負傷：全ての味方はHP+1を得る。」を得る。';
     // 召喚専用の体（報酬・ショップに出さない）。**シャドウはここに入れないこと。**
-    // C022「シャドウ」はシート上の通常カードで、ここへ入れると効果文が消えて
+    // C032「シャドウ」はシート上の通常カードで、ここへ入れると効果文が消えて
     // 報酬にも出なくなる（実際にそうなっていた）。召喚専用はスケルトン側。
     const _summonOnlyOverrides = {
       'ウルフ': {desc:'', keywords:[]},
@@ -1661,7 +1661,7 @@ async function loadGameData() {
     // 途中で作ると、後から効果文が差し替わったカードの合体後だけ古いままになる。
     (PANEL_POOL || []).forEach(panel => { if (panel) _buildMergedPanelForm(panel); });
     // 2026-10-12: シートの合体反復を古い2体の予備文で上書きしない。
-    _filterBySheetCode(PANEL_POOL, 'C026').filter(panel => !panel._sheetDescLoaded).forEach(panel => {
+    _filterBySheetCode(PANEL_POOL, 'C036').filter(panel => !panel._sheetDescLoaded).forEach(panel => {
       if (!panel.mergedForm) return;
       panel.mergedForm.desc = '復活\n攻撃：「青スケルトン」を2体召喚し、このキャラクターの前に攻撃させる。';
       panel.mergedForm.keywords = _mergeUniqueKeywords(panel.mergedForm.keywords, ['復活']);

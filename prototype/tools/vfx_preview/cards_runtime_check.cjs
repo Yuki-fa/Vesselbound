@@ -118,21 +118,21 @@ async function main() {
   assert.equal(ctx.VbFxLabCheck.busy(), false, '検査終了後に操作を戻す');
   console.log('check.js: ' + report.effects.length + '演出 + ' + report.states.length + '状態 / 反対陣営' + report.reverse.length
     + ' / 追加' + report.extras.length + ' / SE' + report.audioFiles + '（採用' + p.adoptedAudioFiles + '） OK');
-  ctx.VbFxCards.show('cards'); ctx.VbFxCards.choose('C008');
-  const card = ctx.VbFxCards.cards().find(c => c.no === 'C008');
-  assert.equal(card.vfx[Number($('card-current-choice').value)].path, 'vfx:C008:arachne-ring', '固有定義を既定選択');
+  ctx.VbFxCards.show('cards'); ctx.VbFxCards.choose('C013');
+  const card = ctx.VbFxCards.cards().find(c => c.no === 'C013');
+  assert.equal(card.vfx[Number($('card-current-choice').value)].path, 'vfx:C013:arachne-ring', '固有定義を既定選択');
   env.imageDelay = 900;
-  const began = env.now(); await env.drive(ctx.VbFxCards.playCurrent('C008'));
+  const began = env.now(); await env.drive(ctx.VbFxCards.playCurrent('C013'));
   const entry = ctx.VbFxCards.history().at(-1), media = card.vfx[ctx.VbFxCardCatalog.defaultVfxIndex(card)];
   assert.equal(entry.completed, true, '定義の一周の再生を完了');
   assert.ok(entry.startedAt - began <= 100, 'コード描画は画像の900msデコード待ちに依存しない');
   assert.ok(entry.elapsedMs >= ctx.VbFxLabGeometry.visibleMs(media), '素材の表示時間は現在のゲームの尺を満たす');
-  assert.equal(entry.geometry.width, 260 * .4 * Number($('size').value), 'C008の基準幅は画面のカード幅');
-  assert.equal(entry.geometry.height, 395 * .4 * Number($('size').value), 'C008の基準高さは画面のカード高');
-  ctx.VbFxCards.choose('C019'); await env.drive(ctx.VbFxCards.playCurrent('C019'));
+  assert.equal(entry.geometry.width, 260 * .4 * Number($('size').value), 'C013の基準幅は画面のカード幅');
+  assert.equal(entry.geometry.height, 395 * .4 * Number($('size').value), 'C013の基準高さは画面のカード高');
+  ctx.VbFxCards.choose('C024'); await env.drive(ctx.VbFxCards.playCurrent('C024'));
   assert.equal(ctx.VbFxCards.history().at(-1).completed, true, '有限の飛翔体定義を完了');
   assert.equal(env.document.querySelector('.card-current-vfx'), null, '有限定義の後片付け');
-  ctx.VbFxCards.choose('E045'); // 現行の実経路で保持されるマナ強化（C008は熱波へ置換済み）。
+  ctx.VbFxCards.choose('E045'); // 現行の実経路で保持されるマナ強化（C013は熱波へ置換済み）。
   const stateCard = ctx.VbFxCards.cards().find(c => c.no === 'E045');
   const stateIndex = stateCard.vfx.findIndex(v => v.loop);
   assert.ok(stateIndex >= 0, '常時素材の経路がある'); $('card-current-choice').value = String(stateIndex);

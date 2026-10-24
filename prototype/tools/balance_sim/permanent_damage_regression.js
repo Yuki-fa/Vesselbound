@@ -1,6 +1,6 @@
 'use strict';
 
-// E075のカード単位の永久値、実際の編成・受け口・SaveRunとC043の本文参照。ブラウザは使わない。
+// E075のカード単位の永久値、実際の編成・受け口・SaveRunとC058の本文参照。ブラウザは使わない。
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const ROOT = path.resolve(__dirname, '../..');
@@ -229,9 +229,9 @@ async function flush(h, events) {
     assert.equal(G.mainBoard[0]._permanentEffectDamage, 0);
   });
   for (const merged of [false, true]) for (const side of ['p1', 'p2']) await check(`C043 ${side}/${merged ? '合体' : '通常'}：本文の4ダメージ・回数と薙ぎ払いを維持`, () => {
-    const definition = PANEL_POOL.find(card => String(card.no).toUpperCase() === 'C043');
-    const row = require('./sheet_data').sheetRows('card').find(card => card['No.'] === 'C043');
-    const unit = { ...plain('arassas'), no: 'C043', name: definition.name, desc: merged ? row['合体効果'] : row['効果'] };
+    const definition = PANEL_POOL.find(card => String(card.no).toUpperCase() === 'C058');
+    const row = require('./sheet_data').sheetRows('card').find(card => card['No.'] === 'C058');
+    const unit = { ...plain('arassas'), no: 'C058', name: definition.name, desc: merged ? row['合体効果'] : row['効果'] };
     const other = side === 'p1' ? 'p2' : 'p1';
     const state = createBattleState({ sides: { [side]: { units: [unit] }, [other]: { units: [plain('a'), plain('b'), plain('c')] } } });
     const events = [], rng = createSeededRng(7), emit = event => events.push(event);

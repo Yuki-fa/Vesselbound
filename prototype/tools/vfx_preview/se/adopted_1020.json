@@ -55,11 +55,11 @@
     "duration": 1.95,
     "sha256": "465433a025d152c68cc0d5dc9c4898b5092155c6779f0fe07f40f46edbc87aa5"
   },
-  "C060": {
-    "code": "C060",
+  "C075": {
+    "code": "C075",
     "effect": "behemoth",
     "candidate": "behemoth-1",
-    "file": "assets/sfx/C060.wav",
+    "file": "assets/sfx/C075.wav",
     "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
     "peak": 0.48,
@@ -69,11 +69,11 @@
     "duration": 1.95,
     "sha256": "456e5d954e5b936f53a59a3903274e78c4407b9a47edbfd215519ae578ec647e"
   },
-  "C055": {
-    "code": "C055",
+  "C070": {
+    "code": "C070",
     "effect": "hydra-reward",
     "candidate": "hydra-reward-1",
-    "file": "assets/sfx/C055.wav",
+    "file": "assets/sfx/C070.wav",
     "source": "SORCERY - DESIGNED - MAGIC WATER Cast Large-01.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Large-01.wav",
     "peak": 0.45,
@@ -83,11 +83,11 @@
     "duration": 1.95,
     "sha256": "d1288c14b0854d3d83cfd3b1a0c29ba795d6478953150114b90b2340a73e8a35"
   },
-  "C071": {
-    "code": "C071",
+  "C091": {
+    "code": "C091",
     "effect": "nymph",
     "candidate": "nymph-1",
-    "file": "assets/sfx/C071.wav",
+    "file": "assets/sfx/C091.wav",
     "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
     "peak": 0.736167,
@@ -97,11 +97,11 @@
     "duration": 1.95,
     "sha256": "ea4dc5b35131bfdbc08713a911ebb70d65bd87fe7bc01a31b417e42e5c784bcd"
   },
-  "C097": {
-    "code": "C097",
+  "C122": {
+    "code": "C122",
     "effect": "overlord",
     "candidate": "overlord-1",
-    "file": "assets/sfx/C097.wav",
+    "file": "assets/sfx/C122.wav",
     "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
     "peak": 0.48,
@@ -111,11 +111,11 @@
     "duration": 1.95,
     "sha256": "68fc0427aa4689f8486de796ec3438da5e673dfedd4488ae7e371efaa88b4c91"
   },
-  "C066": {
-    "code": "C066",
+  "C086": {
+    "code": "C086",
     "effect": "undine",
     "candidate": "undine-1",
-    "file": "assets/sfx/C066.wav",
+    "file": "assets/sfx/C086.wav",
     "source": "SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
     "peak": 0.16925,
@@ -167,11 +167,11 @@
     "duration": 1.95,
     "sha256": "a16d0c03eccba204ff1be5d81c42ccb5be51d506f0208396fcb04766d21615e8"
   },
-  "C079": {
-    "code": "C079",
+  "C099": {
+    "code": "C099",
     "effect": "spriggan",
     "candidate": "spriggan-1",
-    "file": "assets/sfx/C079.wav",
+    "file": "assets/sfx/C099.wav",
     "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 01-01.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 01-01.wav",
     "peak": 0.45,
@@ -181,11 +181,11 @@
     "duration": 1.95,
     "sha256": "5884e645f5a3d3ee0f4bf38c4ce1ae3041c8dd22c76ecb619c36fa9527c659a1"
   },
-  "C029": {
-    "code": "C029",
+  "C039": {
+    "code": "C039",
     "effect": "phantom",
     "candidate": "eidolon-1",
-    "file": "assets/sfx/C029.wav",
+    "file": "assets/sfx/C039.wav",
     "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
     "peak": 0.218375,
@@ -195,11 +195,11 @@
     "duration": 1.95,
     "sha256": "7db091584d1390ef8a4323f65eb46ea2c97bb16cd66e6891684a92974833819a"
   },
-  "C034": {
-    "code": "C034",
+  "C044": {
+    "code": "C044",
     "effect": "eidolon",
     "candidate": "eidolon-1",
-    "file": "assets/sfx/C034.wav",
+    "file": "assets/sfx/C044.wav",
     "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
     "peak": 0.218375,
@@ -209,11 +209,11 @@
     "duration": 1.95,
     "sha256": "7db091584d1390ef8a4323f65eb46ea2c97bb16cd66e6891684a92974833819a"
   },
-  "C019_HIT": {
-    "code": "C019_HIT",
+  "C024_HIT": {
+    "code": "C024_HIT",
     "effect": "centaur-impact",
     "candidate": "centaur-impact-1",
-    "file": "assets/sfx/C019_2.wav",
+    "file": "assets/sfx/C024_2.wav",
     "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav",
     "peak": 0.367146,
@@ -262,11 +262,11 @@
     "note": "0.603秒の「チッ」を前後40msの高音抑制でならした（2026-10-20）。消えない場合は候補2・3から選び直す",
     "sha256": "d9e16f543dc46f7e2bfee45320f08c6f303ac5463eef003a4692346d5f1f0d54"
   },
-  "C011": {
-    "code": "C011",
+  "C016": {
+    "code": "C016",
     "effect": "siren-wave",
     "candidate": "siren-wave-4",
-    "file": "assets/sfx/C011.wav",
+    "file": "assets/sfx/C016.wav",
     "source": "SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-02.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-02.wav",
     "peak": 0.043958,

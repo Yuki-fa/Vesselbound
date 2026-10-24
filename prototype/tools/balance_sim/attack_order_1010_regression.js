@@ -8,7 +8,7 @@ const enchants = sheet.enchantCards();
 const summonDefs = sheet.characterCards();
 function actor(name, enhancements = [], over = {}) {
   const c = summonDefs.find(x => x.name === name) || { name, desc: '', keywords: [] };
-  return { ...c, id: 'A', no: name === 'アラッサス' ? 'C043' : '', atk: 7, hp: 100, maxHp: 100,
+  return { ...c, id: 'A', no: name === 'アラッサス' ? 'C058' : '', atk: 7, hp: 100, maxHp: 100,
     effectData: { effectNames: enhancements, effectTexts: enhancements.map(n => {
       const e = enchants.find(x => x.name === n); assert.ok(e, n); return e.desc;
     }) }, ...over };

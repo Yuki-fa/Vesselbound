@@ -10,7 +10,7 @@ async function testDebugCards(api){
       _isShop:true,_isItemShop:false,_isPeddler:peddler});
     G.mainBoard[1]=makePanel('ノーム');G.mainBoard[3]=makePanel('ゴーレム');
     _rewCards=['ラミア','ノーム','ゴーレム'].map(n=>_exchangeShopCardCopy(makePanel(n)));
-    const id=PANEL_POOL.find(c=>c.no==='C006').id,stock=clone(_rewCards),gold=G.gold;
+    const id=PANEL_POOL.find(c=>c.no==='C011').id,stock=clone(_rewCards),gold=G.gold;
     _debugTakePanelCard(id);
     assert.ok(G._pendingPanelPlacement);
     assert.equal(placePendingPanelToSelectedUnit(0),true,'店でもデバッグカードをクリック取得できる');

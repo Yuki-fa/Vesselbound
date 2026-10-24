@@ -62,7 +62,7 @@ function fixture(kind, amount = 80) {
   assertImpact('飛び道具の着弾');
   playCharacterSweepVfx=async(_src,_enemy,targets,_url,opt)=>{h.advance(180);targets.forEach(t=>opt.onTargetHit(t));return true;};
   playExpandingWaveVfx=async(_src,_side,targets,_code,opt)=>{h.advance(180);targets.forEach(t=>opt.onTargetHit(t));return true;};
-  for(const no of ['C043','C011']) {
+  for(const no of ['C058','C016']) {
     const run=fixture('effect'),ev=run.events.find(e=>e.type==='damage');h.setup(run.state);
     const source={...PANEL_POOL.find(c=>c.no===no),...run.state.units.p1[0]},target=run.state.units.p2[0];
     source.fxCode=no;

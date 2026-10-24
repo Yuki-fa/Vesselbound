@@ -91,11 +91,11 @@ async function runCase(no,trigger,card=no) {
     assert.ok(legacy.some(c=>c.fn==='hit'&&c.unit===e.unitId&&c.opts.labelOnly&&c.opts.keywordSfx===false),no+' LABの命中へ数値だけを重ねる');
   }
   if(events.filter(e=>e.type==='damage'&&e.amount>0).every(presentLabEventHandled))assert.equal(attackSounds.length,0,no+' 採用SEへ旧命中音を重ねない');
-  if(no==='C078')assert.ok(!motions.some(([id])=>id.startsWith('foe')),'ピクシーのLAB移動へ攻撃クローンを重ねない');
-  if(no==='C032') assert.equal(battleFxStateValues(s.units.p1[1]).revive,1,'復活獲得でループを進める');
-  if(no==='C014') assert.ok(events.some(e=>e.type==='damage'),'割合ダメージの実イベントを作る');
-  if(no==='C069') assert.equal(battleFxStateValues(s.units.p2[0]).poison,6,'毒の倍化を表示へ進める');
-  if(no==='C092')assert.ok(calls.some(c=>c.name==='atk-down'),'ATKとHPが同時に減る効果にもATK減少を出す');
+  if(no==='C098')assert.ok(!motions.some(([id])=>id.startsWith('foe')),'ピクシーのLAB移動へ攻撃クローンを重ねない');
+  if(no==='C042') assert.equal(battleFxStateValues(s.units.p1[1]).revive,1,'復活獲得でループを進める');
+  if(no==='C019') assert.ok(events.some(e=>e.type==='damage'),'割合ダメージの実イベントを作る');
+  if(no==='C089') assert.equal(battleFxStateValues(s.units.p2[0]).poison,6,'毒の倍化を表示へ進める');
+  if(no==='C117')assert.ok(calls.some(c=>c.name==='atk-down'),'ATKとHPが同時に減る効果にもATK減少を出す');
   const name=presentLabFx(no)[0];
   assert.ok(calls.some(c=>c.name===name),no+' '+name+' が実際のイベントから出る: '+JSON.stringify(events.map(e=>[e.type,e.reason,e.effectNo,e.sourceId]))+' / 出た演出 '+calls.map(c=>c.name));
   assert.ok(vbLabVfxExpectedCalls(no,calls.map(c=>c.name)),no+' 固有演出を汎用演出より先に出す');
@@ -114,8 +114,8 @@ async function runCase(no,trigger,card=no) {
   // 戦闘中の召喚（S001）は2.5倍（2026-10-08 利用者指定）。他は標準の1.5。
   assert.ok(main.every(c=>c.opts.speed===(no==='S001'?1.5*2.5:1.5)),no+' 標準速さ');
   assert.ok(main.every(c=>c.opts.board===screen),no+' 実際の戦闘盤面へ画面揺れを接続');
-  if(no==='C040') assert.equal(main[0].source,undefined,'リッチは倒れた位置の矩形');
-  if(no==='C077') assert.equal(main[0].source,'ally0','カーバンクルは結界消失位置');
+  if(no==='C050') assert.equal(main[0].source,undefined,'リッチは倒れた位置の矩形');
+  if(no==='C097') assert.equal(main[0].source,'ally0','カーバンクルは結界消失位置');
   if(no.startsWith('E')&&!['E067','E024'].includes(no)) assert.equal(main[0].source,'source',no+' 強化カードの持ち主から');
   if(no==='E024') assert.equal(main[0].source,events.find(e=>e.victimId).victimId,'撃破した敵の位置から血へ変える');
   assert.ok(!legacy.some(c=>c.fn==='card'&&c.code===no||c.fn==='effect'&&c.code===no),no+' 旧素材を重ねない');
@@ -129,12 +129,12 @@ async function runCase(no,trigger,card=no) {
   const start={type:'battle_start',sides:clone(initial.units)},result={events:[start,...clone(events)],formations:{p1:{units:initial.units.p1,items:initial.items.p1,rings:initial.rings.p1},p2:{units:initial.units.p2,items:initial.items.p2,rings:initial.rings.p2}}};
   beginOnlineVersusField(result);
   await playOnlineBattleEvents(result,{onEvent:(ev,ctx)=>renderOnlineVersusBoard(ev,ctx)});
-  if(no==='C078')assert.ok(!motions.some(([id])=>id.startsWith('foe')),'オンラインでもピクシーの移動はLABだけ');
+  if(no==='C098')assert.ok(!motions.some(([id])=>id.startsWith('foe')),'オンラインでもピクシーの移動はLABだけ');
   assert.deepEqual(summarize(),pve,no+' PvE／保存再生とオンラインの演出・発生元・対象・順序');
   assert.deepEqual(sounds.filter(c=>presentLabFx(c.code)).map(c=>c.code),pveSounds,no+' 両側の採用SEと順序');
   const live=id=>[...G.allies,...G.enemies].find(u=>u&&u.id===id);
-  if(no==='C014')assert.equal(presentShownHp(live('foe0')),s.units.p2[0].hp,'割合ダメージ後のHPはオンラインでも一致');
-  if(no==='C069'){
+  if(no==='C019')assert.equal(presentShownHp(live('foe0')),s.units.p2[0].hp,'割合ダメージ後のHPはオンラインでも一致');
+  if(no==='C089'){
     renderField('f-enemy',G.enemies,true);
     assert.equal(battleFxStateValues(live('foe0')).poison,6,'オンラインの毒倍化を再描画で戻さない');
   }
@@ -152,7 +152,7 @@ async function staleSessionChecks() {
       const state=fixture(no);setup(state);await vbLabVfxStartPve(no,state,trigger).done;
       if(!calls.some(c=>c.name===presentLabFx(no)[0]))missing.push(no);
     }
-    assert.deepEqual(missing,Object.keys(cases).filter(no=>!['E006','E062','E067','C049','C053','C032','C051','C041','C018','I006'].includes(no)),
+    assert.deepEqual(missing,Object.keys(cases).filter(no=>!['E006','E062','E067','C064','C068','C042','C066','C056','C023','I006'].includes(no)),
       '初期化漏れが残ると、マナ発動元IDを直した後も23件の演出が欠ける');
   } finally {global.initializeBattlePresentationState=initialize;actionBannerClear(true);}
   console.log('OK ブラウザ検査の初期化漏れ: マナ発動元ID修正後にも23件の欠落を再現');
@@ -201,7 +201,7 @@ async function extraChecks() {
     }
     console.log('OK 死亡クローンに複製済みの状態キャンバスも残さない');
   } finally {global.playCardBurnAway=oldBurn;global.playCardWaveAway=oldWave;global.playWastedLabel=oldWasted;}
-  const s=fixture('C003');s.units.p1[0].keywords=['結界2','根性','復活'];s.units.p1[0].shield=2;setup(s);
+  const s=fixture('C008');s.units.p1[0].keywords=['結界2','根性','復活'];s.units.p1[0].shield=2;setup(s);
   const u=s.units.p1[0];_battleFxFollowStates();const started=calls.length;
   _battleFxFollowStates();assert.equal(calls.length,started,'状態ループを二重に開始しない');
   assert.ok(calls.some(c=>c.name==='shield-state'&&c.opts.value===1),'旧い結界2も1つ分のループ');
@@ -279,7 +279,7 @@ async function extraChecks() {
   await _flushCorePveHitEvents(a,unrelated,new Set([...a.units.p1,...a.units.p2]));
   assert.ok(!calls.some(c=>c.name==='banshee'),'付与された負傷効果に本人の死亡VFXを出さない');
   const decrease={type:'stat_change',side:'p2',unitId:'foe0',sourceId:'source',atk:-2,hp:0,reason:'evil_eye'},negative=[decrease];
-  a.units.p1[0].no='C017';actionBannerSetBattleData({units:a.units});
+  a.units.p1[0].no='C022';actionBannerSetBattleData({units:a.units});
   await presentLabBeginEvent(decrease,negative,0,{findUnit:(side,id)=>a.units[side].find(u=>u&&u.id===id),units:side=>a.units[side]});
   assert.equal(presentLabEventHandled(decrease),false,'未置換カードの固有演出をATK減少の合図で抑止しない');
   console.log('OK 置き換え対象以外の付与効果を保つ');
@@ -289,9 +289,9 @@ async function extraChecks() {
   global.getBattlePresentationSpeedScale=originalSpeed;
   for(const name of ['shield-state','poison-state','weaken-state','guts-state','revive-state']) assert.equal(VbFx.duration(name,1.5),VbFx.duration(name,4.5),name+'の周期は速度に依存しない');
   const adopted=fs.readFileSync(path.join(ROOT,'tools/vfx_preview/se/ADOPTED.md'),'utf8');
-  const moved={C020:'E083',C021:'E043',C064:'E031',C042:'E056',C084:'E024',C096:'E082',C039:'C040',C019:'E042',C082:'C099',C099:'C082'};
+  const moved={C025:'E083',C031:'E043',C084:'E031',C057:'E056',C109:'E024',C121:'E082',C049:'C050',C024:'E042',C107:'C124',C124:'C107'};
   for(const line of adopted.split('\n')){const cells=line.split('|').map(v=>v.trim());if(!/^[A-Z]+\d{3}(?:_gain)?$/.test(cells[1]||''))continue;
-    if(['C024','C037','C055','C089'].includes(cells[1])){
+    if(['C034','C047','C070','C114'].includes(cells[1])){
       assert.equal(presentLabFx(cells[1]),null,'旧効果の割り当てを外す '+cells[1]);assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
     }
     cells[1]=moved[cells[1]]||cells[1];
@@ -301,7 +301,7 @@ async function extraChecks() {
   sounds.length=0;_battleFxSound('E035',1.5,VbFx.duration('resentment',1.5),false);await Promise.resolve();
   const sound=sounds.at(-1).opts,hit=VbFx.impactMs('resentment',1.5),duration=VbFx.duration('resentment',1.5);
   assert.equal(sound.fadeEndMs-sound.fadeAtMs,1100);assert.equal(sound.playbackRate,1);assert.equal(sound.offsetMs,Math.max(0,presentLabFx('E035')[1]*1000-hit));
-  sounds.length=0;_battleFxSound('C041',1.5,VbFx.duration('direwolf',1.5),true);await Promise.resolve();
+  sounds.length=0;_battleFxSound('C056',1.5,VbFx.duration('direwolf',1.5),true);await Promise.resolve();
   assert.ok(sounds.at(-1).opts.fadeEndMs<=VbFx.duration('direwolf',1.5)*.44,'遠吠えのSEを登場前に閉じる');
   console.log('OK 等速・2倍・3倍・状態周期・採用SEとpeak・音の終了');
   stopBattleLabFx();
@@ -327,7 +327,7 @@ async function committedEndChecks() {
   const persist=_persistPermanentStatOrWarn;
   global._persistPermanentStatOrWarn=()=>true;
   try {
-    const initial=fixture('C068'),endState=clone(initial),events=[];
+    const initial=fixture('C088'),endState=clone(initial),events=[];
     coreTriggerBattleEnd(endState,e=>events.push(e),createSeededRng(53));
     const beforeAtk=initial.units.p1[0].atk;
     setup(initial);G._battleCoreEvents=[];G._savedBattleEnd=null;G._battleVictoryPending=true;
@@ -336,13 +336,13 @@ async function committedEndChecks() {
     assert.ok(calls.some(c=>c.name==='leprechaun'),'本体のonBattleEndから終戦VFXを出す');
     assert.equal(G.allies[0].atk,endState.units.p1[0].atk,'確定済みの終戦能力値を再加算しない');
     assert.ok(G.allies[0].atk>beforeAtk,'実際の終戦効果を通した');
-    const replay=fixture('C068');setup(replay);G._battleCoreEvents=[];G._battleVictoryPending=true;
+    const replay=fixture('C088');setup(replay);G._battleCoreEvents=[];G._battleVictoryPending=true;
     G._savedBattleEnd={pending:{frames:[{state:endState,from:0,to:events.length}],events},applied:false};
     await onBattleEnd();
     assert.deepEqual(calls.map(c=>[c.name,c.source,c.targets]),live,'SaveRun.applyEndを通る保存再生でも同じ終戦VFX');
     assert.equal(G.allies[0].atk,endState.units.p1[0].atk,'保存再生の確定値を再加算しない');
     const count=calls.length;await onBattleEnd();assert.equal(calls.length,count,'終戦VFXを二重に出さない');
-    const states=fixture('C003');setup(states);_battleFxFollowStates();
+    const states=fixture('C008');setup(states);_battleFxFollowStates();
     const stops=stopped.length;G._battleVictoryPending=true;_battleFxFollowStates();
     // 2026-10-07 利用者指定：終戦後も残っている状態の表示は消さない（戦闘画面を離れる・次の戦闘で片付ける）。
     assert.ok(_battleFxStates.size>0,'終戦時も状態ループを残す');
@@ -382,7 +382,7 @@ async function battleBugChecks() {
       const at=sc.targetAt??Math.floor(sc.front/2);
       foes[at]=bare('R',{name:'波の娘"ラン・ドーター"',no:'EN027',hp:sc.hp,maxHp:sc.hp,desc:'負傷：「黒ケルピー」を2体召喚する。',keywords:['守護'],guardian:true});
       for(let i=0;i<(sc.rear||0);i++)foes.push(bare('B'+i,{lane:'rear'}));
-      const source=bare('A0',{...PANEL_POOL.find(c=>c.no==='C043'),id:'A0',atk:12,hp:sc.allyHp||40,maxHp:sc.allyHp||40});
+      const source=bare('A0',{...PANEL_POOL.find(c=>c.no==='C058'),id:'A0',atk:12,hp:sc.allyHp||40,maxHp:sc.allyHp||40});
       const state=createBattleState({sides:{p1:{units:[source]},p2:{units:foes}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
       state._coreFirstSide='p1';setup(state);contactBoards.length=0;const initial=clone(state),before=new Set([...state.units.p1,...state.units.p2]);
       const held=[...before].map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0,u.weaken||0]);
@@ -409,7 +409,7 @@ async function battleBugChecks() {
       console.log('検査 '+sc.name+': summon='+events.filter(e=>e.type==='summon').length+' rejected='+events.filter(e=>e.type==='summon_rejected').length);
     }
     // 最小盤面も一手だけでは拒否へ届かない。満員後まで進め、効果と命中の呼び出し順を比べる。
-    const source=bare('A0',{...PANEL_POOL.find(c=>c.no==='C043'),id:'A0',atk:12,hp:300,maxHp:300});
+    const source=bare('A0',{...PANEL_POOL.find(c=>c.no==='C058'),id:'A0',atk:12,hp:300,maxHp:300});
     const ran=bare('R',{name:'波の娘"ラン・ドーター"',no:'EN027',desc:'負傷：「黒ケルピー」を2体召喚する。'});
     const state=createBattleState({sides:{p1:{units:[source]},p2:{units:[ran]}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
     state._coreFirstSide='p1';setup(state);const initial=clone(state),events=[];
@@ -536,45 +536,45 @@ async function new1012Checks(){
     assert.ok(!calls.some(c=>c.name===presentLabFx(no)[0]),no+' 発光だけでは固有演出を出さない');
   }
   const negatives={
-    C004:s=>s.resources.p1.mana=0,E083:s=>{},C060:s=>s.resources.p1.mana=0,
-    C082:s=>s.units.p1[0].boardCards=[],C099:s=>s.units.p1[0].boardCards=[],
-    C095:s=>s.units.p1[0].atk=4,C009:s=>{},C056:s=>s.resources.p1.mana=0,C066:s=>s.resources.p1.mana=0,C079:s=>s.resources.p1.mana=0,
-    E024:s=>{},C094:s=>s.units.p1.slice(1).forEach((u,i)=>{s.units.p1[i+1]={id:u.id,name:'素体',side:'p1',color:u.color,atk:4,hp:70,maxHp:100,desc:'',keywords:[]};}),
+    C009:s=>s.resources.p1.mana=0,E083:s=>{},C075:s=>s.resources.p1.mana=0,
+    C107:s=>s.units.p1[0].boardCards=[],C124:s=>s.units.p1[0].boardCards=[],
+    C120:s=>s.units.p1[0].atk=4,C014:s=>{},C071:s=>s.resources.p1.mana=0,C086:s=>s.resources.p1.mana=0,C099:s=>s.resources.p1.mana=0,
+    E024:s=>{},C119:s=>s.units.p1.slice(1).forEach((u,i)=>{s.units.p1[i+1]={id:u.id,name:'素体',side:'p1',color:u.color,atk:4,hp:70,maxHp:100,desc:'',keywords:[]};}),
   };
   for(const [no,prepare]of Object.entries(negatives)){
     const state=fixture(no);prepare(state);setup(state);const events=[],rng=createSeededRng(1),emit=e=>events.push(e),u=state.units.p1[0];u._sealed=false;
     const hit=(a,b,n,c,ss,st,opt)=>coreResolveHit(state,a,b,n,c,rng,emit,{skipSourceEffects:!!ss,skipTough:!!st,...opt});
-    if(no==='C009')coreApplyInjuryEffects(u,4,state,rng,emit,hit,state.units.p2[0],null,'combat');
+    if(no==='C014')coreApplyInjuryEffects(u,4,state,rng,emit,hit,state.units.p2[0],null,'combat');
     else if(no==='E024')hit(u,state.units.p2[0],2);
     else vbLabVfxTriggers[vbLabVfx1012Cases[no]](state,u,rng,emit,hit);
     await _flushCorePveHitEvents(state,events,new Set([...state.units.p1,...state.units.p2]));
     assert.ok(!calls.some(c=>c.name===presentLabFx(no)[0]),no+' 条件未達・確率の外れ・接続0・非撃破・再発火不成立で出さない: '+JSON.stringify(events));
   }
-  for(const no of ['C082','C095','C099','C029','C034','C071','E024','C009','C094']){
+  for(const no of ['C107','C120','C124','C039','C044','C091','E024','C014','C119']){
     const state=fixture(no);setup(state);const run=vbLabVfxStartPve(no,state,vbLabVfx1012Cases[no]);await run.done;
     const main=calls.filter(c=>c.name===presentLabFx(no)[0]);
     assert.ok(main.length>0,no+' 現行シートの効果で固有演出が発動する');
-    if(no==='C082')assert.deepEqual(main.flatMap(c=>c.targets),run.events.filter(e=>e.type==='damage'&&e.sourceId==='source'&&!e.counter).map(e=>e.unitId),'弾の回数・対象・順序はdamageそのもの');
-    if(no==='C095'){
+    if(no==='C107')assert.deepEqual(main.flatMap(c=>c.targets),run.events.filter(e=>e.type==='damage'&&e.sourceId==='source'&&!e.counter).map(e=>e.unitId),'弾の回数・対象・順序はdamageそのもの');
+    if(no==='C120'){
       const targets=run.events.filter(e=>e.type==='stat_change'&&e.reason==='lilith').map(e=>e.unitId);
       assert.deepEqual(main[0].targets,targets,'リリスは重複対象を保持');assert.equal(main[0].opts.value,targets.length);
       assert.ok(main[0].opts.impactTimesMs.every((t,i,a)=>!i||t>a[i-1]),'各紋章の命中を順に通知');
     }
-    if(no==='C099'){
+    if(no==='C124'){
       const evs=run.events.filter(e=>e.reason==='arch_demon_purple_buff'),targets=[...new Set(evs.map(e=>e.unitId))];
       assert.deepEqual(main[0].targets,targets);assert.equal(main[0].opts.value,evs.length/targets.length,'脈動数はコアの反復数');
     }
-    if(no==='C029'||no==='C034')assert.deepEqual(main[0].targets,run.events.filter(e=>e.type==='stat_change'&&e.reason==='summon_buff').map(e=>e.unitId),'場の眷属だけに紋章');
-    if(no==='C071'){
+    if(no==='C039'||no==='C044')assert.deepEqual(main[0].targets,run.events.filter(e=>e.type==='stat_change'&&e.reason==='summon_buff').map(e=>e.unitId),'場の眷属だけに紋章');
+    if(no==='C091'){
       const sources=run.events.find(e=>e.colorSources).colorSources;
       assert.deepEqual(main[0].targets,sources.map(c=>c.unitId));assert.equal(main[0].opts.value,sources.length,'光球数は実際の色数');assert.ok(main[0].opts.targets.every(r=>/^#[0-9a-f]{6}$/i.test(r.color)));
     }
     if(no==='E024'){const blood=run.events.find(e=>e.victimId);assert.deepEqual(main[0].targets,[blood.victimId]);assert.equal(main[0].opts.value,blood.gained);assert.ok(state.units.p2[0]._deathFxDone,'血へ消えた敵に焼失を重ねない');}
-    if(no==='C009'){
+    if(no==='C014'){
       assert.ok(!calls.some(c=>c.name==='shield-gain'),'新本文の割り込み攻撃は結界を得ない');
-      assert.equal(main[0].opts.value,1);assert.equal(main[1].opts.value,2);assert.equal(sounds.filter(c=>c.code==='C009').length,1,'怒りのSEを照準で二重再生しない');
+      assert.equal(main[0].opts.value,1);assert.equal(main[1].opts.value,2);assert.equal(sounds.filter(c=>c.code==='C014').length,1,'怒りのSEを照準で二重再生しない');
     }
-    if(no==='C094'){
+    if(no==='C119'){
       const actual=run.events.find(e=>e.retriggerTargetId);assert.deepEqual(main[0].targets,[actual.retriggerTargetId]);
       assert.ok(calls.findIndex(c=>c.name==='chaos-imp')<calls.findIndex(c=>c.name==='nymph'),'再点火の後に対象の元の開戦演出');
     }
@@ -615,16 +615,16 @@ async function browser1012ParityChecks(){
       assert.deepEqual(online,pve,no+' 登場演出後の発生元・対象・回数・入力・尺・SEが一致');
     }
     assert.ok(introCalls>=LAB_1012_SCENARIOS.length,'オンラインのbattle_startで登場VFXを実際に記録した');
-    const pve=await run('C004','mana',false);
+    const pve=await run('C009','mana',false);
     let injected=false;
     global.renderOnlineVersusBoard=async(ev,ctx)=>{
       if(ev.type!==ONLINE_EVENT.BATTLE_START&&!injected){
         injected=true;
-        await VbFx.play('opening-sigil',{durationMs:980});playSfx('C071');
+        await VbFx.play('opening-sigil',{durationMs:980});playSfx('C091');
       }
       return render(ev,ctx);
     };
-    const extra=await run('C004','mana',true);
+    const extra=await run('C009','mana',true);
     assert.ok(extra.calls.some(c=>c[0]==='opening-sigil'),'実体イベント中の同名VFXは除外しない');
     assert.notDeepEqual(extra.calls,pve.calls,'登場後に余分なVFXが入ると一致検査が落ちる');
     assert.notDeepEqual(extra.sounds,pve.sounds,'登場後に余分なSEが入ると一致検査が落ちる');
@@ -645,7 +645,7 @@ function new1012CoreBaselineChecks(){
   for(const [no,trigger]of Object.entries(vbLabVfx1012Cases)){
     if(require('./sheet_data').effectChanged1022(no)) continue;
     const initial=fixture(no),results=[];
-    if(['C029','C034'].includes(no)) initial.units.p1[0].desc=initial.units.p1[0].desc.replace('このゲーム中','この戦闘中');
+    if(['C039','C044'].includes(no)) initial.units.p1[0].desc=initial.units.p1[0].desc.replace('このゲーム中','この戦闘中');
     // 1018：復活基準は本体の _base* を優先する。旧コアにも同じ入力契約を渡す。
     // 値を比較から除外せず、旧コアが読む base* へも同じ値を載せる。
     for(const u of [...initial.units.p1,...initial.units.p2].filter(Boolean)){
@@ -664,7 +664,7 @@ function new1012CoreBaselineChecks(){
       else if(trigger==='releaseObserver')api.coreApplyReleaseEffects(state.units.p1[1],[],state,rng,emit,hit);
       else if(trigger==='kill'){state.units.p2[0].hp=1;hit(u,state.units.p2[0],2);}
       else {state._coreFirstSide='p1';api.createBattleRunner(state,rng,emit,{skipOpening:true}).step({deferCompact:true});}
-      const filtered=clean(events).map(e=>{if(no==='C060'&&e.reason==='behemoth'){delete e.sourceId;delete e.gained;}if(no==='C009'&&e.type==='keyword_effect'&&e.effect==='shield')delete e.sourceId;return e;});
+      const filtered=clean(events).map(e=>{if(no==='C075'&&e.reason==='behemoth'){delete e.sourceId;delete e.gained;}if(no==='C014'&&e.type==='keyword_effect'&&e.effect==='shield')delete e.sourceId;return e;});
       results.push({events:filtered,resources:clean(state.resources),blood:clean(state.blood),units:clean(['p1','p2'].map(side=>state.units[side].map(api.coreUnitSnapshot)))});
     }
     assert.deepEqual(results[0],results[1],no+' 作業前コアと結果・メタデータ以外の全イベントが一致');

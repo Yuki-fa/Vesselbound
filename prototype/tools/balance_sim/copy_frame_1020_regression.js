@@ -35,7 +35,7 @@ function copies(source, side = 'p1') {
   const list = state.units[side].filter(Boolean);
   return { orig: list.find(u => !u._openingDuplicate), copies: list.filter(u => u._openingDuplicate) };
 }
-const twin = (extra = {}) => ({ id: 'twin', name: 'ツインデビル', no: 'C087', atk: 4, hp: 4, maxHp: 4, color: '紫', keywords: [], _panelSummoned: false,
+const twin = (extra = {}) => ({ id: 'twin', name: 'ツインデビル', no: 'C112', atk: 4, hp: 4, maxHp: 4, color: '紫', keywords: [], _panelSummoned: false,
   desc: '開戦：このキャラクターのコピーを召喚する。', ...extra });
 (async () => {
   await loadGameData();

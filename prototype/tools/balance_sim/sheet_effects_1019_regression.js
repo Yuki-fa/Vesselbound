@@ -33,14 +33,14 @@ const stats = events => events.filter(e => e.type === 'stat_change');
   await h.ready;
   let checked = 0;
   for (const side of ['p1', 'p2']) for (const enhanced of [false, true]) {
-    const sentinel = setup([subject('C016', enhanced), subject('C016', true, { id: 'same-name' }), plain('recipient')], side);
-    const m = data.effectText('C016', enhanced).match(/HP(?:の(\d+)倍)?に等しい/);
+    const sentinel = setup([subject('C021', enhanced), subject('C021', true, { id: 'same-name' }), plain('recipient')], side);
+    const m = data.effectText('C021', enhanced).match(/HP(?:の(\d+)倍)?に等しい/);
     coreApplyAttackEffects(sentinel.unit, sentinel.state, sentinel.rng, sentinel.emit, sentinel.hit);
     assert.deepEqual(stats(sentinel.events).map(e => [e.unitId, e.atk, e.hp]), [['recipient', 0, 100 * (Number(m[1]) || 1)]], '指定名の全カードを除外してHP倍率を適用');
 
-    const recalled = setup([subject('C031', enhanced, { name: '改名された呼び戻し手' })], side);
+    const recalled = setup([subject('C041', enhanced, { name: '改名された呼び戻し手' })], side);
     recalled.state.deadUnits = [plain('corpse', { name: '元の敵', side: recalled.other, hp: 0, atk: 13, maxHp: 21, _baseAtk: 8, _baseMaxHp: 16 })];
-    const text = data.effectText('C031', enhanced), count = Number((text.match(/して(\d+)体/) || [])[1]) || 1;
+    const text = data.effectText('C041', enhanced), count = Number((text.match(/して(\d+)体/) || [])[1]) || 1;
     recalled.unit.hp = 0;
     coreApplyDeathEffects(recalled.unit, recalled.state, recalled.rng, recalled.emit, recalled.hit);
     const summoned = recalled.events.filter(e => e.type === 'summon');
@@ -48,30 +48,30 @@ const stats = events => events.filter(e => e.type === 'stat_change');
     assert.ok(summoned.every(e => e.unit.atk === 8 && e.unit.hp === Number(text.match(/HPを(\d+)に/)[1])
       && e.unit.maxHp === 16 && e.unit._useEnemyVisualFrame), 'HPだけを指定値にし、元の基礎ATK・最大HP・敵枠・効果を維持');
 
-    const arachne = setup([subject('C008', enhanced), plain('friend')], side,
-      { resources: { [side]: { mana: Number(data.effectText('C008', enhanced).match(/^(\d+)/)[1]) } } });
-    Object.assign(arachne.unit, { manaCost: Number(data.effectText('C008', enhanced).match(/^(\d+)/)[1]), manaRepeat: true,
-      manaThresholdDesc: coreManaThresholdDescFromText(data.effectText('C008', enhanced)) });
+    const arachne = setup([subject('C013', enhanced), plain('friend')], side,
+      { resources: { [side]: { mana: Number(data.effectText('C013', enhanced).match(/^(\d+)/)[1]) } } });
+    Object.assign(arachne.unit, { manaCost: Number(data.effectText('C013', enhanced).match(/^(\d+)/)[1]), manaRepeat: true,
+      manaThresholdDesc: coreManaThresholdDescFromText(data.effectText('C013', enhanced)) });
     coreApplyManaThresholdEffects(arachne.state, arachne.rng, arachne.emit, arachne.hit);
-    const pair = data.effectText('C008', enhanced).match(/\+(\d+)\/\+(\d+)/);
+    const pair = data.effectText('C013', enhanced).match(/\+(\d+)\/\+(\d+)/);
     const damage = arachne.events.filter(e => e.type === 'damage');
-    assert.equal(damage.length, 2 * data.damageRepetitions(data.effectText('C008', enhanced)));
-    assert.equal(new Set(damage.map(e => e.batch)).size, data.damageRepetitions(data.effectText('C008', enhanced)));
+    assert.equal(damage.length, 2 * data.damageRepetitions(data.effectText('C013', enhanced)));
+    assert.equal(new Set(damage.map(e => e.batch)).size, data.damageRepetitions(data.effectText('C013', enhanced)));
     assert.ok(arachne.state.units[side].every(u => u.atk === 20 + Number(pair[1])
-      && u.hp === 100 + Number(pair[2]) - data.damageRepetitions(data.effectText('C008', enhanced))), '一度強化した後、本文の回数だけ同時ダメージ');
+      && u.hp === 100 + Number(pair[2]) - data.damageRepetitions(data.effectText('C013', enhanced))), '一度強化した後、本文の回数だけ同時ダメージ');
     assert.ok(arachne.events.findIndex(e => e.type === 'damage') > arachne.events.findLastIndex(e => e.type === 'stat_change'));
 
-    const fanatic = setup([subject('C100', enhanced, { name: '改名された観測者' }), plain('released')], side);
+    const fanatic = setup([subject('C125', enhanced, { name: '改名された観測者' }), plain('released')], side);
     fanatic.state.blood = { [side]: 7 };
     coreApplyReleaseEffects(fanatic.state.units[side][1], [], fanatic.state, fanatic.rng, fanatic.emit, fanatic.hit);
-    assert.equal(coreAllyExtraTriggerTimes(fanatic.unit,fanatic.state,'解放'),Number(data.effectText('C100',enhanced).match(/(\d+)回追加/)[1]));
+    assert.equal(coreAllyExtraTriggerTimes(fanatic.unit,fanatic.state,'解放'),Number(data.effectText('C125',enhanced).match(/(\d+)回追加/)[1]));
     assert.deepEqual([fanatic.unit.atk,fanatic.unit.hp,fanatic.unit.shield],[20,100,0]);
 
-    const steal = setup([subject('C090', enhanced)], side);
+    const steal = setup([subject('C115', enhanced)], side);
     steal.state.units[steal.other] = ['front-a', 'front-b', 'rear'].map((id, i) => createCoreUnit(plain(id, { lane: i === 2 ? 'rear' : 'front' }), steal.other, i));
     steal.unit.hp = 0;
     coreApplyDeathEffects(steal.unit, steal.state, steal.rng, steal.emit, steal.hit);
-    assert.equal(steal.events.filter(e => e.type === 'unit_stolen').length, Number((data.effectText('C090', enhanced).match(/敵を(\d+)体/) || [])[1]) || 1);
+    assert.equal(steal.events.filter(e => e.type === 'unit_stolen').length, Number((data.effectText('C115', enhanced).match(/敵を(\d+)体/) || [])[1]) || 1);
     assert.ok(steal.state.units[steal.other].some(u => u.id === 'rear'), '後衛を奪わない');
 
     const deathExperience = setup([subject('E029', enhanced)], side);
@@ -94,8 +94,8 @@ const stats = events => events.filter(e => e.type === 'stat_change');
 
   // ヘカトンケイルは現行本文で味方の負傷効果を追加発動する。封印中は働かない。
   for (const side of ['p1', 'p2']) for (const enhanced of [false, true]) {
-    const run = setup([subject('E001', false), subject('C020', enhanced)], side);
-    const amount = Number(data.effectText('C020', enhanced).match(/(\d+)回追加/)[1]);
+    const run = setup([subject('E001', false), subject('C025', enhanced)], side);
+    const amount = Number(data.effectText('C025', enhanced).match(/(\d+)回追加/)[1]);
     assert.equal(coreAllyExtraTriggerTimes(run.unit, run.state, '負傷'), amount);
     run.hit(run.state.units[run.other][0], run.unit, 1);
     assert.equal(run.events.filter(e => e.reason === 'injury_self_buff').length, 1 + amount);
@@ -105,11 +105,11 @@ const stats = events => events.filter(e => e.type === 'stat_change');
 
   // 反復付与が同じ相手を選んでも、後の死亡で全ての付与が発動する。
   for (const side of ['p1', 'p2']) for (const enhanced of [false, true]) {
-    const grant = setup([subject('C038', enhanced), plain('receiver')], side);
+    const grant = setup([subject('C048', enhanced), plain('receiver')], side);
     const beforeGrant = h.copy(grant.state);
     grant.rng.pick = list => list[0];
     coreApplyInjuryEffects(grant.unit, 1, grant.state, grant.rng, grant.emit, grant.hit);
-    const expected = data.effectRepetitions(data.effectText('C038', enhanced));
+    const expected = data.effectRepetitions(data.effectText('C048', enhanced));
     const grants = grant.events.filter(e => e.type === 'death_summon_grant');
     assert.equal(grants.length, expected);
     const receiver = grant.state.units[side][1]; receiver.hp = 0;
@@ -150,17 +150,17 @@ const stats = events => events.filter(e => e.type === 'stat_change');
   }
 
   // 熟練は付与時の与え手から確定し、後続の召喚者から再計算しない。
-  for (const no of ['C029', 'C034', 'C072']) {
+  for (const no of ['C039', 'C044', 'C092']) {
     const run = setup([subject(no, true, { keywords: ['熟練2'] }), plain('summoner', { keywords: ['熟練9'] })]);
     const first = coreSummonUnit(run.state, 'p1', { name: '先の眷属', atk: 10, hp: 20 }, run.emit, 'summoner');
-    if (no === 'C029') { run.unit.hp = 0; coreApplyDeathEffects(run.unit, run.state, run.rng, run.emit, run.hit); }
-    if (no === 'C034') coreApplyInjuryEffects(run.unit, 1, run.state, run.rng, run.emit, run.hit);
+    if (no === 'C039') { run.unit.hp = 0; coreApplyDeathEffects(run.unit, run.state, run.rng, run.emit, run.hit); }
+    if (no === 'C044') coreApplyInjuryEffects(run.unit, 1, run.state, run.rng, run.emit, run.hit);
     const text = data.effectText(no, true), pair = text.match(/\+(\d+)\/\+(\d+)/);
-    const expected = { atk: pair ? Number(pair[1]) + 2 : no === 'C034' ? Number(text.match(/ATK\+(\d+)/)[1]) + 2 : 0,
-      hp: pair ? Number(pair[2]) + 2 : no === 'C072' ? Number(text.match(/HP\+(\d+)/)[1]) + 2 : 0 };
+    const expected = { atk: pair ? Number(pair[1]) + 2 : no === 'C044' ? Number(text.match(/ATK\+(\d+)/)[1]) + 2 : 0,
+      hp: pair ? Number(pair[2]) + 2 : no === 'C092' ? Number(text.match(/HP\+(\d+)/)[1]) + 2 : 0 };
     assert.deepEqual(run.state.gameSummonBuff.p1, expected);
     const second = coreSummonUnit(run.state, 'p1', { name: '後の眷属', atk: 10, hp: 20 }, run.emit, 'summoner');
-    const repeats = no === 'C072' ? 2 : 1;
+    const repeats = no === 'C092' ? 2 : 1;
     assert.deepEqual([first.atk, first.hp, second.atk, second.hp],
       [10 + expected.atk * repeats, 20 + expected.hp * repeats, 10 + expected.atk * repeats, 20 + expected.hp * repeats]);
     const next = setup([plain('new-battle')], 'p1', { gameSummonBuff: h.copy(run.state.gameSummonBuff) });
@@ -169,8 +169,8 @@ const stats = events => events.filter(e => e.type === 'stat_change');
   }
 
   // 同じ入力のコア・オンライン計算・JSON保存再計算と、両受け口への書き戻し。
-  const prepared = setup([subject('C072', true), subject('C045', false, { id: 'mitera' }),
-    subject('C034', false, { id: 'eidolon' })], 'p1', { gameSummonBuff: { p1: { atk: 3, hp: 5 }, p2: { atk: 2, hp: 4 } } }).state;
+  const prepared = setup([subject('C092', true), subject('C060', false, { id: 'mitera' }),
+    subject('C044', false, { id: 'eidolon' })], 'p1', { gameSummonBuff: { p1: { atk: 3, hp: 5 }, p2: { atk: 2, hp: 4 } } }).state;
   const seed = 20261019;
   const input = SaveRun.copy({ seed, turnLimit: 8, sides: Object.fromEntries(['p1', 'p2'].map(side => [side, { units: prepared.units[side] }])),
     resources: prepared.resources, summonDefs: prepared.summonDefs, gameSummonBuff: prepared.gameSummonBuff });

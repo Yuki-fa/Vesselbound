@@ -14,7 +14,7 @@ async function check(name, run) {
     await check(`${side}：${mode}による全滅の後も常時バフの演出を省かない`, async () => {
       const other = side === 'p1' ? 'p2' : 'p1';
       const roar=h.card('E049');
-      const x = h.setup({ sides: { [side]: { units: [h.unit('winner', 'C033', { atk: 100,boardCards:[roar],_adjacentPanelEffectTexts:[roar.desc] })] },
+      const x = h.setup({ sides: { [side]: { units: [h.unit('winner', 'C043', { atk: 100,boardCards:[roar],_adjacentPanelEffectTexts:[roar.desc] })] },
         [other]: { units: [h.unit('last', '', { atk: 1, hp: 1, maxHp: 1 })] } } });
       const winner = x.find('winner'), last = x.find('last');
       if (mode === 'ATK0逃走') {
@@ -42,7 +42,7 @@ async function check(name, run) {
   }
   await check('活性化の途中で全滅した後の残りの閾値も、合図を省かない',async()=>{
     const a=h.card('E045');
-    const x=h.setup({sides:{p1:{units:[h.unit('wyvern','C058',{boardCards:[a],_adjacentPanelEffectTexts:[a.desc],
+    const x=h.setup({sides:{p1:{units:[h.unit('wyvern','C073',{boardCards:[a],_adjacentPanelEffectTexts:[a.desc],
       manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:a.desc.replace(/^\d+マナ毎：/,'')})]},
       p2:{units:[h.unit('last','',{hp:1,maxHp:1})]}},resources:{p1:{mana:3,gold:19}}});
     coreApplyManaThresholdEffects(x.state,x.rng,x.emit,x.hit);
@@ -57,7 +57,7 @@ async function check(name, run) {
   });
   for(const protection of ['復活','根性'])await check(`${protection}で戻る全滅は戦闘終了扱いにしない`,async()=>{
     const roar=h.card('E049');
-    const x=h.setup({sides:{p1:{units:[h.unit('winner','C033',{boardCards:[roar],_adjacentPanelEffectTexts:[roar.desc]})]},p2:{units:[h.unit('last','',{hp:1,maxHp:10,keywords:[protection]})]}}});
+    const x=h.setup({sides:{p1:{units:[h.unit('winner','C043',{boardCards:[roar],_adjacentPanelEffectTexts:[roar.desc]})]},p2:{units:[h.unit('last','',{hp:1,maxHp:10,keywords:[protection]})]}}});
     x.hit(x.find('winner'),x.find('last'),2);
     coreApplyOpeningEffects(x.find('winner'),x.state,x.rng,x.emit,x.hit);
     const buff=x.events.find(e=>e.type==='stat_change'&&e.sourceId==='winner');

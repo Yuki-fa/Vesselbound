@@ -17,7 +17,7 @@ const effects = (no, kind = 'card') => {
   return { _adjacentPanelAbilities: [c.name], _adjacentPanelEffectTexts: [c.desc], boardCards: [c] };
 };
 function setup(side, extra = {}, options = {}, support = []) {
-  return h.setup({ sides: { [side]: { units: [h.unit('wyvern', 'C058', { color: '赤', ...extra }), ...support] },
+  return h.setup({ sides: { [side]: { units: [h.unit('wyvern', 'C073', { color: '赤', ...extra }), ...support] },
     [other(side)]: { units: [h.unit('foe0'), h.unit('foe1'), h.unit('foe2')] } }, ...options });
 }
 const items = (side, key) => ({ items: { [side]: [{ id: key, itemEffectKey: key }] } });
@@ -53,10 +53,10 @@ const scenarios = [
     manaThresholdDesc: h.card('E045').desc.replace(/^\d+マナ毎：/, '') }),
     options: side => ({ resources: { [side]: { mana: 2 } } }),
     run: x => coreApplyManaThresholdEffects(x.state, x.rng, x.emit, x.hit), reasons: ['mana_threshold'] },
-  { name: 'マナ効果の色補正', extra: { color: '緑' }, support: () => [h.unit('support', 'C050')],
+  { name: 'マナ効果の色補正', extra: { color: '緑' }, support: () => [h.unit('support', 'C065')],
     options: side => ({ resources: { [side]: { mana: 2 } } }),
     run: x => coreApplyManaThresholdEffects(x.state, x.rng, x.emit, x.hit), reasons: ['mana_threshold_color_all'] },
-  { name: 'ATK奪取で得る値', extra: () => effects('C081'),
+  { name: 'ATK奪取で得る値', extra: () => effects('C106'),
     run: x => coreApplyAttackEffects(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['imp_gain'] },
   { name: '攻撃エンチャント共振', extra: () => effects('E054', 'enchant'),
     run: x => coreApplyAttackEffects(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['resonance'] },
@@ -67,14 +67,14 @@ const scenarios = [
   { name: 'ATKとHPの交換による増加',
     run: x => { x.find('foe0').desc = '攻撃：このキャラクターのHPと対象のATKを入れ替える。';
       coreApplyAttackEffects(x.find('foe0'), x.state, x.rng, x.emit, x.hit); }, reasons: ['attack_swap'] },
-  { name: '負傷バフ', support: () => [h.unit('support', 'C012')],
+  { name: '負傷バフ', support: () => [h.unit('support', 'C017')],
     run: x => coreApplyInjuryEffects(x.find('support'), 1, x.state, x.rng, x.emit, x.hit), reasons: ['gigantes'] },
   { name: '解放バフ', extra: () => effects('E057', 'enchant'),
     run: x => coreApplyReleaseEffects(x.find('wyvern'), [], x.state, x.rng, x.emit, x.hit), reasons: ['release_bonus'] },
   { name: 'フィーンドの解放補正', extra: { color: '紫' },
-    support: () => [h.unit('support', 'C099', { boardCards: [h.card('E057')] })],
+    support: () => [h.unit('support', 'C124', { boardCards: [h.card('E057')] })],
     run: x => coreApplyReleaseEffects(x.find('support'), [], x.state, x.rng, x.emit, x.hit), reasons: ['arch_demon_purple_buff'] },
-  { name: '死亡エンチャントからの獲得', support: () => [h.unit('support', null, effects('C036'))],
+  { name: '死亡エンチャントからの獲得', support: () => [h.unit('support', null, effects('C046'))],
     run: x => { x.find('support').hp = 0;
       coreApplyDeathEffects(x.find('support'), x.state, x.rng, x.emit, x.hit); }, reasons: ['death_all_atk'] },
   { name: '死亡の常時観測', extra: { effectData: { effectTexts: ['常時：味方が死亡するたび、このキャラクターは+1/+1を得る。'] } },
@@ -83,7 +83,7 @@ const scenarios = [
       coreApplyDeathObservers(x.find('support'), x.state, x.rng, x.emit, x.hit); }, reasons: ['ally_death_self_buff'] },
   { name: '結界喪失の指輪', only: 'p1', options: side => rings(side, 'R035'),
     run: x => coreApplyShieldLostEffects(x.find('wyvern'), x.state, x.rng, x.emit, x.hit), reasons: ['seal_breaker_ring'] },
-  { name: '既存眷属への強化', extra: { keywords: ['眷属'] }, support: () => [h.unit('support', 'C034')],
+  { name: '既存眷属への強化', extra: { keywords: ['眷属'] }, support: () => [h.unit('support', 'C044')],
     run: x => coreApplyInjuryEffects(x.find('support'), 1, x.state, x.rng, x.emit, x.hit), reasons: ['summon_buff'] },
   { name: '復活後の瞳と眷属補正', extra: { keywords: ['復活', '眷属'] },
     options: side => rings(side, 'R001', 'R034'),
@@ -95,23 +95,23 @@ const scenarios = [
     reasons: ['revive_passive'] },
   { name: '新規召喚の瞳・巻物・眷属補正', target: 'summon', extra: { name: '召喚元', desc: '', no: '' },
     options: side => ({ ...rings(side, 'R001', 'R034'), ...items(side, 'bond_scroll') }),
-    run: (x, enhanced) => { const w = h.unit('new-wyvern', 'C058');
+    run: (x, enhanced) => { const w = h.unit('new-wyvern', 'C073');
       w.color = '赤';
-      if (enhanced) w.desc = h.sheetRows('card').find(r => r['No.'] === 'C058')['強化効果'];
+      if (enhanced) w.desc = h.sheetRows('card').find(r => r['No.'] === 'C073')['強化効果'];
       coreSummonUnit(x.state, x.find('wyvern').side, w, x.emit, 'wyvern', null, x.rng, x.hit); },
     reasons: ['color_ring_summon', 'bond_scroll_summon', 'summoner_ring'] },
   { name: '開戦中の新規召喚補正', target: 'summon', extra: { name: '召喚元', desc: '', no: '' },
     options: side => ({ ...rings(side, 'R001', 'R032'), ...items(side, 'bond_scroll') }),
     run: (x, enhanced) => { x.state._openingPhase = x.state._openingRingsApplied = x.state._openingItemsApplied = true;
-      const w = h.unit('new-wyvern', 'C058', { color: '赤' });
-      if (enhanced) w.desc = h.sheetRows('card').find(r => r['No.'] === 'C058')['強化効果'];
+      const w = h.unit('new-wyvern', 'C073', { color: '赤' });
+      if (enhanced) w.desc = h.sheetRows('card').find(r => r['No.'] === 'C073')['強化効果'];
       coreSummonUnit(x.state, x.find('wyvern').side, w, x.emit, 'wyvern', null, x.rng, x.hit); },
     reasons: ['color_ring', 'bond_scroll_summon'] },
   { name: '召喚累計の補正と進軍の歌', target: 'summon', extra: { name: '召喚元', no: '',
     desc: '常時：このキャラクターが召喚したキャラクターは+1/+1を得る。' },
     support: () => [h.unit('support', null, { desc: '常時：味方の眷属は+1/+1を得る。この戦闘で召喚された味方の眷属の数だけ繰り返す。' })],
-    run: (x, enhanced) => { const w = h.unit('new-wyvern', 'C058');
-      if (enhanced) w.desc = h.sheetRows('card').find(r => r['No.'] === 'C058')['強化効果'];
+    run: (x, enhanced) => { const w = h.unit('new-wyvern', 'C073');
+      if (enhanced) w.desc = h.sheetRows('card').find(r => r['No.'] === 'C073')['強化効果'];
       coreSummonUnit(x.state, x.find('wyvern').side, w, x.emit, 'wyvern', null, x.rng, x.hit); },
     reasons: ['summon_scaling_buff', 'march_song'] },
 ];
@@ -136,7 +136,7 @@ function battle(api, options, stepped = false) {
     if (scenario.only && scenario.only !== side) continue;
     for (const enhanced of [false, true]) await check(`${side}/${scenario.name}/${enhanced ? '強化' : '通常'}`, async () => {
       const extra = h.clone(typeof scenario.extra === 'function' ? scenario.extra() : scenario.extra || {});
-      if (enhanced && scenario.target !== 'summon') extra.desc = h.sheetRows('card').find(r => r['No.'] === 'C058')['強化効果'];
+      if (enhanced && scenario.target !== 'summon') extra.desc = h.sheetRows('card').find(r => r['No.'] === 'C073')['強化効果'];
       const x = setup(side, extra, scenario.options?.(side), scenario.support?.() || []);
       scenario.run(x, enhanced);
       const id = scenario.target === 'summon' ? x.events.find(e => e.type === 'summon').unit.id : 'wyvern';
@@ -161,12 +161,12 @@ function battle(api, options, stepped = false) {
       await x.pve();
       assert.equal(damageFx().length, count * (scenario.vfxPerActivation || 1), 'PvEの固有VFX');
       assert.equal(damageFx().reduce((n, c) => n + c.options.targets.length, 0), hits.length, '命中対象ごとにVFXが1回だけ出る');
-      assert.equal(h.sounds.filter(s => s.code === 'C058').length, allFx().length, 'PvEの全固有VFXにSEが付く');
+      assert.equal(h.sounds.filter(s => s.code === 'C073').length, allFx().length, 'PvEの全固有VFXにSEが付く');
       assert.equal(h.calls.filter(c => c.name === 'hit' && c.amount === 2).length, hits.length, 'PvEのダメージ数値');
       await x.online();
       assert.equal(damageFx().length, count * (scenario.vfxPerActivation || 1), 'オンラインの固有VFX');
       assert.equal(damageFx().reduce((n, c) => n + c.options.targets.length, 0), hits.length, 'オンラインも命中対象のVFXを重複しない');
-      assert.equal(h.sounds.filter(s => s.code === 'C058').length, allFx().length, 'オンラインの全固有VFXにSEが付く');
+      assert.equal(h.sounds.filter(s => s.code === 'C073').length, allFx().length, 'オンラインの全固有VFXにSEが付く');
       assert.equal(h.calls.filter(c => c.name === 'hit' && c.amount === 2).length, hits.length, 'オンラインのダメージ数値');
     });
   }
@@ -210,7 +210,7 @@ function battle(api, options, stepped = false) {
   await check('新しい体の基礎値・現在値を写すコピーだけでは誘発しない', () => {
     for (const inherits of [false, true]) {
       const x = setup('p1', {}, inherits ? rings('p1', 'R001') : {});
-      coreSummonUnit(x.state, 'p1', h.unit('new-wyvern', 'C058', { atk: 50, color: '赤', _inheritsStats: inherits }),
+      coreSummonUnit(x.state, 'p1', h.unit('new-wyvern', 'C073', { atk: 50, color: '赤', _inheritsStats: inherits }),
         x.emit, 'wyvern', null, x.rng, x.hit);
       assert.equal(x.events.filter(e => e.type === 'damage').length, 0);
       assert.equal(x.rng.next(), createSeededRng(1020).next());
@@ -225,7 +225,7 @@ function battle(api, options, stepped = false) {
     for (const scenario of scenarios) for (const side of ['p1', 'p2']) {
       if (scenario.only && scenario.only !== side) continue;
       const extra = typeof scenario.extra === 'function' ? scenario.extra() : scenario.extra || {};
-      const options = { seed: 1020, turnLimit: 6, sides: { [side]: { units: [h.unit('wyvern', 'C058', extra), ...(scenario.support?.() || [])] },
+      const options = { seed: 1020, turnLimit: 6, sides: { [side]: { units: [h.unit('wyvern', 'C073', extra), ...(scenario.support?.() || [])] },
         [other(side)]: { units: [h.unit('foe0'), h.unit('foe1'), h.unit('foe2')] } }, ...scenario.options?.(side) };
       const direct = battle(global, options), stepped = battle(global, options, true), online = simulateOnlineBattle(options);
       assert.deepEqual(stepped, direct, scenario.name + '/PvE');
@@ -240,11 +240,11 @@ function battle(api, options, stepped = false) {
     const baseline = context.module.exports;
     // 結界を持つ・与えるキャラは 2026-10-21 の結界ルール変更（重ならない）で結果が変わるので外す。
     const shieldRule = r => /結界/.test(Object.values(r).join(' '));
-    for (const row of h.sheetRows('card').filter(r => r['No.'] !== 'C058' && !shieldRule(r) && !require('./sheet_data').effectChanged1022(r['No.']))) for (const side of ['p1', 'p2']) {
+    for (const row of h.sheetRows('card').filter(r => r['No.'] !== 'C073' && !shieldRule(r) && !require('./sheet_data').effectChanged1022(r['No.']))) for (const side of ['p1', 'p2']) {
       const u = h.unit(row['No.'], row['No.']);
       const options = { sides: { [side]: { units: [u] }, [other(side)]: { units: [h.unit('foe0'), h.unit('foe1')] } },
         resources: { [side]: { mana: 6, gold: 20 } }, ...rings(side, 'R001', 'R032', 'R034'),
-        ...items(side, 'bond_scroll'), summonDefs: h.sheetRows('card').filter(r => r['No.'] !== 'C058').map(r => h.unit(r['No.'], r['No.'])) };
+        ...items(side, 'bond_scroll'), summonDefs: h.sheetRows('card').filter(r => r['No.'] !== 'C073').map(r => h.unit(r['No.'], r['No.'])) };
       // _copyFrame はコピーの枠を決める見た目だけの印（2026-10-20 に後から追加）。結果・乱数の比較からは外す。
       // 結界のキーワードは新ルールで「結界」と書く（眷属の「結界1」など）。表記だけ揃えて比べる。
       const visualOnly = value => JSON.parse(JSON.stringify(value, (key, v) => key === '_copyFrame' ? undefined : typeof v === 'string' && /^結界\d+$/.test(v) ? '結界' : v));

@@ -46,15 +46,15 @@ var VbFxLabFixed = {
  * VbFxLabPending：今回新しく割り当てた（流用・新作）もの。利用者が LAB で見て FIX と言うまで☆のまま（★にする時はここから外す）。
  * VbFxLabStarNotes：戦闘中に演出を出さないもの（－）の理由。 */
 var VbFxLabPending = {
-  C052:'mana-buff（ウォーグのバフに出ていなかった）', C055:'aura-buff（敵が状態異常を得るたびHP+）', C037:'aura-buff（眷属が召喚されるたび）',
-  C072:'aura-buff（眷属の強化）', C075:'aura-buff（4回目の終戦でエンチャントを強化した時）', C003:'injury-buff（報酬とトレーダーの強化）',
-  C089:'attack-buff（報酬とトレーダーの強化）', C047:'aura-buff（終戦のリロール）', C007:'injury-buff＋S006の音（音が鳴っていなかった）',
+  C067:'mana-buff（ウォーグのバフに出ていなかった）', C070:'aura-buff（敵が状態異常を得るたびHP+）', C047:'aura-buff（眷属が召喚されるたび）',
+  C092:'aura-buff（眷属の強化）', C095:'aura-buff（4回目の終戦でエンチャントを強化した時）', C008:'injury-buff（報酬とトレーダーの強化）',
+  C114:'attack-buff（報酬とトレーダーの強化）', C062:'aura-buff（終戦のリロール）', C012:'injury-buff＋S006の音（音が鳴っていなかった）',
   R035:'aura-buff（味方が結界を失うたび全ての味方+1/+1）', M003:'map-life（開戦の着地。旧・生命の力の演出）',
   I015:'keyword-grant', I016:'keyword-grant', I017:'keyword-grant', I018:'keyword-grant', I019:'keyword-grant',
   I020:'keyword-grant', I021:'keyword-grant', I022:'keyword-grant', I023:'keyword-grant',
   // 新しく作った演出（additions_1023.js）
-  EN013:'echo-bolt（新作）', EN031:'frost-retaliate（新作）', C064:'activation-transform（新作。起動の変身）',
-  C084:'activation-empower（新作。起動の強化と色の変化）', C091:'activation-devour（新作。起動の破壊）', I002:'activation-transform（新作。変身の巻物）',
+  EN013:'echo-bolt（新作）', EN031:'frost-retaliate（新作）', C084:'activation-transform（新作。起動の変身）',
+  C109:'activation-empower（新作。起動の強化と色の変化）', C116:'activation-devour（新作。起動の破壊）', I002:'activation-transform（新作。変身の巻物）',
 };
 var VbFxLabStarNotes = {
   E029:'開戦で死亡効果を発動する（発動した死亡効果の演出が出る）',

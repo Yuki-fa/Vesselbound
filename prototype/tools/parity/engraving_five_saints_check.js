@@ -29,7 +29,7 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
       const keywordRows=Object.fromEntries(engravingNos.map(no=>[no,cards[no]?_enchantPreviewKeywords(cards[no]):[]]));
 
       const fateFormation=(stage,value)=>{
-        const character=makePanel(PANEL_POOL.find(card=>card.no==='C003').id);
+        const character=makePanel(PANEL_POOL.find(card=>card.no==='C008').id);
         character.power=value;character.life=value;character.directions=['left'];
         const fate=makePanel(defs.E066.id);fate.directions=['right'];
         const board={boardCards:new Array(15).fill(null)};

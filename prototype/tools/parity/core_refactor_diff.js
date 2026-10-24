@@ -63,7 +63,7 @@ if (process.argv.includes('--attack-order-1010')) {
   const setup = {
     seed: 53, turnLimit: 1,
     sides: {
-      p1: { units: [{ id: 'order1010', name: 'アラッサス', no: 'C043', atk: 7, hp: 100, maxHp: 100,
+      p1: { units: [{ id: 'order1010', name: 'アラッサス', no: 'C058', atk: 7, hp: 100, maxHp: 100,
         desc: cards.find(c => c.name === 'アラッサス').desc,
         effectData: { effectNames: names, effectTexts: names.map(n => sheet.enchantCards().find(e => e.name === n).desc) } },
         { id: 'support1010', name: '仲間', atk: 1, hp: 100, maxHp: 100 }] },

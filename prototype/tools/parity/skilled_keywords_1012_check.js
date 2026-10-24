@@ -40,9 +40,9 @@ async function battleCase(online,side,merged,grace,rows,hoverPoint){
   window.VB_OPTION_SPEED='normal';
   document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
   const screen=document.getElementById('scr-battle');screen.classList.add('active');screen.style.setProperty('display','block','important');document.body.className='test-battle-active';
-  const other=side==='p1'?'p2':'p1',walkerRow=rows.find(r=>r['No.']==='C093'),graceRow=rows.find(r=>r['No.']==='E039');
+  const other=side==='p1'?'p2':'p1',walkerRow=rows.find(r=>r['No.']==='C118'),graceRow=rows.find(r=>r['No.']==='E039');
   const walkerDesc=walkerRow[merged?'合体効果':'効果'],graceDesc=graceRow[grace?'合体効果':'効果'];
-  const u=(id,extra={})=>({id,name:id,no:'C093',atk:20,hp:100,maxHp:100,lane:'front',color:'紫',keywords:[],desc:'',_panelSummoned:true,...extra});
+  const u=(id,extra={})=>({id,name:id,no:'C118',atk:20,hp:100,maxHp:100,lane:'front',color:'紫',keywords:[],desc:'',_panelSummoned:true,...extra});
   const state=createBattleState({sides:{[side]:{units:[u('walker',{name:walkerRow['名前'],desc:walkerDesc,
     effectData:{effectNames:['恩寵'],effectTexts:[graceDesc]}}),u('recipient')]},[other]:{units:[u('other',{color:'赤'})]}}});
   const before=structuredClone(state.units),events=[],rng=createSeededRng(1012),emit=e=>events.push(e);
@@ -77,7 +77,7 @@ async function prepareCardCase(keywords,hoverPoint){
   document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
   const screen=document.getElementById('scr-battle');screen.classList.add('active');screen.style.setProperty('display','block','important');
   document.body.className='reward-screen-active debug-mode';
-  const def=PANEL_POOL.find(p=>p.no==='C093'),card=makePanel(def.id);
+  const def=PANEL_POOL.find(p=>p.no==='C118'),card=makePanel(def.id);
   // 付与後のキーワードを持つカードの表示用入力。属性や説明窓は本体の描画関数が生成する。
   card.keywords=[...keywords];card.desc='';
   G.mainBoard.fill(null);G.mainBoard[1]=card;G.mapPanelPowers={1:'summon'};
@@ -102,7 +102,7 @@ async function collectionCase(visibleText){
   SaveRun.begin();
   document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
   document.getElementById('scr-title').classList.add('active');
-  for(const code of ['C093','E052']){
+  for(const code of ['C118','E052']){
     const card=PANEL_POOL.find(p=>p.no===code);
     if(!card||!SaveProfile.markCardAcquired(card)||!SaveProfile.collectionState(card).acquired){
       throw new Error('図鑑の取得状態を準備できない: '+code);
@@ -117,7 +117,7 @@ async function collectionCase(visibleText){
   PANEL_MERGE_TRIAL.enabled=true;
   for(const kind of ['character','enchant']){
     _collectionKind=kind;_collectionMerged=false;_collectionRender();
-    const code=kind==='character'?'C093':'E052',cards=_collectionDefinitions(kind),index=cards.findIndex(p=>p.no===code);
+    const code=kind==='character'?'C118':'E052',cards=_collectionDefinitions(kind),index=cards.findIndex(p=>p.no===code);
     const cell=document.querySelector('.collection-grid-cell[data-collection-index="'+index+'"]');
     if(!cell||cell.disabled)throw new Error('図鑑のカードが選択できない: '+code);
     cell.click();
@@ -132,7 +132,7 @@ async function collectionCase(visibleText){
   }
   PANEL_MERGE_TRIAL.enabled=mergeEnabled;closeCollection();return result;
 }
-const rows=[...sheetRows('card'),...sheetRows('enchant')].filter(r=>['C093','E039','E052'].includes(r['No.']));
+const rows=[...sheetRows('card'),...sheetRows('enchant')].filter(r=>['C118','E039','E052'].includes(r['No.']));
 const makeBattle=(online,side,merged,grace)=>`return await (${battleCase.toString()})(${online},${JSON.stringify(side)},${merged},${grace},${JSON.stringify(rows)},${hoverPoint.toString()});`;
 const makeCollection=()=>`return await (${collectionCase.toString()})(${visibleText.toString()});`;
 const makeCard=keywords=>`return await (${prepareCardCase.toString()})(${JSON.stringify(keywords)},${hoverPoint.toString()});`;
@@ -147,7 +147,7 @@ if(process.argv.includes('--syntax-only'))console.log('OK Chrome検査スクリ�
 else (async()=>{
   const b=await launch({width:1920,height:1080});
   const openPage=async()=>{
-    await b.goto(URL);await b.waitFor('typeof PANEL_POOL!=="undefined"&&PANEL_POOL.some(c=>c.no==="C093"&&c._sheetSeen)',20000);
+    await b.goto(URL);await b.waitFor('typeof PANEL_POOL!=="undefined"&&PANEL_POOL.some(c=>c.no==="C118"&&c._sheetSeen)',20000);
     // 2026-10-12 第2回Chrome検査修正: 通常のタイトル表示まで進め、盤面作成後にタイトルを再表示する起動タイマーを残さない。
     await b.eval('_revealTitleMenu();');
     await b.waitFor('document.getElementById("scr-title").classList.contains("startup-menu-ready")&&Number(getComputedStyle(document.getElementById("scr-loading")).opacity)===0',5000);

@@ -218,8 +218,8 @@ function playAttackDamageSfx(attacker,amount){
 
 function playDamageEffectSfx(kind){
   if(typeof playSfx!=='function') return false;
-  // 全体へ広がる効果ダメージ＝C043（アラッサス）／単体＝効果ダメージの汎用SE。
-  if(kind==='all') return playSfx('C043',{group:'magic'});
+  // 全体へ広がる効果ダメージ＝C058（アラッサス）／単体＝効果ダメージの汎用SE。
+  if(kind==='all') return playSfx('C058',{group:'magic'});
   return playSfx('effectDamage',{group:'magic'});
 }
 
@@ -3898,16 +3898,16 @@ async function _runCoreLiveInjuryEffects(unit, actualDmg, isEnemySide, source, d
         await _flushCorePveHitEvents(state,summonEvents,before);
         summonEvents.forEach(ev=>flushedSummonEvents.add(ev));
       }
-      // C003（ゴーレム）／C007（コボルド）の共通負傷演出は、
+      // C008（ゴーレム）／C012（コボルド）の共通負傷演出は、
       // 攻撃時のstat_changeではなく、実際に負傷効果を解決したここでだけ再生する。
       const injuryCode=_effectPresentationCode(unit);
-      if((injuryCode==='C003'||injuryCode==='C007')&&typeof _playCardEffectSfx==='function'){
+      if((injuryCode==='C008'||injuryCode==='C012')&&typeof _playCardEffectSfx==='function'){
         _recordBattleTrace('injury_effect_vfx_start',{unitId:unit.id,code:injuryCode,
           side:isEnemySide?'p2':'p1',actualDmg:Number(actualDmg)||0});
-        _playCardEffectSfx('C003');
+        _playCardEffectSfx('C008');
         // 負傷VFXは攻撃モーションの接触処理を停止させない。演出自体は
         // playHitVfxAtRect側で保持され、モーションと並行して再生される。
-        void _playCardEffectVfx('C003',[unit],{gateMs:0,waitForFinish:false});
+        void _playCardEffectVfx('C008',[unit],{gateMs:0,waitForFinish:false});
         _recordBattleTrace('injury_effect_vfx_done',{unitId:unit.id,code:injuryCode});
       }
       if((Number(state.resources[side].mana)||0)!==beforeMana||coreEffectCount(unit,'治癒能力')||
@@ -4028,7 +4028,7 @@ async function applyDamageBatch(entries, options){
       effectSource:opt.effect?source:null,keywordEffect:opt.keywordEffect||null,
       counterDamage:!!ev.counter};
   });
-  // コアのマータ分散で肩代わりした対象にも、従来どおりC002の専用VFXを出す。
+  // コアのマータ分散で肩代わりした対象にも、従来どおりC007の専用VFXを出す。
   prepared.forEach(original=>{
     if(!(Number(original.amount)>=2)||!original.unit) return;
     const side=original.side||_battleSideOfUnit(original.unit);
@@ -4037,7 +4037,7 @@ async function applyDamageBatch(entries, options){
     if(!mata) return;
     const redirected=results.find(r=>r.unit===mata&&
       String(r.redirectedFrom||'')===String(original.unit.id))||results.find(r=>r.unit===mata);
-    if(redirected){ redirected.effectVfxCode='C002'; redirected.effectVfxTarget=mata; }
+    if(redirected){ redirected.effectVfxCode='C007'; redirected.effectVfxTarget=mata; }
   });
   results.forEach(r=>{
     if(!r.unit||r.actualDmg<=0) return;

@@ -85,10 +85,10 @@ function check(name,ok,detail){results.push({name,ok:!!ok,detail});console.log((
       check(no+' 実戦でLAB演出・SE・描画・後片付け',result.calls>0&&result.ordered&&(['K016','K002'].includes(no)?result.sounds===0:result.sounds>0)&&result.speeds.every(s=>s===1.5*(no==='S001'?2.5:1)*SPEED)&&result.boardOK&&result.frames>0&&result.painted&&result.layerOK&&result.settled&&!result.error&&!result.assetErrors.length&&!result.remaining,
         JSON.stringify(result));
       if(no==='I006') check('I006 隕石が墜落した後にダメージを出す（2026-10-12）',result.hitAfterImpact,JSON.stringify({firstImpact:result.firstImpact,firstHit:result.firstHit}));
-      if(no==='C009') check('C009 結界を得ず怒りのオーラから割り込み攻撃へ進む',result.calls===2&&!result.all.includes('shield-gain')&&result.evs.some(e=>e.startsWith('attack:')),JSON.stringify(result));
+      if(no==='C014') check('C009 結界を得ず怒りのオーラから割り込み攻撃へ進む',result.calls===2&&!result.all.includes('shield-gain')&&result.evs.some(e=>e.startsWith('attack:')),JSON.stringify(result));
     }
     const states=await b.eval(setup+`
-      const state=vbLabVfxFixture('C003');G.allies=state.units.p1;G.enemies=state.units.p2;
+      const state=vbLabVfxFixture('C008');G.allies=state.units.p1;G.enemies=state.units.p2;
       [...G.allies,...G.enemies].forEach(u=>{u.keywords=[];u.desc='';u.poison=u.shield=u.weaken=0;});
       const u=G.allies[0];u.keywords=['根性','復活'];u.shield=3;u.poison=4;u.weaken=2;
       renderAll();await new Promise(r=>setTimeout(r,100));

@@ -355,7 +355,7 @@ function _actionBannerEffectOwner(side, trigger, pattern) {
 }
 function _actionBannerSummonScalingOwner(ev, isNaga) {
   const api = actionBannerPresentationApi();
-  const naga = _actionBannerCard('C057');
+  const naga = _actionBannerCard('C072');
   const pattern = /味方の眷属(?:は|が召喚された時、その眷属は)\+\d+\/\+\d+を得る/;
   const holders = [..._actionBannerUnits.values()].filter(u => u.side === ev.side
     && !_actionBannerPendingUnits.has(String(u.id))

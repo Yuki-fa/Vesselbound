@@ -973,7 +973,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   _releaseAllContactHolds();
   effectDamageSources.forEach(id=>{
     const source=(state.units.p1||[]).concat(state.units.p2||[]).find(u=>u&&u.id===id);
-    const code=source&&_effectPresentationCode(source).match(/^C\d{3}$/i);
+    const code=source&&_effectPresentationCode(source).match(/^CF?\d{3}$/i);
     if(code&&typeof _playCardEffectSfx==='function') _playCardEffectSfx(code[0].toUpperCase());
   });
   const spawned=[...(state.units.p1||[]),...(state.units.p2||[])].filter(u=>u&&!(beforeUnits||new Set()).has(u));

@@ -81,7 +81,7 @@ def build(native_dir, crop):
         report.append(row)
     (review / 'capture_manifest.json').write_text(json.dumps({'method': '実ChromeのCanvasを60fps刻みで指定時刻まで描画して保持。実時間の機能検査とは別。', 'effects': report}, ensure_ascii=False, indent=2) + '\n')
     html = '<!doctype html><html lang="ja"><meta charset="utf-8"><title>VFX 4コマ比較</title><style>body{background:#111712;color:#eae6dc;font:14px sans-serif;margin:24px}a{color:#e0bf83}img{width:100%;height:auto}section{max-width:1600px;margin:30px auto}h2{font-size:18px}details{margin:18px 0}</style><h1>VFX · 150 / 450 / 800 / 1200ms</h1><p><a href="../../vfx_preview.html">プレビュー</a> · <a href="../review_capture.html">再撮影</a> · 左上150、右上450、左下800、右下1200ms。短い演出の終了後は通常の盤面。</p>'
-    html += '<details><summary>既存素材の基準</summary>' + ''.join(f'<img src="../ref_{n}.jpg" alt="{n}">' for n in ['C018', 'S008', 'C043']) + '</details>'
+    html += '<details><summary>既存素材の基準</summary>' + ''.join(f'<img src="../ref_{n}.jpg" alt="{n}">' for n in ['C023', 'S008', 'C058']) + '</details>'
     for row in report:
         html += f'<section><h2>{row["label"]} · {row["durationMs"]}ms</h2><a href="{row["sheet"]}"><img loading="lazy" src="{row["sheet"]}" alt="{row["label"]}の4コマ"></a></section>'
         if row['phases']:

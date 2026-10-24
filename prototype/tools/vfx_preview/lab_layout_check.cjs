@@ -29,8 +29,8 @@ function savedJsonComparison(snapshot){
     value=>{value.version='1';},
     value=>{value.effects['dark-fire'].title+='変更';},
     value=>{value.effects['dark-fire'].tags.push('差分検出');},
-    value=>{value.effects['dark-fire'].assign[0].id='C043';},
-    value=>{value.suppressGeneric.C003=[];},
+    value=>{value.effects['dark-fire'].assign[0].id='C058';},
+    value=>{value.suppressGeneric.C008=[];},
     value=>{delete value.effects['dark-fire'];}
   ];
   for(const change of changes){
@@ -80,7 +80,7 @@ async function layout(){
   assert.equal($('effect-title').textContent,'テスト用の黒い炎');
   const titleInput=$('lab-title-input'),firstButton=env.document.querySelector('#effect-list button');titleInput.value='入力から直した黒い炎';titleInput.dispatchEvent(new env.Event('change'));
   assert.equal($('lab-title-input'),titleInput,'見出し編集で入力欄を取り替えない');assert.equal(env.document.querySelector('#effect-list button'),firstButton,'見出し編集で左のボタンを取り替えない');
-  const a={kind:'character',id:'C043',name:'アラッサス',trigger:'攻撃',se:null};
+  const a={kind:'character',id:'C058',name:'アラッサス',trigger:'攻撃',se:null};
   S.setAssignments('dark-fire',Array.from({length:10},()=>a));
   assert.equal(env.document.querySelectorAll('.lab-assignment-row').length,10);
   assert.throws(()=>S.setAssignments('dark-fire',Array.from({length:11},()=>a)),/10件/);
@@ -97,13 +97,13 @@ async function layout(){
   assert.equal(env.document.querySelectorAll('.lab-board-cell').length,15,'魔導板5×3');
   assert.equal(ctx.VbFxPreview.snapshot().sourceId,'lab-board-7');assert.ok($('board-design').classList.contains('lab-board-scene'));
   assert.ok(env.document.querySelector('.lab-board-frame'),'既存の魔導板枠');ctx.VbFxCards.stop();
-  const golem=cards.find(c=>c.no==='C003');assert.ok(ctx.VbFxCards.generics('C003').some(g=>g.id==='S006'),'実経路の負傷強化');
-  S.suppress('C003','S006',true);assert.ok(M.suppressed(golem,golem.vfx.find(m=>m.sourceCode==='S006'),S.get(),keywordKeys),'S006の個別抑止');
+  const golem=cards.find(c=>c.no==='C008');assert.ok(ctx.VbFxCards.generics('C008').some(g=>g.id==='S006'),'実経路の負傷強化');
+  S.suppress('C008','S006',true);assert.ok(M.suppressed(golem,golem.vfx.find(m=>m.sourceCode==='S006'),S.get(),keywordKeys),'S006の個別抑止');
   const poison=cards.find(c=>/毒牙/.test(c.keywords));assert.ok(poison);assert.ok(ctx.VbFxCards.generics(poison.no).some(g=>g.id==='毒牙'),'シートのキーワードから汎用VFX');
   S.suppress(poison.no,'毒牙',true);
   ctx.VbFxCards.generics(poison.no).find(g=>g.id==='毒牙').media.forEach(m=>assert.ok(M.suppressed(poison,m,S.get(),keywordKeys),'毒牙の個別抑止'));
-  S.setAssignments('dark-fire',[{kind:'character',id:'C003',name:'ゴーレム',trigger:'負傷',se:null}]);
-  calls.length=0;ctx.VbFxCards.show('character');ctx.VbFxCards.choose('C003');await env.drive(ctx.VbFxCards.play('C003'));
+  S.setAssignments('dark-fire',[{kind:'character',id:'C008',name:'ゴーレム',trigger:'負傷',se:null}]);
+  calls.length=0;ctx.VbFxCards.show('character');ctx.VbFxCards.choose('C008');await env.drive(ctx.VbFxCards.play('C008'));
   assert.ok(calls.some(c=>c.name==='dark-fire'),'編集中の割り振りを再生');assert.ok(!calls.some(c=>c.name==='injury-buff'),'チェックしたS006は実際のプレビューから除外');ctx.VbFxCards.stop();
   const snapshot=M.materialize(S.get(),definitions,ctx.VbFxLabMeta,'2026-10-15T01:02:03.000Z');
   assert.deepEqual(plain(M.validate(JSON.parse(JSON.stringify(snapshot)))),plain(snapshot),'保存JSON往復');

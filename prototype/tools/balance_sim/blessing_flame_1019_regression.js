@@ -28,7 +28,7 @@ const card=no=>makePanel(definition(no).id);
 function fresh(){
   initState();SaveRun.begin();G._runSeed=1019;G._runRngState=1019;
   Object.assign(G,{_wave:1,_waveStage:1,_waveLife:3,_isWaveAltar:true,_waveVillage:true,_debugMode:true,_debugStoryCycle:2,phase:'reward'});
-  G.mainBoard[1]=card('C003');G.mainBoard[3]=card('C001');
+  G.mainBoard[1]=card('C008');G.mainBoard[3]=card('C006');
   _rewCards=[];_rewFreePickDone=false;_rewPhaseId=1;
 }
 function simulate(units){
@@ -77,7 +77,7 @@ function simulate(units){
       assert.deepEqual(G.mainBoard[1],original);
       const row=element(),section=element();blessingFlameRenderPreview(row,section);
       assert.equal(row.children.filter(c=>c.classList.contains('blessing-flame-preview')).length,1);
-      assert.ok(row.children[0]['data-preview'].includes(definition('C003').mergedForm.desc));
+      assert.ok(row.children[0]['data-preview'].includes(definition('C008').mergedForm.desc));
       assert.equal(row.children[0].draggable,false);assert.equal(row.children[0].onclick,undefined);
       const selected=element();blessingFlameWireCard(selected,G.mainBoard[1],1);
       assert.equal(selected.classList.contains('blessing-flame-selected'),true);
@@ -86,7 +86,7 @@ function simulate(units){
       const previous=element();blessingFlameWireCard(previous,G.mainBoard[1],1);
       assert.equal(previous.classList.contains('blessing-flame-selected'),false);
       const nextRow=element();blessingFlameRenderPreview(nextRow,element());
-      assert.ok(nextRow.children[0]['data-preview'].includes(definition('C001').mergedForm.desc));
+      assert.ok(nextRow.children[0]['data-preview'].includes(definition('C006').mergedForm.desc));
       assert.deepEqual(_rewCards,[],'プレビューを取得可能な報酬配列に入れない');
     }finally{document.createElement=create;}
   });
@@ -112,7 +112,7 @@ function simulate(units){
     G.mainBoard[1].power+=7;G.mainBoard[1].life-=2;
     G.mainBoard[1].keywords.push('毒牙5');
     _storeRewardStartSnapshot();
-    const other=clone(G.mainBoard[3]),base=definition('C003'),row=sheetRows('card').find(r=>r['No.']==='C003');
+    const other=clone(G.mainBoard[3]),base=definition('C008'),row=sheetRows('card').find(r=>r['No.']==='C008');
     blessingFlameSelect(1);assert.equal(await blessingFlameExecute(),true);
     const result=G.mainBoard[1];
     assert.equal(result.power,base.power*2+7);assert.equal(result.life,base.life*2-2);
@@ -132,7 +132,7 @@ function simulate(units){
     assert.equal(blessingFlameSelect(3),true);assert.equal(blessingFlameUsed(),false);
   });
   check('強化不可：空欄・強化後の無いエンチャント・依頼/NPC・木箱・強化済みを暗くし、選択しない。エンチャントは強化できる',()=>{
-    const raw=card('C003');
+    const raw=card('C008');
     assert.equal(blessingFlameCardEligible(card('E002')),true,'エンチャントも強化できる（2026-10-20）');
     const enchant=enhancedPanelCopy(card('E001'));assert.ok(enchant&&enchant._tripleMerged&&enchant.desc!==card('E001').desc);
     const cases=[null,{...raw,_mergedSource:{desc:'',keywords:''}},
@@ -280,7 +280,7 @@ function simulate(units){
   });
   check('個体の祝福と同名/色の修正：元からある倍率は維持し、加算分を倍にしない',()=>{
     fresh();
-    const raw=card('C003'),base=definition('C003');
+    const raw=card('C008'),base=definition('C008');
     coreApplyCardBoon(raw,{statMul:3});
     raw.power+=9;raw.life-=2;
     const result=enhancedPanelCopy(raw);
@@ -288,14 +288,14 @@ function simulate(units){
     assert.equal(result.boon.statMul,3);
     G.panelPermanentBuffs={[base.name]:{atk:7,hp:11}};
     G.panelColorPermanentBuffs={[_panelColorBuffKey(base.color)]:{atk:2,hp:3}};
-    const permanent=enhancedPanelCopy(card('C003'));
+    const permanent=enhancedPanelCopy(card('C008'));
     assert.equal(permanent.power,base.power*2+9);assert.equal(permanent.life,base.life*2+14);
   });
   check('図鑑：停止中の3枚合体とは独立して「強化」を表示し、施設と同じ2倍の姿',()=>{
     assert.equal(PANEL_MERGE_TRIAL.enabled,false);assert.equal(panelMergeEnabled(),false);
     assert.equal(_collectionTextItem(COLLECTION_TEXTS.merge),'強化');
     _collectionKind='character';_collectionMerged=true;
-    const raw=definition('C003'),shown=_collectionDisplayCard(raw);
+    const raw=definition('C008'),shown=_collectionDisplayCard(raw);
     assert.equal(shown.power,raw.power*2);assert.equal(shown.life,raw.life*2);
     assert.equal(shown.desc,raw.mergedForm.desc);assert.equal(shown._tripleMerged,true);
     assert.equal(getCardFrameAsset(shown),getCardFrameAsset(enhancedPanelCopy(raw)));

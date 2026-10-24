@@ -166,7 +166,7 @@ async function main() {
     `});
     await b.call('Emulation.setDeviceMetricsOverride',VIEWPORT);
     await b.goto(url,1800);
-    await b.waitFor("typeof PANEL_POOL!=='undefined' && PANEL_POOL.some(c=>c.no==='C079' && c._sheetDescLoaded) && typeof VbFx!=='undefined'");
+    await b.waitFor("typeof PANEL_POOL!=='undefined' && PANEL_POOL.some(c=>c.no==='C099' && c._sheetDescLoaded) && typeof VbFx!=='undefined'");
     await b.eval(`
       _forceStopAllVfx(); presentResetPlayback(); initState(); initializeBattlePresentationState();
       Object.assign(G,{phase:'battle',life:5,_waveLife:5,gold:0,mana:0,_enemyMana:0,_wave:2,_waveStage:1,

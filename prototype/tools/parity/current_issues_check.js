@@ -31,7 +31,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
         renderField('f-enemy',G.enemies,true); renderField('f-ally',G.allies,false);
       },80);
       await new Promise(resolve=>setTimeout(resolve,300));
-      // C090の待機中に別の再描画が入る、実際に問題が起きていた条件。
+      // C115の待機中に別の再描画が入る、実際に問題が起きていた条件。
       renderField('f-enemy',G.enemies,true); renderField('f-ally',G.allies,false);
       await new Promise(resolve=>requestAnimationFrame(resolve));
       const pending={e1:left('steal-e1'),e3:left('steal-e3'),ally:left('steal-a1')};
@@ -100,7 +100,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
         no:code,artCode:code,keywords:[],desc:'',_panelSummoned:true});
       const center=el=>{const r=el&&el.getBoundingClientRect();return r?{x:r.left+r.width/2,y:r.top+r.height/2,width:r.width,height:r.height}:null;};
       const runCase=async kind=>{
-        const arassus=mk('arassus-'+kind,'アラッサス','p1','C043');
+        const arassus=mk('arassus-'+kind,'アラッサス','p1','C058');
         arassus.desc='攻撃：全ての敵に1ダメージを与える。';
         arassus.attackSfx='sword';
         const left=mk('left-'+kind,'左の敵','p2','EN022');
@@ -420,18 +420,18 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     console.log('OK 通常戦闘後も試験戦闘の敵編成を固定');
 
     // 2026-10-12 第1回Chrome検査: 旧「2体召喚」の直書きをやめ、現行シートの通常／合体本文を照合する。
-    const kingRow=sheetRows('card').find(row=>row['No.']==='C026');
-    assert.ok(kingRow&&kingRow['効果']&&kingRow['合体効果'],'C026の通常／合体効果がシートにある');
-    await browser.waitFor('PANEL_POOL.some(p=>p&&p.no==="C026"&&p._sheetSeen)',20000);
+    const kingRow=sheetRows('card').find(row=>row['No.']==='C036');
+    assert.ok(kingRow&&kingRow['効果']&&kingRow['合体効果'],'C036の通常／合体効果がシートにある');
+    await browser.waitFor('PANEL_POOL.some(p=>p&&p.no==="C036"&&p._sheetSeen)',20000);
     const kingCard=await browser.eval(`
-      const base=PANEL_POOL.find(p=>p&&p.no==='C026');
+      const base=PANEL_POOL.find(p=>p&&p.no==='C036');
       const merged=clone(base);
       applyMergedPanelForm(merged);
       return {base:base&&base.desc,baseRevive:base&&base.keywords&&base.keywords.includes('復活'),
         merged:merged&&merged.desc,mergedRevive:merged&&merged.keywords&&merged.keywords.includes('復活')};
     `);
-    assert.equal(kingCard.base,String(kingRow['効果']).trim(),'C026の通常効果はシート本文と一致');
-    assert.equal(kingCard.merged,String(kingRow['合体効果']).trim(),'C026の合体効果は反復を含めてシート本文と一致');
+    assert.equal(kingCard.base,String(kingRow['効果']).trim(),'C036の通常効果はシート本文と一致');
+    assert.equal(kingCard.merged,String(kingRow['合体効果']).trim(),'C036の合体効果は反復を含めてシート本文と一致');
     assert.equal(kingCard.baseRevive&&kingCard.mergedRevive,true,'スケルトンキングの復活が合体前後で欠けている');
     console.log('OK スケルトンキングの合体前後の説明・復活を更新');
 

@@ -55,7 +55,7 @@ const def = no => PANEL_POOL.find(p => p.no === no);
   });
   check('祝福を含むカード本体を復活基準としてPvE編成・オンラインpayloadへ渡す', () => {
     initState();
-    const c = makePanel(def('C006').id); c.power = 10; c.life = 10;
+    const c = makePanel(def('C011').id); c.power = 10; c.life = 10;
     coreApplyCardBoon(c, { statMul: 3 }); c.directions = ['left', 'right'];
     const enchant = makePanel(def('E003').id); enchant.directions = ['right'];
     G.mainBoard[1] = c; G.mainBoard[0] = enchant;
@@ -85,7 +85,7 @@ const def = no => PANEL_POOL.find(p => p.no === no);
     try {
       for (const peddler of [false, true]) {
         initState(); G.phase='reward'; G._isShop = true; G._isPeddler = peddler;
-        G.mainBoard[0] = makePanel(def('E003').id); G.mainBoard[1] = makePanel(def('C006').id);
+        G.mainBoard[0] = makePanel(def('E003').id); G.mainBoard[1] = makePanel(def('C011').id);
         G.mainBoard[3] = {...makePanel(def('E003').id),_questOfferCard:true};
         const tiles = G.mainBoard.map((c, i) => tile(c, mapPanelPowerIdAt(i)));
         // 2026-10-19：unite画像も魔導板の直下にある。商品ドラッグ中に暗くしない。
@@ -94,7 +94,7 @@ const def = no => PANEL_POOL.find(p => p.no === no);
           : selector === '#hand-slots.board-slots > :not(.panel-unite-link)' ? tiles
           : selector === '#hand-slots.board-slots > .card' ? tiles.filter(e => e.classList.contains('card'))
           : selector.startsWith('.') ? tiles.filter(e => e.classList.contains(selector.slice(1))) : [];
-        _rewCards = [makePanel(def('C001').id)]; _dragSrc = { arr: 'rew', idx: 0 };
+        _rewCards = [makePanel(def('C006').id)]; _dragSrc = { arr: 'rew', idx: 0 };
         _setDragZoneClass('dragzone-reward-nonspell');
         assert.equal(tiles[0].classList.contains('reward-special-drop-hint'), false);
         assert.equal(tiles[1].classList.contains('reward-special-drop-hint'), false);

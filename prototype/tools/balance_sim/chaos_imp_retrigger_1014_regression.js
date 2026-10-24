@@ -1,5 +1,5 @@
 'use strict';
-// 2026-10-14：カオス・インプ（C094「常時：味方が解放された時、ランダムな味方の開戦効果を発動する。」）は、
+// 2026-10-14：カオス・インプ（C119「常時：味方が解放された時、ランダムな味方の開戦効果を発動する。」）は、
 // 通常の開戦を済ませた体にも開戦効果をもう一度発動させる。以前は発動番号（release:...）を0に戻していたため
 // 通常の開戦（0）と重なって止まっていた（VFX21 制作中に Codex が発見）。ブラウザは使わない。
 const assert = require('node:assert/strict');
@@ -17,10 +17,10 @@ let checked = 0;
 const check = (name, fn) => { fn(); checked++; console.log('OK ' + name); };
 (async () => {
   await loadGameData();
-  const imp = PANEL_POOL.find(c => c.no === 'C094');
+  const imp = PANEL_POOL.find(c => c.no === 'C119');
   assert.match(imp.desc, /味方が解放された時、ランダムな味方の開戦効果を発動する/);
   const opener = { id: 'O', name: '開戦役', atk: 3, hp: 50, maxHp: 50, lane: 'front', keywords: [], desc: '開戦：全ての味方は+1/+1を得る。' };
-  const impUnit = { id: 'I', name: imp.name, no: 'C094', atk: 2, hp: 50, maxHp: 50, lane: 'front', keywords: [], desc: imp.desc };
+  const impUnit = { id: 'I', name: imp.name, no: 'C119', atk: 2, hp: 50, maxHp: 50, lane: 'front', keywords: [], desc: imp.desc };
   const released = { id: 'R', name: '解放役', atk: 2, hp: 50, maxHp: 50, lane: 'rear', keywords: [], desc: '' };
   const state = createBattleState({ sides: { p1: { units: [opener, impUnit, released] }, p2: { units: [{ id: 'E', name: '敵', atk: 1, hp: 100, maxHp: 100, lane: 'front', keywords: [], desc: '' }] } } });
   const rng = createSeededRng(3), events = [], emit = e => events.push(e);

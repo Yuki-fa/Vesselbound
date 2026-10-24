@@ -1,5 +1,5 @@
 'use strict';
-// C043/E075の組合せと、退場・非表示・複製中の薙ぎ払いの発生座標を一括検査する。
+// C058/E075の組合せと、退場・非表示・複製中の薙ぎ払いの発生座標を一括検査する。
 // 通常はChromeで両受け口を実測。--node は描画DOMだけを代替し、同じ関数・ケースを実行する。
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
@@ -10,9 +10,9 @@ const URL = process.env.VB_URL || 'http://127.0.0.1:5500/index.html';
 function fixture(kind, side) {
   initState(); initializeBattlePresentationState(); presentResetPlayback();
   G.phase = 'player'; G._coreDrivenBattle = true; G._savedBattleReplaying = true;
-  const arassus = PANEL_POOL.find(c => c.no === 'C043');
+  const arassus = PANEL_POOL.find(c => c.no === 'C058');
   const soul = PANEL_POOL.find(c => c.no === 'E075');
-  if (!arassus || !soul) throw new Error('C043/E075のシート定義がない');
+  if (!arassus || !soul) throw new Error('C058/E075のシート定義がない');
   const make = (id, def = {}) => ({ ...def, id, atk: 8, hp: 200, maxHp: 200,
     lane: 'front', keywords: [...(def.keywords || [])], desc: def.desc || '' });
   const other = side === 'p1' ? 'p2' : 'p1';
@@ -29,11 +29,11 @@ function fixture(kind, side) {
   }
   if (kind === 'copy') {
     u = coreSummonUnit(s, side, { ...coreUnitSnapshot(u), id: 'arassus-copy', _inheritsStats: true }, emitPre, u.id);
-    if (!u || !coreUnitHasKeyword(u, '眷属')) throw new Error('C043の眷属コピーがない');
+    if (!u || !coreUnitHasKeyword(u, '眷属')) throw new Error('C058の眷属コピーがない');
   }
   if (kind === 'revive') {
     u.keywords.push('復活'); u.hp = 0;
-    if (!coreTryRevive(u, s, emitPre)) throw new Error('C043の復活が不成立');
+    if (!coreTryRevive(u, s, emitPre)) throw new Error('C058の復活が不成立');
   }
   if (kind === 'injury-death') {
     const minotaur = PANEL_POOL.find(c => /ミノタウロス/.test(c.name));
@@ -98,7 +98,7 @@ async function measure(mode, side, speed, receiver, kind = 'alive') {
     if (mode === 'none') delete u._lastVisualRect;
   }
   const sweep = f.events.find(e => e.type === 'sweep_vfx' && e.unitId === u.id);
-  if (!sweep) throw new Error('コアからC043のsweep_vfxが出なかった');
+  if (!sweep) throw new Error('コアからC058のsweep_vfxが出なかった');
   const origins = [], plays = [], play = VbFx.play;
   VbFx.play = function(name, options) {
     const host = options && options.source;
@@ -133,11 +133,11 @@ async function run(evaluate) {
       const r = await evaluate(`const f=(${fixture})(${JSON.stringify(kind)},${JSON.stringify(side)});
         return {events:f.events,pre:f.pre,id:f.source.id,hp:f.source.hp};`);
       const sweeps = r.events.filter(e => e.type === 'sweep_vfx');
-      assert.equal(sweeps.length, 1, '魔族の魂にC043の炎を重ねない');
+      assert.equal(sweeps.length, 1, '魔族の魂にC058の炎を重ねない');
       const enchantHits = r.events.filter(e => e.type === 'damage' && e.sourceId === r.id && e.effectSource === false && e.area);
       assert.ok(enchantHits.length > 0, 'E075の全体ダメージがない');
-      if (kind === 'injury-death') assert.equal(r.hp, 0, '攻撃効果の途中でC043が倒れていない');
-      if (kind === 'soul-kills-enemy') assert.ok(r.events.some(e => e.type === 'death' && e.unitId === 'enemy-arassus'), 'E075で敵C043が倒れていない');
+      if (kind === 'injury-death') assert.equal(r.hp, 0, '攻撃効果の途中でC058が倒れていない');
+      if (kind === 'soul-kills-enemy') assert.ok(r.events.some(e => e.type === 'death' && e.unitId === 'enemy-arassus'), 'E075で敵C058が倒れていない');
       if (kind === 'transform') assert.ok(r.pre.some(e => e.type === 'transform'));
       if (kind === 'revive') assert.ok(r.pre.some(e => e.type === 'revive'));
       if (kind === 'copy') assert.ok(r.pre.some(e => e.type === 'summon'));

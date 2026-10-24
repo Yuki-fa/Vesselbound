@@ -52,8 +52,8 @@ def asset_list_rows():
         yield section, a, b, note
 
 
-RENAMED_1022 = {'E042_1': 'C019_1', 'E042_2': 'C019_2', 'E083': 'C020', 'E043': 'C021', 'E031': 'C064', 'E056': 'C042',
-                'E024': 'C084', 'E082': 'C096', 'C040': 'C039', 'C082': 'C099', 'C099': 'C082'}
+RENAMED_1022 = {'E042_1': 'C024_1', 'E042_2': 'C024_2', 'E083': 'C025', 'E043': 'C031', 'E031': 'C084', 'E056': 'C057',
+                'E024': 'C109', 'E082': 'C121', 'C050': 'C049', 'C107': 'C124', 'C124': 'C107'}
 
 
 def main():
@@ -80,7 +80,7 @@ def main():
         table[code + '.wav'] = {'source': Path(cells[3]).name, 'path': cells[3], 'effect': cells[2],
                                 'basis': 'ADOPTED.md（仮）' if provisional else 'ADOPTED.md'}
     # 2026-10-22 シート改訂：効果が別の番号へ移ったので、SE のファイル名も新しい番号へ付け替えた（新 ← 旧）。
-    # シートのアセットリスト・ADOPTED.md は旧い名前のままなので、ここで読み替える（入れ替えた C082／C099 も同時に）。
+    # シートのアセットリスト・ADOPTED.md は旧い名前のままなので、ここで読み替える（入れ替えた C107／C099 も同時に）。
     snapshot = dict(table)
     for now, was in RENAMED_1022.items():
         if was + '.wav' in snapshot:

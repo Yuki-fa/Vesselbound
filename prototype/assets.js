@@ -113,36 +113,36 @@ const Assets = {
     // ナンバー（CXXX）に対応する定義があれば、通常の被弾定義の代わりに再生する。
     // 存在するものだけをここに登録する（未登録＝通常の被弾定義を使用）。
     characterEffect: {
-      'C001': 'vfx:S003:gold-gain', // 金貨（素材名はS003へ変更済み）
-      'C002': 'vfx:C002:attack-recoil',
-      'C003': 'vfx:S006:injury-buff', // ゴーレム（素材名はS006へ変更済み）
-      'C008': 'vfx:C008:arachne-ring',
-      'C011': 'vfx:C011:siren-wave', // サイレン（攻撃：全体へ広がる波）
-      'C017': 'vfx:C017:medusa-gaze', // メデューサ（負傷：対象の上にダメージVFXの代わりに出す）
+      'C006': 'vfx:S003:gold-gain', // 金貨（素材名はS003へ変更済み）
+      'C007': 'vfx:C007:attack-recoil',
+      'C008': 'vfx:S006:injury-buff', // ゴーレム（素材名はS006へ変更済み）
+      'C013': 'vfx:C013:arachne-ring',
+      'C016': 'vfx:C016:siren-wave', // サイレン（攻撃：全体へ広がる波）
+      'C022': 'vfx:C022:medusa-gaze', // メデューサ（負傷：対象の上にダメージVFXの代わりに出す）
       'E042': 'vfx:E042_1:centaur-missile', // 天の雷槌（攻撃：対象へ飛ばす。2026-10-22 シート改訂でケンタウロス C019 から移った）
-      'C043': 'vfx:C043:flame-sweep',
-      'C090': 'vfx:C090:steal-mark', // 奪う（対象の上で再生してから移動する）
+      'C058': 'vfx:C058:flame-sweep',
+      'C115': 'vfx:C115:steal-mark', // 奪う（対象の上で再生してから移動する）
       // 2026-10-12: 実戦はPRESENT_LAB_FXの発動単位で再生する新規定義。
-      'C004': 'vfx:C004:satyr',
+      'C009': 'vfx:C009:satyr',
       'E083': 'vfx:E083:hecatoncheir', // 2026-10-22 シート改訂で C020 から移った
       'E043': 'vfx:E043:zombie', // 2026-10-22 シート改訂で C021 から移った
-      'C060': 'vfx:C060:behemoth',
+      'C075': 'vfx:C075:behemoth',
       'E031': 'vfx:E031:sylph', // 2026-10-22 シート改訂で C064 から移った
-      'C071': 'vfx:C071:nymph',
-      'C082': 'vfx:C082:fiend', // 2026-10-22 シート改訂：フィーンドの効果が C082 へ（アークデーモンと入れ替え）
-      'C029': 'vfx:C029:phantom',
-      'C034': 'vfx:C034:eidolon',
-      'C099': 'vfx:C099:arch-demon', // 2026-10-22 シート改訂：アークデーモンの効果が C099 へ（フィーンドと入れ替え）
-      'C083': 'vfx:C083:gremlin',
-      'C095': 'vfx:C095:lilith',
-      'C097': 'vfx:C097:overlord',
-      'C009': 'vfx:C009:minotaur',
+      'C091': 'vfx:C091:nymph',
+      'C107': 'vfx:C107:fiend', // 2026-10-22 シート改訂：フィーンドの効果が C082 へ（アークデーモンと入れ替え）
+      'C039': 'vfx:C039:phantom',
+      'C044': 'vfx:C044:eidolon',
+      'C124': 'vfx:C124:arch-demon', // 2026-10-22 シート改訂：アークデーモンの効果が C099 へ（フィーンドと入れ替え）
+      'C108': 'vfx:C108:gremlin',
+      'C120': 'vfx:C120:lilith',
+      'C122': 'vfx:C122:overlord',
+      'C014': 'vfx:C014:minotaur',
       'E056': 'vfx:E056:sleep-sheep', // 2026-10-22 シート改訂で C042 から移った
-      'C056': 'vfx:C056:scylla',
-      'C066': 'vfx:C066:undine',
-      'C079': 'vfx:C079:spriggan',
+      'C071': 'vfx:C071:scylla',
+      'C086': 'vfx:C086:undine',
+      'C099': 'vfx:C099:spriggan',
       'E024': 'vfx:E024:incubus', // 2026-10-22 シート改訂で C084 から移った
-      'C094': 'vfx:C094:chaos-imp',
+      'C119': 'vfx:C119:chaos-imp',
     },
     // 強化カード（エンチャント）の効果そのものの演出定義。カードのNo.（EXXX）で引く。
     // マナ効果のように「発動してから処理が終わるまで出し続ける」用途に使う
@@ -158,11 +158,11 @@ const Assets = {
       'E058': 'vfx:E058_2:fire-arrow-impact', // 炎の矢の着弾
       'E042': 'vfx:E042_2:centaur-impact', // 天の雷槌の着弾（旧ケンタウロス）
     },
-    // C043等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/定義。
+    // C058等、薙ぎ払い演出（playCharacterSweepVfx）専用の動画/定義。
     // 描画は共通レンダラー、位置・回転・再生時間は共通の入口で制御する
     // （characterEffectとは別管理。playHitVfxAtRect()側からは参照しない）。
     characterSweep: {
-      'C043': 'vfx:C043:flame-sweep',
+      'C058': 'vfx:C058:flame-sweep',
     },
     // 特殊演出シートの定義。**鍵は特殊演出シートのNo.**（素材名とはずれることがある）。
     // 順再生→逆再生で見せるもの（playSpecialProductionVfx）と、
@@ -175,10 +175,10 @@ const Assets = {
     //   「何も起きない＝機能していない」ように見えた）。
     specialProduction: {
       S001: 'vfx:S001:summon-sigil',  // 戦闘中の召喚（逆再生開始でカードを出す）
-      S003: 'vfx:S003:gold-gain',  // 金貨（旧C001）
+      S003: 'vfx:S003:gold-gain',  // 金貨（旧C006）
       S004: 'vfx:S004:mana-gain',  // マナ獲得（発生させたキャラクターの上に出す）
       S005: 'vfx:S005:attack-buff',  // 攻撃時のバフ効果（カードを問わず一律）
-      S006: 'vfx:S006:injury-buff',  // 負傷効果（ゴーレム。旧C003）
+      S006: 'vfx:S006:injury-buff',  // 負傷効果（ゴーレム。旧C008）
       S007: 'vfx:S007:death-buff',  // 特殊演出（シートの「VFX/SE」列で指定して使う）
       S008: 'vfx:S008:mana-buff',  // 活性化（旧E045）
       S009: 'vfx:S009:aura-buff',  // バフ（常時）＝開戦・常時の誘発効果でバフが生じた時
@@ -302,14 +302,14 @@ const Assets = {
     kick2: 'assets/sfx/kick2.wav',
     kick3: 'assets/sfx/kick3.wav',
     death: 'assets/sfx/death.wav',
-    C001: 'assets/sfx/S003.wav', // 金貨（素材名はS003へ変更済み）
-    C002: 'assets/sfx/C002.wav',
-    C003: 'assets/sfx/S006.wav', // ゴーレム（素材名はS006へ変更済み）
-    C008: 'assets/sfx/C008.wav', // アラクネ
-    C011: 'assets/sfx/C011.wav', // LAB採用（2026-10-20 siren-wave 候補1・初期のSE・原音2秒から）
-    C017: 'assets/sfx/C017.wav', // メデューサ
+    C006: 'assets/sfx/S003.wav', // 金貨（素材名はS003へ変更済み）
+    C007: 'assets/sfx/C007.wav',
+    C008: 'assets/sfx/S006.wav', // ゴーレム（素材名はS006へ変更済み）
+    C013: 'assets/sfx/C013.wav', // アラクネ
+    C016: 'assets/sfx/C016.wav', // LAB採用（2026-10-20 siren-wave 候補1・初期のSE・原音2秒から）
+    C022: 'assets/sfx/C022.wav', // メデューサ
     E042: 'assets/sfx/E042_1.wav', // 天の雷槌（発射。2026-10-22 シート改訂でケンタウロス C019 から移った）
-    C090: 'assets/sfx/C090.wav', // LAB採用（2026-10-21 steal-mark 候補3）
+    C115: 'assets/sfx/C115.wav', // LAB採用（2026-10-21 steal-mark 候補3）
     E042_HIT: 'assets/sfx/E042_2.wav', // LAB採用（2026-10-20 centaur-impact 候補1）
     // マナ効果SE。シートのNo.に合わせて K024（旧 K023）。
     K024: 'assets/sfx/K024.wav',
@@ -332,56 +332,56 @@ const Assets = {
     E058_HIT: 'assets/sfx/E058_2.wav', // 炎の矢（着弾）
     E067: 'assets/sfx/E067.wav', // 援護射撃（LABの命中に合わせる）
     // 2026-10-12: 21キャラのSEは候補1を仮配置（利用者未選択）。
-    C004: 'assets/sfx/C004.wav',
+    C009: 'assets/sfx/C009.wav',
     E083: 'assets/sfx/E083.wav', // 2026-10-22 シート改訂で C020 から移った
     E043: 'assets/sfx/E043.wav', // 2026-10-22 シート改訂で C021 から移った
-    C060: 'assets/sfx/C060.wav', // LAB採用（2026-10-20 behemoth 候補1）
+    C075: 'assets/sfx/C075.wav', // LAB採用（2026-10-20 behemoth 候補1）
     E031: 'assets/sfx/E031.wav', // 2026-10-22 シート改訂で C064 から移った
-    C071: 'assets/sfx/C071.wav', // LAB採用（2026-10-20 nymph 候補1）
-    C082: 'assets/sfx/C082.wav', // 2026-10-22 シート改訂：フィーンドの効果が C082 へ（入れ替え）
-    C029: 'assets/sfx/C029.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
-    C034: 'assets/sfx/C034.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
-    C099: 'assets/sfx/C099.wav', // 2026-10-22 シート改訂：アークデーモンの効果が C099 へ（入れ替え）
-    C083: 'assets/sfx/C083.wav', // LAB採用（2026-10-21 gremlin 候補2）
-    C095: 'assets/sfx/C095.wav',
-    C097: 'assets/sfx/C097.wav', // LAB採用（2026-10-20 overlord 候補1）
-    C009: 'assets/sfx/C009.wav',
+    C091: 'assets/sfx/C091.wav', // LAB採用（2026-10-20 nymph 候補1）
+    C107: 'assets/sfx/C107.wav', // 2026-10-22 シート改訂：フィーンドの効果が C082 へ（入れ替え）
+    C039: 'assets/sfx/C039.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
+    C044: 'assets/sfx/C044.wav', // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
+    C124: 'assets/sfx/C124.wav', // 2026-10-22 シート改訂：アークデーモンの効果が C099 へ（入れ替え）
+    C108: 'assets/sfx/C108.wav', // LAB採用（2026-10-21 gremlin 候補2）
+    C120: 'assets/sfx/C120.wav',
+    C122: 'assets/sfx/C122.wav', // LAB採用（2026-10-20 overlord 候補1）
+    C014: 'assets/sfx/C014.wav',
     E056: 'assets/sfx/E056.wav', // 2026-10-22 シート改訂で C042 から移った // LAB採用（2026-10-21 sleep-sheep 候補1）
-    C056: 'assets/sfx/C056.wav',
-    C066: 'assets/sfx/C066.wav', // LAB採用（2026-10-20 undine 候補1）
-    C079: 'assets/sfx/C079.wav', // LAB採用（2026-10-20 spriggan 候補1）
+    C071: 'assets/sfx/C071.wav',
+    C086: 'assets/sfx/C086.wav', // LAB採用（2026-10-20 undine 候補1）
+    C099: 'assets/sfx/C099.wav', // LAB採用（2026-10-20 spriggan 候補1）
     E024: 'assets/sfx/E024.wav', // 2026-10-22 シート改訂で C084 から移った // LAB採用（2026-10-21 incubus 候補1）
-    C094: 'assets/sfx/C094.wav',
+    C119: 'assets/sfx/C119.wav',
     // VFX LABで採用済みの戦闘SE。
     E006: 'assets/sfx/E006.wav',
     E035: 'assets/sfx/E035.wav',
-    C040: 'assets/sfx/C040.wav', // 2026-10-22 シート改訂で C039 から移った
+    C050: 'assets/sfx/C050.wav', // 2026-10-22 シート改訂で C039 から移った
     E062: 'assets/sfx/E062.wav',
     E071: 'assets/sfx/E071.wav', // LAB採用（2026-10-21 shockwave 候補2）
     E075: 'assets/sfx/E075.wav',
-    C032: 'assets/sfx/C032.wav',
-    C038: 'assets/sfx/C038.wav',
-    C046: 'assets/sfx/C046.wav',
-    C049: 'assets/sfx/C049.wav',
-    C051: 'assets/sfx/C051.wav',
-    C053: 'assets/sfx/C053.wav',
-    C054: 'assets/sfx/C054.wav',
-    C058: 'assets/sfx/C058.wav',
-    C067: 'assets/sfx/C067.wav',
+    C042: 'assets/sfx/C042.wav',
+    C048: 'assets/sfx/C048.wav',
+    C061: 'assets/sfx/C061.wav',
+    C064: 'assets/sfx/C064.wav',
+    C066: 'assets/sfx/C066.wav',
     C068: 'assets/sfx/C068.wav',
     C069: 'assets/sfx/C069.wav',
-    C077: 'assets/sfx/C077.wav',
-    C078: 'assets/sfx/C078.wav',
-    C080: 'assets/sfx/C080.wav',
-    C081: 'assets/sfx/C081.wav',
-    C092: 'assets/sfx/C092.wav',
-    E082: 'assets/sfx/E082.wav', // 2026-10-22 シート改訂で C096 から移った
+    C073: 'assets/sfx/C073.wav',
+    C087: 'assets/sfx/C087.wav',
+    C088: 'assets/sfx/C088.wav',
+    C089: 'assets/sfx/C089.wav',
+    C097: 'assets/sfx/C097.wav',
     C098: 'assets/sfx/C098.wav',
-    C076: 'assets/sfx/C076.wav',
-    C041: 'assets/sfx/C041.wav',
-    C014: 'assets/sfx/C014.wav',
-    C018: 'assets/sfx/C018.wav',
-    C025: 'assets/sfx/C025.wav',
+    C100: 'assets/sfx/C100.wav',
+    C106: 'assets/sfx/C106.wav',
+    C117: 'assets/sfx/C117.wav',
+    E082: 'assets/sfx/E082.wav', // 2026-10-22 シート改訂で C096 から移った
+    C123: 'assets/sfx/C123.wav',
+    C096: 'assets/sfx/C096.wav',
+    C056: 'assets/sfx/C056.wav',
+    C019: 'assets/sfx/C019.wav',
+    C023: 'assets/sfx/C023.wav',
+    C035: 'assets/sfx/C035.wav',
     K016: 'assets/sfx/K016.wav',
     K002: 'assets/sfx/K002.wav',
     I006: 'assets/sfx/I006.wav',
@@ -397,9 +397,9 @@ const Assets = {
     E077: 'assets/sfx/E077.wav', // LAB採用（2026-10-18 suffering-brand 候補1）
     R023: 'assets/sfx/R023.wav', // LAB採用（2026-10-18 storm-ring 候補1）
     R020: 'assets/sfx/R020.wav', // LAB採用（2026-10-18 oni-ring 候補1）
-    C031: 'assets/sfx/C031.wav', // LAB採用（2026-10-18 soul-recall 候補1）
+    C041: 'assets/sfx/C041.wav', // LAB採用（2026-10-18 soul-recall 候補1）
     EN044: 'assets/sfx/EN044.wav', // LAB採用（2026-10-18 keyword-grant 候補1）
-    C093: 'assets/sfx/C093.wav', // LAB採用（2026-10-18 void-mastery 候補1）
+    C118: 'assets/sfx/C118.wav', // LAB採用（2026-10-18 void-mastery 候補1）
     R042: 'assets/sfx/R042.wav', // LAB採用（2026-10-18 curse-ring 候補1）
     R041: 'assets/sfx/R041.wav', // LAB採用（2026-10-18 curse-ring 候補1）
     E008: 'assets/sfx/E008.wav', // LAB採用（2026-10-18 dragon-pact 候補1）
@@ -407,7 +407,7 @@ const Assets = {
     K020_gain: 'assets/sfx/K020_gain.wav',
 
     // キーワード発動のSE。キーワードシートのNo.（KXXX）で引く。
-    C043: 'assets/sfx/C043.wav', // アラッサス（全体へ広がる効果ダメージ）
+    C058: 'assets/sfx/C058.wav', // アラッサス（全体へ広がる効果ダメージ）
     K001: 'assets/sfx/K001.wav', // LAB採用（2026-10-21 death-mark 候補1）
     K003: 'assets/sfx/K003.wav', // 毒牙（毒のデバフを受けた瞬間）
     K017: 'assets/sfx/K017.wav', // LAB採用（2026-10-20 poison-tick 候補1）
@@ -420,8 +420,8 @@ const Assets = {
     S001: 'assets/sfx/S001.wav', // 戦闘中の召喚
     // **VFXと同じく、シートの「VFX/SE」列に書ける番号はすべて登録すること。**
     // 登録が無いと _playCardEffectSfx() が鳴らせず、絵も音も出ない。
-    S003: 'assets/sfx/S003.wav', // 金貨（旧C001）
-    S006: 'assets/sfx/S006.wav', // 負傷効果（ゴーレム。旧C003）
+    S003: 'assets/sfx/S003.wav', // 金貨（旧C006）
+    S006: 'assets/sfx/S006.wav', // 負傷効果（ゴーレム。旧C008）
     S008: 'assets/sfx/S008.wav', // 活性化（旧E045）
     S009: 'assets/sfx/S009.wav', // バフ（常時）
     S005: 'assets/sfx/S005.wav', // 攻撃時のバフ効果
@@ -434,15 +434,7 @@ const CharacterArtOverrideMap = {
   // カード名でアート番号を上書きする例外表。原則は「No.」列（C###/E###/EN###/BC###）から
   // assets/art/ 以下を自動解決する（getCharacterNoArtPath）ので、ここに足すのは番号と絵が
   // 一致しないカードだけにすること。
-  'エルフ': {path:'assets/art/characters/C044.jpg'},
-  'ブラウニー': {path:'assets/art/characters/C043.jpg'},
-  'インプ': {path:'assets/art/characters/C061.jpg'},
-  'アークデーモン': {path:'assets/art/characters/C062.jpg'},
-  'アラッサス': {path:'assets/art/characters/C081.jpg'},
-  'スリン': {path:'assets/art/characters/C082.jpg'},
-  'ダイアウルフ': {path:'assets/art/characters/C041.jpg'},
-  'スリープシープ': {path:'assets/art/characters/C042.jpg'},
-  'ファナティック': {path:'assets/art/characters/C100.jpg'},
+  // 2026-10-24：番号の振り直しで絵のファイル名をシートの番号へ揃えたので、例外は無い。
 };
 
 function assetUrl(path){
@@ -586,7 +578,7 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   // 「BC002」などがどの分岐にも当たらず空文字になり、絵が出ない。
   // 「EN075_1」のような枝番付きのNo.も受け付ける（ラスボス戦の後衛3体など、
   // 同じ番号で複数の個体が並ぶケース）。枝番はそのままファイル名へ残す。
-  const prefixed=text.match(/^(BC|NPC|MC|EN|P|[ECS])\s*0*(\d+)(_\d+)?$/i);
+  const prefixed=text.match(/^(BC|NPC|MC|EN|CF|P|[ECS])\s*0*(\d+)(_\d+)?$/i);
   if(prefixed){
     let p=prefixed[1].toUpperCase();
     if(p==='P') p='MC';
@@ -597,13 +589,13 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   return String(fallbackPrefix||'C').toUpperCase()+String(n).padStart(3,'0');
 }
 
-const CARD_ART_VERSION='art1010';
+const CARD_ART_VERSION='art1024';
 function getCharacterNoArtPath(card){
   if(!card||typeof card!=='object') return '';
   const raw=_assetCodeRaw(card);
   if(!raw) return '';
   const isEnemyCard=!!(card._sheetEnemy||card.enemyOnly||card.side==='enemy'||card.isEnemy);
-  const explicit=String(raw).trim().match(/^(BC|NPC|MC|EN|[ECS])/i);
+  const explicit=String(raw).trim().match(/^(BC|NPC|MC|EN|CF|[ECS])/i);
   let prefix=explicit?explicit[1].toUpperCase():'';
   if(!prefix){
     const cat=String(card.category||card.kind||card.type||'');
@@ -704,7 +696,7 @@ function getAttackContactSfxKey(mode){
   return code && Assets.sfx?.[code] ? code : '';
 }
 
-// C043等、薙ぎ払い専用の定義識別子を返す（SE番号・再生時刻は従来どおり）。
+// C058等、薙ぎ払い専用の定義識別子を返す（SE番号・再生時刻は従来どおり）。
 function getCharacterSweepVfxPath(unit){
   const raw=_assetCodeRaw(unit);
   if(!raw) return '';

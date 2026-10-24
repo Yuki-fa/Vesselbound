@@ -37,7 +37,7 @@ function node(id){
   assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll',name:'絆の巻物'}),false,'絆の巻物を新規利用させない');
   assert.equal(panelMergeContentAvailable(makePanel('魔鏡')),false,'魔鏡を新規抽選へ戻さない');
   // 旧保存の合体済みカードはそのまま。復元で新しい合体を作り直さない。
-  initState();const old=makePanel(def('C006').id),base=def('C006');
+  initState();const old=makePanel(def('C011').id),base=def('C011');
   applyMergedPanelForm(old);Object.assign(old,{name:base.name+'+',_tripleMerged:true,_permBasePower:base.power*2,
     _permBaseLife:base.life*2,power:base.power*2+7,life:base.life*2+9});G.mainBoard[1]=old;
   const saved=saveAtReward();SaveRun.restoreRunState(copy(saved));
@@ -45,7 +45,7 @@ function node(id){
   console.log('OK 1: PvE／オンラインの3枚・2枚合体停止、関連品の新規利用停止、旧合体済みカードの保存');
 
   // 貸出を番号で引く。改名しても同じカード・並び・ポート・返却先となる。
-  const codes=['C050','C099','E013','E032','E014'],names=codes.map(code=>def(code).name);
+  const codes=['C065','C124','E013','E032','E014'],names=codes.map(code=>def(code).name);
   codes.forEach(code=>{def(code).name=code+'検査名';});
   const loans=_libraryLoanCards();assert.deepEqual(loans.map(c=>c.no),codes);
   loans.forEach((c,i)=>{assert.equal(c.name,codes[i]+'検査名');assert.equal(c._libraryLoanSlot,i);assert.ok(c._libraryLoan);});
@@ -91,7 +91,7 @@ function node(id){
     ['酒場',{_isTavern:true},'scr-village'],['camp',{_questCampScene:true},'scr-village'],['図書館',{_isLibrary:true},'scr-battle']];
   for(const [name,flags,screenId] of modes)for(let cycle=0;cycle<2;cycle++) {
     const prior=find(root,'tavern-presentation-layer');prior?.remove();initState();Object.assign(G,{phase:'reward',_debugMode:true,gold:123,floor:4},flags);
-    _rewCards=[makePanel(def('C050').id)];const offers=copy(_rewCards),host=node('tavern-presentation-layer'),next=node('following');
+    _rewCards=[makePanel(def('C065').id)];const offers=copy(_rewCards),host=node('tavern-presentation-layer'),next=node('following');
     host.dataset={shopPortrait:name,face:'保持する表情'};host.style.opacity='0.7';const parent=screens.get(screenId);
     parent.appendChild(host);parent.appendChild(next);showScreen(screenId.replace('scr-',''));
     startTestBattle();startTestBattle();assert.equal(host.parentNode,null);assert.ok(G._testBattleMode);

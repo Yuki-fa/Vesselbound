@@ -32,7 +32,7 @@ function gallery(report) {
   const groups = [...new Set(report.screenshots.map(s => s.name))];
   const html = '<!doctype html><meta charset="utf-8"><title>VFXコマ比較</title><style>body{background:#101713;color:#eee;font:14px sans-serif;padding:20px}img{width:100%}.frames{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}figure{margin:0}section{margin:36px 0}figcaption{padding:8px}a{color:#edc788}</style>'
     + '<h1>VFX · 4段階のコマ比較</h1><p><a href="../../vfx_preview.html">プレビューへ戻る</a> · 60fps刻みで指定時刻まで描画して保持したコマ。再生と後片付けは別の実時間検査で確認。</p>'
-    + ['C018','S008','C043'].map(n=>'<figure><img src="../ref_'+n+'.jpg"><figcaption>基準 '+n+'</figcaption></figure>').join('')
+    + ['C023','S008','C058'].map(n=>'<figure><img src="../ref_'+n+'.jpg"><figcaption>基準 '+n+'</figcaption></figure>').join('')
     + groups.map(name => '<section><h2>'+esc(report.screenshots.find(s=>s.name===name).label)+'</h2><div class="frames">'
       + ['begin','middle','impact','end'].map(phase => {
         const s=report.screenshots.find(s=>s.name===name&&s.phase===phase);

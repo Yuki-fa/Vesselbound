@@ -1,6 +1,6 @@
 /* 2026-10-17 未設定だった演出の新規制作（Claude直接）。既存の定義・共通部品は変更しない。
  * 第4弾（2026-10-17）：レムレース・不死の指輪・鬼神の指輪・生命／共鳴／複製の力・威圧の指輪・魔力の指輪。
- * 第3弾（2026-10-17）：苦行の指輪（R012）・錬成（E030）・ハイドラ（C055）・苦悶の刻印（E078）・受難の刻印（E077）。
+ * 第3弾（2026-10-17）：苦行の指輪（R012）・錬成（E030）・ハイドラ（C070）・苦悶の刻印（E078）・受難の刻印（E077）。
  * 竜の契約（E008）・逆上（E032）・嵐の指輪（R023）・巻物の使用（I003/I004/I005/I011/I012）・指輪の開戦効果（R001〜R005/R032/R019/R031/R015/R041/R042）・封印されしもの（E057）。
  * 生成元：scratchpad の gen_vfx_1017.py（手で直す時はこのJSONを直接編集してよい）。 */
 VbFxDefs.register({
@@ -15823,8 +15823,8 @@ VbFxDefs.register({
     },
     {
       "name": "void-mastery",
-      "label": "ヴォイド・ウォーカー · C093",
-      "sourceCode": "C093",
+      "label": "ヴォイド・ウォーカー · C118",
+      "sourceCode": "C118",
       "ms": 1200,
       "color": "#b060ff",
       "light": "#f0e0ff",
@@ -18820,8 +18820,8 @@ VbFxDefs.register({
     },
     {
       "name": "hydra-reward",
-      "label": "ハイドラ · C055",
-      "sourceCode": "C055",
+      "label": "ハイドラ · C070",
+      "sourceCode": "C070",
       "ms": 1300,
       "color": "#4ad86a",
       "light": "#e8ffe0",
@@ -26304,8 +26304,8 @@ VbFxDefs.register({
     },
     {
       "name": "soul-recall",
-      "label": "レムレース · C031",
-      "sourceCode": "C031",
+      "label": "レムレース · C041",
+      "sourceCode": "C041",
       "ms": 1100,
       "color": "#6ac8ff",
       "light": "#f0faff",

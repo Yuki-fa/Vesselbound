@@ -50,11 +50,11 @@ function legacySources() {
 function routeFor(asset) {
   if(asset==='appearance_sheet')return {kind:'opening',entry:'_battleOpeningLandingVfx'};
   if(asset.startsWith('board_change'))return {kind:'board',entry:'_playMapBoardChangeVfx'};
-  if(asset==='C043')return {kind:'sweep',entry:'playCharacterSweepVfx'};
-  if(asset==='C011')return {kind:'expand',entry:'playExpandingWaveVfx'};
-  if(asset==='C019_1'||asset==='E058_1')return {kind:'projectile',entry:'playCurvedMissile'};
+  if(asset==='C058')return {kind:'sweep',entry:'playCharacterSweepVfx'};
+  if(asset==='C016')return {kind:'expand',entry:'playExpandingWaveVfx'};
+  if(asset==='C024_1'||asset==='E058_1')return {kind:'projectile',entry:'playCurvedMissile'};
   if(asset==='K007'||asset==='K008')return {kind:asset==='K007'?'pierce':'tri',entry:'playAttackContactVfx'};
-  if(asset==='C008')return {kind:'sustain',entry:'playEffectVfxOnUnit'};
+  if(asset==='C013')return {kind:'sustain',entry:'playEffectVfxOnUnit'};
   if(asset==='K003')return {kind:'keyword-sustain',entry:'playEffectVfxOnUnit',
     caller:'presentKeywordEffectEvent → playKeywordEffectVfxSustained',fadeInMs:120,fadeOutMs:220};
   if(asset==='S004')return {kind:'rise',entry:'playManaGainVfx'};

@@ -26,7 +26,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
       const result=await b.eval(`return {active:!!G._libraryTutorialActive,box:!!document.querySelector('.library-tutorial-box'),
         loans:_rewCards.filter(Boolean).map(c=>c.no),shown:VB1012Test.visible(document.querySelector('#reward-offer-row .rew-card'))};`);
       assert.ok(!result.active&&!result.box&&result.shown,JSON.stringify(result));
-      assert.deepEqual(result.loans,['C050','C099','E013','E032','E014']);
+      assert.deepEqual(result.loans,['C065','C124','E013','E032','E014']);
     };
     const complete=async()=>{
       const result=await b.eval(`
@@ -48,7 +48,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     const loan=await b.eval(`const el=document.querySelector('#reward-offer-row .rew-card[data-merge-rew-idx="4"]');return {
       codes:_rewCards.filter(Boolean).map(c=>c.no),visible:VB1012Test.visible(el),preview:el?.getAttribute('data-preview')||'',
       expected:PANEL_POOL.find(c=>c.no==='E014').name,keywords:_rewCards[4]?.adjacentKeywords};`);
-    assert.deepEqual(loan.codes,['C050','C099','E013','E032','E014']);
+    assert.deepEqual(loan.codes,['C065','C124','E013','E032','E014']);
     assert.ok(loan.visible&&loan.preview.includes(loan.expected)&&loan.keywords.includes('二段攻撃'),JSON.stringify(loan));
     assert.equal(await b.eval(`return SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY);`),false);
     // 途中離脱だけでは完走を書かない。
@@ -96,7 +96,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
           const questId=mode==='camp'?'Q004':'Q003',entry={questId,tavernVariant:questId+'_1'};
           const data=_qQuestData(entry.tavernVariant);await _qShowPortraitPair('village',entry,{firstLines:_qFormationInitialLines(entry,data)});
         }
-        const card=makePanel(PANEL_POOL.find(c=>c.no==='C064').id);card.power=1;card.life=5000;card.desc='';
+        const card=makePanel(PANEL_POOL.find(c=>c.no==='C084').id);card.power=1;card.life=5000;card.desc='';
         G.mainBoard.fill(null);G.mainBoard[1]=card;G.mapPanelPowers={1:'summon'};
         const host=document.getElementById('tavern-presentation-layer');if(!host)throw new Error(mode+' 立ち絵なし');
         await Promise.all([...host.querySelectorAll('img')].map(el=>el.decode().catch(()=>{})));

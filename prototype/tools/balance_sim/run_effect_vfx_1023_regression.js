@@ -25,18 +25,18 @@ function check(name, fn) {
   };
   check('ラミアは負傷でも死亡でも全ての敵に毒2を与える', () => {
     for (const trigger of ['injury', 'death']) {
-      const { s, events } = fire('C006', trigger);
+      const { s, events } = fire('C011', trigger);
       assert.deepEqual(s.units.p2.map(u => u.poison), [5, 5, 5], trigger);
       assert.equal(events.filter(e => e.type === 'keyword_effect' && e.effect === 'poison').length, 3, trigger);
     }
   });
   check('run_effect はトリガを載せ、トリガのバフ演出を出す', () => {
-    const golem = fire('C003', 'injury').events.find(e => e.type === 'run_effect');
+    const golem = fire('C008', 'injury').events.find(e => e.type === 'run_effect');
     assert.equal(golem.kind, 'reward_buff'); assert.equal(golem.trigger, '負傷');
     assert.equal(presentRunEffectVfxCode(golem), 'S006', 'ゴーレム（負傷）');
-    const familiar = fire('C089', 'attack').events.find(e => e.type === 'run_effect');
+    const familiar = fire('C114', 'attack').events.find(e => e.type === 'run_effect');
     assert.equal(familiar && familiar.trigger, '攻撃'); assert.equal(presentRunEffectVfxCode(familiar), 'S005', 'ファミリア（攻撃）');
-    const ymir = fire('C047', 'battleEnd').events.find(e => e.type === 'run_effect' && e.kind === 'reroll');
+    const ymir = fire('C062', 'battleEnd').events.find(e => e.type === 'run_effect' && e.kind === 'reroll');
     assert.equal(ymir && ymir.trigger, '終戦'); assert.equal(presentRunEffectVfxCode(ymir), 'S009', 'ユミル（終戦）');
     assert.equal(presentRunEffectVfxCode({ type: 'run_effect', kind: 'enchant_upgrade', trigger: '終戦', targetSlots: [] }), '', '強化しなかった回は出さない');
     assert.equal(presentRunEffectVfxCode({ type: 'run_effect', kind: 'enchant_upgrade', trigger: '終戦', targetSlots: [2] }), 'S009', 'グリマルキン（4回目の終戦）');

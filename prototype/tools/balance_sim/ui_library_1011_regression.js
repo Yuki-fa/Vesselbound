@@ -30,7 +30,7 @@ renderHandEditor=renderFieldEditor=renderRewCards=_syncRewardProductionUi=update
       action.onclick({stopPropagation(){}});
       assert.equal(G.spellSlots[0],null,name+' アイテムがなくなる');assert.equal(G.gold,100+gain,name+' 売価が入る');
     }
-    const card=makePanel(PANEL_POOL.find(c=>c.no==='C062').id);G.mainBoard[1]=card;
+    const card=makePanel(PANEL_POOL.find(c=>c.no==='C082').id);G.mainBoard[1]=card;
     assert.equal(_boardCardSellEnabled(card),false,name+' カードの売却は廃止');
     const button=h.makeElement('button'),div=h.makeElement();div.querySelector=()=>button;
     button.classList.contains=c=>c==='shop-board-sell-action';const before=G.gold;

@@ -28,7 +28,7 @@ class CaptureImage {
 async function main(){
   let observe;const animations=[],image=new CaptureImage('http://127.0.0.1:5817/assets/vfx/K009.webp?vblab=1');
   // オーバーロードの残像JPEGとAnimated WebPが同じVFX層に並ぶ撮影を再現する。
-  const portrait=new CaptureImage('http://127.0.0.1:5817/assets/art/characters/C097.jpg?v=1');
+  const portrait=new CaptureImage('http://127.0.0.1:5817/assets/art/characters/C122.jpg?v=1');
   const staticPng=new CaptureImage('http://127.0.0.1:5817/assets/art/static.png');
   const fxImages=[portrait,image,staticPng];
   const context=vm.createContext({URL,performance:{now:()=>999},document:{getAnimations:()=>animations,querySelectorAll:q=>q.includes('data-vb-fx')?fxImages:[]},
@@ -64,12 +64,12 @@ async function main(){
   image.src='http://127.0.0.1:5817/assets/vfx/K009.webp?vblab=1';
   await freezeSprites({eval:evaluate});assert.match(image.src,/^data:image\/(?:webp|png);base64,/);
   assert.equal(image.dataset.captureFrame,'K009_001.webp');assert.equal(context.__vfxCaptureClock.now(),100);
-  assert.equal(portrait.src,'http://127.0.0.1:5817/assets/art/characters/C097.jpg?v=1');
+  assert.equal(portrait.src,'http://127.0.0.1:5817/assets/art/characters/C122.jpg?v=1');
   assert.equal(staticPng.src,'http://127.0.0.1:5817/assets/art/static.png');
   assert.equal(portrait.assignments,1);assert.equal(staticPng.assignments,1);
   assert.equal(portrait.dataset.captureFrame,undefined);assert.equal(staticPng.dataset.captureFrame,undefined);
   portrait.failDecode=true;
-  await assert.rejects(freezeSprites({eval:evaluate}),/C097\.jpg.*EncodingError/); // 静止画像もデコードを待つ
+  await assert.rejects(freezeSprites({eval:evaluate}),/C122\.jpg.*EncodingError/); // 静止画像もデコードを待つ
   portrait.failDecode=false;
   const unsupported=new CaptureImage('http://127.0.0.1:5817/assets/vfx/K999.webp');
   fxImages.push(unsupported);

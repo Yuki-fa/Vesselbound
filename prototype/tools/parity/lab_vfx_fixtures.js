@@ -19,18 +19,18 @@ function vbLabVfxFixture(no) {
   else u=_makePanelSummonUnit(_panelSummonSpec(def),[]);
   Object.assign(u,{id:'source',atk:12,hp:30,maxHp:100,_stageNumber:2});
   const allies=['赤','青','緑','黄','紫'].map((color,i)=>({id:'ally'+i,name:'味方'+i,color,atk:4,hp:70,maxHp:100,desc:'',keywords:[],lane:i>2?'rear':'front'}));
-  // 2026-10-12: C067は攻撃効果の発動を観測するので、観測先にもシートの攻撃効果を持たせる。
-  if(no==='C067') allies[0].desc=PANEL_POOL.find(c=>c.no==='E031').desc;
-  if(no==='C025') Object.assign(allies[1],PANEL_POOL.find(c=>c.no==='C007'),{id:'ally1',atk:4,hp:70,maxHp:100});
-  if(no==='C076') allies.forEach((a,i)=>Object.assign(a,_makePanelSummonUnit(_panelSummonSpec(PANEL_POOL.find(c=>c.no==='C018')),[]),{id:'ally'+i,atk:4,hp:70,maxHp:100}));
+  // 2026-10-12: C087は攻撃効果の発動を観測するので、観測先にもシートの攻撃効果を持たせる。
+  if(no==='C087') allies[0].desc=PANEL_POOL.find(c=>c.no==='E031').desc;
+  if(no==='C035') Object.assign(allies[1],PANEL_POOL.find(c=>c.no==='C012'),{id:'ally1',atk:4,hp:70,maxHp:100});
+  if(no==='C096') allies.forEach((a,i)=>Object.assign(a,_makePanelSummonUnit(_panelSummonSpec(PANEL_POOL.find(c=>c.no==='C023')),[]),{id:'ally'+i,atk:4,hp:70,maxHp:100}));
   const enemies=['赤','青','緑'].map((color,i)=>({id:'foe'+i,name:'敵'+i,color,atk:4,hp:80,maxHp:100,desc:'',keywords:[],poison:3,shield:0,lane:i===2?'rear':'front'}));
   if(no==='E067') allies[0]={...JSON.parse(JSON.stringify(u)),id:'ally0',hp:70,maxHp:100};
   // 2026-10-12: 新21種も実カードの本文からコアの結果を作る。
-  if(['C029','C034','C072','C037'].includes(no)){allies[0].keywords=['眷属'];allies[2].keywords=['眷属'];}
-  if(['C099','C082'].includes(no))u.boardCards=Array.from({length:3},()=>({category:'エンチャント',name:'検査接続',desc:''}));
-  if(no==='C099'){allies[0].color='紫';allies[3].color='紫';}
-  if(no==='C094')allies.forEach((a,i)=>Object.assign(a,_makePanelSummonUnit(_panelSummonSpec(PANEL_POOL.find(c=>c.no==='C071')),[]),{id:'ally'+i,atk:4,hp:70,maxHp:100}));
-  return createBattleState({sides:{p1:{units:[u,...allies]},p2:{units:enemies}},resources:{p1:{mana:({C004:1,C056:2,C066:3,C079:4})[no]||6,gold:200},p2:{mana:0,gold:100}},blood:{p1:20,p2:20},items:{p1:no==='I006'?[def]:[],p2:[]},summonDefs:[...PANEL_POOL,...ENEMY_POOL],itemDefs:ITEM_POOL,stageNumber:2});
+  if(['C039','C044','C092','C047'].includes(no)){allies[0].keywords=['眷属'];allies[2].keywords=['眷属'];}
+  if(['C124','C107'].includes(no))u.boardCards=Array.from({length:3},()=>({category:'エンチャント',name:'検査接続',desc:''}));
+  if(no==='C124'){allies[0].color='紫';allies[3].color='紫';}
+  if(no==='C119')allies.forEach((a,i)=>Object.assign(a,_makePanelSummonUnit(_panelSummonSpec(PANEL_POOL.find(c=>c.no==='C091')),[]),{id:'ally'+i,atk:4,hp:70,maxHp:100}));
+  return createBattleState({sides:{p1:{units:[u,...allies]},p2:{units:enemies}},resources:{p1:{mana:({C009:1,C071:2,C086:3,C099:4})[no]||6,gold:200},p2:{mana:0,gold:100}},blood:{p1:20,p2:20},items:{p1:no==='I006'?[def]:[],p2:[]},summonDefs:[...PANEL_POOL,...ENEMY_POOL],itemDefs:ITEM_POOL,stageNumber:2});
 }
 var vbLabVfxTriggers={
   opening:(s,u,rng,emit,hit)=>coreApplyOpeningEffects(u,s,rng,emit,hit),
@@ -50,11 +50,11 @@ var vbLabVfxTriggers={
   revive:(s,_u,_rng,_emit,hit)=>hit(s.units.p2[0],s.units.p1[1],10000,false,false,false),
   shieldBlock:(s,u,_rng,_emit,hit)=>hit(u,s.units.p2[0],4,false,false,false),
 };
-var vbLabVfxCases={E006:'death',E035:'death',C040:'observerDeath',E062:'counter',E067:'attack',E071:'attack',E075:'attack',C032:'mana',C038:'injury',C046:'opening',C049:'mana',C053:'mana',C051:'mana',C054:'attack',C058:'atkGain',C067:'allyAttack',C068:'battleEnd',C069:'attack',C077:'shieldLost',C078:'attack',C080:'opening',C081:'attack',C092:'opening',E082:'death',C098:'release',C076:'attack',C041:'mana',C014:'opening',C018:'mana',C025:'death',I006:'item'};
+var vbLabVfxCases={E006:'death',E035:'death',C050:'observerDeath',E062:'counter',E067:'attack',E071:'attack',E075:'attack',C042:'mana',C048:'injury',C061:'opening',C064:'mana',C068:'mana',C066:'mana',C069:'attack',C073:'atkGain',C087:'allyAttack',C088:'battleEnd',C089:'attack',C097:'shieldLost',C098:'attack',C100:'opening',C106:'attack',C117:'opening',E082:'death',C123:'release',C096:'attack',C056:'mana',C019:'opening',C023:'mana',C035:'death',I006:'item'};
 function vbLabVfxExtraCases() {
-  return [['K016','C066','mana'],['K002','C092','opening'],['K009','C003','allAttack'],
-    ['S001','C041','mana'],['K020','C003','revive'],['K018_gain','C079','mana'],
-    ['K020_gain','C032','mana'],['shield_break','C003','shieldBlock']];
+  return [['K016','C086','mana'],['K002','C117','opening'],['K009','C008','allAttack'],
+    ['S001','C056','mana'],['K020','C008','revive'],['K018_gain','C099','mana'],
+    ['K020_gain','C042','mana'],['shield_break','C008','shieldBlock']];
 }
 function vbLabVfxPrepare(code,state) {
   if(code==='K009') state.units.p1[0].keywords.push('全体攻撃');
@@ -79,11 +79,11 @@ function vbLabVfxStartPve(code,state,trigger) {
   const hit=(a,b,amount,counter,ss,st,opt)=>coreResolveHit(state,a,b,amount,counter,rng,emit,{skipSourceEffects:!!ss,skipTough:!!st,...(opt||{})});
   const source=state.units.p1[0];source._sealed=false;source._currentAttackTarget=state.units.p2[0];
   presentBeginPlayback();
-  if(code==='C068') {G._savedBattleEnd=null;G._battleVictoryPending=true;}
+  if(code==='C088') {G._savedBattleEnd=null;G._battleVictoryPending=true;}
   else vbLabVfxTriggers[trigger](state,source,rng,emit,hit);
   held.forEach(args=>presentHoldShown(...args));
-  const done=Promise.resolve(code==='C068'?onBattleEnd():_flushCorePveHitEvents(state,events,before)).finally(()=>{
-    if(code==='C068')events.push(...G._battleCoreEvents);
+  const done=Promise.resolve(code==='C088'?onBattleEnd():_flushCorePveHitEvents(state,events,before)).finally(()=>{
+    if(code==='C088')events.push(...G._battleCoreEvents);
     held.forEach(([u])=>presentReleaseShown(u));presentEndPlayback();
   });
   return {events,done};
@@ -93,25 +93,25 @@ function vbLabVfxStartPve(code,state,trigger) {
 function vbLabVfxExpectedCalls(code,names) {
   const name=presentLabFx(code)[0],at=names.indexOf(name);
   const generic=['weaken','atk-down','battle-summon','shield-gain','revive-gain'];
-  const follow={E071:'weaken',C081:'atk-down',C092:'atk-down',C032:'revive-gain',C041:'battle-summon'}[code];
+  const follow={E071:'weaken',C106:'atk-down',C117:'atk-down',C042:'revive-gain',C056:'battle-summon'}[code];
   return at>=0&&(!vbLabVfxCases[code]||names.slice(0,at).every(n=>!generic.includes(n)))
     &&(!follow||names.indexOf(follow)>at);
 }
 
-// C002/C017の固有SEは、以前はPvEだけ1手番の後で鳴らしオンラインは鳴らなかった。2026-10-15から被弾位置の固有VFXと同時に両側で1回鳴らす。
+// C007/C022の固有SEは、以前はPvEだけ1手番の後で鳴らしオンラインは鳴らなかった。2026-10-15から被弾位置の固有VFXと同時に両側で1回鳴らす。
 // 第2段の固有演出。旧50種のシナリオはそのまま、新しい描画入口も同じコア→presenterで比較する。
 var vbWebpVfxCases=[
-  ['C002','redirect','attack-recoil',{pve:['C002'],online:['C002']}],['C008','mana','arachne-ring'],
-  ['C011','attack','siren-wave'],['C017','injury','medusa-gaze',{pve:['C017'],online:['C017']}],
-  ['E042','attack','centaur-missile'],['C043','attack','flame-sweep'],
-  ['C090','death','steal-mark'],['E058','mana','fire-arrow'],
+  ['C007','redirect','attack-recoil',{pve:['C007'],online:['C007']}],['C013','mana','arachne-ring'],
+  ['C016','attack','siren-wave'],['C022','injury','medusa-gaze',{pve:['C022'],online:['C022']}],
+  ['E042','attack','centaur-missile'],['C058','attack','flame-sweep'],
+  ['C115','death','steal-mark'],['E058','mana','fire-arrow'],
   ['E045','mana','mana-buff'],['E001','injury','injury-buff'],
-  ['C001','battleEnd','gold-gain']
+  ['C006','battleEnd','gold-gain']
 ];
 vbLabVfxTriggers.redirect=(s,_u,_rng,_emit,hit)=>hit(s.units.p2[0],s.units.p1[1],6,false,false,false);
 
 // 2026-10-12: 個別のコア呼び出しだけでなく、攻撃は命中フックまで通す。
-var vbLabVfx1012Cases={C004:'mana',E083:'injury',E043:'death',C060:'release',E031:'attackContact',C071:'opening',C099:'release',C029:'death',C034:'injury',C082:'release',C083:'injury',C095:'opening',C097:'release',C009:'injury',E056:'death',C056:'mana',C066:'mana',C079:'mana',E024:'kill',C094:'releaseObserver'};
+var vbLabVfx1012Cases={C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attackContact',C091:'opening',C124:'release',C039:'death',C044:'injury',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'kill',C119:'releaseObserver'};
 vbLabVfxTriggers.attackContact=(s,_u,rng,emit)=>{s._coreFirstSide='p1';createBattleRunner(s,rng,emit,{skipOpening:true}).step({deferCompact:true});};
 vbLabVfxTriggers.kill=(s,u,_rng,_emit,hit)=>{s.units.p2[0].hp=1;hit(u,s.units.p2[0],2);};
 vbLabVfxTriggers.releaseObserver=(s,_u,rng,emit,hit)=>coreApplyReleaseEffects(s.units.p1[1],[],s,rng,emit,hit);

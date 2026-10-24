@@ -9,8 +9,8 @@ present.js の PRESENT_LAB_FX のピーク（山場の時刻）を揃え、台�
 使い方（Pythonから）:
   import adopt_se as A
   A.adopt('paladin-ring', 2, codes=['R019'])
-  A.adopt('centaur-impact', 1, codes=[('C019_HIT', 'C019_2.wav')])   # 登録キーとファイル名が違う時
-  A.adopt('spriggan', 1, codes=['C079'], gain_db=6)                    # 原音の音量が小さい時は持ち上げる
+  A.adopt('centaur-impact', 1, codes=[('C024_HIT', 'C024_2.wav')])   # 登録キーとファイル名が違う時
+  A.adopt('spriggan', 1, codes=['C099'], gain_db=6)                    # 原音の音量が小さい時は持ち上げる
   A.save('2026-10-20')
 """
 import hashlib

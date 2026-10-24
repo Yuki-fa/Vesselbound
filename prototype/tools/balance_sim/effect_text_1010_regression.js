@@ -33,8 +33,8 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
 (async () => {
   await loadGameData();
   await check('シートの本文：邪眼・結界・狂気（通常／合体）、エルフ、ミノタウロス、敵3体', () => {
-    for(const no of ['E018','E021','E009','C009']) assert.equal(PANEL_POOL.find(c=>c.no===no).desc,effectText(no));
-    assert.deepEqual(card('エルフ').keywords, sheetRows('card').find(r=>r['No.']==='C062')['キーワード'].split(/[\s　]+/));
+    for(const no of ['E018','E021','E009','C014']) assert.equal(PANEL_POOL.find(c=>c.no===no).desc,effectText(no));
+    assert.deepEqual(card('エルフ').keywords, sheetRows('card').find(r=>r['No.']==='C082')['キーワード'].split(/[\s　]+/));
     assert.match(card('ミノタウロス').desc, /効果ダメージを受けた場合、ランダムな敵に攻撃する/);
     assert.match(enemy('ラン・ドーター').desc, /「黒ケルピー」を1体召喚する/);
     assert.match(enemy('ヴィーザル').desc, /全ての味方は\+12\/\+12を得る/);
@@ -71,7 +71,7 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
     });
   }
   for (const enhanced of [false,true]) {
-    const text=effectText('C036',enhanced),label=enhanced?'強化':'通常',amount=Number(text.match(/ATK\+(\d+)/)[1]),repeat=effectRepetitions(text);
+    const text=effectText('C046',enhanced),label=enhanced?'強化':'通常',amount=Number(text.match(/ATK\+(\d+)/)[1]),repeat=effectRepetitions(text);
     await check(`狂気（${label}）：本文の対象へATK+${amount}を${repeat}回`, () => {
       const h = harness([plain('mad', { desc: text }), plain('a1')], [plain('e0'), plain('e1')]);
       h.p1[0].hp = 0;
@@ -82,7 +82,7 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
     });
   }
   for (const enhanced of [false,true]) {
-    const text=effectText('C009',enhanced),label=enhanced?'強化':'通常',times=effectRepetitions(text);
+    const text=effectText('C014',enhanced),label=enhanced?'強化':'通常',times=effectRepetitions(text);
     await check(`ミノタウロス（${label}）：効果ダメージで結界1を得てから攻撃、を${times}回`, () => {
       const h = harness([plain('ミノタウロス', { desc: text, atk: 1, hp: 500, maxHp: 500 })], [plain('e0', { atk: 0, hp: 500, maxHp: 500 })]);
       coreApplyInjuryEffects(h.p1[0], 1, h.state, h.rng, h.emit, h.hit, h.p2[0], undefined, 'effect');

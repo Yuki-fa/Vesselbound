@@ -16,8 +16,8 @@ for (const match of fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').match
 let checked = 0;
 const check = (name, fn) => { fn(); checked++; console.log('OK ' + name); };
 function oneTurn(keywords, extraKeyword, enemyAtk) {
-  const king = PANEL_POOL.find(c => c.no === 'C026');
-  const u = { id: 'A0', name: king.name, no: 'C026', desc: king.desc, keywords: [...keywords, extraKeyword], atk: 4, hp: 10, maxHp: 10,
+  const king = PANEL_POOL.find(c => c.no === 'C036');
+  const u = { id: 'A0', name: king.name, no: 'C036', desc: king.desc, keywords: [...keywords, extraKeyword], atk: 4, hp: 10, maxHp: 10,
     _baseAtk: 4, _baseMaxHp: 10, lane: 'front', color: '青' };
   const state = createBattleState({ sides: { p1: { units: [u] }, p2: { units: [{ id: 'E0', name: 'オーク', atk: enemyAtk, hp: 300, maxHp: 300, lane: 'front', keywords: [], desc: '' }] } } });
   state._coreFirstSide = 'p1';

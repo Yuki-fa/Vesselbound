@@ -1,6 +1,6 @@
 {
   "satyr": {
-    "code": "C004",
+    "code": "C009",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
@@ -51,7 +51,7 @@
     ]
   },
   "behemoth": {
-    "code": "C060",
+    "code": "C075",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
@@ -85,7 +85,7 @@
     ]
   },
   "nymph": {
-    "code": "C071",
+    "code": "C091",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
@@ -102,7 +102,7 @@
     ]
   },
   "familiar": {
-    "code": "C089",
+    "code": "C114",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Melee/Sounds/分割/MELEE - DESIGNED - BLOOD Squish 01-01.wav",
@@ -119,7 +119,7 @@
     ]
   },
   "fiend": {
-    "code": "C082",
+    "code": "C107",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
@@ -136,7 +136,7 @@
     ]
   },
   "phantom": {
-    "code": "C029",
+    "code": "C039",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-04.wav",
@@ -153,7 +153,7 @@
     ]
   },
   "eidolon": {
-    "code": "C034",
+    "code": "C044",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
@@ -170,7 +170,7 @@
     ]
   },
   "arch-demon": {
-    "code": "C099",
+    "code": "C124",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
@@ -187,7 +187,7 @@
     ]
   },
   "gremlin": {
-    "code": "C083",
+    "code": "C108",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/工業・工場・機械系/Industry Metal Clink Gear Fast 06.wav",
@@ -204,7 +204,7 @@
     ]
   },
   "lilith": {
-    "code": "C095",
+    "code": "C120",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-04.wav",
@@ -221,7 +221,7 @@
     ]
   },
   "overlord": {
-    "code": "C097",
+    "code": "C122",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
@@ -238,7 +238,7 @@
     ]
   },
   "minotaur": {
-    "code": "C009",
+    "code": "C014",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Flare Start Up Ignite 01.wav",
@@ -272,7 +272,7 @@
     ]
   },
   "scylla": {
-    "code": "C056",
+    "code": "C071",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Small-01.wav",
@@ -289,7 +289,7 @@
     ]
   },
   "undine": {
-    "code": "C066",
+    "code": "C086",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
@@ -306,7 +306,7 @@
     ]
   },
   "spriggan": {
-    "code": "C079",
+    "code": "C099",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Wood Tree Branches Breaking And Crunching 01.wav",
@@ -340,7 +340,7 @@
     ]
   },
   "chaos-imp": {
-    "code": "C094",
+    "code": "C119",
     "candidates": [
       {
         "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-02.wav",

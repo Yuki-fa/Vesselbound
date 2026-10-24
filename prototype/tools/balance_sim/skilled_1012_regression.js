@@ -1,5 +1,5 @@
 'use strict';
-// 2026-10-12 利用者指定: 熟練N、E052旧文、C093開戦付与を実際のloader・編成・共通コアで検査。
+// 2026-10-12 利用者指定: 熟練N、E052旧文、C118開戦付与を実際のloader・編成・共通コアで検査。
 const assert=require('node:assert/strict');
 const {sheetRows}=require('./sheet_data');
 require('./load');
@@ -38,7 +38,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
 
   for(const side of ['p1','p2'])for(const merged of [false,true]){
     // E052はシート本文の通常1／合体3。改名しても本文で効く。
-    const unit=formed('C093',[['E052',merged]],{name:'改名した与え手',desc:'',keywords:[]});
+    const unit=formed('C118',[['E052',merged]],{name:'改名した与え手',desc:'',keywords:[]});
     const amount=Number(text('E052',merged).match(/値は(\d+)/)[1]);
     unit.keywords.push('熟練2');
     const h=setup([unit,plain('receiver','青')],side),u=h.state.units[side][0],foe=h.state.units[h.other][0];
@@ -53,7 +53,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
     assert.equal(foe.atk,20-2-amount-2);checked++;
   }
   // 同じ旧文を通常＋合体で接続すると各本文の値を足す（最大値で上書きしない）。
-  const mixed=formed('C093',[['E052',false],['E052',true]],{desc:'',keywords:[]});
+  const mixed=formed('C118',[['E052',false],['E052',true]],{desc:'',keywords:[]});
   const mixedBonus=[false,true].reduce((n,m)=>n+Number(text('E052',m).match(/値は(\d+)/)[1]),0);
   assert.equal(coreStatBonus(plain('r'),1,mixed),1+mixedBonus);assert.equal(coreStatBonus(plain('r'),-1,mixed),-1-mixedBonus);
   for(const side of ['p1','p2']){
@@ -66,13 +66,13 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   }
 
   for(const side of ['p1','p2'])for(const merged of [false,true])for(const grace of [null,false,true]){
-    const walker=formed('C093',grace==null?[]:[['E039',grace]]);walker.desc=text('C093',merged);
+    const walker=formed('C118',grace==null?[]:[['E039',grace]]);walker.desc=text('C118',merged);
     const h=setup([walker,plain('purple'),plain('red','赤'),plain('sealed','紫',{keywords:['封印99'],_sealed:true}),plain('dead','紫',{hp:0,_deployedAtZeroHp:true})],side);
     const expected=Number(walker.desc.match(/熟練(\d+)/)[1])*(1+(grace==null?0:Number(text('E039',grace).match(/(\d+)回追加/)[1])));
     assert.equal(coreKeywordSum(h.state.units[side][1],'熟練'),0,'開戦前に付与');
     opening(h);
     for(const u of h.state.units[side].slice(0,2)){
-      assert.equal(coreKeywordSum(u,'熟練'),expected,`${side} C093${merged?'合体':'通常'} 恩寵=${grace}`);
+      assert.equal(coreKeywordSum(u,'熟練'),expected,`${side} C118${merged?'合体':'通常'} 恩寵=${grace}`);
       assert.equal(coreStatBonus(plain('r'),-2,u),-2-expected);assert.equal(u._voidWalkerBonus,0);
     }
     for(const u of h.state.units[side].slice(2))assert.equal(coreKeywordSum(u,'熟練'),0);
@@ -84,7 +84,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
     assert.equal(coreKeywordSum(child,'熟練'),0,'開戦後に新たな体へ常時付与');checked++;
   }
   for(const side of ['p1','p2'])for(const strategyMerged of [false,true]){
-    const recipient=formed('C093',[['E063',strategyMerged]],{desc:'',keywords:['邪眼3','毒牙4','衝撃2']});
+    const recipient=formed('C118',[['E063',strategyMerged]],{desc:'',keywords:['邪眼3','毒牙4','衝撃2']});
     const value=Number(text('E063',strategyMerged).match(/値は\+(\d+)/)[1]);
     assert.equal(coreKeywordSum(recipient,'邪眼'),3+value);assert.equal(coreKeywordSum(recipient,'毒牙'),4+value);
     assert.equal(coreKeywordSum(recipient,'衝撃'),2+value);
@@ -101,16 +101,16 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
     const foeHp=foe.hp;h.hit(u,foe,3,false,true);assert.equal(foe.hp,foeHp-5,'ダメージは弱体2だけが加算、熟練は加算しない');checked++;
   }
   // 2体の開戦付与は値を加算する。旧常時は旧本文のある保存だけに残す。
-  const twice=setup([plain('a','紫',{desc:text('C093',false)}),plain('b','紫',{desc:text('C093',true)}),plain('r')]);opening(twice);
-  assert.equal(coreKeywordSum(twice.state.units.p1[2],'熟練'),[false,true].reduce((n,m)=>n+Number(text('C093',m).match(/熟練(\d+)/)[1]),0));
-  const copied=setup([plain('copy-walker','紫',{desc:text('C093',false),_mapPanelPower:'duplicate'})]);opening(copied);
+  const twice=setup([plain('a','紫',{desc:text('C118',false)}),plain('b','紫',{desc:text('C118',true)}),plain('r')]);opening(twice);
+  assert.equal(coreKeywordSum(twice.state.units.p1[2],'熟練'),[false,true].reduce((n,m)=>n+Number(text('C118',m).match(/熟練(\d+)/)[1]),0));
+  const copied=setup([plain('copy-walker','紫',{desc:text('C118',false),_mapPanelPower:'duplicate'})]);opening(copied);
   assert.equal(copied.state.units.p1.length,2,'複製の力の開戦コピー');
   copied.state.units.p1.forEach(u=>assert.equal(coreKeywordSum(u,'熟練'),1,'先に出た開戦コピーも熟練を得る'));
   const legacy=setup([plain('old','紫',{desc:'常時：紫の味方が与える戦闘修正の値は3大きくなる。'}),plain('r')]);
   assert.equal(coreStatBonus(plain('t'),1,legacy.state.units.p1[1]),4,'旧保存の常時本文');
 
   // 同じ実編成をPvEの参照共有状態とオンラインpayload→コアへ渡して、イベント列・最終状態を比較。
-  formed('C093',[['E039',true],['E052',true]]);
+  formed('C118',[['E039',true],['E052',true]]);
   const payload=buildOnlineSelfFormation();payload.units.push(plain('r'));
   G.allies=payload.units.map((u,i)=>createCoreUnit(u,'p1',i));
   G.enemies=[createCoreUnit(plain('foe','赤'),'p2',0)];G.mana=0;G.gold=0;G._waveLife=3;

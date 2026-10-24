@@ -6,7 +6,7 @@ const KEYWORD_ASSET_KEYS = Object.freeze({
   '二段攻撃':'K010', '三段攻撃':'K011', '呪詛':'K012', '隠密':'K013',
   '防戦':'K014', '帰滅':'K015', '熟練':'', '弱体':'K016', '毒':'K017',
   '結界':'K018', '封印':'K019', '復活':'K020', '根性':'K021', '加護':'K022',
-  '眷属':'K023', 'マナ効果':'K024', '刻印':'K026',
+  '眷属':'K023', 'マナ効果':'K024', '刻印':'K026', '起動効果':'', // 起動効果（2026-10-24 シート追加）は起動可の緑の発光で見せる。キーワードの素材は無い
   '結界獲得':'K018_gain', '復活獲得':'K020_gain',
 });
 function getKeywordAssetKey(name, variant){
@@ -298,10 +298,10 @@ const PRESENT_KEYWORD_VFX_FADE_OUT_MS = 220;
 // ── 発生源から広がる範囲効果の見せ方 ───────────────────────
 // 既定は薙ぎ払い（アラッサス＝炎が対象を順になぎ払う）。
 // 'expand' は「発生源の周りにフェードインして高速で巨大化し、画面外へ抜ける」波
-// （サイレン＝C011）。**どちらも「見た目上当たった相手から数値を出す」。**
+// （サイレン＝C016）。**どちらも「見た目上当たった相手から数値を出す」。**
 // 鍵はカードの演出番号（シートの「VFX/SE」列＝fxCode、無ければカードのNo.）。
 const PRESENT_AREA_VFX_STYLE = {
-  C011: 'expand',   // サイレン
+  C016: 'expand',   // サイレン
 };
 function presentAreaVfxStyle(code) {
   return PRESENT_AREA_VFX_STYLE[String(code || '').toUpperCase()] || 'sweep';
@@ -339,7 +339,7 @@ const PRESENT_PROJECTILE_STAGGER_MS = 260;
 const PRESENT_PROJECTILE_IMPACT_OFFSET_Y = .18;
 // 飛翔体の定義では弾頭を入れ物の中央に描く。従来の着弾中心を保つ。
 function presentProjectileImpactOffsetY(code) {
-  // E042_1（旧 C019_1）は縦長の透明余白が大きく、通常の「枠の中心」では
+  // E042_1（旧 C024_1）は縦長の透明余白が大きく、通常の「枠の中心」では
   // 絵の実体が敵の上へ大きく外れる。素材の実体中心を敵中心へ合わせる。
   return String(code || '').toUpperCase() === 'E042' ? 0 : PRESENT_PROJECTILE_IMPACT_OFFSET_Y;
 }
@@ -459,7 +459,7 @@ function presentEffectDamageEvents(events, index) {
 }
 
 // 効果そのもののVFXの最低再生時間（ms）。
-// 1回しか発動しない効果でも、カード固有VFX（`_playCardEffectVfx` の既定＝ゴーレムのC003）と
+// 1回しか発動しない効果でも、カード固有VFX（`_playCardEffectVfx` の既定＝ゴーレムのC008）と
 // 同じ尺だけは必ず映す。これが無いと、発動1回のときに一瞬で消えて見えない。
 const PRESENT_EFFECT_VFX_MIN_MS = 720;                  // 活性化などの固有VFXも80%の尺
 
@@ -1366,7 +1366,7 @@ const PRESENT_CONTACT_PIERCE_START_OFFSET = .5;
 // 画面外へ抜けきる距離（画面高さに対する比）。
 const PRESENT_CONTACT_PIERCE_OVERSHOOT = 1.2;
 
-// 画面固定VFXの登録。C008を含むキャラクター固有VFXは、対象カードのサイズで表示する。
+// 画面固定VFXの登録。C013を含むキャラクター固有VFXは、対象カードのサイズで表示する。
 const PRESENT_SCREEN_BOTTOM_VFX = new Set();
 function presentIsScreenBottomVfx(code) {
   return PRESENT_SCREEN_BOTTOM_VFX.has(String(code || '').toUpperCase());
@@ -1501,7 +1501,7 @@ function presentStatChangeVfxCode(ev, ownCode, opt) {
   // 列にバフの番号が無いカードの扱い。
   //   攻撃・マナ・開戦・常時＝**一律でバフの番号**（利用者指定の規則）。
   //     マナはカード固有の絵を発生元のマナ効果VFXで既に出しているため、
-  //     対象へ同じ絵を重ねない意味もある（アラクネ＝C008）。
+  //     対象へ同じ絵を重ねない意味もある（アラクネ＝C013）。
   //   負傷・死亡＝カード固有の絵をそのまま使う（回復＝C012 等）。
   if (wanted && PRESENT_BUFF_VFX_ALWAYS_TRIGGERS.has(trigger)) return wanted;
   // 付与された別トリガの効果で、キャラクター本体の固有VFXを使わない。
@@ -1945,47 +1945,47 @@ function presentResetPlayback() { _presentPlaybackDepth = 0; presentResetDecided
 // 再生（playHitVfx）で別々に持つと、片方だけ巨大に出る（実際にマータで起きた）。
 // 既定は1。旧画像向けの倍率はrender.jsで定義の基準幅へ正規化する。
 // **鍵は「元の番号」**。命中VFXの経路は登録識別子から番号を取り出す。
-// 番号を変えたら（C003→S006）両方の番号を登録しておくこと。
+// 番号を変えたら（C008→S006）両方の番号を登録しておくこと。
 const PRESENT_VFX_SCALE = {
-  C001: .5, C002: .5,             // フレームいっぱいの素材（約500x500）。半分で出す
-  C003: .5, S006: .5,             // ゴーレム。キャラ枠内で見える大きさに揃える
-  C008: 2,                        // アラクネ（365x409）。効果の規模に合わせて大きく出す
+  C006: .5, C007: .5,             // フレームいっぱいの素材（約500x500）。半分で出す
+  C008: .5, S006: .5,             // ゴーレム。キャラ枠内で見える大きさに揃える
+  C013: 2,                        // アラクネ（365x409）。効果の規模に合わせて大きく出す
   E045: .5, S008: .5,             // 活性化。S006と同じ大きさの素材（約500x500）
   S005: .5, S007: .5,             // 特殊演出（約550x550/605x603）。S006と同じ扱い
   S009: .5,                       // 特殊演出：バフ（常時。516x516）
   E058: .125,                     // 炎の矢。切り詰めた縦長素材（210x388）なので小さく出す
   E042: .0625, E042_1: .0625,     // 天の雷槌の矢（旧ケンタウロス。120x560）。旧表示の50%
-  C017: .5, C018: .5,             // メデューサ／サイクロプス（約450x450）。S006と同じ扱い
+  C022: .5, C023: .5,             // メデューサ／サイクロプス（約450x450）。S006と同じ扱い
   E058_2: 1.2,                    // 炎の矢の着弾（983x552）。矢とは別素材なので別の倍率
   E042_2: 1.2,                    // 天の雷槌の着弾（旧ケンタウロス。1436x824）。炎の矢の着弾と同じ扱い
   [getKeywordAssetKey('毒牙')]: .5,                       // 毒牙（毒のデバフを受けた瞬間。389x398）
   [getKeywordAssetKey('毒')]: .5,                       // 毒（毒でダメージを受けた瞬間。370x575）
   [getKeywordAssetKey('衝撃')]: .4,                       // 衝撃（弱体を付与した瞬間）
   [getKeywordAssetKey('復活')]: .5,                       // 復活（644x1073の縦長）
-  S003: .5,                       // 金貨（旧C001）
-  C090: .5,                       // 奪う（対象の上で出す。毒牙と同じ大きさ）
+  S003: .5,                       // 金貨（旧C006）
+  C115: .5,                       // 奪う（対象の上で出す。毒牙と同じ大きさ）
 };
 // LABで承認された置換だけ。効果の判定・数値はコア、ここは演出の対応表。
 const PRESENT_LAB_FX = {
   E006:['dark-fire',.5,'foes'], E035:['resentment',.7,'foe'],
-  C040:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
-  E071:['shockwave',0.45,'foes'], E075:['demon-soul',.9,'foes'], C032:['vrykolakas',.9,'friend'],
-  C038:['bone-chariot',.9,'friend'], C046:['jackalope',.7,'green'],
-  C049:['dragonnet',.58,'morph'], C053:['bandersnatch',.9,'morph'], C051:['cockatrice',.04,'foe'],
-  C054:['worm',.9,'foes'], C058:['wyvern',.3,'foe'], C067:['frost-sprite',.18,'foe'],
-  C068:['leprechaun',.9,'friends'], C069:['melusine',.9,'foes'], C077:['carbuncle',.04,'lost'],
-  C078:['pixie',.9,'pair'], C080:['elemental',.74,'friends'], C081:['imp',.9,'others'],
-  C092:['wendigo',.9,'foes'], E082:['nightmare',.9,'self'], C098:['baron',.9,'self'],
-  C076:['pegasus',.9,'friend'], C041:['direwolf',.12,'howl'], C014:['titan',.9,'foes'],
-  // 2026-10-15 アラクネの熱波（ゲームのC008.wavのピーク0.38秒）
-  C008:['arachne-ring',0.171354,'friends'],
+  C050:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
+  E071:['shockwave',0.45,'foes'], E075:['demon-soul',.9,'foes'], C042:['vrykolakas',.9,'friend'],
+  C048:['bone-chariot',.9,'friend'], C061:['jackalope',.7,'green'],
+  C064:['dragonnet',.58,'morph'], C068:['bandersnatch',.9,'morph'], C066:['cockatrice',.04,'foe'],
+  C069:['worm',.9,'foes'], C073:['wyvern',.3,'foe'], C087:['frost-sprite',.18,'foe'],
+  C088:['leprechaun',.9,'friends'], C089:['melusine',.9,'foes'], C097:['carbuncle',.04,'lost'],
+  C098:['pixie',.9,'pair'], C100:['elemental',.74,'friends'], C106:['imp',.9,'others'],
+  C117:['wendigo',.9,'foes'], E082:['nightmare',.9,'self'], C123:['baron',.9,'self'],
+  C096:['pegasus',.9,'friend'], C056:['direwolf',.12,'howl'], C019:['titan',.9,'foes'],
+  // 2026-10-15 アラクネの熱波（ゲームのC013.wavのピーク0.38秒）
+  C013:['arachne-ring',0.171354,'friends'],
   // 2026-10-17 未設定だった演出（Claude直接）。SEは候補を聴き比べてから付ける（それまで無音＝null）。
   E008:['dragon-pact',0.228604,'foe'], E032:['rage-shards',0.450021,'foe'], R023:['storm-ring',0.215771,'foes'],
   // 指輪の開戦効果・封印されしもの（2026-10-17。それまで何も出ていなかった）。
   // 瞳の指輪（R001〜R005・R032）は常時効果なので戦闘中は発動しない扱いにし、演出は外した（2026-10-18 利用者指定。定義 ring-eye-* は別で使う）。
   R019:['paladin-ring',0.45,'friends'], R031:['speed-ring',0.12,'friend'], R015:['toughness-ring',null,'friends'],
   R041:['curse-ring',0.45,'foes'], R042:['curse-ring',0.45,'foes'], E057:['sealed-power',0.45,'self'],
-  C093:['void-mastery',0.45,'friends'],
+  C118:['void-mastery',0.45,'friends'],
   // 敵の開戦効果（2026-10-17。何も出ていなかった）：全員へのキーワード付与・ライフを1にする。
   EN044:['keyword-grant',0.45,'friends'], EN075_1:['fate-sever',0.45,'self'],
   // 第3弾（2026-10-17。何も出ていなかった）：苦行の指輪・錬成・ハイドラ・苦悶の刻印・受難の刻印。
@@ -1993,7 +1993,7 @@ const PRESENT_LAB_FX = {
   E078:['gold-loss',0.242979,'self'], E077:['suffering-brand',0.074896,'dead'],
   // 第4弾（2026-10-17。汎用の演出で代わりに出していた）：レムレースの呼び戻し・召喚の指輪・魔導板の力・威圧／魔力の指輪。
   // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
-  C031:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
+  C041:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
   R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.450021,'foes'],
   // 2026-10-23 VFX の全検査で割り当て（利用者の確認待ち）：絶魔の指輪（味方が結界を失うたび全ての味方+1/+1）＝常時の強化、
   // 永劫の力（開戦のたびに永久に+1/+1）＝使われなくなった生命の力の演出。
@@ -2001,19 +2001,19 @@ const PRESENT_LAB_FX = {
   // 新しく作った演出（additions_1023.js）：残響の魔導師の負傷（ランダムな敵へ）・凍てつく亡霊の負傷（ダメージを与えた敵へ）。
   EN013:['echo-bolt',0.45,'foes'], EN031:['frost-retaliate',0.45,'foes'],
   'map:duplicate':['map-duplicate',0.45,'self'],
-  C018:['cyclops',.9,'self'], C025:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
+  C023:['cyclops',.9,'self'], C035:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], K009_SWEEP:['all-sweep',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
   [getKeywordAssetKey('結界','gain')]:['shield-gain',.22,'target'], [getKeywordAssetKey('復活','gain')]:['revive-gain',.24,'target'],
   shield_break:['shield-break',0.318812,'target'],
   // 2026-10-12 利用者指定：候補1の仮SE。peakは切り出し後の測定値で後述の音声台帳と揃える。
-  C004:['satyr',0.625708,'self'],E083:['hecatoncheir',0.655729,'self'],E043:['zombie',0.263917,'self'],
-  C060:['behemoth',0.48,'self'],E031:['sylph',0.284083,'self'],C071:['nymph',0.736167,'colors'],
-  C082:['fiend',0.833771,'foe'],C029:['phantom',0.218375,'kenzoku'],C034:['eidolon',0.218375,'kenzoku'],
-  C099:['arch-demon',0.774937,'purple'],C083:['gremlin',0.341896,'foes'],C095:['lilith',0.384333,'sequence'],
-  C097:['overlord',0.48,'self'],C009:['minotaur',0.2575,'reaction'],E056:['sleep-sheep',0.45,'self'],
-  C056:['scylla',0.45,'foes'],C066:['undine',0.16925,'foes'],C079:['spriggan',0.45,'friend'],
-  E024:['incubus',0.45,'victim'],C094:['chaos-imp',0.923583,'retrigger'],
+  C009:['satyr',0.625708,'self'],E083:['hecatoncheir',0.655729,'self'],E043:['zombie',0.263917,'self'],
+  C075:['behemoth',0.48,'self'],E031:['sylph',0.284083,'self'],C091:['nymph',0.736167,'colors'],
+  C107:['fiend',0.833771,'foe'],C039:['phantom',0.218375,'kenzoku'],C044:['eidolon',0.218375,'kenzoku'],
+  C124:['arch-demon',0.774937,'purple'],C108:['gremlin',0.341896,'foes'],C120:['lilith',0.384333,'sequence'],
+  C122:['overlord',0.48,'self'],C014:['minotaur',0.2575,'reaction'],E056:['sleep-sheep',0.45,'self'],
+  C071:['scylla',0.45,'foes'],C086:['undine',0.16925,'foes'],C099:['spriggan',0.45,'friend'],
+  E024:['incubus',0.45,'victim'],C119:['chaos-imp',0.923583,'retrigger'],
 };
 // 番号で引かない演出の持ち主（2026-10-21 利用者指摘：FIXしてゲームで使っているのにLABで「未使用」と出ていた）。
 // ゲームはここを読んで再生し、LAB（tools/vfx_preview/lab_model.js currentUses）も同じ表から「現在の割り振り」を出す。
@@ -2027,37 +2027,37 @@ const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'
   // 変身の巻物＝起動の変身と同じ演出（additions_1023.js）。
   I002:'activation-transform' };
 // 起動（魔導板で対象に使う効果）の演出。activation.js が対象のカードの上（破壊は破壊したカードからヘルナイトへ）に出す。
-const PRESENT_ACTIVATION_FX = { C064:'activation-transform', C084:'activation-empower', C091:'activation-devour' };
+const PRESENT_ACTIVATION_FX = { C084:'activation-transform', C109:'activation-empower', C116:'activation-devour' };
 // マップの力（PRESENT_LAB_FX の 'map:<id>'）とシートの番号（map.js のシート読み込みも使う）。
 const PRESENT_MAP_POWER_NO = { summon:'M001', life:'M002', eternal:'M003', resonance:'M004', duplicate:'M005' };
 // 番号を持たない場面で直接再生する演出。
 const PRESENT_DIRECT_LAB_FX = [
   { effect:'opening-sigil', id:'appearance', name:'開戦の登場（着地の砂煙）', trigger:'開戦', basis:'battle.js _battleOpeningLandingVfx' },
 ];
-// 2026-10-22 シート改訂：効果が移った番号へ付け替え（C020→E083・C021→E043・C064→E031・C042→E056・C084→E024、
+// 2026-10-22 シート改訂：効果が移った番号へ付け替え（C025→E083・C031→E043・C084→E031・C057→E056・C109→E024、
 // アークデーモン C082 とフィーンド C099 は効果が入れ替わったので演出も入れ替え）。ファミリア C089 は効果が変わったので外した。
-const PRESENT_LAB_1012_CODES=new Set(['C004','E083','E043','C060','E031','C071','C099','C029','C034','C082','C083','C095','C097','C009','E056','C056','C066','C079','E024','C094']);
+const PRESENT_LAB_1012_CODES=new Set(['C009','E083','E043','C075','E031','C091','C124','C039','C044','C107','C108','C120','C122','C014','E056','C071','C086','C099','E024','C119']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
 // 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
 function presentLab1012EventMatches(code,ev){
   if(!ev||ev.effectSource===false)return false;
-  if(['C004','C056','C066','C079'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
-  if(['E083','E043','E031','C071'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({E083:'injury_chance_mana',E043:'manaOnDeath',E031:'manaOnAttack',C071:'nymph_colors'})[code];
-  if(code==='C060')return ev.type==='mana_set'&&ev.reason==='behemoth'&&Number(ev.gained)>0;
-  if(code==='C029'||code==='C034')return ev.type==='summon_buff';
-  if(code==='C082')return ev.type==='damage'&&ev.damageKind!=='combat';
-  if(code==='C099')return ev.type==='stat_change'&&ev.reason==='arch_demon_purple_buff';
-  if(code==='C083')return ev.type==='stat_change'&&ev.reason==='injury_enemy_atk_down';
-  if(code==='C095')return ev.type==='stat_change'&&ev.reason==='lilith';
-  if(code==='C097')return ev.type==='stat_change'&&ev.reason==='overload';
+  if(['C009','C071','C086','C099'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
+  if(['E083','E043','E031','C091'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({E083:'injury_chance_mana',E043:'manaOnDeath',E031:'manaOnAttack',C091:'nymph_colors'})[code];
+  if(code==='C075')return ev.type==='mana_set'&&ev.reason==='behemoth'&&Number(ev.gained)>0;
+  if(code==='C039'||code==='C044')return ev.type==='summon_buff';
+  if(code==='C107')return ev.type==='damage'&&ev.damageKind!=='combat';
+  if(code==='C124')return ev.type==='stat_change'&&ev.reason==='arch_demon_purple_buff';
+  if(code==='C108')return ev.type==='stat_change'&&ev.reason==='injury_enemy_atk_down';
+  if(code==='C120')return ev.type==='stat_change'&&ev.reason==='lilith';
+  if(code==='C122')return ev.type==='stat_change'&&ev.reason==='overload';
   // 2026-10-22 シート改訂：ミノタウロスは結界を得なくなった。負傷の発光（この後に本人の割り込み攻撃が続く）で始める。
-  if(code==='C009')return ev.type==='effect_flash'&&ev.trigger==='injury';
+  if(code==='C014')return ev.type==='effect_flash'&&ev.trigger==='injury';
   if(code==='E056'||code==='E024')return ev.type==='blood_set'&&ev.sourceId!=null&&Number(ev.gained)>0;
   return false;
 }
 const PRESENT_LAB_SPEED = 1.5;
 // ファントム／エイドロンは最後の層が消えた後に空白がある。絵の速さは保ち、空白だけ省く。
-const PRESENT_LAB_TRIM_TAIL_CODES = new Set(['C029','C034']);
+const PRESENT_LAB_TRIM_TAIL_CODES = new Set(['C039','C044']);
 function presentLabPlaybackEndRatio(code, definition, hasTargets = true) {
   if (!PRESENT_LAB_TRIM_TAIL_CODES.has(code) || !definition) return 1;
   const layers=definition.layers.filter(layer=>hasTargets||layer.anchor!=='each-target');
@@ -2078,7 +2078,7 @@ function presentLabManualTarget(events, index, code) {
   for(let i=index+1;i<(events||[]).length;i++) {
     const e=events[i];
     if(!e||['attack','turn_begin','battle_end','battle_start'].includes(e.type)) return null;
-    if(code==='C076'&&e.type==='mana_threshold'||code==='C025'&&e.type==='effect_flash'&&e.trigger==='injury') return e;
+    if(code==='C096'&&e.type==='mana_threshold'||code==='C035'&&e.type==='effect_flash'&&e.trigger==='injury') return e;
     if(e.type==='effect_flash') return null;
   }
   return null;
@@ -2096,17 +2096,17 @@ function presentLabEffectEvents(events, index, code, ownerId) {
     const ev = list[i];
     if (!ev || ['turn_begin','battle_end','mana_threshold','effect_flash'].includes(ev.type)) break;
     if (ringHits.has(ev) && ringHits.get(ev).name !== ringHits.get(first)?.name) break;
-    if (ev.type === 'attack' && !(code === 'C078' && ev.controlled)) break;
+    if (ev.type === 'attack' && !(code === 'C098' && ev.controlled)) break;
     if (first.type === 'damage' && ev.type === 'damage' &&
       ((first.batch || ev.batch) && presentDamageGroupKey(ev) !== presentDamageGroupKey(first)
       || presentDamageKind(ev) !== presentDamageKind(first) || ev.sourceId !== first.sourceId || ev.fxEffect !== first.fxEffect
       || out.some(e=>e.type==='damage'&&e.unitId===ev.unitId&&e.side===ev.side))) break;
     if (ev.sourceId != null && ev.sourceId !== ownerId && !['damage','stat_change'].includes(ev.type)) break;
-    if (mana || code === 'C054' || code === 'C078') out.push(ev);
+    if (mana || code === 'C069' || code === 'C098') out.push(ev);
     // 錬成は「ゴールドを払う→アイテムを得る」の2つで1回の発動（演出を2回出さない）。
     else if (code === 'E030' && first.type === 'gold_spend' && ev.type === 'item_reward' && ev.unitId === first.unitId) out.push(ev);
     else if (ev.type === first.type && ev.sourceId === first.sourceId &&
-      (first.type === 'damage' || ev.reason === first.reason || code === 'C081' && /^imp_/.test(ev.reason))) out.push(ev);
+      (first.type === 'damage' || ev.reason === first.reason || code === 'C106' && /^imp_/.test(ev.reason))) out.push(ev);
     else if (['stat_change','keyword_effect','damage','summon','transform','seal_apply','death_summon_grant'].includes(ev.type)) break;
   }
   return out;
@@ -2115,7 +2115,7 @@ function presentLabEffectEvents(events, index, code, ownerId) {
 // ── 固有VFXの尺と、効果音のピーク（2026-10-15 利用者指定） ─────────────────
 // 被弾位置に出す固有VFX（肩代わり＝マータ等）の再生時間（ms）。無い番号は従来の既定（800ms）。
 // マータは「速度2.5倍を標準に」（LABの基準1.5倍で定義の尺630ms → 420ms）。
-const PRESENT_CHARACTER_HIT_VFX_MS = { C002: 420 };
+const PRESENT_CHARACTER_HIT_VFX_MS = { C007: 420 };
 function presentCharacterHitVfxMs(code) {
   const n = Number(PRESENT_CHARACTER_HIT_VFX_MS[String(code || '').toUpperCase()]);
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -2123,8 +2123,8 @@ function presentCharacterHitVfxMs(code) {
 // ゲームの効果音（assets/sfx）の一番大きい所の時刻（秒、ファイル先頭から。実測）。
 // 固有VFXと一緒に鳴らす時、このピークをVFXの山場（定義の impact）へ合わせる。LABも同じ表を使う。
 const PRESENT_SFX_PEAK_SEC = {
-  C002: 0.309063, C008: 0.171354, C009: 0.2575, C011: 0 /* 2026-10-21 利用者指定：「SEだけ聴く」と同じく頭から鳴らす（命中が0msなのでピークを合わせると頭を飛ばしていた） */, C017: 0.45, E042: 0.45, E042_HIT: 0.196729, C043: 0.45,
-  C090: .130, appearance: .029 /* 開戦の砂煙の着地音（実測） */, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
+  C007: 0.309063, C013: 0.171354, C014: 0.2575, C016: 0 /* 2026-10-21 利用者指定：「SEだけ聴く」と同じく頭から鳴らす（命中が0msなのでピークを合わせると頭を飛ばしていた） */, C022: 0.45, E042: 0.45, E042_HIT: 0.196729, C058: 0.45,
+  C115: .130, appearance: .029 /* 開戦の砂煙の着地音（実測） */, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
   [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
 };
 function presentSfxPeakSec(key) {

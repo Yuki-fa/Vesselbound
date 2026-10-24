@@ -13,11 +13,11 @@
     "duration": 1.95,
     "sha256": "7245a4ee0cbae4fefa84a03aa154f6fc0bb497e1ca7b41ec9912f6f935e88680"
   },
-  "C090": {
-    "code": "C090",
+  "C115": {
+    "code": "C115",
     "effect": "steal-mark",
     "candidate": "steal-mark-3",
-    "file": "assets/sfx/C090.wav",
+    "file": "assets/sfx/C115.wav",
     "source": "Production Element Title Transition Bell Warble 04.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Warble 04.wav",
     "peak": 0.101187,
@@ -69,11 +69,11 @@
     "duration": 0.619667,
     "sha256": "ce36bfcbd685aba68a9b10f8ceb5e8e733555e971cc06bb046d596257d0f4023"
   },
-  "C042": {
-    "code": "C042",
+  "C057": {
+    "code": "C057",
     "effect": "sleep-sheep",
     "candidate": "sleep-sheep-4",
-    "file": "assets/sfx/C042.wav",
+    "file": "assets/sfx/C057.wav",
     "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
     "peak": 0.45,
@@ -83,11 +83,11 @@
     "duration": 1.95,
     "sha256": "86d78e701260d8dfc291dda26d2f5d4072da7f8eaf520491daa0cba5efe650f3"
   },
-  "C084": {
-    "code": "C084",
+  "C109": {
+    "code": "C109",
     "effect": "incubus",
     "candidate": "sleep-sheep-4",
-    "file": "assets/sfx/C084.wav",
+    "file": "assets/sfx/C109.wav",
     "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
     "peak": 0.45,
@@ -149,11 +149,11 @@
     "source": "Production Element Title Transition Bell Chime 04.wav",
     "note": "ゲーム未使用のVFX。採用印だけ"
   },
-  "C083": {
-    "code": "C083",
+  "C108": {
+    "code": "C108",
     "effect": "gremlin",
     "candidate": "gremlin-2b",
-    "file": "assets/sfx/C083.wav",
+    "file": "assets/sfx/C108.wav",
     "source": "MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
     "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/asfx-christmas-freebies-2024/David Dumais - ASFX - Steampunk Mech Freebies/Steampunk Mech SFX - Free Samples/MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
     "peak": 0.341896,

@@ -286,7 +286,7 @@ function fixture(def, type, merged) {
   const allies = ['赤', '青', '緑', '黄', '紫'].map(ally);
   if (type === 'enchant') Object.assign(allies[0], { boardCards: [c], _resonanceEffectNames: [c.name],
     effectData: { effectNames: [c.name], effectTexts: [c.desc] } });
-  if (/負傷効果を発動/.test(c.desc || '')) Object.assign(allies[1], PANEL_POOL.find(p => p.no === 'C003'),
+  if (/負傷効果を発動/.test(c.desc || '')) Object.assign(allies[1], PANEL_POOL.find(p => p.no === 'C008'),
     { id: 'ally1', atk: 4, hp: 70, maxHp: 100 });
   const enemies = ['赤', '青', '緑'].map((color, i) => ({ id: 'foe' + i, name: 'LAB敵' + i,
     color, atk: 4, hp: 80, maxHp: 100, keywords: [], desc: '', shield: 0, lane: i === 2 ? 'rear' : 'front' }));
@@ -416,7 +416,7 @@ async function main() {
         currentEvent = null;
       }
       if (def && key === 'item') {
-        const a = { ...PANEL_POOL.find(c => c.no === 'C023'), keywords: [], manaCost: 3, power: 2, life: 5 };
+        const a = { ...PANEL_POOL.find(c => c.no === 'C033'), keywords: [], manaCost: 3, power: 2, life: 5 };
         const b = { ...a, keywords: ['封印5'] };
         G._cardLabBoard = [a, b]; G.spellSlots = [def, null, null, null];
         G.mapPanelPowers = { 0: 'summon', 1: 'summon' };

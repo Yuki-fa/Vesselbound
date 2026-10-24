@@ -1904,7 +1904,7 @@ function playEffectVfxOnUnit(unit,side,code,options){
 }
 
 // ── 画面に固定して大きく出す効果VFX（アラクネ）──────────────────
-// 対象カードの上ではなく**画面**に出す。アラクネ（C008）は
+// 対象カードの上ではなく**画面**に出す。アラクネ（C013）は
 // 「画面の中心が絵の頂点、画面の底辺が絵の中心」になる大きさで出す
 // （＝絵の高さ＝画面の高さ、中心を画面下端へ置く）。
 // どの効果をこう出すかは present.js の `PRESENT_SCREEN_BOTTOM_VFX` が唯一の実装。
@@ -2638,7 +2638,7 @@ async function presentSweepAttack(source,isEnemySide,targets,damageOf,onShown,op
   return true;
 }
 
-// 発生源の周りにフェードインしてから高速で巨大化し、画面外へ抜ける波（サイレン＝C011）。
+// 発生源の周りにフェードインしてから高速で巨大化し、画面外へ抜ける波（サイレン＝C016）。
 // **広がった絵が届いた対象から順に数値を出す**（薙ぎ払いと同じ規則）。
 // 素材が登録されていなければ何もしない（通常の被弾演出に任せる）。
 async function playExpandingWaveVfx(source,sourceSide,targets,code,options){
@@ -3365,7 +3365,7 @@ function _waitForBattleMotionIdle(timeoutMs){
   });
 }
 // 奪う演出：対象の上で出す絵と音（キャラクターNo.で引く）と、動き出すまでの間。
-const STEAL_CAST_CODE='C090';
+const STEAL_CAST_CODE='C115';
 const STEAL_CAST_HOLD_MS=1000;
 const STEAL_MOVE_MS=520;
 const STEAL_MOVE_EASING='cubic-bezier(.3,.05,.2,1)';
@@ -3477,14 +3477,14 @@ async function playUnitStealMotion(unit, fromSide, toSide, applyBoard, durationM
     clone.getBoundingClientRect();
   }
   unit._motionHidden=true;
-  // **発動時：対象の上でC090を再生し、1秒置いてから動き出す。**（利用者指定）
+  // **発動時：対象の上でC115を再生し、1秒置いてから動き出す。**（利用者指定）
   // 動き出しと同時に盤面を詰める。詰めを先にすると、まだ元の位置に貼り付いている
   // カードの上へ他の敵が寄ってきて重なる。
   const holdMs=Math.max(0,Number(STEAL_CAST_HOLD_MS)||0);
   const castPath=typeof getEffectVfxPath==='function'?getEffectVfxPath(STEAL_CAST_CODE):'';
   if(castPath&&typeof playHitVfxAtRect==='function'){
     // 完了は待たない（1秒の間に重ねて見せる）。
-    // 大きさは present.js の PRESENT_VFX_SCALE（C090＝毒牙と同じ .5）。
+    // 大きさは present.js の PRESENT_VFX_SCALE（C115＝毒牙と同じ .5）。
     void playHitVfxAtRect(_copyBattleVisualRect(fr),0,
       {customVfxPath:castPath,waitForFinish:false,gateMs:0,rotation:0,
        vfxScale:(typeof presentCharacterVfxScale==='function'?presentCharacterVfxScale(STEAL_CAST_CODE):1)});

@@ -50,7 +50,7 @@ function rendererClock() {
 (async () => {
   await h.ready;
   await check('1：まとめた死亡の後でも、エインセルの死亡起点へ以前の死体を使わない', async () => {
-    const x=h.setup({ sides: { p1: { units: [h.unit('ally')] }, p2: { units: [h.unit('lich','C040')] } } });
+    const x=h.setup({ sides: { p1: { units: [h.unit('ally')] }, p2: { units: [h.unit('lich','C050')] } } });
     const ally=x.find('ally'),lich=x.find('lich');
     const old = h.unit('old', '', { side: 'p2', hp: 0 });
     const ainsel = { ...definition('EN011'), id: 'ainsel', side: 'p2', hp: 0 };
@@ -85,11 +85,11 @@ function rendererClock() {
     } finally { global.battleFxRect = rect; }
   });
 
-  for (const side of ['p1', 'p2']) for (const no of ['C029', 'C034']) {
+  for (const side of ['p1', 'p2']) for (const no of ['C039', 'C044']) {
     await check(`2：${side} ${no}は最後の死亡・負傷でも固有VFXを残す`, async () => {
       const other = side === 'p1' ? 'p2' : 'p1';
       const x = h.setup({ sides: {
-        [side]: { units: [h.unit('source', no, { atk: 2, hp: no==='C034'?2:1, maxHp: 2 }), h.unit('survivor')] },
+        [side]: { units: [h.unit('source', no, { atk: 2, hp: no==='C044'?2:1, maxHp: 2 }), h.unit('survivor')] },
         [other]: { units: [h.unit('last', '', { atk: 1, hp: 1, maxHp: 1 })] },
       } });
       createBattleRunner(x.state, x.rng, x.emit, { skipOpening: true }).step({ deferCompact: true });
@@ -97,7 +97,7 @@ function rendererClock() {
       assert.equal(buffs.length, 1, 'コアが最後の効果を確定した再現条件');
       assert.ok(buffs[0].persistent);
       const coreResult = h.clone({ events: x.events, buffs: x.state.gameSummonBuff });
-      const name = no === 'C029' ? 'phantom' : 'eidolon';
+      const name = no === 'C039' ? 'phantom' : 'eidolon';
       await x.pve();
       assert.equal(h.calls.filter(c => c.name === name).length, 1, 'PvEの最後の固有VFX');
       assert.equal(presentIsSilentEvent(buffs[0]), false);
@@ -124,23 +124,23 @@ function rendererClock() {
     const found = ['card', 'enchant', 'enemy', 'ring', 'item'].flatMap(kind => h.sheetRows(kind)
       .filter(r => ['効果', '強化効果'].some(k => /このゲーム中、味方の眷属は/.test(r[k] || '')))
       .map(r => r['No.'])).sort();
-    assert.deepEqual(found, ['C029', 'C034', 'C072']);
+    assert.deepEqual(found, ['C039', 'C044', 'C092']);
   });
-  for (const no of ['C029', 'C034', 'C072']) for (const merged of [false, true]) {
+  for (const no of ['C039', 'C044', 'C092']) for (const merged of [false, true]) {
     await check(`3：${no} ${merged ? '強化後' : '通常'}の累積値がカード・ホバー・戦闘説明と次戦の召喚へ一致`, async () => {
       const effect = definition(no); if (merged) applyMergedPanelForm(effect);
       const source = h.unit('buffer', no, { desc: effect.desc });
-      const x = h.setup({ sides: { p1: { units: [source, h.unit('summoner', 'C035')] }, p2: { units: [h.unit('foe')] } },
+      const x = h.setup({ sides: { p1: { units: [source, h.unit('summoner', 'C045')] }, p2: { units: [h.unit('foe')] } },
         summonDefs: [...PANEL_POOL, ...ENEMY_POOL] });
-      if (no === 'C029') { x.find('buffer').hp = 0; coreApplyDeathEffects(x.find('buffer'), x.state, x.rng, x.emit, x.hit); }
-      if (no === 'C034') coreApplyInjuryEffects(x.find('buffer'), 1, x.state, x.rng, x.emit, x.hit);
-      if (no === 'C072') coreSummonUnit(x.state, 'p1', { name: '青スケルトン' }, x.emit, 'summoner', undefined, x.rng, x.hit);
+      if (no === 'C039') { x.find('buffer').hp = 0; coreApplyDeathEffects(x.find('buffer'), x.state, x.rng, x.emit, x.hit); }
+      if (no === 'C044') coreApplyInjuryEffects(x.find('buffer'), 1, x.state, x.rng, x.emit, x.hit);
+      if (no === 'C092') coreSummonUnit(x.state, 'p1', { name: '青スケルトン' }, x.emit, 'summoner', undefined, x.rng, x.hit);
       const cumulative = h.clone(x.state.gameSummonBuff.p1);
       // 付与元がいなくなった次の戦闘でも累積値は残る。
-      const next = h.setup({ sides: { p1: { units: [h.unit('summoner', 'C035')] }, p2: { units: [h.unit('foe')] } },
+      const next = h.setup({ sides: { p1: { units: [h.unit('summoner', 'C045')] }, p2: { units: [h.unit('foe')] } },
         summonDefs: [...PANEL_POOL, ...ENEMY_POOL], gameSummonBuff: { p1: cumulative } });
       G.gameSummonBuff = cumulative;
-      const knight = definition('C035'), raw = _rawSubstitutedDesc(knight);
+      const knight = definition('C045'), raw = _rawSubstitutedDesc(knight);
       const before = h.clone(next.state);
       const summoned = coreSummonUnit(next.state, 'p1', { name: '青スケルトン' }, next.emit, 'summoner', undefined, next.rng, next.hit);
       const expected = [summoned.atk, summoned.hp];
@@ -149,7 +149,7 @@ function rendererClock() {
       assert.deepEqual(notes(_unitPreviewText(knight, raw)), expected);
       assert.deepEqual(notes(_rawSubstitutedDesc(before.units.p1[0])), expected);
       // 元データ・基礎値へ焼き込まない。
-      assert.deepEqual(knight, definition('C035'));
+      assert.deepEqual(knight, definition('C045'));
       assert.deepEqual(next.state.gameSummonBuff.p1, cumulative);
     });
   }
@@ -159,8 +159,8 @@ function rendererClock() {
       const rings=boosted?['青い瞳の指輪','虹の瞳の指輪','召喚師の指輪'].map(name=>{
         const ring=RING_POOL.find(c=>c.name===name);assert.ok(ring,name);return ring;
       }):[];
-      const source=h.unit('summoner','C035',boosted?{boon:{famMul:2},keywords:['熟練3']}:{});
-      const extra=boosted?[h.unit('shana','C072',{keywords:['熟練2']})]:[];
+      const source=h.unit('summoner','C045',boosted?{boon:{famMul:2},keywords:['熟練3']}:{});
+      const extra=boosted?[h.unit('shana','C092',{keywords:['熟練2']})]:[];
       const x=h.setup({sides:{[side]:{units:[source,...extra]},[side==='p1'?'p2':'p1']:{units:[h.unit('foe')]}},
         rings:{[side]:rings},items:{[side]:boosted?[{itemEffectKey:'bond_scroll'}]:[]},
         gameSummonBuff:{p1:{atk:7,hp:11},p2:{atk:13,hp:17}},summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
@@ -178,7 +178,7 @@ function rendererClock() {
     });
   }
   await check('3：先の累積値を先取りせず、発動ごとに戦闘カードとホバーを更新する',async()=>{
-    const x=h.setup({sides:{p1:{units:[h.unit('summoner','C035')]},p2:{units:[h.unit('foe')]}},gameSummonBuff:{p1:{atk:5,hp:2}}});
+    const x=h.setup({sides:{p1:{units:[h.unit('summoner','C045')]},p2:{units:[h.unit('foe')]}},gameSummonBuff:{p1:{atk:5,hp:2}}});
     G.phase='battle';
     const events=[{type:'summon_buff',side:'p1',atk:2,hp:0,totalAtk:3,totalHp:2},
       {type:'summon_buff',side:'p1',atk:2,hp:0,totalAtk:5,totalHp:2}];
@@ -204,10 +204,10 @@ function rendererClock() {
     assert.deepEqual(notes(description.outerHTML),[9,3]);
   });
 
-  for (const no of ['C029', 'C034']) await check(`4：${no}の空白待ちを除き、反復でも全区間を最後まで再生する`, async () => {
+  for (const no of ['C039', 'C044']) await check(`4：${no}の空白待ちを除き、反復でも全区間を最後まで再生する`, async () => {
     const x = h.setup({ sides: { p1: { units: [h.unit('source', no), h.unit('familiar', '', { keywords: ['眷属'] })] },
       p2: { units: [h.unit('foe')] } } });
-    if (no === 'C029') {
+    if (no === 'C039') {
       // 同じ手番で死亡効果を複数回発動する効果と同じ入口。
       coreApplyTimedSummonBuff(x.find('source'), '死亡', x.state, x.emit, x.rng, x.hit);
       coreApplyTimedSummonBuff(x.find('source'), '死亡', x.state, x.emit, x.rng, x.hit);
@@ -215,7 +215,7 @@ function rendererClock() {
       coreApplyInjuryEffects(x.find('source'), 1, x.state, x.rng, x.emit, x.hit);
       coreApplyInjuryEffects(x.find('source'), 1, x.state, x.rng, x.emit, x.hit);
     }
-    const name = no === 'C029' ? 'phantom' : 'eidolon';
+    const name = no === 'C039' ? 'phantom' : 'eidolon';
     const verify = () => {
       const calls = h.calls.filter(c => c.name === name);
       assert.equal(calls.length, 2, '2回目を間引かない');
@@ -233,12 +233,12 @@ function rendererClock() {
   await check('4：実レンダラーの初回・反復・フレーム遅延でも最後まで完了する（1・2・3倍）',async()=>{
     const clock=rendererClock(),rect={left:100,top:200,width:95,height:140,element:null};
     let at=100000;
-    for(const no of ['C029','C034']) for(const speed of [1,2,3]) for(const hasTargets of [false,true]) for(const repeat of [false,true]){
-      const name=no==='C029'?'phantom':'eidolon',def=clock.fx.effects.find(d=>d.name===name);
+    for(const no of ['C039','C044']) for(const speed of [1,2,3]) for(const hasTargets of [false,true]) for(const repeat of [false,true]){
+      const name=no==='C039'?'phantom':'eidolon',def=clock.fx.effects.find(d=>d.name===name);
       const ratio=presentLabPlaybackEndRatio(no,def,hasTargets),ms=repeat?PRESENT_MANA_RUN_GAP_MS/(ratio*speed):clock.fx.duration(name,PRESENT_LAB_SPEED*speed);
       const end=ms*ratio;
       const done=clock.fx.play(name,{source:rect,targets:hasTargets?[rect]:[],speed:PRESENT_LAB_SPEED*speed,
-        durationMs:repeat?ms:undefined,endRatio:ratio,value:no==='C034'?2:1});
+        durationMs:repeat?ms:undefined,endRatio:ratio,value:no==='C044'?2:1});
       done.catch(()=>{});
       clock.frame(at); // 予約から大きく遅れても、この最初のフレームが起点。
       assert.equal(clock.fx.activeCount(),1);

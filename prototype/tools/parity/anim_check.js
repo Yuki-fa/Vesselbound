@@ -210,7 +210,7 @@ const SETUP = `
       await handle.stop();
       await new Promise(r=>setTimeout(r,120));
       // 素材が登録されていない効果では何も出さない（通常の被弾VFXへ化けないこと）。
-      const 素材無し=playEffectVfxOnUnit(G.allies[0],'ally','C012',{});
+      const 素材無し=playEffectVfxOnUnit(G.allies[0],'ally','C017',{});
       return {開始:true,見えたフレーム,最大幅,素材,
         // 期待するファイル名は assets.js の登録から引く。**ここに素材名を直接書かない**
         // （番号・定義名が変わるたびに検査を手直ししない）。
@@ -226,7 +226,7 @@ const SETUP = `
     check('効果固有VFXが停止で必ず消える', sustain.停止後 === 0,
       `停止後の残り=${sustain.停止後}件`);
     check('素材の無い効果では固有VFXを出さない', sustain.素材無しでnull === true,
-      `C012（ギガンテス）=${sustain.素材無しでnull ? '出さない' : '出してしまう'}`);
+      `C017（ギガンテス）=${sustain.素材無しでnull ? '出さない' : '出してしまう'}`);
 
     // ── 3. コンソールに例外が出ていないこと（404は素材未配置なので除外） ──
     const errs = b.consoleErrors().filter(x => !/404|Failed to load resource/.test(x));

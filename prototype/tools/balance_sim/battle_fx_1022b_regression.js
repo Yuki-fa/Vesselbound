@@ -23,7 +23,7 @@ const echoes = r => r.body.children.flatMap(el => el.children).filter(el => el._
 const visibleEchoes = r => echoes(r).filter(el => el.isConnected && el.style.visibility !== 'hidden' && Number(el.style.opacity) > 0);
 const basic = (id, extra = {}) => h.unit(id, '', { atk: 1, hp: 200, maxHp: 200, desc: '', keywords: [], ...extra });
 function opening(options = {}) {
-  const dragon = h.unit('dragon', 'C049');
+  const dragon = h.unit('dragon', 'C064');
   const x = h.setup({ sides: { p1: { units: [dragon] }, p2: { units: [basic('foe', { hp: options.hp || 1000, maxHp: options.hp || 1000 })] } },
     rings: { p1: [h.card('R023', 'ring')], p2: [] }, summonDefs: PANEL_POOL });
   x.state.resources.p1.mana = 20;
@@ -54,8 +54,8 @@ async function observeMorph(play) {
     await play();
     assert.ok(impact, '変身の固有VFXを再生する');
     assert.ok(seen.some(s => !s.impact));
-    assert.ok(seen.filter(s => !s.impact).every(s => s.no === 'C049'), JSON.stringify(seen.slice(0, 10)));
-    assert.ok(seen.some(s => s.impact && s.no === 'C104'), '命中後に緑ドラゴンへ替える');
+    assert.ok(seen.filter(s => !s.impact).every(s => s.no === 'C064'), JSON.stringify(seen.slice(0, 10)));
+    assert.ok(seen.some(s => s.impact && s.no === 'CF004'), '命中後に緑ドラゴンへ替える');
   } finally { global.sleep = sleep0; global.renderAll = render0; global.renderField = field0; VbFx.play = fx0; global.finishBattleAsVictory = victory0; }
 }
 
@@ -165,7 +165,7 @@ async function observeMorph(play) {
   await check('3：保存再生中の多数のマナ効果で描き直しても、変身VFXの命中まで元の絵を保つ', async () => {
     const x = h.setup({ sides: { p1: { units: [basic('mana', { desc: '開戦：20マナを得る。' }),
       basic('buff', { manaCost: 1, manaRepeat: true, manaThresholdDesc: 'このキャラクターは+1/+1を得る。',
-        _manaThresholdNo: 'E045', _manaThresholdOrder: 1 }), h.unit('dragon', 'C049')] },
+        _manaThresholdNo: 'E045', _manaThresholdOrder: 1 }), h.unit('dragon', 'C064')] },
       p2: { units: [basic('foe', { hp: 1, maxHp: 1 })] } }, summonDefs: PANEL_POOL });
     x.state.blood = { p1: 0, p2: 0 };
     x.state.life = x.state.maxLife = { p1: 3, p2: 3 };
@@ -176,7 +176,7 @@ async function observeMorph(play) {
     await observeMorph(() => SaveRun.replay(p, 1));
   });
   await check('3：保存なしの開戦でも、コア計算後の描き直しで変身後の絵を先に出さない', async () => {
-    h.setup({ sides: { p1: { units: [basic('mana', { desc: '開戦：20マナを得る。' }), h.unit('dragon', 'C049')] },
+    h.setup({ sides: { p1: { units: [basic('mana', { desc: '開戦：20マナを得る。' }), h.unit('dragon', 'C064')] },
       p2: { units: [basic('foe')] } }, summonDefs: PANEL_POOL });
     G.mana = 0;
     await observeMorph(() => _finishNewPanelBattleStartEffects());

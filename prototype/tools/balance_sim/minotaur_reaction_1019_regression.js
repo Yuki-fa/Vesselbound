@@ -12,8 +12,8 @@ function check(name, fn) {
 function run(side, penances, extraText = [], foeSpec = null, minoKeywords = []) {
   const foe = side === 'p1' ? 'p2' : 'p1';
   const texts = [...Array(penances).fill(PENANCE), ...extraText];
-  const mino = { id: 'mino', name: 'ミノタウロス', no: 'C009', atk: 4, hp: 40, maxHp: 40, color: '赤', keywords: minoKeywords,
-    desc: require('./sheet_data').effectText('C009'),
+  const mino = { id: 'mino', name: 'ミノタウロス', no: 'C014', atk: 4, hp: 40, maxHp: 40, color: '赤', keywords: minoKeywords,
+    desc: require('./sheet_data').effectText('C014'),
     _adjacentPanelEffectTexts: texts, effectData: { effectTexts: texts } };
   const state = core.createBattleState({ sides: { [side]: { units: [mino] },
     [foe]: { units: foeSpec || [{ id: 'foe', name: 'foe', atk: 1, hp: 500, maxHp: 500, keywords: [] }] } } });

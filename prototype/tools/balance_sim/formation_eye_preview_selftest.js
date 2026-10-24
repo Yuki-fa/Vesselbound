@@ -7,9 +7,9 @@ async function testFormationEyePreview(api,check=(name,fn)=>{fn();console.log('O
   function fresh(names){
     api.resetRun();initState();G.phase='reward';G._wave=1;
     G.rings=names.map(name=>clone(RING_POOL.find(r=>r.name===name)));
-    G.mainBoard[1]=makePanel(PANEL_POOL.find(c=>c.no==='C004').id);G.mainBoard[1].directions=['left'];
+    G.mainBoard[1]=makePanel(PANEL_POOL.find(c=>c.no==='C009').id);G.mainBoard[1].directions=['left'];
     G.mainBoard[0]=makePanel('獰猛');G.mainBoard[0].directions=['right'];
-    G.mainBoard[3]=makePanel(PANEL_POOL.find(c=>c.category==='キャラクター'&&c.color==='青'&&c.no==='C021').id);
+    G.mainBoard[3]=makePanel(PANEL_POOL.find(c=>c.category==='キャラクター'&&c.color==='青'&&c.no==='C031').id);
     return _getPartyBoardUnit();
   }
   for(const names of [['虹の瞳の指輪'],['赤い瞳の指輪'],['鏡の指輪','虹の瞳の指輪']]){

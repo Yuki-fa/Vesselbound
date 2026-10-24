@@ -159,7 +159,7 @@ async function newDataChecks(){
 }
 // 2026-10-22 シート改訂：効果が別の番号へ移ったので、SE のファイル名も新しい番号へ付け替えた（新 → 旧）。
 // アークデーモン C082 とフィーンド C099 は効果が入れ替わったので、ファイルの中身も入れ替えた。
-const RENAMED_1022={E042_1:'C019_1',E042_2:'C019_2',E083:'C020',E043:'C021',E031:'C064',E056:'C042',E024:'C084',E082:'C096',C040:'C039',C082:'C099',C099:'C082'};
+const RENAMED_1022={E042_1:'C024_1',E042_2:'C024_2',E083:'C025',E043:'C031',E031:'C084',E056:'C057',E024:'C109',E082:'C121',C050:'C049',C107:'C124',C124:'C107'};
 function audioChecks(){
   const raw=read('tools/vfx_preview/se_catalog.js'),catalog=JSON.parse(raw.slice(raw.indexOf('{'),raw.lastIndexOf('}')+1));
   const picks=JSON.parse(read('tools/vfx_preview/se/picks_1012.json')),used=new Set(),hashes=new Set();
@@ -212,7 +212,14 @@ function audioChecks(){
     for(const v of Object.values(JSON.parse(read('tools/vfx_preview/se/'+f))))if(v&&v.file)addedByUser.add('prototype/'+v.file);
   // ファイル名を付け替えた SE（新旧どちらの名前も）は変更を許す。
   for(const [now,was]of Object.entries(RENAMED_1022))for(const code of [now,was])addedByUser.add('prototype/assets/sfx/'+code+'.wav');
-  assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!removable(f)&&!addedByUser.has(f)).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
+  // 2026-10-24：カード番号の振り直し（card_renumber_history.json）で付け替えただけのファイルは変更に数えない。
+  // 前の版の名前を今の番号へ読み替えた先、または今の名前を前の版の番号へ戻した先と中身が同じなら付け替え。採用SEの許可も読み替え先で引く。
+  const renumber=require('./card_renumber');
+  const blob=(ref,f)=>{try{return execFileSync('git',['rev-parse',ref+':'+f],{cwd:path.join(ROOT,'..'),encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();}catch(e){return '';}};
+  const nowBlob=f=>fs.existsSync(path.join(ROOT,'..',f))?execFileSync('git',['hash-object',path.join(ROOT,'..',f)],{encoding:'utf8'}).trim():'';
+  const renamedOnly=f=>{const was=renumber.unrelabelPath(f),now=renumber.relabelPath(f);
+    return addedByUser.has(now)||addedByUser.has(was)||(was!==f&&!!nowBlob(f)&&blob(BASELINE,was)===nowBlob(f))||(now!==f&&!!blob(BASELINE,f)&&blob(BASELINE,f)===nowBlob(now));};
+  assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!removable(f)&&!addedByUser.has(f)&&!renamedOnly(f)).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
   console.log('OK SE63候補: 既存登録保持・元素材重複なし・ボイス名除外・48kHz/PCM16・最長1.95秒・-1dBFS・peak・末尾フェード・仮コピー21');
 }
 (async()=>{audioChecks();if(!process.env.VB_ONLY||process.env.VB_ONLY==='new')await newDataChecks();if(!process.env.VB_ONLY||process.env.VB_ONLY==='baseline')await baselineChecks();})().catch(e=>{console.error(e.stack);process.exitCode=1;});

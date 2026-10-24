@@ -824,7 +824,7 @@ function coreKeywordSum(unit, name, fromKeywordsOnly) {
 
 // 追加攻撃回数。三段攻撃=+2、二段攻撃=+1。
 // coreUnitKeywords が三段/二段の併存を排他化しているので、ここでは優先順だけを見る。
-// 「常時：味方の攻撃回数は1回追加される。」を持つもの（疾風の指輪 R028 / タイタニア C073）を
+// 「常時：味方の攻撃回数は1回追加される。」を持つもの（疾風の指輪 R028 / タイタニア C093）を
 // まとめて数える。タイタニアは「味方の」効果なので、**盤面に生きているタイタニアの体数ぶん**加算する
 // （攻撃者自身が持っているかどうかではない）。PvEとコアで別々に数えていたため、
 // PvEは疾風の指輪を数え忘れ、コアはタイタニアを0/1で数えていた。ここ1箇所で数えること。
@@ -3047,7 +3047,7 @@ function coreTransformUnit(state, target, name, emit, overrides) {
   const nextCode = String(overrides && (overrides.artCode || overrides.no) || def.no || def.artCode || '');
   if (nextArt) target.art = nextArt;
   // **絵は art（パス）が artCode（番号）より優先して読まれる**（applyCharacterArtVars）。
-  // 変身先が番号しか持たないカード（ドラゴン＝C104／アークドラゴン＝C107）の場合、
+  // 変身先が番号しか持たないカード（ドラゴン＝CF004／アークドラゴン＝CF007）の場合、
   // 旧形態の art を残すと番号だけ変わって絵はドラゴネットのまま出てしまう。
   else if (nextCode) { target.art = ''; target.image = ''; }
   if (nextCode) {
@@ -3912,7 +3912,7 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
       const enemyTimes = Math.max(1, Number(enemyDamage[2]) || 1);
       // アラッサスは対象ごとの通常VFXではなく、攻撃者起点の薙ぎ払いVFXを使う。
       // DOMには触れず、再生側が同じ対象順で表示できるイベントだけを出す。
-      if (String(damageDefinition.no || damageDefinition.artCode || '').toUpperCase() === 'C043' && coreMatchIsOwnText(damageDefinition, enemyDamage)) {
+      if (String(damageDefinition.no || damageDefinition.artCode || '').toUpperCase() === 'C058' && coreMatchIsOwnText(damageDefinition, enemyDamage)) {
         emit({ type: 'sweep_vfx', side: unit.side, unitId: unit.id,
           targetIds: foes.filter(x => x.hp > 0 && !coreIsSealed(x)).map(x => x.id) });
       }

@@ -23,10 +23,10 @@
   "peak": 0.45,
   "sha256": "acdf6b9a07029908a0760cd0bb9f52449e8243a9ee4b6b2cbf2d4ea340956ca5"
  },
- "C093": {
+ "C118": {
   "effect": "void-mastery",
   "candidate": "void-mastery-1",
-  "file": "assets/sfx/C093.wav",
+  "file": "assets/sfx/C118.wav",
   "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Medium-03.wav",
   "peak": 0.45,
   "sha256": "854ee4c7dc8a384cb4c4e4f9a8f0b06d0b1e8536910a74596121c2cd1faaa9e9"
@@ -39,10 +39,10 @@
   "peak": 0.45,
   "sha256": "5ad7522be83f2f66e771bf95c0d3fc1bcb1b610614bbfa21190abf0e9d3683a0"
  },
- "C031": {
+ "C041": {
   "effect": "soul-recall",
   "candidate": "soul-recall-1",
-  "file": "assets/sfx/C031.wav",
+  "file": "assets/sfx/C041.wav",
   "source": "Production Element Title Transition Ghostly 01.wav",
   "peak": 0.45,
   "sha256": "50451e283aa5e560e774510234e57eedf01f069d9011eed89a4e66173eb256ff"
@@ -55,10 +55,10 @@
   "peak": 0.45,
   "sha256": "8520fb1f88672089e9df3d9e2ad4a9686022d104f2046499237d5b3987342063"
  },
- "C043": {
+ "C058": {
   "effect": "flame-sweep",
   "candidate": "flame-sweep-1",
-  "file": "assets/sfx/C043.wav",
+  "file": "assets/sfx/C058.wav",
   "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-01.wav",
   "peak": 0.45,
   "sha256": "390b323fb304a90a16bb01249530de84d47d36443c377730aa2bbc65933aecfc"
@@ -119,26 +119,26 @@
   "peak": 0.45,
   "sha256": "155ffe49ae810afc39011399c5b00254a83560ef67453732ad9ed29839c2cb52"
  },
- "C094": {
+ "C119": {
   "effect": "chaos-imp",
   "candidate": "chaos-imp-2",
-  "file": "assets/sfx/C094.wav",
+  "file": "assets/sfx/C119.wav",
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-03.wav",
   "peak": 0.923583,
   "sha256": "f5650a3113ce015155f1bfcbe3fec823c4d39d6bd6446e01eebd3b0e655e4331"
  },
- "C002": {
+ "C007": {
   "effect": "attack-recoil",
   "candidate": "attack-recoil-2",
-  "file": "assets/sfx/C002.wav",
+  "file": "assets/sfx/C007.wav",
   "source": "SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-01.wav",
   "peak": 0.309063,
   "sha256": "f4376316a75504902b6418e999645219125c173a811bbe3310946377a7135d48"
  },
- "C009": {
+ "C014": {
   "effect": "minotaur",
   "candidate": "minotaur-2",
-  "file": "assets/sfx/C009.wav",
+  "file": "assets/sfx/C014.wav",
   "source": "Fire Fireball Large 02.wav",
   "peak": 0.2575,
   "sha256": "e57d5195505855a24abff7533db51a25c956f1eff398adf3c23d2ac328ead6e4"
@@ -151,18 +151,18 @@
   "peak": 0.45,
   "sha256": "4674acb8da6e9a6b9182185b38da2caa2d8a670514a5498d63bec00b980fb4ef"
  },
- "C089": {
+ "C114": {
   "effect": "familiar",
   "candidate": "familiar-3",
-  "file": "assets/sfx/C089.wav",
+  "file": "assets/sfx/C114.wav",
   "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Small-01.wav",
   "peak": 0.867437,
   "sha256": "81fc69931774c58fef63518a4bf489a1a20db9a20d0957939642e00dd2745028"
  },
- "C008": {
+ "C013": {
   "effect": "arachne-ring",
   "candidate": "arachne-ring-3",
-  "file": "assets/sfx/C008.wav",
+  "file": "assets/sfx/C013.wav",
   "source": "Explosion Fireball Blast Fire 01.wav",
   "peak": 0.171354,
   "sha256": "96a599f623adce5dc10f5e0655bc5d3486d728a118fb4ad9e945be74787e0abe"
@@ -175,42 +175,42 @@
   "peak": 0.45,
   "sha256": "2600bf76e518849f5adc879b078c24fb94abdf284e419442507e29712095a250"
  },
- "C017": {
+ "C022": {
   "effect": "medusa-gaze",
   "candidate": "medusa-gaze-3",
-  "file": "assets/sfx/C017.wav",
+  "file": "assets/sfx/C022.wav",
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-01.wav",
   "peak": 0.45,
   "sha256": "e76b2fa408cb66d3181fda7165995476e183d6ca375e4eb5d2bcfdb666f3785a"
  },
- "C019": {
+ "C024": {
   "effect": "centaur-missile",
   "candidate": "centaur-missile-3",
-  "file": "assets/sfx/C019_1.wav",
+  "file": "assets/sfx/C024_1.wav",
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-02.wav",
   "peak": 0.45,
   "sha256": "eda7561fc0013ac399fb7e8ca51508abb229bc03a5890aef132570c2fe74a3f3"
  },
- "C019_HIT": {
+ "C024_HIT": {
   "effect": "centaur-impact",
   "candidate": "centaur-impact-3",
-  "file": "assets/sfx/C019_2.wav",
+  "file": "assets/sfx/C024_2.wav",
   "source": "SORCERY - DESIGNED - MAGIC ICE Deflect Spell-03.wav",
   "peak": 0.196729,
   "sha256": "d060f446bfb28efb96ac71ed7a8a50951cf98ddaeb74d395ace725025bb10f26"
  },
- "C034": {
+ "C044": {
   "effect": "eidolon",
   "candidate": "eidolon-1",
-  "file": "assets/sfx/C034.wav",
+  "file": "assets/sfx/C044.wav",
   "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
   "peak": 0.218375,
   "sha256": "7db091584d1390ef8a4323f65eb46ea2c97bb16cd66e6891684a92974833819a"
  },
- "C029": {
+ "C039": {
   "effect": "phantom（SEはエイドロンと共通の eidolon-1）",
   "candidate": "eidolon-1",
-  "file": "assets/sfx/C029.wav",
+  "file": "assets/sfx/C039.wav",
   "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
   "peak": 0.218375,
   "sha256": "7db091584d1390ef8a4323f65eb46ea2c97bb16cd66e6891684a92974833819a"
@@ -223,10 +223,10 @@
   "peak": 0.450021,
   "sha256": "1bfbae813d72bcba170efc9c678adc83d1c1b36fa8ea4e3e5d000dcba7f8ec1f"
  },
- "C082": {
+ "C107": {
   "effect": "arch-demon",
   "candidate": "arch-demon-1",
-  "file": "assets/sfx/C082.wav",
+  "file": "assets/sfx/C107.wav",
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
   "peak": 0.774937,
   "sha256": "e8c2f34bb1db44b08e6314dfe16f4fcd6455ffa1c44482e1d0651e3149797c57"

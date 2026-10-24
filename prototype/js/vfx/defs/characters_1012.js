@@ -318,7 +318,7 @@ VbFxDefs.register({
     {
       "name": "satyr",
       "label": "サテュロス",
-      "sourceCode": "C004",
+      "sourceCode": "C009",
       "ms": 1500,
       "color": "#3aa6ff",
       "light": "#e6f6ff",
@@ -2473,7 +2473,7 @@ VbFxDefs.register({
     {
       "name": "behemoth",
       "label": "ベヒーモス",
-      "sourceCode": "C060",
+      "sourceCode": "C075",
       "ms": 1650,
       "color": "#9fdcff",
       "light": "#ffffff",
@@ -4164,7 +4164,7 @@ VbFxDefs.register({
     {
       "name": "nymph",
       "label": "ニンフ",
-      "sourceCode": "C071",
+      "sourceCode": "C091",
       "ms": 1500,
       "color": "#9bd5ff",
       "light": "#f5f9ff",
@@ -4803,7 +4803,7 @@ VbFxDefs.register({
     {
       "name": "familiar",
       "label": "ファミリア",
-      "sourceCode": "C089",
+      "sourceCode": "C114",
       "ms": 1200,
       "color": "#d0203a",
       "light": "#ffd0d6",
@@ -5424,7 +5424,7 @@ VbFxDefs.register({
     {
       "name": "fiend",
       "label": "フィーンド",
-      "sourceCode": "C082",
+      "sourceCode": "C107",
       "ms": 1080,
       "color": "#8a3ad0",
       "light": "#f0d8ff",
@@ -6294,7 +6294,7 @@ VbFxDefs.register({
     {
       "name": "phantom",
       "label": "ファントム（眷属強化）",
-      "sourceCode": "C029",
+      "sourceCode": "C039",
       "ms": 3600,
       "color": "#8fd6f5",
       "light": "#f2fbff",
@@ -7198,7 +7198,7 @@ VbFxDefs.register({
         {
           "name": "eidolon",
           "label": "エイドロン（眷属強化）",
-          "sourceCode": "C034",
+          "sourceCode": "C044",
           "value": 2
         }
       ]
@@ -7206,7 +7206,7 @@ VbFxDefs.register({
     {
       "name": "arch-demon",
       "label": "アークデーモン",
-      "sourceCode": "C099",
+      "sourceCode": "C124",
       "ms": 2100,
       "color": "#b060f0",
       "light": "#f4e0ff",
@@ -7853,7 +7853,7 @@ VbFxDefs.register({
     {
       "name": "gremlin",
       "label": "グレムリン",
-      "sourceCode": "C083",
+      "sourceCode": "C108",
       "ms": 1350,
       "color": "#6a5a68",
       "light": "#e8dcd0",
@@ -8465,7 +8465,7 @@ VbFxDefs.register({
     {
       "name": "lilith",
       "label": "リリス",
-      "sourceCode": "C095",
+      "sourceCode": "C120",
       "ms": 2250,
       "color": "#e05098",
       "light": "#ffe0f0",
@@ -9119,7 +9119,7 @@ VbFxDefs.register({
     {
       "name": "overlord",
       "label": "オーバーロード",
-      "sourceCode": "C097",
+      "sourceCode": "C122",
       "ms": 1500,
       "color": "#b060f0",
       "light": "#f4e0ff",
@@ -9803,7 +9803,7 @@ VbFxDefs.register({
     {
       "name": "minotaur",
       "label": "ミノタウロス",
-      "sourceCode": "C009",
+      "sourceCode": "C014",
       "ms": 975,
       "color": "#ff3a20",
       "light": "#ffe0c0",
@@ -11775,7 +11775,7 @@ VbFxDefs.register({
     {
       "name": "scylla",
       "label": "スキュラ",
-      "sourceCode": "C056",
+      "sourceCode": "C071",
       "ms": 1050,
       "color": "#2f8a1e",
       "light": "#c6f26a",
@@ -12962,7 +12962,7 @@ VbFxDefs.register({
     {
       "name": "undine",
       "label": "ウンディーネ",
-      "sourceCode": "C066",
+      "sourceCode": "C086",
       "ms": 1200,
       "color": "#8aa8c8",
       "light": "#e8f4ff",
@@ -13414,7 +13414,7 @@ VbFxDefs.register({
     {
       "name": "spriggan",
       "label": "スプリガン",
-      "sourceCode": "C079",
+      "sourceCode": "C099",
       "ms": 1350,
       "color": "#7ccf5a",
       "light": "#f0ffe0",
@@ -15317,7 +15317,7 @@ VbFxDefs.register({
     {
       "name": "chaos-imp",
       "label": "カオス・インプ",
-      "sourceCode": "C094",
+      "sourceCode": "C119",
       "ms": 1350,
       "color": "#9a50e0",
       "light": "#f0e0ff",

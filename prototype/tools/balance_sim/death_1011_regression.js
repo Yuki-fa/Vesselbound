@@ -34,7 +34,7 @@ function kill(units, shield, side = 'p1') {
   let checked = 0;
   // mask=5は「防ぐ→通る→防ぐ」。修正前は通常1発のVFXが3発へ分裂する。
   for (const side of ['p1', 'p2']) for (const shield of [5, 7, 1, 0]) for (const merged of [false, true]) {
-    const run = kill(formation('C074', 'E006', merged), shield, side);
+    const run = kill(formation('C094', 'E006', merged), shield, side);
     const dead = run.events.filter(e => e.type === 'death' && e.unitId === 'cat');
     const damages = run.events.filter(e => e.type === 'damage' && e.sourceId === 'cat' && e.damageKind === 'death_effect');
     // 2026-10-12: 合体反復の期待値はシート本文から読む。
@@ -57,7 +57,7 @@ function kill(units, shield, side = 'p1') {
     }
   }
   // ケットシーが負傷して黄ナイトキャットを召喚した後に死亡する、利用者構成の戦闘全体。
-  const units = formation('C074', 'E006');
+  const units = formation('C094', 'E006');
   const run = kill(units, 1); // EN011の結界1を含む開始状態を使い、即死させず複数の手番を解決する。
   const state = run.before; state.units.p2[0].atk = 1;
   const events = [];

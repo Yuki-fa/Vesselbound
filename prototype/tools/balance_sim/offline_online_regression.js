@@ -433,7 +433,7 @@ function main() {
     sides: {p1: {units: [
       // 2026-10-12: 名前だけの旧常時補正ではなく、シートの開戦本文を発動する。
       {id: 'void', name: 'ヴォイド・ウォーカー', atk: 1, hp: 3, maxHp: 3, color: '紫',
-        desc: sheetData.sheetRows('card').find(r => r['No.'] === 'C093')['効果']},
+        desc: sheetData.sheetRows('card').find(r => r['No.'] === 'C118')['効果']},
       {id: 'purple', name: '紫役', atk: 1, hp: 3, maxHp: 3, color: '紫'},
     ]}, p2: {units: []}},
   });
@@ -528,7 +528,7 @@ function main() {
 
   const alassusState = core.createBattleState({
     resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
-    sides: {p1: {units: [{id: 'c043', name: 'アラッサス', no: 'C043', atk: 3, hp: 5, maxHp: 5,
+    sides: {p1: {units: [{id: 'c043', name: 'アラッサス', no: 'C058', atk: 3, hp: 5, maxHp: 5,
       desc: '攻撃：全ての敵に1ダメージを与える。'}]},
       p2: {units: [{id: 'enemy-a', name: '敵A', atk: 1, hp: 5, maxHp: 5}, {id: 'enemy-b', name: '敵B', atk: 1, hp: 5, maxHp: 5}]}},
   });

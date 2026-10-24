@@ -751,11 +751,11 @@ function audit() {
   // ドラゴネット：マナ閾値で変身し、表示情報も変身イベントに揃う。
   {
     const dragon = makeDirectUnit('ドラゴネット', 'p1', { id: 'dragon', manaCost: 6, manaRepeat: false, manaThresholdDesc: '「緑ドラゴン」に変身する。' });
-    const s = makeDirectState([dragon], [], { p1: { mana: 6, gold: 0 }, p2: { mana: 0, gold: 0 } }, [{ name: '緑ドラゴン', color: '緑', power: 20, life: 20, no: 'C050', art: 'assets/art/characters/C050.jpg' }]);
+    const s = makeDirectState([dragon], [], { p1: { mana: 6, gold: 0 }, p2: { mana: 0, gold: 0 } }, [{ name: '緑ドラゴン', color: '緑', power: 20, life: 20, no: 'C065', art: 'assets/art/characters/C065.jpg' }]);
     const es = []; core.coreApplyManaThresholdEffects(s, createSeededRng(74), e => es.push(e), () => ({ amount: 0, died: false }));
     const t = es.find(e => e.type === 'transform');
     const transformedDragon = s.units.p1.find(x => x.id === 'dragon');
-    recordDirect('ドラゴネット', !!t && transformedDragon.name === '緑ドラゴン' && transformedDragon.no === 'C050' && transformedDragon.art.endsWith('C050.jpg'), `変身=${transformedDragon.name}/${transformedDragon.no}`);
+    recordDirect('ドラゴネット', !!t && transformedDragon.name === '緑ドラゴン' && transformedDragon.no === 'C065' && transformedDragon.art.endsWith('C065.jpg'), `変身=${transformedDragon.name}/${transformedDragon.no}`);
   }
   // 今回の個別修正：死亡全体HP、キーワード命中、対象側召喚、ATK獲得監視、解放マナ。
   {
@@ -906,8 +906,8 @@ function audit() {
     ] }, p2: { units: [] } },
     resources: { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } },
     summonDefs: [
-      { name: 'ウルフ', color: '緑', power: 1, life: 1, no: 'C041' },
-      { name: 'シャドウ', color: '青', power: 1, life: 1, no: 'C042' },
+      { name: 'ウルフ', color: '緑', power: 1, life: 1, no: 'C056' },
+      { name: 'シャドウ', color: '青', power: 1, life: 1, no: 'C057' },
     ],
   });
   const lichEvents = [];
@@ -927,8 +927,8 @@ function audit() {
     ] }, p2: { units: [] } },
     resources: { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } },
     summonDefs: [
-      { name: 'ペリカン', color: '緑', power: 1, life: 1, no: 'C041' },
-      { name: 'シャドウ', color: '青', power: 1, life: 1, no: 'C042' },
+      { name: 'ペリカン', color: '緑', power: 1, life: 1, no: 'C056' },
+      { name: 'シャドウ', color: '青', power: 1, life: 1, no: 'C057' },
     ],
   });
   const miteraEvents = [];

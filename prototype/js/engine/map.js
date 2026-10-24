@@ -1750,7 +1750,7 @@ function leaveMapLibrary(){
 function _libraryLoanCards(){
   // 「生贄」は廃止済みのキーワード（CORE_REMOVED_KEYWORDS）で、シートにも行が無いので貸し出さない。
   // 2026-10-12 利用者指定: 結界の貸出をE014多段攻撃へ。改名に左右されないシート番号で引く。
-  const loanCodes=['C050','C099','E013','E032','E014'];
+  const loanCodes=['C065','C124','E013','E032','E014'];
   const source=typeof PANEL_POOL!=='undefined'&&Array.isArray(PANEL_POOL)?PANEL_POOL:[];
   return loanCodes.map(code=>{
     const card=source.find(c=>c&&String(c.no||c.artCode||'').toUpperCase()===code);
@@ -1761,7 +1761,7 @@ function _libraryLoanCards(){
     loan._isOriginalReward=false;
     // チュートリアルで使う2枚は矢印を固定する。生成時に決めておかないと、
     // 該当ステップに到達するまでランダムな向きのまま表示されてしまう。
-    if(code==='C050') loan.directions=['up','left'];
+    if(code==='C065') loan.directions=['up','left'];
     if(code==='E013') loan.directions=['up','left','right'];
     return loan;
   }).filter(Boolean).map((loan,index)=>{

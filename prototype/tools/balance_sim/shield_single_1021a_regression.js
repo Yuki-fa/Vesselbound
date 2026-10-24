@@ -206,7 +206,7 @@ function mana(f, text, amount = 4) {
   });
   check('盾の巻物の永久付与も保存するキーワードを1つにまとめる', () => {
     initState(); G.mainBoard.fill(null);
-    const card = makePanel(PANEL_POOL.find(c => c.no === 'C062').id);
+    const card = makePanel(PANEL_POOL.find(c => c.no === 'C082').id);
     card.keywords = ['先制', '結界3', '結界2']; G.mainBoard[1] = card;
     for (let i = 0; i < 2; i++) {
       G._pendingItemUse = { key: 'shield_scroll', slotIdx: 0 };

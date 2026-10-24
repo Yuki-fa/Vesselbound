@@ -70,7 +70,7 @@ async function testRunLevelDisplay(api){
     for(const level of [2,3]){
       fresh({atk:level,hp:level+1});
       await check(`レベル${level}：報酬・魔導店・行商人・デバッグ・魔導板・詳細のATK/HPは倍率どおり、固定ダメージは据え置き`,()=>{
-        const card=make('C043'),raw=clone(card);
+        const card=make('C058'),raw=clone(card);
         for(const ctx of ['reward','shop','peddler','debug-palette']){
           G._isShop=ctx==='shop'||ctx==='peddler';G._isPeddler=ctx==='peddler';
           const node=ctx==='reward'||G._isShop?_mkRewDiv(card,null,0):mkCardEl(card,-1,ctx),m=metrics(node);
@@ -85,7 +85,7 @@ async function testRunLevelDisplay(api){
       });
       fresh({atk:level,hp:level+1});
       await check(`レベル${level}：戦闘修正・接続強化・詳細・ツールチップの数値とコアが一致`,()=>{
-        const hero=make('C006');hero.desc=make('E061').desc;const enchant=make('E034'),unit=formed(hero,enchant),m=metrics(board());
+        const hero=make('C011');hero.desc=make('E061').desc;const enchant=make('E034'),unit=formed(hero,enchant),m=metrics(board());
         assert.equal(m.atk,hero.power*level+8);assert.equal(m.hp,hero.life*(level+1)-3);
         assert.equal(m.atk,unit.atk);assert.equal(m.hp,unit.maxHp);
         assert.ok(m.desc.includes(hero.desc.split('：')[1]));assert.ok(m.desc.includes('+8/-3'),m.desc);
@@ -93,18 +93,18 @@ async function testRunLevelDisplay(api){
         assert.ok(mkCardEl(enchant,-1,'reward').getAttribute('data-preview').includes(`+8/-3`));
         const e=fight(stateFor([unit])).find(e=>e.type==='stat_change'&&e.reason==='attack_self_buff');
         assert.ok(e);const pair=hero.desc.match(/\+(\d+)\/\+(\d+)/);assert.equal(e.atk,Number(pair[1]));assert.equal(e.hp,Number(pair[2]));
-        const damage=make('E008'),caster=formed(make('C001'),damage);
+        const damage=make('E008'),caster=formed(make('C006'),damage);
         assert.ok(_rawSubstitutedDesc(damage).includes(`${Number(damage.desc.match(/(\d+)ダメージ/)[1])}ダメージ`));
         assert.ok(_unitPreviewText(caster,_rawSubstitutedDesc(caster),0).includes(`${Number(damage.desc.match(/(\d+)ダメージ/)[1])}ダメージ`));
         assert.ok(fight(stateFor([caster])).some(e=>e.type==='damage'&&e.damageKind==='attack_effect'&&e.amount===Number(damage.desc.match(/(\d+)ダメージ/)[1])));
       });
       fresh({atk:level,hp:level+1});
       await check(`レベル${level}：眷属の注釈・固定コピーの説明と召喚結果、コピーの効果は一度だけ`,()=>{
-        const card=make('C045'),unit=formed(card),desc=_rawSubstitutedDesc(card);
+        const card=make('C060'),unit=formed(card),desc=_rawSubstitutedDesc(card);
         const shown=desc.match(/(\d+)\/(\d+)の「緑ペリカン」/);assert.ok(shown,desc);
         const summons=fight(stateFor([unit])).filter(e=>e.type==='summon'&&e.side==='p1');assert.equal(summons.length,2);
         for(const e of summons){assert.equal(e.unit.atk,Number(shown[1]));assert.equal(e.unit.hp,Number(shown[2]));}
-        const copy=make('C087'),caster=formed(copy);
+        const copy=make('C112'),caster=formed(copy);
         assert.match(_rawSubstitutedDesc(copy),/コピーを召喚/);
         const state=stateFor([caster]),events=fight(state),child=events.find(e=>e.type==='summon').unit;
         assert.equal(child.atk,caster.atk);assert.equal(child.hp,caster.hp);assert.equal(child.desc,copy.desc);
@@ -116,7 +116,7 @@ async function testRunLevelDisplay(api){
     fresh({atk:2,hp:5});
     await check('瞳の指輪：接続強化の後に加算し、高レベルでも表示とコアの開戦値が一致',()=>{
       G.rings=[clone(RING_POOL.find(r=>r.name==='虹の瞳の指輪'))];
-      const hero=make('C043'),enchant=make('E034'),unit=formed(hero,enchant);
+      const hero=make('C058'),enchant=make('E034'),unit=formed(hero,enchant);
       assert.equal(unit.atk,hero.power*2+8);assert.equal(unit.maxHp,hero.life*5-3);
       const state=stateFor([unit],{rings:{p1:G.rings,p2:[]}}),target=state.units.p1[0];
       coreApplyOpeningRingsToUnitEarly(state,target,()=>{});
@@ -125,11 +125,11 @@ async function testRunLevelDisplay(api){
     });
     fresh({atk:2,hp:5});
     await check('X・正負・ゼロ・ATK奪取・回数：対象の数値・定義・回数を保持',()=>{
-      const caster=make('C001'),dynamic=make('E042');assert.match(_rawSubstitutedDesc(dynamic),/Xダメージ/);
+      const caster=make('C006'),dynamic=make('E042');assert.match(_rawSubstitutedDesc(dynamic),/Xダメージ/);
       const u=formed(caster,dynamic),ev=fight(stateFor([u],{resources:{p1:{mana:4}}}));
       assert.ok(ev.some(e=>e.type==='damage'&&e.sourceId===u.id&&e.damageKind==='attack_effect'&&e.amount===4));
       assert.match(_rawSubstitutedDesc(make('E036')),/ATK\+X/);
-      const card=make('C006');card.desc='ATK+2 HP-1 +0/-2 ATKを2奪う。4ダメージを2回与える。';
+      const card=make('C011');card.desc='ATK+2 HP-1 +0/-2 ATKを2奪う。4ダメージを2回与える。';
       assert.equal(_rawSubstitutedDesc(card),'ATK+2 HP-1 +0/-2 ATKを2奪う。4ダメージを2回与える。');
     });
     fresh({atk:2,hp:5});
@@ -145,8 +145,8 @@ async function testRunLevelDisplay(api){
       const external={id:'external',name:'外部配置',atk:3,hp:8,maxHp:8,desc:'攻撃：このキャラクターは+2/+1を得る。'};
       const raw=clone(external),state=stateFor([external]);assert.equal(state.units.p1[0].atk,6);assert.equal(state.units.p1[0].maxHp,40);
       assert.match(state.units.p1[0].desc,/\+2\/\+1/);assert.deepEqual(external,raw);
-      const target=state.units.p1[0];coreTransformUnit(state,target,make('C043').name,()=>{});
-      assert.equal(target.atk,make('C043').power*2);assert.match(target.desc,/4ダメージ/);
+      const target=state.units.p1[0];coreTransformUnit(state,target,make('C058').name,()=>{});
+      assert.equal(target.atk,make('C058').power*2);assert.match(target.desc,/4ダメージ/);
       assert.match(_rawSubstitutedDesc(target),/4ダメージ/);
       const stolen=state.units.p2[0];stolen.desc='攻撃：全ての敵に4ダメージを与える。';
       stolen._adjacentPanelEffectTexts=['攻撃：このキャラクターは+2/+1を得る。'];
@@ -155,24 +155,24 @@ async function testRunLevelDisplay(api){
       assert.equal(stolen.atk,atk*2);assert.equal(stolen.maxHp,hp*5);assert.match(stolen.desc,/4ダメージ/);
       assert.match(stolen._adjacentPanelEffectTexts[0],/\+2\/\+1/);assert.equal(stolen._useEnemyVisualFrame,true);
       assert.equal(events.at(-1).unit.atk,stolen.atk);assert.equal(coreApplyUnitRunLevels(stolen,G.runLevels.values),stolen);
-      const child=coreSummonUnit(state,'p1',{name:make('C043').name},()=>{},target.id,false);
-      assert.equal(child.atk,make('C043').power);coreTransformUnit(state,child,make('C006').name,()=>{});
-      assert.equal(child.atk,make('C006').power);assert.equal(child.desc,make('C006').desc);
-      const def=make('C006'),shownCard={...runLevelBattleCard(make('C043')),desc:`開戦：「${def.name}」に変身する。`};
+      const child=coreSummonUnit(state,'p1',{name:make('C058').name},()=>{},target.id,false);
+      assert.equal(child.atk,make('C058').power);coreTransformUnit(state,child,make('C011').name,()=>{});
+      assert.equal(child.atk,make('C011').power);assert.equal(child.desc,make('C011').desc);
+      const def=make('C011'),shownCard={...runLevelBattleCard(make('C058')),desc:`開戦：「${def.name}」に変身する。`};
       assert.ok(_rawSubstitutedDesc(shownCard,child).includes(`${def.power}/${def.life}の「${def.name}」`),'召喚体の変身先注釈へ本体レベルを掛けない');
     });
     fresh({atk:2,hp:5});
     await check('沈黙中の眷属：薄いコアstateの作り直し・変身でも本体レベルを掛けない',()=>{
-      const state=stateFor([formed(make('C001'))]),child=coreSummonUnit(state,'p1',{name:make('C043').name},()=>{},null,false);
+      const state=stateFor([formed(make('C006'))]),child=coreSummonUnit(state,'p1',{name:make('C058').name},()=>{},null,false);
       coreSilenceUnit(child);const atk=child.atk,hp=child.maxHp;
       assert.equal(coreApplyUnitRunLevels(child,G.runLevels.values),child);
       coreInitializeBattleState(state);assert.equal(child.atk,atk);assert.equal(child.maxHp,hp);
-      coreTransformUnit(state,child,make('C006').name,()=>{});
-      assert.equal(child.atk,make('C006').power);assert.equal(child.maxHp,make('C006').life);
+      coreTransformUnit(state,child,make('C011').name,()=>{});
+      assert.equal(child.atk,make('C011').power);assert.equal(child.maxHp,make('C011').life);
     });
     fresh({atk:2,hp:5});
     await check('旧直接召喚と地形NPC：所持・未所持とも眷属は倍率なし、初期配置NPCは本体だけに適用',async()=>{
-      const hero=make('C043'),enchant=make('E034');hero.directions=['left'];enchant.directions=['right'];
+      const hero=make('C058'),enchant=make('E034');hero.directions=['left'];enchant.directions=['right'];
       G.mainBoard[1]=hero;G.mainBoard[0]=enchant;G.allies=[];
       const after=_afterPanelSummon;_afterPanelSummon=async()=>{};
       try{
@@ -189,7 +189,7 @@ async function testRunLevelDisplay(api){
     });
     fresh({atk:2,hp:5});
     await check('復活・呼び戻し：適用済みは能力・効果を保ち、敵の素の体にも新たに掛けない',()=>{
-      const u=formed(make('C043')),state=stateFor([u]);
+      const u=formed(make('C058')),state=stateFor([u]);
       const spec={...coreUnitSnapshot(state.units.p1[0]),_revivedFromDead:true,hp:2,maxHp:2,atk:4};
       const revived=coreSummonUnit(state,'p1',spec,()=>{},u.id,false);
       assert.equal(revived.atk,4);assert.equal(revived.maxHp,2);assert.match(revived.desc,/4ダメージ/);
@@ -201,7 +201,7 @@ async function testRunLevelDisplay(api){
       const ring=RING_POOL.find(c=>c.name==='不死の指輪'),pain=RING_POOL.find(c=>c.name==='苦行の指輪');
       assert.equal(runLevelDisplayCard(pain),pain);assert.match(_rawSubstitutedDesc(pain),/1ダメージ/);
       const note=_rawSubstitutedDesc(ring).match(/(\d+)\/(\d+)の「青スケルトン」/);assert.ok(note);
-      const state=stateFor([formed(make('C001'))]),child=coreSummonUnit(state,'p1',{name:'青スケルトン',color:'青'},()=>{},'undying-ring');
+      const state=stateFor([formed(make('C006'))]),child=coreSummonUnit(state,'p1',{name:'青スケルトン',color:'青'},()=>{},'undying-ring');
       assert.equal(child.atk,Number(note[1]));assert.equal(child.hp,Number(note[2]));
       state.items={p1:[{id:'illusion',itemEffectKey:'illusion_scroll'}],p2:[]};
       const events=[];coreApplyOpeningItems(state,createSeededRng(1),e=>events.push(e),()=>{});
@@ -227,19 +227,19 @@ async function testRunLevelDisplay(api){
       }
       const oldBattle=execFileSync('git',['show','647d175:prototype/js/engine/battle.js'],{encoding:'utf8'});
       const oldSpec=baselineFunction(oldBattle,'_panelSummonSpec'),oldUnit=baselineFunction(oldBattle,'_makePanelSummonUnit');
-      const blessed=make('C043');coreApplyCardBoon(blessed,{statMul:3,dmgMul:3,famMul:3,modDelta:1});
+      const blessed=make('C058');coreApplyCardBoon(blessed,{statMul:3,dmgMul:3,famMul:3,modDelta:1});
       assert.deepEqual(_panelSummonSpec(blessed),oldSpec(blessed));
       const a=_makePanelSummonUnit(_panelSummonSpec(blessed),[]),b=oldUnit(oldSpec(blessed),[]);a.id=b.id;assert.deepEqual(a,b);
     });
     fresh({atk:3,hp:5});
     await check('敵とオンライン：高レベルでも本文・ATK/HP・詳細・送信形は従来のまま',()=>{
-      const card=make('C043'),enemy={...card,_sheetEnemy:true,side:'p2'};
+      const card=make('C058'),enemy={...card,_sheetEnemy:true,side:'p2'};
       assert.equal(runLevelDisplayCard(enemy),enemy);assert.match(_rawSubstitutedDesc(enemy),/4ダメージ/);
       assert.equal(metrics(mkCardEl(enemy,0,'enemy')).atk,card.power);
       assert.match(_collectionDescriptionHtml(enemy,'enemy'),/4ダメージ/);
       const enchant=make('E008'),enemyOwner={side:'p2',boardCards:[enemy,enchant]};
       assert.equal(_enchantEffectTextForPanel(enchant,enemyOwner),enchant.desc);
-      const summonEnchant={...make('E028'),desc:make('C045').desc};
+      const summonEnchant={...make('E028'),desc:make('C060').desc};
       const enemySummonText=_enchantEffectTextForPanel(summonEnchant,enemyOwner);
       G._onlineMode=true;assert.equal(_enchantEffectTextForPanel(summonEnchant,enemyOwner),enemySummonText);
       assert.equal(runLevelDisplayCard(card),card);
@@ -248,7 +248,7 @@ async function testRunLevelDisplay(api){
     });
     fresh({atk:2,hp:5});
     await check('レベル報酬：表示中のカード・魔導板・詳細を新しいATK/HPで描き直し、再抽選なし',()=>{
-      const card=make('C043');G.mainBoard[1]=card;const render={rew:renderRewCards,hand:renderHandEditor,all:renderAll};let shown;
+      const card=make('C058');G.mainBoard[1]=card;const render={rew:renderRewCards,hand:renderHandEditor,all:renderAll};let shown;
       renderRewCards=()=>{shown=metrics(mkCardEl(card,0,'reward'));};
       renderHandEditor=()=>{board();detail(card);};
       renderAll=()=>renderHandEditor();
@@ -274,7 +274,7 @@ async function testRunLevelDisplay(api){
     });
     fresh({atk:3,hp:5});
     await check('保存→ロードと終了画面：魔導板・報酬・商品は素のまま、描き直しでも二重に掛けない',()=>{
-      const card=make('C043');G.mainBoard[1]=card;_rewCards=[make('E008')];
+      const card=make('C058');G.mainBoard[1]=card;_rewCards=[make('E008')];
       const stock=clone(_ensureWaveShopStock());
       for(const c of stock.filter(Boolean)){assert.equal(c._runLevelsApplied,undefined);mkCardEl(c,0,'shop');}
       const raw=clone(G.mainBoard),offers=clone(_rewCards);const before=metrics(board());detail(card);

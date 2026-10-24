@@ -43,7 +43,7 @@ function boot(){
   const stage=doc.createElement('div');stage.id='stage';stage.getBoundingClientRect=()=>rect(28,95,1536,864);doc.body.appendChild(stage);
   const ids=['source','target','target2','target3'];
   ids.forEach((id,i)=>{const card=doc.createElement('div');card.id=id;card.className='lab-card';
-    card.dataset.side=i?'enemy':'ally';card.dataset.no=i?'C018':'C041';
+    card.dataset.side=i?'enemy':'ally';card.dataset.no=i?'C023':'C056';
     const r=i?rect(525+i*120,242,108.33331298828125,164.58331298828125):rect(745.8333129882812,520.25,108.33331298828125,164.58331298828125);
     card.getBoundingClientRect=()=>r;card.appendChild(doc.createElement('span'));stage.appendChild(card);
   });
@@ -78,11 +78,11 @@ async function historicalRoutes(payload){
     }else if(route.kind==='sustain'||route.kind==='keyword-sustain'){
       const host=doc.querySelector('.effect-sustain-host'),r=route.kind==='sustain'?source:target;
       near(parseFloat(host.style.left),r.left,'継続VFXは発生カードへ配置');
-      if(route.kind==='sustain')assert.equal(host.children[0].style.width,'100%','C008は460%へ戻さない');
+      if(route.kind==='sustain')assert.equal(host.children[0].style.width,'100%','C013は460%へ戻さない');
       else assert.equal(host.children[0].style.transition,'opacity 120ms ease-out','毒牙の旧導入');
     }else if(route.kind==='projectile'){
       const img=doc.querySelector('.effect-sustain-host img');
-      assert.ok(img.style.transform.includes('scale('+(entry.asset==='C019_1'?.0625:.125)+')'),'飛翔体の旧倍率');
+      assert.ok(img.style.transform.includes('scale('+(entry.asset==='C024_1'?.0625:.125)+')'),'飛翔体の旧倍率');
     }else if(route.kind==='sweep'){
       const clip=doc.querySelector('.sweep-vfx-clip'),host=doc.querySelector('.sweep-vfx-host');
       near(parseFloat(host.style.left)+parseFloat(clip.style.left),source.left+source.width*.25,'炎の原点x');

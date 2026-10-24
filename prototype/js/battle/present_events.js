@@ -49,7 +49,7 @@ let _presentStatChangesShown = new WeakSet();
 let _presentLabOrigins = {death:new Map(),shield:new Map()};
 let _presentDeathOrigins = new WeakMap();
 function presentLabEventHandled(ev) { const plan=ev&&_presentLabClaims.get(ev); return !!(plan&&!plan.hitReactions?.has(ev)); }
-function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C078'); }
+function presentLabOwnsAttackMotion(ev) { return !!(ev && ev.controlled && _presentLabClaims.get(ev)?.code==='C098'); }
 function presentResetLabEvents() { _presentLabLists = new WeakMap(); _presentLabClaims = new WeakMap(); _presentLabContacts=new WeakMap(); _presentContactHits = new WeakSet(); _presentDamageImpacts = new WeakSet(); _presentStatChangesShown = new WeakSet(); _presentLabOrigins={death:new Map(),shield:new Map()}; _presentDeathOrigins=new WeakMap(); presentResetSummonPreview(); }
 // 死亡位置は生きていたDOMを消す前に、イベントごとに固定する。
 // 束の後半が既に盤面から消えていても、以前倒れた別の体の位置へ戻さない。
@@ -94,37 +94,37 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   const own=data?data.ownCard(owner):owner;
   // エンチャントが持つ効果は、そのエンチャントの本文で発動の種類を確かめる（2026-10-22 シート改訂で多くの効果がエンチャントへ移った）。
   const textCard=source&&source.kind==='enchant'?source.card:own;
-  const trigger={C004:'mana',E083:'injury',E043:'death',C060:'release',E031:'attack',C071:'opening',C099:'release',C029:'death',C034:'injury',C082:'release',C083:'injury',C095:'opening',C097:'release',C009:'injury',E056:'death',C056:'mana',C066:'mana',C079:'mana',E024:'passive'}[code];
+  const trigger={C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
   if(!presentActionBannerEffectText(textCard,trigger))return null;
   const members=[ev];
   for(let i=index+1;i<events.length;i++){
     const next=events[i];if(!next||['effect_flash','mana_threshold','turn_begin','battle_end','attack'].includes(next.type))break;
-    if(code==='C082')break; // 1発＝コアのdamage1件（フィーンドの演出。2026-10-22 シート改訂で C099 から C082 へ）。対象・弾数をまとめ直さない。
+    if(code==='C107')break; // 1発＝コアのdamage1件（フィーンドの演出。2026-10-22 シート改訂で C099 から C082 へ）。対象・弾数をまとめ直さない。
     if(ev.type==='mana_threshold'){
       if(next.sourceId!=null&&next.sourceId!==sourceId)break;
       if(['mana_gain','keyword_effect'].includes(next.type))members.push(next);
       else if(!['log'].includes(next.type))break;
-    }else if(code==='C029'||code==='C034'){
+    }else if(code==='C039'||code==='C044'){
       if(next.type==='stat_change'&&next.reason==='summon_buff'&&next.sourceId===sourceId)members.push(next);else break;
-    }else if(['C099','C083','C095'].includes(code)&&presentLab1012EventMatches(code,next)&&next.sourceId===sourceId)members.push(next);
+    }else if(['C124','C108','C120'].includes(code)&&presentLab1012EventMatches(code,next)&&next.sourceId===sourceId)members.push(next);
     else break;
   }
   let targets=members.filter(e=>e.type==='stat_change'||e.type==='keyword_effect'||e.type==='damage').map(e=>find(e.unitId)).filter(Boolean);
   let value=1,contactEvent=null,sourceRect=null,colors=null;
-  if(['C004','E083','E043','C060','E031','C097','E056'].includes(code))targets=[owner];
-  if(code==='C004'&&!members.some(e=>e.type==='mana_gain'&&Number(e.amount)>0))return null;
-  if(['C056','C066','C079'].includes(code)&&!targets.length)return null;
-  if(code==='C071'){
+  if(['C009','E083','E043','C075','E031','C122','E056'].includes(code))targets=[owner];
+  if(code==='C009'&&!members.some(e=>e.type==='mana_gain'&&Number(e.amount)>0))return null;
+  if(['C071','C086','C099'].includes(code)&&!targets.length)return null;
+  if(code==='C091'){
     colors=ev.colorSources||[];targets=colors.map(c=>find(c.unitId)).filter(Boolean);value=colors.length;
     if(!value)return null;
   }
-  if(code==='C099'){
+  if(code==='C124'){
     if(!targets.length)return null;const first=targets[0].id;
     value=members.filter(e=>e.unitId===first).length;targets=[...new Set(targets)];
   }
-  if(code==='C095'){value=targets.length;if(!value)return null;}
-  else if(code!=='C099')targets=[...new Set(targets)];
-  if(code==='C034')value=2;
+  if(code==='C120'){value=targets.length;if(!value)return null;}
+  else if(code!=='C124')targets=[...new Set(targets)];
+  if(code==='C044')value=2;
   if(code==='E043'||code==='E056')sourceRect=battleFxRect(owner,owner.side==='p2'?'enemy':'ally');
   if(code==='E056'||code==='E024')value=Number(ev.gained);
   if(code==='E024'){
@@ -137,7 +137,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
       if(next.type==='attack'&&next.attackerId===owner.id&&next.attackVisual!==false){contactEvent=next;break;}
     }
   }
-  if(code==='C009'){
+  if(code==='C014'){
     // 負傷の発光の直後に続く本人の割り込み攻撃だけを見る（次の発光・手番の区切りで止める）。
     // 列の最後まで探すと、別の負傷（戦闘ダメージで割り込まない時）に後の割り込み攻撃を拾い、
     // イベント列を全部持つオンラインだけ演出が出ていた（2026-10-23 present_parity で検出）。
@@ -178,17 +178,17 @@ function _presentLabFieldOrigin(side) {
   return { rect: { ...r, left, top, x: left, y: top, width: w, height: h, right: left + w, bottom: top + h, element: null } };
 }
 // 召喚の前に溜めを見せる演出。合図（impact）まで待ってから、既存の登場演出でカードを出す。
-const PRESENT_LAB_BEFORE_SUMMON = new Set(['C031','R017','R020','map:duplicate']);
+const PRESENT_LAB_BEFORE_SUMMON = new Set(['C041','R017','R020','map:duplicate']);
 function _presentLabPlan(ev, events, index, api, context) {
   let source = _presentLabSource(ev);
   // マナ効果を直接発動するペガサスは、結果が別カードのmana_thresholdになる。
   if(!source&&ev.type==='effect_flash'&&typeof actionBannerPresentationApi==='function') {
     const data=actionBannerPresentationApi(), unit=data.unit(ev.unitId);
-    if(unit&&['C025','C076'].includes(unit.no||unit.artCode)&&
+    if(unit&&['C035','C096'].includes(unit.no||unit.artCode)&&
       /効果を(?:\d+回)?発動する/.test(presentActionBannerEffectText(data.ownCard(unit),ev.trigger)))
       source={card:unit,side:unit.side,kind:'character'};
     // 新本文には結界獲得が無いので、続く割り込み攻撃を持つ負傷の発光から怒りの演出を始める。
-    if(unit&&(unit.no||unit.artCode)==='C009'&&ev.trigger==='injury')
+    if(unit&&(unit.no||unit.artCode)==='C014'&&ev.trigger==='injury')
       source={card:unit,side:unit.side,kind:'character'};
   }
   let code = ev.type === 'mana_threshold' ? String(ev.effectNo || '')
@@ -213,7 +213,7 @@ function _presentLabPlan(ev, events, index, api, context) {
   if(PRESENT_LAB_1012_CODES.has(code))return _presentLab1012Plan(code,ev,events,index,api,source);
   const spec = typeof presentLabFx === 'function' ? presentLabFx(code) : null;
   if (!spec || ['S001',getKeywordAssetKey('復活'),getKeywordAssetKey('全体攻撃')].includes(code)) return null;
-  if (ev.type === 'effect_flash' && !['C025','C076'].includes(code)) return null;
+  if (ev.type === 'effect_flash' && !['C035','C096'].includes(code)) return null;
   if (ev.type === 'attack' && !ev.controlled) return null;
   if (ev.type === 'damage' && ev.damageKind === 'combat' && code !== 'E062') return null;
   if (ev.type === 'revive' || ev.type === 'shield_lost' || ev.type === 'shield_set') return null;
@@ -323,23 +323,23 @@ function _presentLabStart(plan, options) {
   plan.eventImpact=new WeakMap();
   plan.targets.forEach((u,i)=>{
     const promise=new Promise(resolve=>resolvers[i]=resolve);plan.impact.set(String(u.id),promise);
-    if(plan.code==='C095'&&statEvents[i])plan.eventImpact.set(statEvents[i],promise);
+    if(plan.code==='C120'&&statEvents[i])plan.eventImpact.set(statEvents[i],promise);
   });
   const pulseResolvers=[];
-  const cueTimes=plan.code==='C099'?battleFxPulseTimes(plan.spec[0],plan.value):null;
+  const cueTimes=plan.code==='C124'?battleFxPulseTimes(plan.spec[0],plan.value):null;
   if(cueTimes)statEvents.forEach((ev,i)=>plan.eventImpact.set(ev,new Promise(resolve=>{
     const wave=Math.floor(i/plan.targets.length);(pulseResolvers[wave]||(pulseResolvers[wave]=[])).push(resolve);
   })));
   plan.done = playBattleLabFx(plan.code,plan.owner,plan.targets,{side:plan.side,sourceRect:plan.sourceRect,
     durationMs:plan.repeat
-      ? presentEffectRunDuration(true)/((plan.code==='C009'?PRESENT_LAB_REACTION_AURA_END:1)*(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1))
-      : plan.code==='C009'?PRESENT_LAB_REACTION_FLASH_MS/PRESENT_LAB_REACTION_AURA_END/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
+      ? presentEffectRunDuration(true)/((plan.code==='C014'?PRESENT_LAB_REACTION_AURA_END:1)*(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1))
+      : plan.code==='C014'?PRESENT_LAB_REACTION_FLASH_MS/PRESENT_LAB_REACTION_AURA_END/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
     value:plan.value,colors:plan.colors,silent:!!(options && options.silent),
-    impactTimes:plan.code==='C095'?plan.targets.map((_,i)=>.43+.49*i/Math.max(1,plan.targets.length-1)):null,
+    impactTimes:plan.code==='C120'?plan.targets.map((_,i)=>.43+.49*i/Math.max(1,plan.targets.length-1)):null,
     cueTimes,onCue:i=>(pulseResolvers[i]||[]).forEach(resolve=>resolve()),
     onImpact:i=>{ if(resolvers[i])resolvers[i](); }});
   // ミノタウロスの激怒は定義の前半（オーラ）だけを見せ、オーラが消えた時点で次へ進む（後半は value=1 では何も描かない）。
-  if(plan.code==='C009'){const shown=plan.done;
+  if(plan.code==='C014'){const shown=plan.done;
     plan.done=Promise.race([shown,new Promise(resolve=>battlePresentationSetTimeout(resolve,presentEffectRunDuration(plan.repeat,PRESENT_LAB_REACTION_FLASH_MS)))]).then(()=>{VbFx.stop({name:plan.spec[0]});return true;});}
   plan.done.finally(()=>{resolvers.forEach(resolve=>resolve());pulseResolvers.flat().forEach(resolve=>resolve());});
 }
@@ -366,9 +366,9 @@ async function _presentLabFinish(plan) {
 }
 // ダメージ等を「VFXが当たった瞬間」まで待たせる演出（ワーム・援護射撃の弾・隕石の巻物）。
 // 隕石の巻物は、隕石が墜落した直後にダメージを出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。
-// アラクネ（C008）は熱波が届いた瞬間に強化とダメージを同時に出す（2026-10-15）。
+// アラクネ（C013）は熱波が届いた瞬間に強化とダメージを同時に出す（2026-10-15）。
 // 竜の契約（E008）・逆上（E032）・嵐の指輪（R023）・苦行の指輪（R012）・受難の刻印（E077）も着弾の瞬間に数値を出す（2026-10-17）。
-const PRESENT_LAB_WAIT_IMPACT = new Set(['C054','E067','I006','C099','C056','C066','C079','C095','C082','C008','E008','E032','R023','R012','E077']);
+const PRESENT_LAB_WAIT_IMPACT = new Set(['C069','E067','I006','C124','C071','C086','C099','C120','C107','C013','E008','E032','R023','R012','E077']);
 async function presentLabBeginEvent(ev, events, index, api) {
   // 決着後のイベントへ来たら、以後の演出を速くする（present.js presentDecidedSpeedScale）。
   if (typeof presentNoteDecidedEvent === 'function') presentNoteDecidedEvent(ev);
@@ -396,7 +396,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
       const nextSource=_presentLabSource(next);
       const viaEnchant=nextSource&&nextSource.kind==='enchant';
       const code=viaEnchant?String(nextSource.card.no||nextSource.card.artCode||''):owner&&(owner.no||owner.artCode);
-      if(!['E043','C029','E056','E024'].includes(code)||_presentLabClaims.has(next)||!presentLab1012EventMatches(code,next))continue;
+      if(!['E043','C039','E056','E024'].includes(code)||_presentLabClaims.has(next)||!presentLab1012EventMatches(code,next))continue;
       if(code==='E024'?next.victimId!==ev.unitId:ownerId!==ev.unitId)continue;
       const plan=_presentLab1012Plan(code,next,events,i,api,viaEnchant?nextSource:{card:owner});
       if(plan){context.active=plan;_presentLabStart(plan);await plan.done;
@@ -414,20 +414,20 @@ async function presentLabBeginEvent(ev, events, index, api) {
       (e.retriggerKey===ev.retriggerKey||e.sourceId===ev.retriggerTargetId&&e.type==='damage'));
     const owner=api.findUnit('p1',ev.retriggerSourceId)||api.findUnit('p2',ev.retriggerSourceId);
     const target=api.findUnit('p1',ev.retriggerTargetId)||api.findUnit('p2',ev.retriggerTargetId);
-    if(result&&owner&&target&&(owner.no||owner.artCode)==='C094'){
-      context.retriggers.add(ev.retriggerKey);await playBattleLabFx('C094',owner,[target],{side:owner.side==='p2'?'enemy':'ally'});
+    if(result&&owner&&target&&(owner.no||owner.artCode)==='C119'){
+      context.retriggers.add(ev.retriggerKey);await playBattleLabFx('C119',owner,[target],{side:owner.side==='p2'?'enemy':'ally'});
     }
   }
   if (claimed) {
     if(PRESENT_LAB_1012_CODES.has(claimed.code)&&!claimed.contactEvent&&!context.active&&ev.type!=='attack')context.active=claimed;
     if(ev.type==='mana_gain'&&PRESENT_LAB_1012_CODES.has(claimed.code)&&!claimed.contactEvent)await claimed.done;
-    if(claimed.code==='C009'&&ev.type==='attack'){
+    if(claimed.code==='C014'&&ev.type==='attack'){
       await _presentLabFinish(claimed);
-      await playBattleLabFx('C009',claimed.owner,claimed.targets,{side:claimed.side,value:2,silent:true,
+      await playBattleLabFx('C014',claimed.owner,claimed.targets,{side:claimed.side,value:2,silent:true,
         durationMs:presentEffectRunDuration(claimed.repeat,PRESENT_LAB_REACTION_AIM_MS)/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1)});context.active=null;
       return;
     }
-    if(claimed.code==='C041'&&ev.type==='summon'){ await _presentLabFinish(claimed); context.active=null; }
+    if(claimed.code==='C056'&&ev.type==='summon'){ await _presentLabFinish(claimed); context.active=null; }
     if (PRESENT_LAB_WAIT_IMPACT.has(claimed.code) || claimed.spec[2]==='morph') {
       const wait = claimed.eventImpact&&claimed.eventImpact.get(ev)||claimed.impact.get(String(ev.unitId)); if (wait) await wait;
     }
@@ -443,7 +443,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
   if (ev.type !== 'mana_threshold') _presentLabStart(plan);
   if(PRESENT_LAB_1012_CODES.has(plan.code)&&['mana_gain','mana_set'].includes(ev.type))await plan.done;
   // ピクシーの捕縛・移動はLAB自身が描く。従来の攻撃クローンを重ねず、接触で既存処理へ渡す。
-  if(plan.code==='C078'&&ev.type==='attack') {
+  if(plan.code==='C098'&&ev.type==='attack') {
     const wait=plan.impact.get(String(ev.targetId));if(wait)await wait;
   }
   if (ev.type==='summon' && PRESENT_LAB_BEFORE_SUMMON.has(plan.code) && typeof VbFx!=='undefined' && VbFx.impactMs) {
@@ -451,8 +451,8 @@ async function presentLabBeginEvent(ev, events, index, api) {
     const ms = Math.max(0, Number(VbFx.impactMs(plan.spec[0], speed)) || 0);
     if (ms > 0) await new Promise(resolve => (typeof battlePresentationSetTimeout==='function' ? battlePresentationSetTimeout : setTimeout)(resolve, ms));
   }
-  // ミノタウロス（C009）は発光で始めて、続く割り込み攻撃（claimed の attack）で締める。ここで最後まで待たない。
-  if (plan.code==='C041'&&ev.type!=='mana_threshold' || ev.type==='effect_flash'&&plan.code!=='C009') {
+  // ミノタウロス（C014）は発光で始めて、続く割り込み攻撃（claimed の attack）で締める。ここで最後まで待たない。
+  if (plan.code==='C056'&&ev.type!=='mana_threshold' || ev.type==='effect_flash'&&plan.code!=='C014') {
     await _presentLabFinish(plan); context.active = null;
   } else if (PRESENT_LAB_WAIT_IMPACT.has(plan.code) || plan.spec[2]==='morph') {
     const wait = plan.eventImpact&&plan.eventImpact.get(ev)||plan.impact.get(String(ev.unitId)); if (wait) await wait;
@@ -492,7 +492,7 @@ async function presentLabEndEvent(ev, events, index, api) {
     // 演出を省く時も、結界・毒・弱体などの最終状態表示は進める。
     if(silent)return;
     const gains = [];
-    if(plan&&plan.code==='C056'&&ev.type==='keyword_effect'&&ev.effect==='poison'){
+    if(plan&&plan.code==='C071'&&ev.type==='keyword_effect'&&ev.effect==='poison'){
       (plan.keywordGains||(plan.keywordGains=[])).push({ev,api});
     }
     if (ev.type==='keyword_effect' && ev.effect==='weaken' && (!plan||plan.code!==getKeywordAssetKey('弱体'))) gains.push(getKeywordAssetKey('弱体'));
@@ -511,7 +511,7 @@ async function presentLabEndEvent(ev, events, index, api) {
       }
     }
   }
-  if(!silent&&ev.type==='mana_set'&&plan&&plan.code==='C060'&&plan.owner&&Number(ev.gained)>0&&typeof playManaGainVfx==='function'){
+  if(!silent&&ev.type==='mana_set'&&plan&&plan.code==='C075'&&plan.owner&&Number(ev.gained)>0&&typeof playManaGainVfx==='function'){
     _presentLabManaAfter(plan,plan.owner,plan.side);
   }
   if (index === events.length-1 && context.active) { await _presentLabFinish(context.active); context.active = null; }
@@ -825,7 +825,7 @@ function _presentStatChangeEvent(ev, api) {
     const code = typeof presentStatChangeVfxCode === 'function'
       ? presentStatChangeVfxCode(ev, ownCode, { codes, enchantCode, ownEffectText, ownHasArt, fromEnchant: !!enchantName,
         enchantText: enchantName && typeof PANEL_POOL !== 'undefined' ? String((PANEL_POOL.find(p => p && String(p.name || '').trim() === enchantName) || {}).desc || '') : '' }) : ownCode;
-    if (/^[A-Z]\d{3}$/i.test(code)) {
+    if (/^[A-Z]{1,2}\d{3}$/i.test(code)) {
       const run=presentStatChangeRun(ev,api.events,api.eventIndex);
       const cueKey = run.key;
       const duration=presentEffectRunDuration(run.repeat,typeof PRESENT_CARD_EFFECT_VFX_MS==='number'?PRESENT_CARD_EFFECT_VFX_MS:700);

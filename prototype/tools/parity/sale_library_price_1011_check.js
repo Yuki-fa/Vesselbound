@@ -6,7 +6,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
 (async()=>{
   const b=await launch({width:1920,height:1080});
   try {
-    const open=async()=>{await b.goto(URL);await b.waitFor('typeof PANEL_POOL!=="undefined"&&PANEL_POOL.some(c=>c.no==="C062")&&typeof SaveProfile!=="undefined"',20000);};
+    const open=async()=>{await b.goto(URL);await b.waitFor('typeof PANEL_POOL!=="undefined"&&PANEL_POOL.some(c=>c.no==="C082")&&typeof SaveProfile!=="undefined"',20000);};
     await open();
     const sale=await b.eval(`
       const visible=el=>{if(!el)return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.right>0&&r.bottom>0&&r.left<innerWidth&&r.top<innerHeight
@@ -20,7 +20,7 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
         document.querySelectorAll('.screen').forEach(el=>el.classList.remove('active'));
         const screen=document.getElementById('scr-battle');screen.classList.add('active');screen.style.setProperty('display','block','important');
         document.body.className='reward-screen-active '+classes;
-        const item=clone(ITEM_POOL[0]),card=makePanel(PANEL_POOL.find(c=>c.no==='C062').id);
+        const item=clone(ITEM_POOL[0]),card=makePanel(PANEL_POOL.find(c=>c.no==='C082').id);
         G.spellSlots=[item,null,null,null];G.mainBoard[1]=card;renderHandEditor();_syncRewardProductionUi();
         await new Promise(r=>requestAnimationFrame(r));
         const itemBtn=document.querySelector('.reward-prod-item .item-shop-sell-action');
@@ -77,13 +77,13 @@ const URL=process.env.VB_URL||'http://127.0.0.1:5500/index.html';
     await b.waitFor('G._libraryTutorialActive&&G._libraryTutorialStep===0',10000);
     await b.eval(`document.querySelector('.library-tutorial-box').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));`);
     const loans=await b.eval(`const box=document.querySelector('.library-tutorial-box'),s=getComputedStyle(box),r=box.getBoundingClientRect();return {
-      cards:_rewCards.filter(Boolean).map(c=>c.no),name:PANEL_POOL.find(c=>c.no==='C062').name,move:G._libraryTutorialMove?.name,text:box.textContent,
+      cards:_rewCards.filter(Boolean).map(c=>c.no),name:PANEL_POOL.find(c=>c.no==='C082').name,move:G._libraryTutorialMove?.name,text:box.textContent,
       visible:s.display!=='none'&&s.visibility!=='hidden'&&Number(s.opacity)>0&&s.color!=='rgba(0, 0, 0, 0)'&&r.width>0&&r.height>0};`);
-    assert.deepEqual(loans.cards,Array(5).fill('C062'));assert.equal(loans.move,loans.name);assert.ok(loans.text.includes(loans.name)&&loans.visible,'C062の貸出名・説明文が実際に見える');
+    assert.deepEqual(loans.cards,Array(5).fill('C082'));assert.equal(loans.move,loans.name);assert.ok(loans.text.includes(loans.name)&&loans.visible,'C082の貸出名・説明文が実際に見える');
     await open();await b.eval(`SaveStorage.remove('profile');SaveProfile.resetCache();initState();G._debugMode=true;G.gold=10000;openMapLibraryMenu();`);
     await completeBoard();
     assert.equal(await b.eval(`return SaveProfile.tutorialShown(LIBRARY_BOARD_TUTORIAL_KEY);`),false,'デバッグはプロフィールに完走を書かない');
-    console.log('OK 2: 実際の完走・途中離脱・再読込・デバッグとC062×5の説明');
+    console.log('OK 2: 実際の完走・途中離脱・再読込・デバッグとC082×5の説明');
 
     await open();
     const prices=await b.eval(`

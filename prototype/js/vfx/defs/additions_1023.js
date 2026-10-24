@@ -1,5 +1,5 @@
 /* 2026-10-23 VFX の全検査で新しく作った演出（Claude 直接。利用者の確認待ち＝LAB で☆）。
- * 残響の魔導師（EN013）・凍てつく亡霊（EN031）・起動の変身（C064／変身の巻物 I002）・インキュバスの起動（C084）・ヘルナイトの起動（C091）。
+ * 残響の魔導師（EN013）・凍てつく亡霊（EN031）・起動の変身（C084／変身の巻物 I002）・インキュバスの起動（C109）・ヘルナイトの起動（C116）。
  * 土台：フロスト・スプライト／サイレンの波／常時の強化（いずれも FIX 済み）の層の組み方。生成元：scratchpad の gen_vfx_1023.py。 */
 VbFxDefs.register({
   "schemaVersion": 2,
@@ -1543,8 +1543,8 @@ VbFxDefs.register({
     },
     {
       "name": "activation-transform",
-      "label": "起動：変身 · C064/I002",
-      "sourceCode": "C064",
+      "label": "起動：変身 · C084/I002",
+      "sourceCode": "C084",
       "ms": 1100,
       "color": "#7ff0c4",
       "light": "#effff8",
@@ -2050,8 +2050,8 @@ VbFxDefs.register({
     },
     {
       "name": "activation-empower",
-      "label": "起動：強化と色の変化 · C084",
-      "sourceCode": "C084",
+      "label": "起動：強化と色の変化 · C109",
+      "sourceCode": "C109",
       "ms": 1150,
       "color": "#ff8ac8",
       "light": "#fff0f8",
@@ -3002,8 +3002,8 @@ VbFxDefs.register({
     },
     {
       "name": "activation-devour",
-      "label": "起動：破壊して取り込む · C091",
-      "sourceCode": "C091",
+      "label": "起動：破壊して取り込む · C116",
+      "sourceCode": "C116",
       "ms": 1200,
       "color": "#d0304a",
       "light": "#ffd6dc",

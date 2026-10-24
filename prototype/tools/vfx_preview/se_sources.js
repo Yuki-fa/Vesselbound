@@ -95,37 +95,37 @@ var VbFxSeSources = {
   "note": "レア度5",
   "basis": "アセットリスト"
  },
- "C002.wav": {
+ "C007.wav": {
   "source": "SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Deflect Spell-01.wav",
   "effect": "attack-recoil",
   "basis": "ADOPTED.md"
  },
- "C008.wav": {
+ "C013.wav": {
   "source": "Explosion Fireball Blast Fire 01.wav",
   "path": "Adobe/火・炎・爆発/Explosion Fireball Blast Fire 01.wav",
   "effect": "arachne-ring",
   "basis": "ADOPTED.md"
  },
- "C011.wav": {
+ "C016.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Freeze Cast Medium-02.wav",
   "effect": "siren-wave",
   "basis": "ADOPTED.md"
  },
- "C017.wav": {
+ "C022.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-01.wav",
   "effect": "medusa-gaze",
   "basis": "ADOPTED.md"
  },
- "C043.wav": {
+ "C058.wav": {
   "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-01.wav",
   "effect": "flame-sweep",
   "basis": "ADOPTED.md"
  },
- "C090.wav": {
+ "C115.wav": {
   "source": "Production Element Title Transition Bell Warble 04.wav",
   "path": "Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Warble 04.wav",
   "effect": "steal-mark",
@@ -447,7 +447,7 @@ var VbFxSeSources = {
   "effect": "dark-fire",
   "basis": "ADOPTED.md"
  },
- "C024.wav": {
+ "C034.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WATER Deflect Spell-04.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-04.wav",
   "effect": "banshee",
@@ -477,115 +477,115 @@ var VbFxSeSources = {
   "effect": "demon-soul",
   "basis": "ADOPTED.md"
  },
- "C032.wav": {
+ "C042.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Summon Medium 02-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Medium 02-01.wav",
   "effect": "vrykolakas",
   "basis": "ADOPTED.md"
  },
- "C037.wav": {
+ "C047.wav": {
   "source": "Production Element Title Transition Ghostly 05.wav",
   "path": "Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ghostly 05.wav",
   "effect": "dullahan",
   "basis": "ADOPTED.md"
  },
- "C038.wav": {
+ "C048.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Summon Large 03-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Large 03-01.wav",
   "effect": "bone-chariot",
   "basis": "ADOPTED.md"
  },
- "C046.wav": {
+ "C061.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-03.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Whoosh Mystical 01-03.wav",
   "effect": "jackalope",
   "basis": "ADOPTED.md"
  },
- "C049.wav": {
+ "C064.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-01.wav",
   "effect": "dragonnet",
   "basis": "ADOPTED.md"
  },
- "C051.wav": {
+ "C066.wav": {
   "source": "BROKEN - DESIGNED - BOULDER Stone Drop Medium 02-01.wav",
   "path": "The Vault/Broken/Sounds/分割/BROKEN - DESIGNED - BOULDER Stone Drop Medium 02-01.wav",
   "effect": "cockatrice",
   "basis": "ADOPTED.md"
  },
- "C053.wav": {
+ "C068.wav": {
   "source": "Space Transition.wav",
   "path": "Xylon Sound Library/Designed Sounds/SFX/Transitions/Space Transition.wav",
   "effect": "bandersnatch",
   "basis": "ADOPTED.md"
  },
- "C054.wav": {
+ "C069.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-02.wav",
   "effect": "worm",
   "basis": "ADOPTED.md"
  },
- "C058.wav": {
+ "C073.wav": {
   "source": "Production Element Title Transition Whoosh Short 06.wav（高音を抑えた版）",
   "path": "Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Short 06.wav（高音を抑えた版）",
   "effect": "wyvern",
   "basis": "ADOPTED.md"
  },
- "C067.wav": {
+ "C087.wav": {
   "source": "RPG3_IceMagic2_IceBreakLonger01.wav",
   "path": "asfx-christmas-freebies-2024/WOW Sound - ASFX - RPG Magic 3 Freebies/RPG Magic SFX Pack 3 – Elemental/RPG3_IceMagic2_IceBreakLonger01.wav",
   "effect": "frost-sprite",
   "basis": "ADOPTED.md"
  },
- "C068.wav": {
+ "C088.wav": {
   "source": "MAGMisc_Magic Christmas Bells 2_344 Audio_Christmas.wav",
   "path": "Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Christmas Vol. 1/MAGMisc_Magic Christmas Bells 2_344 Audio_Christmas.wav",
   "effect": "leprechaun",
   "basis": "ADOPTED.md"
  },
- "C069.wav": {
+ "C089.wav": {
   "source": "Bubbles.wav",
   "path": "Xylon Sound Library/Designed Sounds/Textures and Drones/Bubbles.wav",
   "effect": "melusine",
   "basis": "ADOPTED.md"
  },
- "C077.wav": {
+ "C097.wav": {
   "source": "Crash Glass Break Plate 03.wav",
   "path": "Adobe/衝突・破壊・クラッシュ音/Crash Glass Break Plate 03.wav",
   "effect": "carbuncle",
   "basis": "ADOPTED.md"
  },
- "C078.wav": {
+ "C098.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium Bolt-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium Bolt-01.wav",
   "effect": "pixie",
   "basis": "ADOPTED.md"
  },
- "C080.wav": {
+ "C100.wav": {
   "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Medium-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Medium-01.wav",
   "effect": "elemental",
   "basis": "ADOPTED.md"
  },
- "C081.wav": {
+ "C106.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Summon Long-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Long-02.wav",
   "effect": "imp",
   "basis": "ADOPTED.md"
  },
- "C092.wav": {
+ "C117.wav": {
   "source": "Weather Ambience Wind Blizzard Snow Whistle Gust 01.wav",
   "path": "Adobe/雨・雷・風など天候/Weather Ambience Wind Blizzard Snow Whistle Gust 01.wav",
   "effect": "wendigo",
   "basis": "ADOPTED.md"
  },
- "C076.wav": {
+ "C096.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-03.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 01-03.wav",
   "effect": "pegasus",
   "basis": "ADOPTED.md"
  },
- "C041.wav": {
+ "C056.wav": {
   "source": "Horror Scary Werewolf Howl 05.wav",
   "path": "Adobe/ホラー・恐怖系/Horror Scary Werewolf Howl 05.wav",
   "effect": "direwolf",
@@ -609,19 +609,19 @@ var VbFxSeSources = {
   "effect": "meteor-scroll",
   "basis": "ADOPTED.md"
  },
- "C014.wav": {
+ "C019.wav": {
   "source": "BROKEN - DESIGNED - EARTHQUAKE Rumble LFE 01-01.wav",
   "path": "The Vault/Broken/Sounds/分割/BROKEN - DESIGNED - EARTHQUAKE Rumble LFE 01-01.wav",
   "effect": "titan",
   "basis": "ADOPTED.md"
  },
- "C018.wav": {
+ "C023.wav": {
   "source": "Riser + Impact.wav",
   "path": "Xylon Sound Library/Designed Sounds/SFX/Impacts/Riser + Impact.wav",
   "effect": "cyclops",
   "basis": "ADOPTED.md"
  },
- "C025.wav": {
+ "C035.wav": {
   "source": "Production Element Title Transition Stab Dark Ghostly 02.wav",
   "path": "Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Ghostly 02.wav",
   "effect": "wraith",
@@ -657,55 +657,55 @@ var VbFxSeSources = {
   "effect": "alchemy",
   "basis": "ADOPTED.md"
  },
- "C060.wav": {
+ "C075.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Large 02-01.wav",
   "effect": "behemoth",
   "basis": "ADOPTED.md"
  },
- "C055.wav": {
+ "C070.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WATER Cast Large-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Large-01.wav",
   "effect": "hydra-reward",
   "basis": "ADOPTED.md"
  },
- "C071.wav": {
+ "C091.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-03.wav",
   "effect": "nymph",
   "basis": "ADOPTED.md"
  },
- "C097.wav": {
+ "C122.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Large Hex Spell-02.wav",
   "effect": "overlord",
   "basis": "ADOPTED.md"
  },
- "C066.wav": {
+ "C086.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Deflect Spell-02.wav",
   "effect": "undine",
   "basis": "ADOPTED.md"
  },
- "C079.wav": {
+ "C099.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 01-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 01-01.wav",
   "effect": "spriggan",
   "basis": "ADOPTED.md"
  },
- "C029.wav": {
+ "C039.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
   "effect": "phantom",
   "basis": "ADOPTED.md"
  },
- "C034.wav": {
+ "C044.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Deflect Spell-04.wav",
   "effect": "eidolon",
   "basis": "ADOPTED.md"
  },
- "C019_HIT.wav": {
+ "C024_HIT.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Deflect Spell-02.wav",
   "effect": "centaur-impact",
@@ -741,7 +741,7 @@ var VbFxSeSources = {
   "effect": "intimidate-ring",
   "basis": "ADOPTED.md"
  },
- "C083.wav": {
+ "C108.wav": {
   "source": "MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
   "path": "asfx-christmas-freebies-2024/David Dumais - ASFX - Steampunk Mech Freebies/Steampunk Mech SFX - Free Samples/MACHMech_Steampunk Gadget Open Close 10_DDUMAIS_NONE.wav",
   "effect": "gremlin",
@@ -753,45 +753,45 @@ var VbFxSeSources = {
   "effect": "speed-ring",
   "basis": "ADOPTED.md"
  },
- "C004.wav": {
+ "C009.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-01.wav",
   "effect": "satyr",
   "basis": "ADOPTED.md"
  },
- "C089.wav": {
+ "C114.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Small-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-01.wav",
   "effect": "familiar",
   "basis": "ADOPTED.md"
  },
- "C099.wav": {
+ "C124.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Beam-01.wav",
   "effect": "arch-demon",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C082.wav から改名）"
+  "note": "（2026-10-22 C107.wav から改名）"
  },
- "C082.wav": {
+ "C107.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Small-02.wav",
   "effect": "fiend",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C099.wav から改名）"
+  "note": "（2026-10-22 C124.wav から改名）"
  },
- "C095.wav": {
+ "C120.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-04.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-04.wav",
   "effect": "lilith",
   "basis": "ADOPTED.md"
  },
- "C009.wav": {
+ "C014.wav": {
   "source": "Fire Fireball Large 02.wav",
   "path": "Adobe/火・炎・爆発/Fire Fireball Large 02.wav",
   "effect": "minotaur",
   "basis": "ADOPTED.md"
  },
- "C094.wav": {
+ "C119.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-03.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Small-03.wav",
   "effect": "chaos-imp",
@@ -815,7 +815,7 @@ var VbFxSeSources = {
   "effect": "curse-ring",
   "basis": "ADOPTED.md"
  },
- "C093.wav": {
+ "C118.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Cast Medium-03.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Cast Medium-03.wav",
   "effect": "void-mastery",
@@ -827,7 +827,7 @@ var VbFxSeSources = {
   "effect": "keyword-grant",
   "basis": "ADOPTED.md"
  },
- "C031.wav": {
+ "C041.wav": {
   "source": "Production Element Title Transition Ghostly 01.wav",
   "path": "Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ghostly 01.wav",
   "effect": "soul-recall",
@@ -869,7 +869,7 @@ var VbFxSeSources = {
   "effect": "undying-ring",
   "basis": "ADOPTED.md"
  },
- "C019.wav": {
+ "C024.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-02.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-02.wav",
   "effect": "centaur-missile",
@@ -887,7 +887,7 @@ var VbFxSeSources = {
   "effect": "shield-break",
   "basis": "ADOPTED.md"
  },
- "C056.wav": {
+ "C071.wav": {
   "source": "SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 02-01.wav",
   "effect": "scylla",
@@ -895,12 +895,12 @@ var VbFxSeSources = {
  },
  "E042_1.wav": {
   "source": "HERO - DESIGNED - ARROW Fire By 02-05.wav",
-  "note": "キャラ固有SE（2026-10-22 C019_1.wav から改名）",
+  "note": "キャラ固有SE（2026-10-22 C024_1.wav から改名）",
   "basis": "アセットリスト"
  },
  "E042_2.wav": {
   "source": "SORCERY - DESIGNED - MAGIC FIRE Cast Small-03.wav",
-  "note": "キャラ固有SE（2026-10-22 C019_2.wav から改名）",
+  "note": "キャラ固有SE（2026-10-22 C024_2.wav から改名）",
   "basis": "アセットリスト"
  },
  "E083.wav": {
@@ -908,48 +908,48 @@ var VbFxSeSources = {
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Small 01-02.wav",
   "effect": "hecatoncheir",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C020.wav から改名）"
+  "note": "（2026-10-22 C025.wav から改名）"
  },
  "E043.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Whoosh Small-01.wav",
   "effect": "zombie",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C021.wav から改名）"
+  "note": "（2026-10-22 C031.wav から改名）"
  },
  "E031.wav": {
   "source": "Multimedia Internet CD-Rom Flash Whoosh Short 01.wav",
   "path": "Adobe/UI・電子音・マルチメディア系/Multimedia Internet CD-Rom Flash Whoosh Short 01.wav",
   "effect": "sylph",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C064.wav から改名）"
+  "note": "（2026-10-22 C084.wav から改名）"
  },
  "E056.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
   "effect": "sleep-sheep",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C042.wav から改名）"
+  "note": "（2026-10-22 C057.wav から改名）"
  },
  "E024.wav": {
   "source": "SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-03.wav",
   "effect": "incubus",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C084.wav から改名）"
+  "note": "（2026-10-22 C109.wav から改名）"
  },
  "E082.wav": {
   "source": "Drone Production Element Imaging Dark Phase Evil Gritty 01.wav",
   "path": "Adobe/持続する低音・不穏な持続音/Drone Production Element Imaging Dark Phase Evil Gritty 01.wav",
   "effect": "nightmare",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C096.wav から改名）"
+  "note": "（2026-10-22 C121.wav から改名）"
  },
- "C040.wav": {
+ "C050.wav": {
   "source": "SORCERY - DESIGNED - MAGIC BLACK Summon Necromancer-01.wav",
   "path": "The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC BLACK Summon Necromancer-01.wav",
   "effect": "lich",
   "basis": "ADOPTED.md",
-  "note": "（2026-10-22 C039.wav から改名）"
+  "note": "（2026-10-22 C049.wav から改名）"
  }
 };

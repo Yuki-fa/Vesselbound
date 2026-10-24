@@ -8,42 +8,42 @@
       "playbackMs": 800
     },
     {
-      "asset": "C002",
+      "asset": "C007",
       "name": "attack-recoil",
       "playbackMs": 420
     },
     {
-      "asset": "C008",
+      "asset": "C013",
       "name": "arachne-ring",
       "playbackMs": 800
     },
     {
-      "asset": "C011",
+      "asset": "C016",
       "name": "siren-wave",
       "playbackMs": 800
     },
     {
-      "asset": "C017",
+      "asset": "C022",
       "name": "medusa-gaze",
       "playbackMs": 800
     },
     {
-      "asset": "C019_1",
+      "asset": "C024_1",
       "name": "centaur-missile",
       "playbackMs": 179.33333333333334
     },
     {
-      "asset": "C019_2",
+      "asset": "C024_2",
       "name": "centaur-impact",
       "playbackMs": 800
     },
     {
-      "asset": "C043",
+      "asset": "C058",
       "name": "flame-sweep",
       "playbackMs": 700
     },
     {
-      "asset": "C090",
+      "asset": "C115",
       "name": "steal-mark",
       "playbackMs": 800,
       "timingNote": "奪うの滞在1000msとは別に、絵は既定の命中VFX800ms。"
@@ -172,8 +172,8 @@
   ],
   "excluded": [
     {
-      "asset": "C018",
-      "reason": "PRESENT_LAB_FX C018=cyclopsへ置換済み"
+      "asset": "C023",
+      "reason": "PRESENT_LAB_FX C023=cyclopsへ置換済み"
     },
     {
       "asset": "E067_1",

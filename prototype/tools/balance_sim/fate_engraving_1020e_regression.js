@@ -25,7 +25,7 @@ function fresh({stage = 1, acquired = stage, power = 60, life = 80, fate = true,
   Object.assign(G, {phase: 'reward', _wave: stage, _onlineMode: false, _waveLife: 3});
   G.mainBoard.fill(null); G.rings = []; G.mapPanelPowers = {};
   if (levels) G.runLevels.values = coreNormalizeRunLevels(levels);
-  let hero = card('C003');
+  let hero = card('C008');
   hero.power = power; hero.life = life; hero.directions = ['left', 'right'];
   if (merged) { hero = enhancedPanelCopy(hero); assert.ok(hero, 'シートの強化後の姿'); }
   if (sealed) hero.keywords = ['封印99'];

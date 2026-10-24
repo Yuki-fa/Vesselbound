@@ -12,8 +12,8 @@ async function check(name, run) {
   for (const side of ['p1', 'p2']) for (const enhanced of [false, true]) {
     await check(`${side}：活性化→ワイバーン${enhanced ? '（強化）' : ''}の固有VFX・SE`, async () => {
       const activation = h.card('E045');
-      const row = h.sheetRows('card').find(r => r['No.'] === 'C058');
-      const w = h.unit('wyvern', 'C058', { desc: enhanced ? row['強化効果'] : row['効果'],
+      const row = h.sheetRows('card').find(r => r['No.'] === 'C073');
+      const w = h.unit('wyvern', 'C073', { desc: enhanced ? row['強化効果'] : row['効果'],
         manaCost: 1, manaRepeat: true, manaThresholdNo: 'E045',
         manaThresholdDesc: activation.desc.replace(/^\d+マナ毎：/, ''),
         boardCards: [activation], _adjacentPanelAbilities: [activation.name], _adjacentPanelEffectTexts: [activation.desc] });
@@ -31,17 +31,17 @@ async function check(name, run) {
       await x.pve();
       const pve = h.calls.filter(c => c.name === 'wyvern');
       assert.equal(pve.length, activations, '同時対象は1つのVFX、発動回数は間引かない');
-      assert.equal(h.sounds.filter(s => s.code === 'C058').length, pve.length, '固有SEも発動回数ぶん');
+      assert.equal(h.sounds.filter(s => s.code === 'C073').length, pve.length, '固有SEも発動回数ぶん');
       await x.online();
       assert.equal(h.calls.filter(c => c.name === 'wyvern').length, pve.length, 'オンラインも同じ発動単位');
-      assert.equal(h.sounds.filter(s => s.code === 'C058').length, pve.length, 'オンラインの固有SE');
+      assert.equal(h.sounds.filter(s => s.code === 'C073').length, pve.length, 'オンラインの固有SE');
     });
   }
   for(const mode of ['攻撃バフ（共振）','開戦（咆哮）','色バフ（リザードマン）','解放（封印されしもの）','負傷バフ（ギガンテス）'])
     for(const side of ['p1','p2'])await check(`${side}：${mode}からのATK獲得も固有VFX・SEへつなぐ`,async()=>{
       const extra=mode.startsWith('攻撃')?h.card('E054'):mode.startsWith('開戦')?h.card('E049'):mode.startsWith('解放')?h.card('E057'):null;
-      const w=h.unit('wyvern','C058',extra?{boardCards:[extra],_adjacentPanelAbilities:[extra.name],_adjacentPanelEffectTexts:[extra.desc]}:{});
-      const support=mode.startsWith('色')?h.unit('support','C050'):mode.startsWith('負傷')?h.unit('support','C012'):null;
+      const w=h.unit('wyvern','C073',extra?{boardCards:[extra],_adjacentPanelAbilities:[extra.name],_adjacentPanelEffectTexts:[extra.desc]}:{});
+      const support=mode.startsWith('色')?h.unit('support','C065'):mode.startsWith('負傷')?h.unit('support','C017'):null;
       const x=h.setup({sides:{[side]:{units:[w,...support?[support]:[]]},[side==='p1'?'p2':'p1']:{units:[h.unit('foe0'),h.unit('foe1')]}},
         resources:{[side]:{mana:2}}});
       if(mode.startsWith('攻撃'))coreApplyAttackEffects(x.find('wyvern'),x.state,x.rng,x.emit,x.hit);
@@ -53,15 +53,15 @@ async function check(name, run) {
       assert.ok(batches.size>0,'実際のATK獲得誘発を再現する');
       await x.pve();
       assert.equal(h.calls.filter(c=>c.name==='wyvern').length,batches.size);
-      assert.equal(h.sounds.filter(c=>c.code==='C058').length,batches.size);
+      assert.equal(h.sounds.filter(c=>c.code==='C073').length,batches.size);
       await x.online();
       assert.equal(h.calls.filter(c=>c.name==='wyvern').length,batches.size);
-      assert.equal(h.sounds.filter(c=>c.code==='C058').length,batches.size);
+      assert.equal(h.sounds.filter(c=>c.code==='C073').length,batches.size);
     });
   await check('シートの同種誘発を全件列挙する', () => {
     const same = ['card', 'enchant', 'enemy'].flatMap(key => h.sheetRows(key))
       .filter(r => /(?:ATK|HP|能力).*(?:得るたび|増えた時|増加した時)/.test(r['効果'] || ''));
-    assert.deepEqual(same.map(r => r['No.']), ['C058']);
+    assert.deepEqual(same.map(r => r['No.']), ['C073']);
   });
   await check('作業前コアと結界を含まない全キャラの戦闘結果・数値イベント・最終状態・乱数進行が一致する',()=>{
     const vm=require('node:vm'),cp=require('node:child_process');
@@ -80,14 +80,14 @@ async function check(name, run) {
     const cases=defs.filter((d,i)=>!shieldRule(h.sheetRows('card')[i])&&!require('./sheet_data').effectChanged1022(d.no));
     for(const def of cases)for(const side of ['p1','p2']){
       const u=h.clone(def);
-      if(def.no==='C058')Object.assign(u,{manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:h.card('E045').desc.replace(/^\d+マナ毎：/,'')});
+      if(def.no==='C073')Object.assign(u,{manaCost:1,manaRepeat:true,manaThresholdNo:'E045',manaThresholdDesc:h.card('E045').desc.replace(/^\d+マナ毎：/,'')});
       const options={sides:{[side]:{units:[u]},[side==='p1'?'p2':'p1']:{units:[h.unit('foe0'),h.unit('foe1')]}},
         resources:{[side]:{mana:6,gold:20}},summonDefs:defs};
       const results=[baseline,global].map(api=>{
         const state=api.createBattleState(h.clone(options)),rng=createSeededRng(1020),events=[];
         const result=api.runBattleCore(state,rng,{turnLimit:4,onEvent:e=>{
           // 今回直す演出番号1項目だけを正規化する。他のダメージ・番号は全て比較する。
-          events.push(e.type==='damage'&&e.sourceId==='C058'&&e.effectNo==='E045'?{...e,effectNo:null}:e);
+          events.push(e.type==='damage'&&e.sourceId==='C073'&&e.effectNo==='E045'?{...e,effectNo:null}:e);
         }});
         // _copyFrame はコピーの枠を決める見た目だけの印（2026-10-20 に後から追加）。比較から外す。
         return clean(JSON.parse(JSON.stringify({result,events,final:api.battleCoreFinalState(state),rngNext:rng.next()},(k,v)=>k==='_copyFrame'?undefined:typeof v==='string'&&/^結界\d+$/.test(v)?'結界':v)));

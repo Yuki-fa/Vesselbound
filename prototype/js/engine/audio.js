@@ -92,7 +92,7 @@ const SFX_SETTINGS={
     K018:       {group:'combat', volume: .63, guardMs:80},  // 結界（旧 shield.wav）-7.0
     poison:     {group:'combat', volume: .48, guardMs:80},  // -4.7
     effectDamage:{group:'magic', volume: .78, guardMs:90},  // 効果ダメージ（旧 fire.wav）-8.8
-    C043: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 flame-sweep 候補1）
+    C058: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 flame-sweep 候補1）
     // 打撃音は 1<2<3 の強度差を残したまま、武器種をまたいだばらつきだけを揃える。
     sword1:     {group:'combat', volume: 1.00, guardMs:40}, // -15.0
     sword2:     {group:'combat', volume: .94, guardMs:40},  // -12.0
@@ -122,24 +122,24 @@ const SFX_SETTINGS={
     E077: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 suffering-brand 候補1）
     R023: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 storm-ring 候補1）
     R020: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 oni-ring 候補1）
-    C031: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 soul-recall 候補1）
+    C041: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 soul-recall 候補1）
     EN044: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 keyword-grant 候補1）
-    C093: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 void-mastery 候補1）
+    C118: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 void-mastery 候補1）
     R042: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 curse-ring 候補1）
     R041: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 curse-ring 候補1）
     E008: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 dragon-pact 候補1） // 巻物・旗の使用（2026-10-17 利用者指定：MAGIC WHITE Cast Medium 03-03。候補はピーク-1dBFSに整えてある）
     S005: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 attack-buff 候補1）
     S007: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 death-buff 候補1）
-    C008: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 arachne-ring 候補3）
-    C011: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 siren-wave 候補1・初期のSE・原音2秒から）
-    C017: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 medusa-gaze 候補3）
+    C013: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 arachne-ring 候補3）
+    C016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 siren-wave 候補1・初期のSE・原音2秒から）
+    C022: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 medusa-gaze 候補3）
     E042: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 centaur-missile 候補3）
     E042_HIT: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 centaur-impact 候補1）
     K020: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     S004:       {group:'magic',  volume: 1.00}, // 特殊演出：マナ増加（実測-20.9dBFS）
     // 演出の番号（loader.js CARD_PRESENTATION_FX_CODES・各カードの No.）で鳴らす音は、ここにも必ず登録すること。
     // 登録が無いと playSfx() が鳴らず、絵だけ出て音が出ない。
-    S003:       {group:'magic',  volume: 0.83}, // 特殊演出：金貨（旧C001）（実測-9.5dBFS）
+    S003:       {group:'magic',  volume: 0.83}, // 特殊演出：金貨（旧C006）（実測-9.5dBFS）
     S006: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 injury-buff 候補1）
     S008:       {group:'magic',  volume: 0.89}, // 特殊演出：活性化（旧E045）（実測-10.0dBFS）
     S009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 aura-buff 候補3）
@@ -152,7 +152,7 @@ const SFX_SETTINGS={
     R016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 intimidate-ring 候補1・長めに切り直した候補）
     E078: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 gold-loss 候補1）
     R012: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 penance-ring 候補2）
-    C090: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 steal-mark 候補3）
+    C115: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 steal-mark 候補3）
     E057: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 sealed-power 候補3）
     K009_SWEEP: {group:'magic',volume:.70,maxPlayMs:0}, // 白い芯の横一閃（全体攻撃と同じ音）
     'map:life': {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 map-life 候補1）
@@ -160,9 +160,9 @@ const SFX_SETTINGS={
     EN075_1: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 fate-sever 候補1・暗転明けの2回目の音を除去）
     R019: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 paladin-ring 候補2）
     // キャラクター固有ボイス（グループはuiのまま＝combatのmaxPlayMs打ち切りを受けない）
-    C001:       {group:'ui',     volume: .97}, // -10.7
-    C002: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 attack-recoil 候補2）
-    C003:       {group:'ui',     volume: .73}, // -8.3
+    C006:       {group:'ui',     volume: .97}, // -10.7
+    C007: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 attack-recoil 候補2）
+    C008:       {group:'ui',     volume: .73}, // -8.3
     K024: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 mana-cue 候補1）
     // 強化カードの効果SE（カードNo.で引く）
     E045:       {group:'ui',     volume: 1.00},
@@ -170,56 +170,56 @@ const SFX_SETTINGS={
     E058_HIT:   {group:'magic',  volume: 0.42}, // 炎の矢（着弾）（実測-3.5dBFS）
     E067: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     // 2026-10-12: ボイスを除く仮SE（候補1）。短い固有音も通常の音量管理を通す。
-    C004: {group:'magic',volume:.70,maxPlayMs:0},
+    C009: {group:'magic',volume:.70,maxPlayMs:0},
     E083: {group:'magic',volume:.70,maxPlayMs:0},
     E043: {group:'magic',volume:.70,maxPlayMs:0},
-    C060: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 behemoth 候補1）
+    C075: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 behemoth 候補1）
     E031: {group:'magic',volume:.70,maxPlayMs:0},
-    C071: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 nymph 候補1）
-    C082: {group:'magic',volume:.70,maxPlayMs:0},
-    C029: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
-    C034: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
-    C099: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 arch-demon 候補1）
-    C083: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 gremlin 候補2）
-    C095: {group:'magic',volume:.70,maxPlayMs:0},
-    C097: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 overlord 候補1）
-    C009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 minotaur 候補2）
+    C091: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 nymph 候補1）
+    C107: {group:'magic',volume:.70,maxPlayMs:0},
+    C039: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
+    C044: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 eidolon 候補1・ファントムと共通）
+    C124: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 arch-demon 候補1）
+    C108: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 gremlin 候補2）
+    C120: {group:'magic',volume:.70,maxPlayMs:0},
+    C122: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 overlord 候補1）
+    C014: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 minotaur 候補2）
     E056: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 sleep-sheep 候補1）
-    C056: {group:'magic',volume:.70,maxPlayMs:0},
-    C066: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 undine 候補1）
-    C079: {group:'magic',volume:1.0,maxPlayMs:0}, // LAB採用（2026-10-20 spriggan 候補1）・音量が小さいとの指摘で1.0へ
+    C071: {group:'magic',volume:.70,maxPlayMs:0},
+    C086: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 undine 候補1）
+    C099: {group:'magic',volume:1.0,maxPlayMs:0}, // LAB採用（2026-10-20 spriggan 候補1）・音量が小さいとの指摘で1.0へ
     E024: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 incubus 候補1）
-    C094: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 chaos-imp 候補2）
+    C119: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 chaos-imp 候補2）
     // LABの採用音は同じ基準音量で鳴らす。
     E006: {group:'magic',volume:.70,replaceAtVoiceLimit:true}, // 死亡音などで24本埋まっても闇の炎を捨てない
     E035: {group:'magic',volume:.70},
-    C040: {group:'magic',volume:.70},
+    C050: {group:'magic',volume:.70},
     E062: {group:'magic',volume:.70},
     E071: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 shockwave 候補2）
     E075: {group:'magic',volume:.70},
-    C032: {group:'magic',volume:.70},
-    C038: {group:'magic',volume:.70},
-    C046: {group:'magic',volume:.70},
-    C049: {group:'magic',volume:.70},
-    C051: {group:'magic',volume:.70},
-    C053: {group:'magic',volume:.70},
-    C054: {group:'magic',volume:.70},
-    C058: {group:'magic',volume:.70},
-    C067: {group:'magic',volume:.70},
+    C042: {group:'magic',volume:.70},
+    C048: {group:'magic',volume:.70},
+    C061: {group:'magic',volume:.70},
+    C064: {group:'magic',volume:.70},
+    C066: {group:'magic',volume:.70},
     C068: {group:'magic',volume:.70},
     C069: {group:'magic',volume:.70},
-    C077: {group:'magic',volume:.70},
-    C078: {group:'magic',volume:.70},
-    C080: {group:'magic',volume:.70},
-    C081: {group:'magic',volume:.70},
-    C092: {group:'magic',volume:.70},
-    E082: {group:'magic',volume:.70},
+    C073: {group:'magic',volume:.70},
+    C087: {group:'magic',volume:.70},
+    C088: {group:'magic',volume:.70},
+    C089: {group:'magic',volume:.70},
+    C097: {group:'magic',volume:.70},
     C098: {group:'magic',volume:.70},
-    C076: {group:'magic',volume:.70},
-    C041: {group:'magic',volume:.70},
-    C014: {group:'magic',volume:.70},
-    C018: {group:'magic',volume:.70},
-    C025: {group:'magic',volume:.70},
+    C100: {group:'magic',volume:.70},
+    C106: {group:'magic',volume:.70},
+    C117: {group:'magic',volume:.70},
+    E082: {group:'magic',volume:.70},
+    C123: {group:'magic',volume:.70},
+    C096: {group:'magic',volume:.70},
+    C056: {group:'magic',volume:.70},
+    C019: {group:'magic',volume:.70},
+    C023: {group:'magic',volume:.70},
+    C035: {group:'magic',volume:.70},
     K016: {group:'magic',volume:.70},
     K002: {group:'magic',volume:.70},
     I006: {group:'magic',volume:.70},
