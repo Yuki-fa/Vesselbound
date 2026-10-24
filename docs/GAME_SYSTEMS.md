@@ -394,3 +394,7 @@ PvEではコアの状態を `prototype/js/engine/battle.js: _syncCoreLifeToG()`�
   - 変化：終戦で、生存したほかの味方（魔導板のカード。戦闘中の召喚体・眷属は除く）からランダムに1体を選び、魔導板の自分の枠をその本来の姿（元の定義。永久強化を含まない）に置き換える。
     強化後は今の姿の写し。枠の矢印は元のカードのものを引き継ぐ。コアは run_effect（kind: board_transform）を出し、formation.js applyCoreRunEffectEvent が魔導板へ書き戻す。
   - シートの「実装」列は4枚とも false のまま（報酬・店に出すには利用者がシートで true にする）。
+- 「配置を戻す」（2026-10-25 利用者指定。魔導取引所・編成画面の「元に戻す」を置き換え。道具屋・トレーダー・酒場・五聖の座・指輪交換は「元に戻す」のまま）：
+  画面に入った時の盤面のカードを元の枠へ戻し、その後に盤面へ来たカードは報酬・商品枠へ返す。リロール後の報酬・商品、アイテムの使用、カードに付いた強化は戻さない。
+  戻り先は画面に入った時（_rewPhaseId が変わった最初の _storeRewardStartSnapshot）だけ取り、カードに印 `_placeKey` を付けて追う（カードごとに一度だけ付ける。交換は写しなので物では追えない。変身しても印は引き継ぐ）。
+  最初のカードが盤面にも報酬・商品枠にも無い時はボタンを暗くし、押すと「初期カード不存在時」のエラー（reward.js `resetRewardPlacement`／`rewardPlacementInitialMissing`。検査 placement_reset_1025_regression.js）。

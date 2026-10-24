@@ -693,6 +693,8 @@ function _handlePendingItemBoardTarget(slotIdx){
     const previous=boardList[pending.firstIdx];
     const next=makePanel(card.id);
     if(previous&&previous._activationReady) next._activationReady=true;
+    // 変身しても同じ枠のカードとして「配置を戻す」で追う（アイテムの使用は戻さない。2026-10-25）。
+    if(previous&&previous._placeKey) next._placeKey=previous._placeKey;
     boardList[pending.firstIdx]=next;
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,pending.firstIdx); return true;
   }

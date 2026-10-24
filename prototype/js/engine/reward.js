@@ -1047,7 +1047,123 @@ function _playRewardRevealSweep(host){
   }
 }
 
+// ── 配置を戻す（2026-10-25 利用者指定。魔導取引所・編成画面）─────────────────────
+// 「元に戻す」（resetRewardToStart：画面に入った時／リロール・起動の時の状態へ全部巻き戻す）と違い、
+// **配置だけ**を画面に入った時へ戻す。リロール後の報酬・商品、アイテムの使用、カードに付いた強化は戻さない。
+// 戻り先は画面に入った時（_rewPhaseId が変わった最初の記録）だけ取り、リロール・起動の記録では取り直さない。
+// 盤面のカードに印（_placeKey）を付けて見分ける（魔導取引所はカードを写しで動かすので、物そのものでは追えない）。
+function _capturePlacementStart(){
+  if(G._placementStart&&G._placementStart.phaseId===_rewPhaseId) return;
+  // 印はカードごとに一度だけ付け、付いていれば変えない（画面をまたいで盤面の中身が変わって見えないように）。
+  // 盤面の中で印が重なった時（写しが並んだ等）だけ付け直す。
+  const seen=new Set();
+  const slots=(G.mainBoard||[]).map(c=>{
+    if(!c) return null;
+    if(!c._placeKey||seen.has(c._placeKey)){
+      G._placeKeySeq=(Number(G._placeKeySeq)||0)+1;
+      c._placeKey='p'+G._placeKeySeq;
+    }
+    seen.add(c._placeKey);
+    return c._placeKey;
+  });
+  G._placementStart={phaseId:_rewPhaseId,slots,freePickDone:!!_rewFreePickDone};
+}
+// 画面に入った時に盤面にあったカードのうち、盤面にも報酬・商品枠にも無くなったものがあるか。
+function rewardPlacementInitialMissing(){
+  const base=G._placementStart;
+  if(!base||base.phaseId!==_rewPhaseId) return true;
+  const present=new Set([...(G.mainBoard||[]),...(_rewCards||[])].filter(Boolean).map(c=>c._placeKey).filter(Boolean));
+  return base.slots.some(key=>key&&!present.has(key));
+}
+function _showInitialCardMissingError(){
+  if(typeof showErrorOverlay!=='function') return false;
+  return showErrorOverlay({
+    title:_uiLabel('「初期カード不存在時」見出し','配置を戻せません'),
+    message:_uiLabel('初期カード不存在時','この画面になった時のカードがどこにも存在しません。\n配置を戻すことは出来ませんでした。'),
+    buttonKey:'「戻る」ボタン',
+    buttonFallback:'戻る',
+    buttonSfx:'uiConfirm'
+  });
+}
+// 報酬・商品枠から盤面へ戻すカード：枠に置いた時の印（売却待ち・一時置き・取り戻し用の控え）を外す。
+function _placementBoardCard(card){
+  const out=clone(card);
+  for(const key of ['_shopSalePending','_sellDisplayPrice','_temporaryRewardAreaCard','_isOriginalReward',
+    '_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId']) delete out[key];
+  return out;
+}
+// 盤面から報酬・商品枠へ返すカード。この画面で報酬から取ったカードは、報酬だった時の印（_isOriginalReward）を戻す。
+// 取った後のアイテムの強化などは残す（取る前の控え _rewardReturnCard の姿へは戻さない）。
+function _placementOfferCard(card){
+  if(_isCardExchangeShop()) return _exchangeShopCardCopy(card);
+  const out=clone(card);
+  const original=card._rewardReturnCard&&card._rewardReturnPhaseId===_rewPhaseId?card._rewardReturnCard:null;
+  for(const key of ['_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId']) delete out[key];
+  if(original) out._isOriginalReward=!!original._isOriginalReward;
+  return out;
+}
+function resetRewardPlacement(){
+  if(G.phase!=='reward') return false;
+  if(rewardPlacementInitialMissing()){ _showInitialCardMissingError(); return false; }
+  _finishRewardReveal(true);
+  const base=G._placementStart,keys=new Set(base.slots.filter(Boolean));
+  const board=(G.mainBoard||[]).slice(),offers=Array.isArray(_rewCards)?_rewCards.slice():[];
+  const find=key=>board.find(c=>c&&c._placeKey===key)||offers.find(c=>c&&c._placeKey===key);
+  const nextBoard=base.slots.map(key=>{
+    if(!key) return null;
+    const card=find(key);
+    return offers.includes(card)?_placementBoardCard(card):card;
+  });
+  // 画面に入った後に盤面へ来たカード（報酬・商品から取った分）は、報酬・商品枠へ返す。
+  const outgoing=board.filter(c=>c&&!keys.has(c._placeKey));
+  const shop=!!G._isShop,cap=shop?_shopSlotCapacity():REWARD_GRID_CAPACITY;
+  const nextOffers=offers.map(c=>c&&keys.has(c._placeKey)?null:c);
+  while(nextOffers.length<cap) nextOffers.push(null);
+  for(const card of outgoing){
+    if(!_rewardAreaAcceptsCard(card)){ _showInitialCardMissingError(); return false; }
+    const want=Number.isInteger(card._rewardReturnIdx)&&card._rewardReturnPhaseId===_rewPhaseId?card._rewardReturnIdx:-1;
+    const slot=want>=0&&want<cap&&!nextOffers[want]?want:nextOffers.findIndex((c,i)=>i<cap&&!c);
+    if(slot<0){ _showInitialCardMissingError(); return false; }
+    nextOffers[slot]=_placementOfferCard(card);
+  }
+  // 戦闘後の報酬枠は詰めて並べる（店の枠は位置を保つ）。
+  _rewCards=shop?nextOffers.slice(0,cap):nextOffers.filter(Boolean);
+  G.mainBoard=nextBoard;
+  // 報酬から取った分を全部返すので、無料で取れる1枚も画面に入った時に戻る。
+  if(!shop) _rewFreePickDone=!!base.freePickDone;
+  G._pendingPanelPlacement=null;
+  G._pendingItemUse=null; _syncItemUsePickingUi();
+  if(typeof _closeItemUseConfirm==='function') _closeItemUseConfirm();
+  _dragSrc=null;
+  const unit=_getPartyBoardUnit();
+  if(unit&&typeof _syncUnitPanelEffectsAfterMove==='function') _syncUnitPanelEffectsAfterMove(unit);
+  if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
+  if(shop) _persistCurrentShopStock();
+  if(typeof questCheckRetainedCards==='function') questCheckRetainedCards();
+  updateHUD();
+  renderRewCards();
+  renderHandEditor();
+  renderFieldEditor();
+  renderMoveSlotsInEnemy();
+  return true;
+}
+// 「配置を戻す」ボタン。初期カードが無くなっていたら暗くし、押すとエラーを出す。
+function _placementResetButton(){
+  const reset=document.createElement('button');
+  const missing=rewardPlacementInitialMissing();
+  reset.className='btn rew-reset-btn'+(missing?' disabled':'');
+  reset.dataset.sfxSilent='1';
+  reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('「配置を戻す」ボタン','配置を戻す')}</span>`;
+  reset.onclick=()=>{
+    if(rewardPlacementInitialMissing()){ _showInitialCardMissingError(); return; }
+    if(typeof playSfx==='function') playSfx('return',{group:'ui'});
+    resetRewardPlacement();
+  };
+  return reset;
+}
+
 function _storeRewardStartSnapshot(){
+  _capturePlacementStart();
   G._rewardStartSnapshot={
     retainedQuests:typeof questRetainedProgressSnapshot==='function'?questRetainedProgressSnapshot():{},
     rewCards:clone(_rewCards||[]),
@@ -1313,7 +1429,10 @@ function renderMoveSlotsInEnemy(){
     // 鍛冶屋には置かない（デバッグモードでも出さない。2026-09-24 利用者指定）。
     // 五聖の座にも置く。刻印は手放せないが、この場面でだけ「元に戻す」で報酬枠へ戻せる（2026-10-01 利用者指定）。
     const canResetMapReward=!G._isLibrary&&!G._isVillageMenu&&!G._isForge;
-    if(canResetMapReward){
+    // 魔導取引所（トレーダー・道具屋を除く）は「配置を戻す」（2026-10-25 利用者指定）。
+    if(canResetMapReward&&G._isShop&&!G._isPeddler&&!G._isItemShop){
+      el.appendChild(_placementResetButton());
+    }else if(canResetMapReward){
       const reset=document.createElement('button');
       reset.className='btn rew-reset-btn';
       reset.dataset.sfxSilent='1';
@@ -1381,15 +1500,8 @@ function renderMoveSlotsInEnemy(){
     syncRingExchangeDepartureButton(btn);
     el.appendChild(btn);
   });
-  const reset=document.createElement('button');
-  reset.className='btn rew-reset-btn';
-  reset.dataset.sfxSilent='1';
-  reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('「元に戻す」ボタン','元に戻す')}</span>`;
-  reset.onclick=()=>{
-    if(typeof playSfx==='function') playSfx('return',{group:'ui'});
-    resetRewardToStart();
-  };
-  el.appendChild(reset);
+  // 編成画面は「配置を戻す」（2026-10-25 利用者指定。以前の「元に戻す」は resetRewardToStart）。
+  el.appendChild(_placementResetButton());
 }
 
 function chooseMoveInline(nt){

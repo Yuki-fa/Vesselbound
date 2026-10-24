@@ -79,6 +79,8 @@ function handleCardActivationTarget(index) {
     // 対象の起動の印と進行上の印を変身後も保持する。
     if (target._activationReady) next._activationReady = true;
     if (target._battleEndCount) next._battleEndCount = target._battleEndCount;
+    // 変身しても同じ枠のカードとして「配置を戻す」で追う（2026-10-25）。
+    if (target._placeKey) next._placeKey = target._placeKey;
     cards[index] = next;
   } else if (result.kind === 'buff_color') {
     target.power = (Number(target.power)||0) + result.atk; target.life = (Number(target.life)||0) + result.hp;

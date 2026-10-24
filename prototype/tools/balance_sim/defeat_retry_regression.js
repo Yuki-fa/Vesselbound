@@ -135,7 +135,8 @@ function assertCarry(expected,actual){
       G.enemies=endBoard();G._enemyBlood=4;
       const board=plain(G.mainBoard),gold=G.gold;
       await lose();assertNoRewards();
-      assert.equal(G._waveLife,2);assert.equal(G.gold,gold);assert.deepEqual(G.mainBoard,board);
+      // 「配置を戻す」の印（_placeKey、2026-10-25）は画面の管理用。盤面の内容としては比べない。
+      assert.equal(G._waveLife,2);assert.equal(G.gold,gold);assert.deepEqual(JSON.parse(JSON.stringify(plain(G.mainBoard),(k,v)=>k==='_placeKey'?undefined:v)),board);
       assert.deepEqual(plain(G._waveEnemySnapshot),start,'開戦時の控えのまま');
       assert.equal(G._waveEnemySnapshotAtEnd,false);assert.equal(G._waveEnemySnapshotBlood,0);
       assert.equal(G.enemies.length,0);assert.ok(_waveRetryPending());

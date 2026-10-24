@@ -64,7 +64,9 @@ function simulate(units){
     const board=clone(G.mainBoard),gold=G.gold,rng=G._runRngState;
     assert.equal(openBlessingFlame(),true);assert.equal(G._isBlessingFlame,true);
     assert.equal(G._isWaveAltar,true);assert.equal(G._isVillageMenu,false);
-    assert.deepEqual(G._rewardStartSnapshot.mainBoard,board);assert.deepEqual(G.mainBoard,board);
+    // 「配置を戻す」の印（_placeKey、2026-10-25）は画面の管理用。盤面の内容としては比べない。
+    const unplaced=b=>JSON.parse(JSON.stringify(b,(k,v)=>k==='_placeKey'?undefined:v));
+    assert.deepEqual(unplaced(G._rewardStartSnapshot.mainBoard),board);assert.deepEqual(unplaced(G.mainBoard),board);
     assert.deepEqual(_rewCards,[]);assert.equal(G.gold,gold);assert.equal(G._runRngState,rng);
     assert.equal(openBlessingFlame(),false);assert.equal(towerBoonRerollVisible(),false);
   });
