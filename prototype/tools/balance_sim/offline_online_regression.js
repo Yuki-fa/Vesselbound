@@ -127,6 +127,9 @@ function runStatChangeDeathOfflineOnlineScenario() {
 function main() {
   const pveBattle = [
     '../../js/engine/battle.js',
+    '../../js/engine/battle_damage.js',
+    '../../js/engine/battle_panel_formation.js',
+    '../../js/engine/battle_intro.js',
     '../../js/engine/battle_events.js',
   ].map(file => fs.readFileSync(require.resolve(file), 'utf8')).join('\n');
   assert.match(pveBattle, /coreResolveHit\(state,source,target,amount,counter/,
