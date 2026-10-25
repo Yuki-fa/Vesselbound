@@ -640,61 +640,30 @@ function runPersistentDeathObserverScenario() {
 }
 
 function runSuccubusCaptureScenario() {
-  const state = core.createBattleState({
-    sides: {
-      p1: {units: [{id: 'succubus', name: 'サキュバス', atk: 6, hp: 3, maxHp: 3}]},
-      p2: {units: [{id: 'victim', name: '敵キャラ', atk: 4, hp: 0, maxHp: 7}]},
-    },
-    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
-  });
-  const victim = state.units.p2[0];
-  victim._lastDamageSource = state.units.p1[0];
-  victim._lastDamageWasCounter = false;
-  // 実戦の接触命中を再現する（反撃・効果ダメージでは捕獲しないことも別途検証する）。
-  state.units.p1[0]._coreAttackContact = true;
-  const events = [];
-  core.coreApplyDeathEffects(victim, state, createSeededRng(31), e => events.push(e),
-    (source, target, amount, counter) => core.coreResolveHit(state, source, target, amount, counter, createSeededRng(31), e => events.push(e)));
-  // **奪うのは移動であって召喚ではない**（利用者指定。core.js の coreStealUnit）。
-  const stolen = events.find(e => e.type === 'unit_stolen');
-  assert.ok(stolen, 'サキュバスの撃破時の仲間化（unit_stolen）が発生していない');
-  assert.equal(stolen.unit._useEnemyVisualFrame, true, 'サキュバスの仲間化ユニットが敵枠を保持していない');
-  assert.equal(stolen.toSide, 'p1', 'サキュバスの仲間化が味方側へ移っていない');
-  assert.equal(state.units.p2.length, 0, '奪った体が敵陣に残っている');
-  assert.equal(state.units.p1.filter(u => u && u.id === 'victim').length, 1, '奪った体が味方陣に入っていない');
-
-  // coreResolveHit() は死亡効果まで同期的に解決する。戦闘ループ側に同じ
-  // 撃破後召喚を残すと、1回の撃破で仲間化が2体になり、配置・後続攻撃対象が崩れる。
-  const liveState = core.createBattleState({
-    sides: {
-      p1: {units: [{id: 'succubus-live', name: 'サキュバス', atk: 6, hp: 3, maxHp: 3}]},
-      p2: {units: [{id: 'victim-live', name: '敵キャラ', atk: 4, hp: 1, maxHp: 7}]},
-    },
-    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
-  });
-  const liveEvents = [];
-  const liveHit = (source, target, amount, counter) =>
-    core.coreResolveHit(liveState, source, target, amount, counter, createSeededRng(32), e => liveEvents.push(e));
-  liveState.units.p1[0]._coreAttackContact = true;
-  liveHit(liveState.units.p1[0], liveState.units.p2[0], 6, false);
-  assert.equal(liveEvents.filter(e => e.type === 'unit_stolen').length, 1,
-    'サキュバスの1回の撃破で仲間化が二重発生している');
-
-  // 反撃で死亡したキャラクターは「サキュバスが攻撃で倒した敵」ではない。
-  // counter情報が死亡効果まで届かないと、反撃時だけ仲間化が誤発動する。
-  const counterState = core.createBattleState({
-    sides: {
-      p1: {units: [{id: 'succubus-counter', name: 'サキュバス', atk: 1, hp: 1, maxHp: 1}]},
-      p2: {units: [{id: 'counter-killer', name: '敵', atk: 4, hp: 5, maxHp: 5}]},
-    },
-    resources: {p1: {mana: 0, gold: 0}, p2: {mana: 0, gold: 0}},
-  });
-  const counterEvents = [];
-  const counterHit = (source, target, amount, counter) =>
-    core.coreResolveHit(counterState, source, target, amount, counter, createSeededRng(33), e => counterEvents.push(e));
-  counterHit(counterState.units.p2[0], counterState.units.p1[0], 1, true);
-  assert.equal(counterEvents.filter(e => e.type === 'summon').length, 0,
-    'サキュバスが反撃ダメージによる死亡で仲間化召喚している');
+  // 現行本文は死亡時の奪取。攻撃撃破の旧捕獲は通常・強化とも発動しない。
+  const row = sheetRows('card').find(r => r['No.'] === 'C115');
+  for (const enhanced of [false, true]) {
+    const desc = (enhanced ? row['強化効果'] : '') || row['効果'];
+    const state = core.createBattleState({sides: {
+      p1: {units: [{id:'succubus', name:row['名前'], atk:6, hp:3, maxHp:3, desc}]},
+      p2: {units: [0,1,2].map(i => ({id:'victim'+i, name:'敵', atk:4, hp:7, maxHp:7}))},
+    }});
+    const events = [], rng = createSeededRng(31), emit = e => events.push(e);
+    const hit = (s,t,n,c) => core.coreResolveHit(state,s,t,n,c,rng,emit);
+    const source = state.units.p1[0];
+    source._coreAttackContact = true; hit(source,state.units.p2[0],20,false); delete source._coreAttackContact;
+    assert.equal(events.filter(e => e.type === 'unit_stolen').length,0,'攻撃で倒しても奪わない');
+    events.length = 0;
+    hit(state.units.p2[1],source,20,false);
+    const stolen = events.filter(e => e.type === 'unit_stolen');
+    assert.equal(stolen.length,Number((desc.match(/敵を(\d+)体/)||[])[1])||1);
+    for (const e of stolen) {
+      assert.equal(e.toSide,'p1'); assert.equal(e.unit._useEnemyVisualFrame,true);
+      assert.ok(!state.units.p2.some(u => u.id === e.unitId));
+      assert.equal(state.units.p1.filter(u => u.id === e.unitId).length,1);
+    }
+    assert.ok(!events.some(e => e.type === 'summon'),'奪取は移動であって召喚ではない');
+  }
 }
 
 function runSummonLimitScenario() {

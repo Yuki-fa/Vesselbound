@@ -227,6 +227,8 @@ async function run() {
       const h = harness(side, [plain('source')], ['青い瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪']);
       const child = core.coreSummonUnit(h.state, side, { name: '青スケルトン', color: '青' }, h.emit, h.source.id);
       const baseAtk = child._baseAtk, baseHp = child._baseMaxHp;
+      // CF001本来の復活は廃止。復活の処理を測るこの場面では明示的に付与する。
+      child.keywords.push('復活');
       child.hp = 0; child.shield = 0;
       assert.equal(core.coreTryRevive(child, h.state, h.emit), '復活');
       assert.equal(child.atk, Math.floor(baseAtk / 2) + 10 + 3 + summonerStats[0]);
@@ -263,7 +265,8 @@ async function run() {
   }
   await check('指輪つき即時召喚・復活のPvE／オンライン／JSON保存再生が一致', () => {
     const names = ['青い瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪'];
-    const setup = { seed: 100707, turnLimit: 20, summonDefs,
+    const setup = { seed: 100707, turnLimit: 20,
+      summonDefs:summonDefs.map(d=>d.no==='CF001'?{...d,keywords:[...d.keywords,'復活']}:d),
       rings: { p1: names.map(ring), p2: names.map(ring) },
       sides: { p1: { units: [card('スケルトンキング', 'king', { hp: 100, maxHp: 100 })] },
         p2: { units: [card('ケットシー', 'cat', { atk: 40, hp: 200, maxHp: 200 })] } } };

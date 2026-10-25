@@ -84,6 +84,8 @@ function invoke(card, side, trigger, enemyPool) {
     sides: { p1: { units: side === 'p1' ? allies : foes }, p2: { units: side === 'p2' ? allies : foes } },
     summonDefs: enemyPool, itemDefs: [{ id: 'audit-item', name: '監査アイテム', kind: 'item' }] });
   const unit = state.units[side][0];
+  // 変化の現行本文は「生存した魔導板の味方」の姿を選ぶ。保存先も用意する。
+  state.units[side].forEach((u, i) => { u._mainBoardSlot = i; });
   unit._currentAttackTarget = state.units[other][0];
   if (trigger === '死亡') unit.hp = 0;
   const events = []; const emit = e => events.push(e);
@@ -586,13 +588,14 @@ function audit() {
   // 実際の対象ID・変身後の表示情報・状態復元まで確認する。
   const randomTargetResults = [];
   for (let seed = 1; seed <= 8; seed++) {
-    const subject = { id: 'banshee', name: 'バンシー', side: 'p1', atk: 4, hp: 0, maxHp: 4, color: '青', keywords: [], desc: '死亡：ランダムな敵にXダメージを与える。XはこのキャラクターのATKに等しい。' };
+    // ランダムダメージの現行カードは怨念。バンシーの廃止本文を使わない。
+    const subject = { id: 'grudge', name: '怨念', side: 'p1', atk: 4, hp: 0, maxHp: 4, color: '青', keywords: [], desc: '死亡：ランダムな敵にXダメージを与える。XはこのキャラクターのATKに等しい。' };
     const targetUnits = [1, 2, 3].map(i => ({ id: `bt-${i}`, name: `敵${i}`, side: 'p2', atk: 1, hp: 20, maxHp: 20, color: '赤', keywords: [], desc: '' }));
     const s = core.createBattleState({ sides: { p1: { units: [subject] }, p2: { units: targetUnits } }, resources: { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } } });
     const es = []; const em = e => es.push(e);
     const hit = (src, target, amount, counter) => core.coreResolveHit(s, src, target, amount, counter, createSeededRng(seed + 100), em);
     core.coreApplyDeathEffects(s.units.p1[0], s, createSeededRng(seed), em, hit);
-    const hitEvent = es.find(e => e.type === 'damage' && e.sourceId === 'banshee');
+    const hitEvent = es.find(e => e.type === 'damage' && e.sourceId === 'grudge');
     if (hitEvent) randomTargetResults.push(hitEvent.unitId);
   }
   const randomTargetOk = randomTargetResults.length === 8 && new Set(randomTargetResults).size >= 2;
@@ -1032,17 +1035,18 @@ function audit() {
       && !es.some(e => e.type === 'keyword_effect' && e.effect === 'shield'), '全員所持なら獲得・乱数なし');
   }
   {
-    // エレメンタル：全ての色の味方がそろえばATKとHPが2倍になる。
+    // エレメンタル：現行本文の条件・弱体量を確認する（旧HP倍率は廃止）。
     const elemental = makeDirectUnit('エレメンタル', 'p1', { id: 'elemental-full' });
     const colors = ['赤', '青', '緑', '黄', '紫'].map((color, i) => plainDirectUnit(`elemental-full-${i}`, 'p1', { color }));
-    const s = makeDirectState([elemental, ...colors], []);
+    const s = makeDirectState([elemental, ...colors], [plainDirectUnit('elemental-foe', 'p2')]);
     const sElemental = s.units.p1[0];
     const baseAtk = sElemental.atk, baseHp = sElemental.maxHp;
     const es = [];
     core.coreApplyOpeningEffects(sElemental, s, createSeededRng(105), e => es.push(e), () => {});
-    recordDirect('エレメンタル全色2倍', sElemental.atk === baseAtk && sElemental.maxHp === baseHp * 2
-      && es.some(e => e.type === 'stat_change' && e.reason === 'opening_all_color_hp'),
-      `ATK/HP=${sElemental.atk}/${sElemental.maxHp}`);
+    const amount = Number(sElemental.desc.match(/弱体(\d+)/)[1]);
+    recordDirect('エレメンタル全色弱体', sElemental.atk === baseAtk && sElemental.maxHp === baseHp
+      && s.units.p2[0].weaken === amount && es.some(e => e.effect === 'weaken' && e.amount === amount),
+      `弱体=${s.units.p2[0].weaken}`);
   }
   {
     const nymph = makeDirectUnit('ニンフ', 'p1', { id: 'nymph' });
@@ -1055,14 +1059,14 @@ function audit() {
     const elemental = makeDirectUnit('エレメンタル', 'p1', { id: 'elemental' });
     const colors = ['赤', '青', '緑', '黄'].map((color, i) => plainDirectUnit(`elemental-${i}`, 'p1', { color }));
     colors.push(makeDirectUnit('封印されしもの', 'p1', { id: 'elemental-sealed', color: '紫', _sealed: true }));
-    const s = makeDirectState([elemental, ...colors], []); const es = [];
+    const s = makeDirectState([elemental, ...colors], [plainDirectUnit('sealed-color-foe', 'p2')]); const es = [];
     // createBattleState() はユニットを複製するので、**状態側の体**を見ること。
     const sElemental = s.units.p1[0];
     const baseAtk = sElemental.atk, baseHp = sElemental.maxHp;
     core.coreApplyOpeningEffects(sElemental, s, createSeededRng(104), e => es.push(e), () => {});
-    // 封印された紫は色に数えないので、全色そろわず2倍にならない。
-    recordDirect('エレメンタル封印色除外', sElemental.atk === baseAtk && sElemental.maxHp === baseHp,
-      `ATK/HP=${sElemental.atk}/${sElemental.maxHp}`);
+    // 封印された紫は色に数えないので弱体を与えない。
+    recordDirect('エレメンタル封印色除外', sElemental.atk === baseAtk && sElemental.maxHp === baseHp
+      && !s.units.p2[0].weaken && !es.some(e => e.effect === 'weaken'), `弱体=${s.units.p2[0].weaken}`);
   }
   {
     const pegasus = makeDirectUnit('ペガサス', 'p1', { id: 'pegasus' });

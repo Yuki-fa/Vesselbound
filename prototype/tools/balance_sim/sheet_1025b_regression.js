@@ -90,13 +90,14 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       h.events.length = 0; h.hit(h.foes[0], h.own[2], 1); assert.equal(damage(h).length, 0);
       h.events.length = 0; h.hit(h.foes[0], h.u, 1); assert.equal(damage(h).length, repeats(value));
     });
-    test('C004', '味方死亡で敵味方へ同時ダメージ、死体は除外、敵死亡では発動しない', value => {
-      const h = setup(side, [unit('C004', enhanced), plain('dead'), plain('ally')]);
-      h.own[1].hp = 0; coreApplyDeathObservers(h.own[1], h.state, h.rng, h.emit, h.hit);
-      const hits = Number((value.match(/ダメージを(\d+)回/) || [])[1]) || 1;
-      assert.equal(damage(h).length, 5 * hits); assert.ok(damage(h).every(e => e.unitId !== 'dead' && e.amount === Number(value.match(/(\d+)ダメージ/)[1])));
-      assert.equal(new Set(damage(h).map(e => e.batch)).size, hits);
-      h.events.length = 0; h.foes[0].hp = 0; coreApplyDeathObservers(h.foes[0], h.state, h.rng, h.emit, h.hit); assert.equal(damage(h).length, 0);
+    test('C004', 'ゲーム中の撃破候補を現行本文のマナ閾値・体数・現在能力で召喚する', value => {
+      const h = setup(side, [unit('C004', enhanced)]);
+      h.state.defeatedEnemies[side] = [plain('prior', { no:'CF001', name:'検査敵' })];
+      mana(h,Number(value.match(/^(\d+)マナ/)[1]));
+      const children=h.events.filter(e=>e.type==='summon');
+      assert.equal(children.length,Number((value.match(/敵(\d+)体/)||[])[1])||1);
+      for(const e of children) assert.deepEqual([e.unit.name,e.unit.atk,e.unit.hp],['検査敵',h.u.atk,h.u.hp]);
+      assert.equal(damage(h).length,0,'旧死亡観測ダメージを出さない');
     });
     test('C005', '半分切捨て／全量を均等分配、余りは別々、味方不在・結界・友軍ダメージ', value => {
       for (const amount of [1, 5, 13]) {
@@ -153,8 +154,10 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       mana(h, cost * 3); mana(h, cost * 4);
       assert.equal(h.events.filter(e => e.type === 'summon_buff').length, 1); assert.equal(h.state.gameSummonBuff[side].shock, amount);
       assert.equal(coreKeywordSum(h.own[1], '衝撃'), 3 + amount); assert.equal(coreKeywordSum(h.u, '衝撃'), 0);
-      const child = summon(h); assert.equal(coreKeywordSum(child, '衝撃'), amount);
-      const next = setup(side, [plain('summoner')], coreGameSummonBuffFields(h.state.gameSummonBuff)); assert.equal(coreKeywordSum(summon(next), '衝撃'), amount);
+      // CF001は現行シートで衝撃1を持つ。付与分と本来のキーワードを足す。
+      const baseShock=coreKeywordSum(PANEL_POOL.find(c=>c.no==='CF001'),'衝撃');
+      const child = summon(h); assert.equal(coreKeywordSum(child, '衝撃'), amount+baseShock);
+      const next = setup(side, [plain('summoner')], coreGameSummonBuffFields(h.state.gameSummonBuff)); assert.equal(coreKeywordSum(summon(next), '衝撃'), amount+baseShock);
       const event = h.events.find(e => e.type === 'summon_buff'); assert.equal(coreSummonBuffEventValues(event).shock, amount);
     });
     test('C053', '毒持ちだけを選び毒の値で攻撃、繰り返すたびに再抽選', value => {

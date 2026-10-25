@@ -81,9 +81,16 @@ async function check(name, run) {
     else createBattleRunner(x.state,x.rng,x.emit,{skipOpening:true}).step({deferCompact:true});
     await x.pve();
     const fx=h.calls.filter(c=>c.name==='projectile:'+no);
-    assert.equal(fx.length,3);
-    assert.equal(fx[0].options.flightMs,undefined);
-    assert.ok(fx.slice(1).every(c=>c.options.flightMs===PRESENT_MANA_RUN_GAP_MS));
+    if(no==='E042') {
+      // E042はキャラクター本来の効果ではない。旧C024の固有弾は出さず既存の命中表示で流す。
+      assert.equal(fx.length,0);
+      assert.deepEqual(x.events.filter(e=>e.type==='damage'&&e.effectSource===false).map(e=>e.amount),[3,3,3]);
+      assert.equal(h.calls.filter(c=>c.name==='hit'&&c.amount===3).length,3);
+    } else {
+      assert.equal(fx.length,3);
+      assert.equal(fx[0].options.flightMs,undefined);
+      assert.ok(fx.slice(1).every(c=>c.options.flightMs===PRESENT_MANA_RUN_GAP_MS));
+    }
     await x.online();
     assert.deepEqual(h.calls.filter(c=>c.name==='projectile:'+no).map(c=>c.options.flightMs),fx.map(c=>c.options.flightMs));
   });

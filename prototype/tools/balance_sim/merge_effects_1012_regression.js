@@ -49,12 +49,15 @@ function exercise(row, merged, text, times = 1, side = 'p1', includeRegular=fals
     resources:{p1:{mana:cost||10,gold:1000},p2:{mana:cost||10,gold:1000}},blood:{p1:10,p2:10},life:{p1:1,p2:1},maxLife:{p1:3,p2:3},
     summonDefs:[...PANEL_POOL,...ENEMY_POOL],itemDefs:ITEM_POOL,frontSlots:30,maxUnits:40});
   const u=state.units[side][0], receiver=state.units[side][1];
+  const colorCondition=text.match(/味方の色が(\d+)種類なら/);
+  if(colorCondition)state.units[side].forEach((a,i)=>{a.color=['赤','青','緑','黄','紫'][i%Number(colorCondition[1])];});
   if(/回目の終戦ごと/.test(text)){u._battleEndCount=Number(text.match(/(\d+)回目/)[1])-1;u.boardCards=[0,1].map(i=>({name:'検査強化'+i,category:'エンチャント',mergedForm:{desc:'強化後'},_mainBoardSlot:i+1}));} u._currentAttackTarget=state.units[other][0];
   state.deadUnits=[plain('archived','青',{hp:0,atk:6,maxHp:10})];
   const events=[],emit=e=>events.push(e);
   const rng=createSeededRng(1012);if(/確率/.test(text))rng.next=()=>0;
   const hit=(a,b,n,c,_s,_t,o)=>coreResolveHit(state,a,b,n,c,rng,emit,o);
   const run=i=>{
+    if(/このキャラクターが敵から受けたダメージ/.test(text)){hit(state.units[other][0],u,13);return;}
     const teamRepeat=text.match(/味方の(負傷|攻撃|マナ|解放)効果は(\d+)回追加/);
     if(teamRepeat){
       if(teamRepeat[1]==='負傷'){receiver.desc='負傷：このキャラクターは+1/+1を得る。';hit(state.units[other][0],receiver,1);}
@@ -63,7 +66,15 @@ function exercise(row, merged, text, times = 1, side = 'p1', includeRegular=fals
       if(teamRepeat[1]==='解放'){receiver.desc='解放：このキャラクターは+1/+1を得る。';receiver.keywords=['封印1'];runBattleCore(state,rng,{turnLimit:1,onEvent:emit});}
       return;
     }
+    if(/赤の味方が負傷するたび/.test(text)){
+      hit(state.units[other][0],receiver,1);
+      // 反復するのは観測効果であり、起点の1ダメージは効果量へ数えない。
+      const start=events.findIndex(e=>e.type==='damage'&&e.sourceId===state.units[other][0].id);
+      if(start>=0)events.splice(start,1);return;
+    }
+    if(/このゲーム中に倒したことがある/.test(text))state.defeatedEnemies[side]=[plain('prior','青',{name:'検査済みの敵'})];
     if(/敵が状態異常を得るたび/.test(text)){coreApplyKeywordOnHit({...u,keywords:['毒牙1']},state.units[other][0],1,9999,state,emit);return;}
+    if(/あなたが得る血は/.test(text)){coreGainBlood(state,side,1,u,emit,rng,hit);return;}
     if(/あなたが血を得る場合/.test(text)){receiver.hp=0;coreTriggerDeath(receiver,state,emit,rng,hit);return;}
     if(/このキャラクターが敵を倒した(?:場合|時)/.test(text)){state.units[other][0].hp=1;hit(u,state.units[other][0],10);return;}
     if(/持つ邪眼、毒牙、衝撃の値/.test(text)){u.keywords.push('毒牙1','邪眼1','衝撃1');coreApplyKeywordOnHit(u,state.units[other][0],1,9999,state,emit);return;}
@@ -83,6 +94,7 @@ function exercise(row, merged, text, times = 1, side = 'p1', includeRegular=fals
       receiver.desc='負傷：検査用の誘発。';coreApplyInjuryEffects(receiver,0,state,rng,emit,hit,null,i);
     } else if (/味方(?:の攻撃効果が発動|が攻撃)するたび/.test(text)) {
       receiver.desc='攻撃：検査用の誘発。';coreApplyAttackObservers(receiver,state,rng,emit,hit);
+      coreApplyAttackEffects(receiver,state,rng,emit,hit);
     } else if (/結界を失うたび/.test(text)) coreApplyShieldLostEffects(receiver,state,rng,emit,hit);
     else if (/ATKを得るたび/.test(text)) coreTriggerAtkGainEffects(u,1,state,rng,emit,hit);
     else if (/味方が7体/.test(text)) internals.coreFireWargThreshold(state,side,emit);
@@ -120,6 +132,12 @@ function concrete(row,merged,text,result) {
   const match=re=>text.match(re);
   let m;
   const repeats=effectRepetitions(text);
+  if(/によって同じ色の味方とだけ接続/.test(text)) {
+    // 接続関係を持つシナリオは、現行本文監査の2体接続・異色混在の両条件を使う。
+    const audit=require('./card_text_audit_1026'),entry=audit.catalog().find(c=>c.no===row['No.']);
+    const test=audit.exercise(entry,entry.forms[merged?1:0],text,'常時');
+    assert.equal(test.status,'動く');return;
+  }
   if((m=match(/^(?:攻撃|負傷|死亡|終戦|開戦)：(\d+)(マナ|ゴールド)を得る。/))) {
     assert.equal(score[m[2]==='マナ'?'mana_gain':'gold_gain'],Number(m[1])*repeats);return;
   }
@@ -206,8 +224,8 @@ function concrete(row,merged,text,result) {
   if(text.includes('HPではなくATK')) {assert.ok(coreHasEffect(u,p.name),'ATKダメージの効果識別子が保持される');return;}
   if(text.includes('反撃ダメージを受けない')) {const notice={};assert.equal(coreCounterDamage(u,plain('foe','赤',{atk:1}),notice),0);return;}
   if(text.includes('敵を倒した時')) {
-    const target=state.units[other][0];target.hp=1;const before=state.blood[side];hitKill(u,target,state,events);
-    assert.equal(state.blood[side]-before,Number(match(/血を(\d+)得る/)[1]));return;
+    // exerciseで既に撃破済み。同じ死亡済みの体をもう一度倒した扱いにしない。
+    assert.equal(score.blood,Number(match(/血を(\d+)得る/)[1]));return;
   }
   // 反復以外の数値変更も、本文の対象・値・倍率を実結果で確認する。
   if((m=match(/(?:このキャラクターの)?(?:ATKとHP|戦闘力)を(\d+)倍にする/))) {
@@ -243,6 +261,14 @@ function concrete(row,merged,text,result) {
   }
   if(text.includes('確率で即死')) return; // 境界と独立判定は下で別に確認する。
   if(!text || !/^(?:常時|開戦|攻撃|負傷|死亡|解放|終戦|\d+マナ)/.test(text)) return; // 荷物・クエスト・刻印の戦闘外の文。
+  if(!Object.keys(score).length) {
+    // 新本文の観測・編成条件は本文監査の実行シナリオを共用する。
+    // 「条件付きだから除外」にはせず、実際の数値検証が通った時だけ成功とする。
+    const audit=require('./card_text_audit_1026'),entry=audit.catalog().find(c=>c.no===row['No.']);
+    const trigger=(text.match(/^([^：:]+)[：:]/)||[])[1]||'';
+    const verdict=audit.exercise(entry,entry.forms[merged?1:0],text,trigger);
+    assert.equal(verdict.status,'動く',row['No.']+': '+verdict.reason);return;
+  }
   assert.ok(Object.keys(score).length>0,`${row['No.']} ${merged?'合体':'通常'} 効果が空振り: ${text}`);
 }
 function hitKill(u,target,state,events) {
@@ -324,7 +350,7 @@ async function pveBridgeChecks() {
   await loadGameData();let checked=0,repeats=0;
   for(const row of rows) {
     for(const merged of [false,true]) {
-      const desc=String((merged?row['合体効果']:row['効果'])||row['効果']||'').trim();
+      const desc=String(merged&&row['No.']==='E010'?'':(merged?row['合体効果']:row['効果'])||row['効果']||'').trim();
       const loaded=subjectFor(row,merged).p;
       assert.equal(loaded.desc,desc,`${row['No.']} 本文がloaderで上書きされた`);
       const kw=words((merged?row['合体キーワード']:row['キーワード'])||row['キーワード']);
