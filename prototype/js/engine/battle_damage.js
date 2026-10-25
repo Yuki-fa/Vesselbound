@@ -631,6 +631,7 @@ async function _processEnemyDeathInner(e,eIdx){
   const _isActualElite=G._isEliteFight&&G._eliteIdx>=0&&eIdx===G._eliteIdx;
   if(_isActualElite) G._eliteKilled=true;
   const gold=_rollEnemyGold(e);
+  e._enemyGoldPaid=true;
   if(gold>0&&typeof onGoldGained==='function') onGoldGained(gold);
   _onEnemyDeathPanelSummons(e);
   // ナグルファル：敵死亡でも+2/+1

@@ -490,6 +490,12 @@ const SaveRun=(()=>{
       let reward=0;
       // 撃破報酬は既存のPvE後始末と同じ入口で確定する。戦闘ルールはコアに置く。
       for(const ev of events.slice(from)){
+        // 2026-10-25：所持金を配分した敵は、奪っても倒した時と同じ額を得る（区間の合計を崩さない）。
+        if(ev.side==='p2'&&ev.type==='unit_stolen'&&!paid.has(ev.unitId)){
+          const unit=[...(state.units.p1||[]),...(state.units.p2||[])].find(u=>u&&u.id===ev.unitId);
+          if(unit&&unit._goldPlanned){ paid.add(ev.unitId);ev.pveRewardGold=_rollEnemyGold(unit,rewardRng);reward+=goldIncomeAmount(ev.pveRewardGold); }
+          continue;
+        }
         if(ev.side!=='p2'||!['death','fled'].includes(ev.type)||paid.has(ev.unitId)) continue;
         const unit=state.units.p2.find(u=>u&&u.id===ev.unitId);
         if(!unit||unit.hp>0) continue;

@@ -795,3 +795,104 @@ function _enforceLaneRules(enemies){
     }
   }
 }
+
+// ── 敵の所持金の配分（2026-10-25 利用者指定） ─────────────────────────
+// 街・塔に着くまでの区間ごとに、敵から得る所持金の合計を範囲内へ収める（再戦なしの前提。再戦は同じ額をもう一度得る）。
+// 区間の合計 → 各戦闘の合計 → 各敵の額の順に、ランの種だけから決める（同じランなら何度計算しても同じ）。
+// 敵ごとの額はシートの所持金の幅を重みにして揺らし、均一にしない。決めた額は goldRange=[額,額] として持たせる。
+const ENEMY_GOLD_PLAN={
+  // ステージ1〜4の区間（順に 街まで・塔まで）の範囲と、各ステージの塔までの累計の範囲。
+  stages:[
+    {city:[75,100],tower:[150,200],total:[250,300]},
+    {city:[150,200],tower:[250,300],total:[700,800]},
+    {city:[250,300],tower:[300,400],total:[1400,1450]},
+    {city:[300,400],tower:[400,500],total:[2200,2200]},
+  ],
+  // ステージ5の最初の通常戦2つの合計（最終決戦に着くまで）。ボス戦は配分しない。
+  finalBattles:350,
+  // 戦闘ごとの取り分の比率＝配分前（シートの幅のまま）の各戦闘の平均額。1周目のステージ1の最初の区間だけ敵が少ない。
+  weights:{1:{battle:46,elite:63,boss:86},2:{battle:56,elite:79,boss:107},3:{battle:80,elite:124,boss:140},
+    4:{battle:96,elite:149,boss:168},5:{battle:150,elite:150,boss:243}},
+  firstRunOpening:[11,23,63],
+};
+function _enemyGoldRng(key){
+  let h=2166136261;
+  for(const c of String(key)){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}
+  return typeof createSeededRng==='function'?createSeededRng(h>>>0):null;
+}
+// 指定の範囲から、後の区間と累計の範囲が成り立つ値を選ぶ。
+function _enemyGoldPick(rng,range,lo,hi){
+  const a=Math.max(range[0],Math.ceil(lo)),b=Math.min(range[1],Math.floor(hi));
+  if(a>b) return Math.max(range[0],Math.min(range[1],Math.round((lo+hi)/2)));
+  return rng.int(a,b);
+}
+// 区間（ステージ1〜4は 0:街まで 1:塔まで）ごとの合計。ステージ5は finalBattles。
+function _enemyGoldSegmentTotals(seed){
+  const rng=_enemyGoldRng(`${seed}:enemy-gold-plan`);
+  if(!rng) return null;
+  const out=[];let sum=0;
+  ENEMY_GOLD_PLAN.stages.forEach(st=>{
+    const city=_enemyGoldPick(rng,st.city,st.total[0]-sum-st.tower[1],st.total[1]-sum-st.tower[0]);
+    const tower=_enemyGoldPick(rng,st.tower,st.total[0]-sum-city,st.total[1]-sum-city);
+    out.push([city,tower]);sum+=city+tower;
+  });
+  return out;
+}
+// そのステージの区間ごとの戦闘マス（[{stage,type}]の配列の配列）。ステージ5はボスより前の通常戦だけ。
+function _enemyGoldSegments(wave){
+  const route=typeof _waveRouteForWave==='function'?_waveRouteForWave(wave)||[]:[];
+  const segs=[];let cur=[];
+  route.forEach((node,i)=>{
+    if(node==='city'||node==='altar'){ if(cur.length) segs.push(cur); cur=[]; return; }
+    cur.push({stage:i+1,type:node==='elite'||node==='boss'?node:'battle'});
+  });
+  if(cur.length) segs.push(cur);
+  if(Number(wave)===5) return segs.length?[segs[0].filter(b=>b.type==='battle')]:[];
+  return segs;
+}
+// その戦闘の敵から得る合計。配分の対象外（ステージ5のボス・区間の形が想定と違う等）は null。
+function enemyGoldBattleTotal(wave,stage){
+  const seed=typeof G!=='undefined'&&G?G._runSeed:null;
+  wave=Number(wave)||0;stage=Number(stage)||0;
+  if(seed==null||wave<1||wave>5) return null;
+  const segs=_enemyGoldSegments(wave);
+  if(wave<=4&&segs.length!==2) return null;
+  const segIdx=segs.findIndex(seg=>seg.some(b=>b.stage===stage));
+  if(segIdx<0) return null;
+  const totals=_enemyGoldSegmentTotals(seed);
+  if(!totals) return null;
+  const segTotal=wave===5?ENEMY_GOLD_PLAN.finalBattles:totals[wave-1][segIdx];
+  const seg=segs[segIdx];
+  const opening=wave===1&&segIdx===0&&typeof isFirstStoryRun==='function'&&isFirstStoryRun()
+    &&seg.length===ENEMY_GOLD_PLAN.firstRunOpening.length;
+  const rng=_enemyGoldRng(`${seed}:enemy-gold-battles:${wave}:${segIdx}`);
+  const w=seg.map((b,i)=>(opening?ENEMY_GOLD_PLAN.firstRunOpening[i]:(ENEMY_GOLD_PLAN.weights[wave]||{})[b.type]||1)
+    *(0.85+rng.next()*0.3));
+  const shares=_enemyGoldSplit(segTotal,w);
+  return shares[seg.findIndex(b=>b.stage===stage)];
+}
+// 合計を重みの比で整数に分ける（端数は小数部の大きい順に1ずつ）。
+function _enemyGoldSplit(total,weights){
+  const sum=weights.reduce((a,b)=>a+b,0)||1;
+  const raw=weights.map(x=>total*x/sum);
+  const out=raw.map(Math.floor);
+  let rest=total-out.reduce((a,b)=>a+b,0);
+  raw.map((x,i)=>[x-Math.floor(x),i]).sort((a,b)=>b[0]-a[0]||a[1]-b[1]).forEach(([,i])=>{ if(rest>0){ out[i]++; rest--; } });
+  return out;
+}
+// 開戦時の敵へ額を割り振る。各敵に最低1、残りをシートの幅から引いた重み×揺らぎで分ける。
+function applyEnemyGoldPlan(enemies,wave,stage){
+  const total=enemyGoldBattleTotal(wave,stage);
+  const list=(enemies||[]).filter(e=>e&&!e._isObject&&!e._isSoul);
+  if(total==null||!list.length) return false;
+  const rng=_enemyGoldRng(`${G._runSeed}:enemy-gold-units:${Number(wave)}:${Number(stage)}`);
+  const w=list.map(e=>{
+    const r=Array.isArray(e.goldRange)?e.goldRange:[1,1];
+    const lo=Math.max(0,Number(r[0])||0),hi=Math.max(lo,Number(r[1])||lo);
+    return Math.max(1,lo+rng.next()*(hi-lo))*(0.5+rng.next());
+  });
+  const base=total>=list.length?1:0;
+  const shares=_enemyGoldSplit(total-base*list.length,w);
+  list.forEach((e,i)=>{ const g=base+shares[i]; e.goldRange=[g,g]; e._goldPlanned=true; });
+  return true;
+}

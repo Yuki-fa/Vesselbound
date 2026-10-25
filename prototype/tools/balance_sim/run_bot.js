@@ -78,6 +78,7 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
   api.hooks={
     enemies:enemies=>{battleStart={wave:G._wave,stage:G._waveStage,type:G._waveBattleType,floor:G.floor,
       deepLevel:_waveDeepLevel(G._waveStage),retry:!!G._waveIsRetry,lifeBefore:_currentBattleLife(),goldBefore:G.gold,
+      enemyGoldPlanned:typeof enemyGoldBattleTotal==='function'?enemyGoldBattleTotal(G._wave,G._waveStage):null,
       enemies:enemies.filter(Boolean).map(enemyInfo),board:boardInfo(),runLevels:clone(runLevelBattleValues()),synergy:planner.describe()};},
     grant,
   };

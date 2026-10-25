@@ -803,7 +803,8 @@ function _playDeathBurnOnce(unit,isEnemySide){
 
 function _rollEnemyGold(enemy,rng){
   const range=Array.isArray(enemy&&enemy.goldRange)?enemy.goldRange:null;
-  if(!range) return 1;
+  // 所持金の無い体（戦闘中に召喚された敵など）は0。区間の配分（applyEnemyGoldPlan）の合計を崩さない。
+  if(!range) return 0;
   const lo=Math.max(0,Number(range[0])||0);
   const hi=Math.max(lo,Number(range[1])||lo);
   return rng?rng.int(lo,hi):randi(lo,hi);
@@ -1259,6 +1260,11 @@ async function startBattle(){
     });
   }
   _layoutStartingBattleEnemies(savedBattle,reuseWaveEnemies,arenaBattle,questBattle,fixedTestBattle,mapBattle,battleFloor,carryBattle);
+  // 2026-10-25：初めて戦う旅程の戦闘だけ、敵の所持金を区間の配分で決める（再戦・保存した戦闘の再生は決めた額のまま）。
+  if(waveEnemyKey&&!savedBattle&&!reuseWaveEnemies&&!arenaBattle&&!questBattle&&!fixedTestBattle
+    &&!G._testBattleMode&&!G._libraryTestBattleMode&&!G._onlineMode&&typeof applyEnemyGoldPlan==='function'){
+    applyEnemyGoldPlan(G.enemies,G._wave,G._waveStage);
+  }
   if(G.runStats){
     const kind=String(G._waveBattleType||G._mapBattle?.type||'');
     const special=kind==='boss'||kind==='elite';
