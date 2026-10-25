@@ -200,6 +200,7 @@ function refreshRewardGoldUi(){
 }
 
 function renderHandEditor(){
+  if(typeof syncCardActivationPicking==='function') syncCardActivationPicking();
   if(typeof questCheckRetainedCards==='function') questCheckRetainedCards();
   if(typeof SaveProfile!=='undefined') SaveProfile.owned();
   if(G.phase!=='reward'&&G._tripleMergeHiddenIdx!=null) _clearTripleMergeHidden();
@@ -275,7 +276,7 @@ function _wireHeCardDiscard(div,card,arr,arrName,i,_ringOfferDiscardable){
     ev.stopPropagation();
     if(_libraryTutorialIsMoveStep()) return;
     if(!_cardTradingRules().sellCards&&discardBtn.classList.contains('shop-board-sell-action')
-      &&!['library-loan-return-btn','shop-return-btn','quest-part-btn','ring-offer-discard-btn'].some(c=>discardBtn.classList.contains(c))) return;
+      &&!['library-loan-return-btn','shop-return-btn','quest-part-btn','ring-offer-discard-btn','debug-discard-btn'].some(c=>discardBtn.classList.contains(c))) return;
     if(typeof questTryBlockedCardSale==='function'&&questTryBlockedCardSale(card)) return;
     if(discardBtn.classList.contains('library-loan-return-btn')){
       _returnLibraryLoanCard(i,card);
@@ -665,6 +666,9 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
           ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action quest-part-btn" data-sfx-silent="1">${_uiLabel('「別れる」ボタン','別れる')}</button>`
           :_boardSellable
           ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${_shopSellGain}G</button>`
+          // デバッグモードでは右上に「廃棄」を出す（お金は入らない。2026-10-26 利用者指定）。
+          :G&&G._debugMode&&!_ringOfferDiscardable
+          ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action debug-discard-btn" data-sfx-silent="1">${_uiLabel('「廃棄」ボタン','廃棄')}</button>`
           // 還魂は右上のボタンを出さず、カードのクリックで行う（2026-10-23 利用者指定。_wireHeCardControls）。
           :'')
         :'';

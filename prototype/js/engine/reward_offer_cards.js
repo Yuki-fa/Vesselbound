@@ -526,7 +526,9 @@ function _discardBoardCardForRingOffer(idx,card){
   if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
   // 途中で祭壇を離れる時に**元の場所へ回収する**ため、捧げたカードと元のスロットを控える。
   G._ringSacrificedCards=Array.isArray(G._ringSacrificedCards)?G._ringSacrificedCards:[];
-  G._ringSacrificedCards.push({idx,card:clone(card)});
+  const entry={idx,card:clone(card)};
+  G._ringSacrificedCards.push(entry);
+  if(typeof applyAscensionLifeOnSacrifice==='function') applyAscensionLifeOnSacrifice(entry);
   G._boardDiscardCount=(G._boardDiscardCount||0)+1;
   const ringGetCount=Math.max(1,Math.min(3,G._ringSacrificedCards.length));
   _playRewardAcquireSfx(`ring_get${ringGetCount}.wav`);

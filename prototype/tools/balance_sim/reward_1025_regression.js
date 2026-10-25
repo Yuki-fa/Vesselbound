@@ -29,7 +29,7 @@ function panel(no){const def=PANEL_POOL.find(c=>c.no===no);assert.ok(def,no);ret
   _playRewardRevealSweep=()=>log.push('sweep');
   cardRevealTurnDown=rig=>{log.push('down');return new Promise(resolve=>setTimeout(()=>{rig.face='back';resolve();},760));};
   cardRevealPlaySequence=(rigs,rarities)=>{
-    assert.deepEqual(rarities,rigs.map(()=>1),'通常めくりだけを使う');log.push('up');
+    assert.ok(rarities.filter(r=>r>1).length<=1&&rarities.every(r=>r>=1),'演出付きでめくるのは最高レアの1枚だけ（2026-10-26）');log.push('up');
     return new Promise(resolve=>setTimeout(()=>{rigs.forEach(r=>r.face='front');log.push('front');resolve();},760));
   };
   cardRevealReset=()=>{};_rewardRerollFace=c=>c;

@@ -7485,6 +7485,9 @@ html body.reward-screen-active .shop-board-sell-action{
 /* 再抽選では、報酬欄の元の位置・カード寸法のまま同じめくり台を使う。 */
 #reward-reroll-layer{position:absolute;inset:0;z-index:4500;pointer-events:auto}
 html body.reward-reroll-active #reward-offer-row{visibility:hidden!important;transition:none!important}
+/* 中の層（レアリティの線 .reward-card-line-layer など）は visibility を個別に持つので、子も隠す。
+   隠さないと、めくる前の裏向きのカードの周りに報酬欄のカードの発光が見えていた（2026-10-26 利用者指摘）。 */
+html body.reward-reroll-active #reward-offer-row *{visibility:hidden!important}
 /* 手前の層が消える間に流す光の帯（reward.js の _finishRewardReveal）。大きな縦長の柔らかい帯を1本だけ、
    左から右へ流す（REWARD_REVEAL_SWEEP_MS＝640ms と揃える）。 */
 #reward-reveal-sweep{position:absolute;inset:0;z-index:4501;pointer-events:none;overflow:hidden}
@@ -7674,23 +7677,27 @@ html body #scr-battle.active #btn-pass{display:none!important;visibility:hidden!
 }
 /* 起動できるカードの「起動可」ラベル（2026-10-23 利用者指定：旧「還魂」ボタンと同じ形。還魂はボタンを無くしカードのクリックへ）。
    ラベル自体は押せない（発動はカードのクリック）。 */
+/* デバッグの「廃棄」ボタンと同じカードに出る時は、その下へずらす。 */
+html body.reward-screen-active #hand-slots.board-slots .debug-discard-btn ~ .card-activation-ready-label{top:84px!important}
+/* 2026-10-26：還魂のラベル（.shop-board-sell-action）と同じ位置・大きさ・cost.svg の枠にそろえる（カード右端に付ける）。 */
 html body.reward-screen-active #hand-slots.board-slots .card-activation-ready-label{
   pointer-events:none!important;
-  color:#c49a6c!important;
+  color:var(--gold2)!important;
   position:absolute!important;
-  top:94px!important;
-  right:4px!important;
+  top:34px!important;
+  right:0!important;
   left:auto!important;
   bottom:auto!important;
-  width:96px!important;
-  height:51px!important;
-  min-width:96px!important;
+  width:101px!important;
+  height:46px!important;
+  min-width:101px!important;
   box-sizing:border-box!important;
-  padding:2px 4px!important;
-  border:1px solid rgba(230,210,150,.75)!important;
-  border-radius:4px!important;
-  background:rgba(5,7,10,.9)!important;
-  font:700 24px/1.1 var(--font-hd)!important;
+  padding:0 8px!important;
+  border:0!important;
+  border-radius:0!important;
+  --shop-cost-bg-opacity:.8;
+  background:rgb(0 0 0 / var(--shop-cost-bg-opacity)) url("assets/ui/cost.svg?v=shopMenu03") center/100% 100% no-repeat!important;
+  font:700 24px/1 var(--font-bd)!important;
   display:flex!important;
   align-items:center!important;
   justify-content:center!important;
@@ -11128,7 +11135,7 @@ html body:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell):i
 /* 暗転オーバーレイを出すのは「アイテムの対象選択中」と
    「魔導板・報酬カードのドラッグ中」だけ。**ドラッグ側を除外に入れ忘れると
    魔導板・報酬カードのドラッグで何も暗くならない。** */
-html body:not(.item-use-picking):not(.dragzone-board):not(.dragzone-reward-spell):not(.dragzone-reward-nonspell) #board-drag-overlay{display:none!important}
+html body:not(.item-use-picking):not(.activation-picking):not(.dragzone-board):not(.dragzone-reward-spell):not(.dragzone-reward-nonspell) #board-drag-overlay{display:none!important}
 /* 既存の暗転ルールは「.dragzone-x.dragzone-x」とクラスを二重指定して詳細度を上げているため、
    打ち消す側も :is() を三重に重ねて確実に勝たせる。 */
 /* カードドラッグ時は魔導板の装飾をカードより下へ置く。枠画像を上へ置くと、
@@ -12078,7 +12085,7 @@ _watchVesselboundDpr();
 <script src="js/engine/constants.js?v=cleanupLegacy01-dead1025"></script>
 <script src="js/data/floors.js?v=deeplevel1-deep1002"></script>
 <script src="js/data/events.js?v=cleanup157"></script>
-<script src="js/data/local_xlsx_data.js?v=arenaEnter0929-engraving1001-storyCycle1001-deep1002-kenzoku1007-naga1007-soul1007-d1010-e1010-dina1011-p1011-s1012-kw1012-sheet1022-map1022-sheet1023-renum1024-text1025-sheet1025b-gold1025-a1026"></script>
+<script src="js/data/local_xlsx_data.js?v=arenaEnter0929-engraving1001-storyCycle1001-deep1002-kenzoku1007-naga1007-soul1007-d1010-e1010-dina1011-p1011-s1012-kw1012-sheet1022-map1022-sheet1023-renum1024-text1025-sheet1025b-gold1025-a1026-b1026"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="js/data/loader.js?v=questTalkA4-cardFx0927-q006b0928-outcome0929-deep1002-q008replace1004-q001e0751004-kenzoku1007-riese1008-e0081008-d1010-p1011-fix1012-skilled1012-shieldSingle1021a-fxcol1022-itemx1022-itemrar1023sheet1022a-kobold1023-sheet1023-renum1024-sheet1025b"></script>
 <script src="js/data/units.js?v=equipLegacyGone01-dead1025"></script>
@@ -12141,10 +12148,10 @@ _watchVesselboundDpr();
 <script src="js/engine/reward_items.js?v=shopFix0927-engraving1001-refactor2_1008-d1010-fix1011-vfx1017b-r1018-towerBoon1016-shopExchange1017-peddlerExchange1017-trialFix1018-merge1018-noSell1018-shieldSingle1021a-v1021d-itemx1022sheet1022a-ready1023-fx1023-place1025-sheet1025b-a1026-fb1026"></script>
 <script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927-storyCycle1001-debugStory1002-eventFix1004"></script>
 <script src="js/engine/card_reveal.js?v=revealLand0923-trialFix1018-jitter1023"></script>
-<script src="js/engine/activation.js?v=sheet1022a-rewTarget1023-ready1023-fx1023-fxAssign1025-place1025-sheet1025b-fb1025-a1026-fb1026"></script>
-<script src="js/engine/reward.js?v=rarityAltar0928-engraving1001-q001e0751004-eventFix1004-se1004-fix1005-fix1005b-defeatRetry1007-refactor1008-refactor2_1008-d1010-p1011-fix1012-vfxm1013-towerBoon1016-shopExchange1017-peddlerExchange1017-trialFix1018-noSell1018-ops1018-fixes1018b-levels1018c-soulDim1019-display1019-peddlerReroll1019-flame1019f-hydra1021-v1021e-sheet1022a-flameMove1023-actTarget1023-ready1023-sheet1023-fxAssign1025-place1025-split1025-b-split1025-1-split1025-2"></script>
-<script src="js/engine/reward_offer_cards.js?v=split1025-eof1025-a1026"></script>
-<script src="js/engine/reward_board_editor.js?v=split1025-eof1025-a1026"></script>
+<script src="js/engine/activation.js?v=sheet1022a-rewTarget1023-ready1023-fx1023-fxAssign1025-place1025-sheet1025b-fb1025-a1026-fb1026-b1026"></script>
+<script src="js/engine/reward.js?v=rarityAltar0928-engraving1001-q001e0751004-eventFix1004-se1004-fix1005-fix1005b-defeatRetry1007-refactor1008-refactor2_1008-d1010-p1011-fix1012-vfxm1013-towerBoon1016-shopExchange1017-peddlerExchange1017-trialFix1018-noSell1018-ops1018-fixes1018b-levels1018c-soulDim1019-display1019-peddlerReroll1019-flame1019f-hydra1021-v1021e-sheet1022a-flameMove1023-actTarget1023-ready1023-sheet1023-fxAssign1025-place1025-split1025-b-split1025-1-split1025-2-b1026"></script>
+<script src="js/engine/reward_offer_cards.js?v=split1025-eof1025-a1026-b1026"></script>
+<script src="js/engine/reward_board_editor.js?v=split1025-eof1025-a1026-b1026"></script>
 <script src="js/engine/reward_drag.js?v=split1025"></script>
 <script src="js/engine/reward_debug.js?v=split1025-sort1025"></script>
 <script src="js/engine/map.js?v=innFace0928-q0060928-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q001e0751004-eventFix1004-se1004-fix1005-riese1008-refactor2_1008-d1010-p1011-fix1011-fix1012-vfxm1013-towerBoon1016-boss-shopExchange1017-peddlerExchange1017-trialFix1018-noSell1018-levels1018c-peddlerReroll1019-flame1019f-board1020-bf1020-v1021d-sheet1022a-sheet1023-renum1024-split1025-1-a1026"></script>
@@ -12155,7 +12162,7 @@ _watchVesselboundDpr();
     <script src="js/engine/gold_fx.js?v=cargoLoss0927"></script>
     <script src="js/engine/arena.js?v=reportedFixes0928-talkA0928-outcome0929-deep1002-fix1005-bannerHold1006-defeatRetry1007-fixes1018b-banner1019"></script>
     <script src="js/engine/peddler.js?v=d1010c-p1011-peddlerExchange1017-sheet1023"></script>
-    <script src="js/engine/main.js?v=backSfx0928-q0060928-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-bannerHold1006-defeatRetry1007-refactor1008-refactor2_1008-d1010-shopExchange1017-ops1018-levels1018c-errInert1020-clearUnlock1021-sheet1023"></script>
+    <script src="js/engine/main.js?v=backSfx0928-q0060928-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-bannerHold1006-defeatRetry1007-refactor1008-refactor2_1008-d1010-shopExchange1017-ops1018-levels1018c-errInert1020-clearUnlock1021-sheet1023-b1026"></script>
 <script src="js/engine/options.js?v=keyRename0927-stopSe1020"></script>
 <script src="js/engine/collection.js?v=keyRename0927-textAudit0927-deep1002-fix1012-trialFix1018-display1019-flame1019f"></script>
 <script>
@@ -14425,6 +14432,46 @@ html body #hand-slots.board-slots > .card.card-activation-ready.card-activation-
 }
 /* 破壊の起動（ヘルナイト）で選べる報酬枠のカード（2026-10-23） */
 .card-activation-target{outline:3px dashed #a8e5ff;cursor:pointer}
+/* 起動の対象選び中（body.activation-picking）は、アイテム使用中と同じく画面を暗くして、
+   魔導板と報酬欄（アイテムを選ぶ起動＝activation-picking-item では魔導板とアイテム枠）だけを前に出す（2026-10-26 利用者指定）。 */
+html body.activation-picking #board-drag-overlay{
+  display:block!important;
+  pointer-events:auto!important;
+}
+html body.activation-picking .battle-scroll{z-index:30!important}
+html body.activation-picking #battle-counters,
+html body.activation-picking #battle-status-hud{display:none!important}
+html body.activation-picking.activation-picking #hand-pane,
+html body.activation-picking.activation-picking:not(.activation-picking-item) #reward-offer-section,
+html body.activation-picking-item.activation-picking-item #reward-production-ui{
+  z-index:9001!important;
+}
+/* アイテムを選ぶ起動ではアイテム枠の区画だけ明るく、指輪・クエスト・旅程・所持金などは暗くして押せなくする。 */
+html body.activation-picking-item #reward-production-ui > :not(.reward-prod-item){
+  filter:brightness(.3)!important;
+  pointer-events:none!important;
+}
+html body.activation-picking #main-hand-area{
+  position:absolute!important;
+  inset:0!important;
+  z-index:9001!important;
+  pointer-events:none!important;
+  filter:none!important;
+  opacity:1!important;
+}
+html body.activation-picking #main-hand-area #hand-pane,
+html body.activation-picking #main-hand-area #hand-pane *{
+  pointer-events:auto!important;
+}
+html body.activation-picking #main-hand-area #hand-pane .item-target-disabled,
+html body.activation-picking #main-hand-area #hand-pane .item-target-disabled *{
+  pointer-events:none!important;
+}
+html body.activation-picking.activation-picking .shop-board-sell-value,
+html body.activation-picking.activation-picking .shop-pending-sale-ui,
+html body.activation-picking.activation-picking .shop-buy-price{
+  display:none!important;
+}
 /* 起動の対象選び中、選べない報酬欄のカードとアイテム枠を暗くして押せなくする（2026-10-26 利用者指定）。
    魔導板のカードはアイテム使用中と同じ .item-target-disabled を使う。 */
 html body .rew-card.activation-target-disabled,
@@ -14436,6 +14483,7 @@ html body .rew-card.activation-target-disabled > *,
 html body .rew-card.activation-target-disabled::after,
 html body .reward-prod-slots .activation-target-disabled{
   filter:grayscale(.85) brightness(.42)!important;
+}
 /* 起動で破壊したカードの写し。body直下なので、設計寸法から実画面への倍率はactivation.jsが付ける。 */
 .activation-cut-half{position:fixed;pointer-events:none;z-index:10000;overflow:hidden;will-change:transform,opacity}
 </style>

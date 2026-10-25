@@ -120,7 +120,8 @@ const OUT=process.env.VB_SHOP_UI_SHOT||'/tmp/vesselbound-shop-ui-check.png';
     `);
     if(Math.abs(metrics.tipMove.x)>.5||Math.abs(metrics.tipMove.y)>.5||Math.abs(metrics.tipMove.w)>.5) throw new Error('クリック時にツールチップが動いた');
     if(!metrics.tipContentKept||!metrics.tipColorKept) throw new Error(`ホバー説明の内容または色がクリックで変わった: ${JSON.stringify(metrics)}`);
-    if(!metrics.popupRightClick.closed||!metrics.popupRightClick.peek) throw new Error(`ポップアップ上の右クリックが共通切替になっていない: ${JSON.stringify(metrics.popupRightClick)}`);
+    // 2026-10-26：右クリックでのカード非表示はやめた。右クリックはポップアップを閉じるだけで、カード非表示には切り替えない。
+    if(!metrics.popupRightClick.closed||metrics.popupRightClick.peek) throw new Error(`ポップアップ上の右クリックで閉じない、またはカード非表示に切り替わった: ${JSON.stringify(metrics.popupRightClick)}`);
     if(!metrics.enhancementKeywordPreview||!metrics.characterTitleIcon||metrics.debugRarityLabels<1||!metrics.debugHover.rarity||!metrics.debugHover.keyword) throw new Error(`強化カード／色アイコン／デバッグホバー表示が不足: ${JSON.stringify(metrics)}`);
     if(metrics.hiddenSale.present) throw new Error('カード非表示中に廃止した売却UIが残る');
     if(metrics.sale.cssW!=='101px'||metrics.sale.cssH!=='46px'||metrics.sale.top!==34) throw new Error(`売却価格ボタンの寸法または位置が不正: ${JSON.stringify(metrics)}`);

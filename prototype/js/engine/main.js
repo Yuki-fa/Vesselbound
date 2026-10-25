@@ -484,13 +484,12 @@ function _giveDebugGolem(){
   const deploySlots=(typeof MAIN_BOARD_FRONT_SLOTS!=='undefined'?MAIN_BOARD_FRONT_SLOTS:[1,3]);
   const slot=deploySlots.find(i=>i>=0&&i<G.mainBoard.length&&!G.mainBoard[i]);
   if(slot!=null) G.mainBoard[slot]=golem;
-  // デバッグでは黄金の壺を上段・中段の両端に1個ずつ、計4個持たせる（売却やショップの確認用。2026-09-25 利用者指定）。
-  const cols=typeof MAIN_BOARD_COLS==='number'?MAIN_BOARD_COLS:5;
-  [0,cols-1,cols,cols*2-1].forEach(i=>{
-    if(i<0||i>=G.mainBoard.length||G.mainBoard[i]) return;
-    const pot=makePanel('黄金の壺')||makePanel('panel_golden_vase');
-    if(pot) G.mainBoard[i]=pot;
-  });
+  // デバッグでは黄金の巻物を4枚、アイテム枠に持たせる（2026-10-26 利用者指定。以前は黄金の壺＝精霊の魂を魔導板に4個）。
+  const scrollDef=typeof ITEM_POOL!=='undefined'?(ITEM_POOL||[]).find(p=>p&&(p.no==='I010'||p.name==='黄金の巻物')):null;
+  if(scrollDef&&typeof makeItem==='function'){
+    const slots=typeof _ensureItemSlots==='function'?_ensureItemSlots():(G.spellSlots=G.spellSlots||[null,null,null,null]);
+    for(let i=0;i<slots.length&&i<4;i++) if(!slots[i]) slots[i]=makeItem(scrollDef.id);
+  }
 }
 
 // Sceneごとの進行構成。表示側もこの定義を参照して進捗を生成する。

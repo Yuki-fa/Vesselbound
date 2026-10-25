@@ -49,9 +49,10 @@ const def = no => PANEL_POOL.find(p => p.no === no);
       }
     } finally { Math.random = oldRandom; global.makePanel = originalMake; }
     initState(); G._debugMode = true; _giveDebugGolem();
-    assert.equal(G.mainBoard.filter(Boolean).length, 5);
+    // 2026-10-26：デバッグの持ち物は黄金の壺（魔導板4個）から黄金の巻物（アイテム枠4枚）に変わった。
+    assert.equal(G.mainBoard.filter(Boolean).length, 1);
     assert.equal(G.mainBoard[1].power, 9999);
-    assert.equal(G.mainBoard.filter(c => c && c.name === '黄金の壺').length, 4);
+    assert.equal((G.spellSlots || []).filter(c => c && c.name === '黄金の巻物').length, 4);
   });
   check('祝福を含むカード本体を復活基準としてPvE編成・オンラインpayloadへ渡す', () => {
     initState();

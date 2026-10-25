@@ -376,6 +376,7 @@ function _reclaimSacrificedRingCards(){
       slot=free[Math.floor(rand()*free.length)];
     }
     boardList[slot]=clone(entry.card);
+    revertAscensionLifeOnReclaim(entry);
     restored++;
   });
   if(!restored) return 0;
@@ -957,13 +958,14 @@ async function _playRewardRerollReveal(reveal,cards,options){
       await new Promise(resolve=>setTimeout(resolve,REWARD_REVEAL_SWEEP_MS));
     }else await Promise.all(reveal.rigs.map(({rig})=>cardRevealTurnDown(rig)));
     if(_rewardRerollReveal!==reveal||reveal.token!==_rewardRevealToken||G.phase!=='reward') return;
-    const best=REWARD_RARITY_REVEAL_ENABLED?_rewardRerollVfxIndex(cards):-1;
+    // 表を向いた時の演出は、最もレアリティの高い1枚だけに出す（戦闘後・再抽選とも。2026-10-26 利用者指定）。
+    const best=_rewardRerollVfxIndex(cards);
     reveal.rigs=reveal.rigs.filter(({rig,idx})=>{if(cards[idx]) return true;rig.remove();return false;});
     reveal.rigs.forEach(({rig,idx})=>{
       rig._cr.faceFront.querySelector('.cr-front-content').replaceChildren(_rewardRerollFace(cards[idx]));
       rig.style.zIndex=idx===best?'2':'1';
     });
-    // 全部が裏になった後、その場で通常めくり。スイッチを戻した時だけ最高レア1枚のVFXを出す。
+    // 全部が裏になった後、その場で通常めくり。最高レアの1枚だけ、そのレアリティの演出でめくる。
     await cardRevealPlaySequence(reveal.rigs.map(x=>x.rig),reveal.rigs.map(x=>x.idx===best?_rewardRevealRarity(cards[x.idx]):1));
   }catch(e){console.error('[reward reroll]',e);}
   finally{
@@ -1182,6 +1184,10 @@ function _storeRewardStartSnapshot(){
     boardDiscardCount:G._boardDiscardCount||0,
     // 祭壇で捧げたカードの控え。還魂の音（ring_get1〜3）の段階もこの件数で決めるので、「元に戻す」で一緒に戻す。
     ringSacrificedCards:clone(G._ringSacrificedCards||[]),
+    // 精霊の魂は還魂した瞬間にライフが増えるので、「元に戻す」でライフも戻す。
+    ascensionLifeBonus:Number(G.ascensionLifeBonus)||0,
+    waveLife:G._waveLife,
+    life:G.life,
     ringOfferPhase:!!G._ringOfferPhase,
     mapPanelPowers:clone(G.mapPanelPowers||{}),
     mapForgeOffers:clone(G._mapForgeOffers||[]),
@@ -1235,6 +1241,7 @@ function resetRewardToStart(options){
   G._boardDiscardCount=s.boardDiscardCount||0;
   // 「元に戻す」で還魂の音の段階も最初へ戻す（3枚捧げて戻すと、次の1枚目で ring_get3 が鳴っていた。2026-09-28 利用者指摘）。
   G._ringSacrificedCards=clone(s.ringSacrificedCards||[]);
+  if(s.ascensionLifeBonus!=null){ G.ascensionLifeBonus=s.ascensionLifeBonus; G._waveLife=s.waveLife; G.life=s.life; }
   G._ringOfferPhase=!!s.ringOfferPhase;
   G.mapPanelPowers=_forgePlacementOnly?_forgePowers:clone(s.mapPanelPowers||{});
   G._mapForgeOffers=_forgePlacementOnly?_forgeOffers:clone(s.mapForgeOffers||[]);
@@ -2735,13 +2742,8 @@ if(!window._boardSelectionClearBound){
     if(G&&G._pendingItemUse){ e.preventDefault(); return; }
     // **ゲームオーバー・クリア画面でも、魔導板の外を右クリックして切り替えられる**
     // （編成画面と同じ扱い）。以前は #gameover-board-grid の上だけだった。
-    if(G.phase==='reward'||G.phase==='gameover'||G.phase==='clear'){
-      e.preventDefault();
-      const enabled=document.body.classList.toggle('right-card-peek');
-      if(enabled) _clearBoardDragVisuals();
-      // 右クリックで切り替えたときもボタンのラベルを合わせる（同じ機能なので表示がずれてはいけない）
-      if(typeof _syncBoardCardVisibilityToggle==='function') _syncBoardCardVisibilityToggle();
-    }
+    // 2026-10-26：右クリックでのカード非表示はやめた（利用者指定）。切り替えは「カード非表示」ボタンだけ。
+    if(G.phase==='reward'||G.phase==='gameover'||G.phase==='clear') e.preventDefault();
     if(G.phase==='reward'&&G._pendingPanelPlacement){
       cancelPendingPanelPlacement();
     }
@@ -2870,11 +2872,43 @@ function moveBoardCardToUnit(boardIdx, srcUnitIdx, destUnitIdx){
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────
 // onDone は受け取り後または「戻る」を押したときに呼ばれるコールバック
 
-// 還魂の仮置き・回収では発動せず、指輪を取得して供物が確定した時だけ解決する。
+// 精霊の魂（還魂すると最大ライフが増える）：還魂した瞬間に最大ライフと今のライフを増やす（2026-10-26 利用者指定）。
+// 増えた分は捧げたカードの控え（entry.lifeGain）に残し、回収・「元に戻す」で同じだけ戻す。
+function applyAscensionLifeOnSacrifice(entry){
+  if(!entry||!entry.card||typeof coreAscensionSpec!=='function') return 0;
+  const spec=coreAscensionSpec(entry.card);
+  if(!spec.life){ entry.lifeGain=0; return 0; }
+  const gain=Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax()));
+  entry.lifeGain=gain;
+  if(gain>0){
+    G.ascensionLifeBonus=(Number(G.ascensionLifeBonus)||0)+gain;
+    _shiftCurrentLife(gain);
+  }
+  return gain;
+}
+function revertAscensionLifeOnReclaim(entry){
+  const gain=Math.max(0,Number(entry&&entry.lifeGain)||0);
+  if(!gain) return;
+  G.ascensionLifeBonus=Math.max(0,(Number(G.ascensionLifeBonus)||0)-gain);
+  _shiftCurrentLife(-gain);
+  entry.lifeGain=0;
+}
+// 戦闘外の今のライフ（G._waveLife。無ければ G.life）を増減する。最大ライフを超えず、1を下回らない。
+function _shiftCurrentLife(delta){
+  const max=typeof waveLifeMax==='function'?waveLifeMax():3;
+  const cur=G._waveLife!=null?Number(G._waveLife)||0:(G.life==null?max:Number(G.life)||0);
+  const next=Math.max(1,Math.min(max,cur+delta));
+  if(G._waveLife!=null) G._waveLife=next;
+  G.life=next;
+  if(typeof updateHUD==='function') updateHUD();
+}
+// 還魂の仮置き・回収では発動せず、指輪を取得して供物が確定した時だけ解決する（最大ライフだけは還魂した瞬間。上）。
 function applyAscensionCardEffects(entries){
-  for(const {card} of entries){
+  for(const entry of entries){
+    const card=entry.card;
     const spec=coreAscensionSpec(card);
-    if(spec.life) G.ascensionLifeBonus=(Number(G.ascensionLifeBonus)||0)+Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax()));
+    // 最大ライフ（精霊の魂）は還魂した瞬間に済ませている（applyAscensionLifeOnSacrifice）。旧セーブの控えだけここで足す。
+    if(spec.life&&entry.lifeGain==null) G.ascensionLifeBonus=(Number(G.ascensionLifeBonus)||0)+Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax()));
     if(spec.gold) gainEventGold(spec.gold);
     if(spec.items){
       const generate=()=>drawItems(spec.items);

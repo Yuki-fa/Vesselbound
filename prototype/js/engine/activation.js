@@ -163,14 +163,14 @@ function handleCardActivationItemTarget(index) {
   const target = (G.spellSlots || [])[index];
   const result = coreActivateBoardCard(pending.card, target, PANEL_POOL, coreMathRng, { targetZone: 'item' });
   if (!result || result.kind !== 'destroy_item_gold') return true;
-  const rect = document.querySelectorAll('.reward-prod-item .reward-prod-slots i')[index]?.getBoundingClientRect();
   const quest = typeof questRequiredEntryOnBoard === 'function' ? questRequiredEntryOnBoard() : null;
   G.spellSlots[index] = null;
   delete pending.card._activationReady;
   gainEventGold(result.gold);
   if (typeof _syncRewardProductionItems === 'function') _syncRewardProductionItems();
   _finishCardActivation(pending, quest);
-  _playActivationFx(pending.card, { rect, kind: result.kind, result }, pending.index);
+  // 金貨はアイテムの枠ではなく、起動したカード（マモン）自身から出す（2026-10-26 利用者指定）。
+  _playActivationFx(pending.card, { index: pending.index, kind: result.kind, result }, pending.index);
   return true;
 }
 function handleCardActivationRewardTarget(rewIdx) {
@@ -326,3 +326,16 @@ function _finishCardActivation(pending, quest) {
   if (typeof SaveRun !== 'undefined' && SaveRun.enabled()) SaveRun.checkpoint('reward');
 }
 if (typeof document !== 'undefined') document.addEventListener('keydown', e => { if (e.key === 'Escape' && _pendingCardActivation) cancelCardActivation(); });
+// 起動のカードを押した後は、右クリックでも取り消せる（2026-10-26 利用者指定）。他の右クリック処理へは渡さない。
+if (typeof document !== 'undefined') document.addEventListener('contextmenu', e => {
+  if (!_pendingCardActivation) return;
+  e.preventDefault(); e.stopImmediatePropagation(); cancelCardActivation();
+}, true);
+// 対象選び中は画面を暗くし、選べる区域（魔導板と報酬欄、アイテムを選ぶ起動では魔導板とアイテム枠）だけを前に出す。
+// アイテム使用中（body.item-use-picking）と同じ見せ方。描き直し（renderHandEditor）のたびに合わせる。
+function syncCardActivationPicking() {
+  if (typeof document === 'undefined' || !document.body) return;
+  const on = !!_pendingCardActivation && G && G.phase === 'reward';
+  document.body.classList.toggle('activation-picking', on);
+  document.body.classList.toggle('activation-picking-item', on && _cardActivationTargetsItem());
+}
