@@ -81,7 +81,8 @@ async function check(name, run) {
     assert.ok(damage.every(e=>!silent(e)));
     assert.deepEqual(runner.result,before,'再生によって戦闘結果を変えない');
     await x.online();
-    assert.ok(h.calls.some(c=>c.name==='dark-fire'),'最後の体の死亡効果も残す');
+    // 2026-10-26 利用者指定：闇の炎は単体へ飛ぶ黒い火球（dark-fireball）。
+    assert.ok(h.calls.some(c=>c.name==='dark-fireball'),'最後の体の死亡効果も残す');
   });
   if (failed) process.exitCode = 1;
 })().catch(e => { console.error(e.stack); process.exitCode = 1; });

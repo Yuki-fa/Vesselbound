@@ -1212,15 +1212,17 @@ var VbFxRenderer = (function () {
     var hasTransform = s.mirror || s.moveTo || ['x', 'y', 'scale', 'move', 'rotation'].some(function(key) { return hasParameter(s, key); });
     // 拡大も記録し、followMove の層（枠の線など）がカードの拡大に合わせて広がるようにする（2026-10-21 利用者指摘：神速の指輪の枠の光がカードの動きとずれる）。
     if (hasTransform) job.moves.set(el, { x: x, y: y, scale: hasParameter(s, 'scale') ? value(f, 'scale', 1) : 1 });
-    if (hasParameter(s, 'opacity')) setStyle(job, el, 'opacity', String(value(f, 'opacity', 1)));
+    // artOnly（残像以外）：不透明度と色の調整をカードの絵だけに掛け、ATK/HP の数字や枠は変えない（2026-10-26 隠密・防戦の状態。利用者指摘「数字は暗くしません」）。
+    var styleEl = s.artOnly ? (el.querySelector('.unit-portrait, .art') || el) : el, baseFilter = styleEl === el ? b.filter : '';
+    if (hasParameter(s, 'opacity')) setStyle(job, styleEl, 'opacity', String(value(f, 'opacity', 1)));
     var hasFilter = ['brightness', 'saturation', 'grayscale', 'sepia', 'hue', 'contrast', 'blur'].some(function (key) { return hasParameter(s, key); });
     if(hasFilter && s.filterOrder){
-      var filterText=b.filter,filterNames={brightness:'brightness',saturation:'saturate',grayscale:'grayscale',sepia:'sepia',hue:'hue-rotate',contrast:'contrast',blur:'blur'};
+      var filterText=baseFilter,filterNames={brightness:'brightness',saturation:'saturate',grayscale:'grayscale',sepia:'sepia',hue:'hue-rotate',contrast:'contrast',blur:'blur'};
       s.filterOrder.forEach(function(key){var num=value(f,key,['brightness','saturation','contrast'].indexOf(key)>=0?1:0);
         if(key==='blur')num*=s.blurSpace==='pixel'?1:f.unit/b.scale;
         filterText+=' '+filterNames[key]+'('+num+(key==='hue'?'deg':key==='blur'?'px':'')+')';});
-      setStyle(job,el,'filter',filterText);
-    } else if (hasFilter) setStyle(job, el, 'filter', b.filter + ' brightness(' + value(f, 'brightness', 1) + ') saturate(' + value(f, 'saturation', 1) + ') grayscale(' + value(f, 'grayscale', 0) + ') sepia(' + value(f, 'sepia', 0) + ') hue-rotate(' + value(f, 'hue', 0) + 'deg) contrast(' + value(f, 'contrast', 1) + ') blur(' + value(f, 'blur', 0) * f.unit / b.scale + 'px)');
+      setStyle(job,styleEl,'filter',filterText);
+    } else if (hasFilter) setStyle(job, styleEl, 'filter', baseFilter + ' brightness(' + value(f, 'brightness', 1) + ') saturate(' + value(f, 'saturation', 1) + ') grayscale(' + value(f, 'grayscale', 0) + ') sepia(' + value(f, 'sepia', 0) + ') hue-rotate(' + value(f, 'hue', 0) + 'deg) contrast(' + value(f, 'contrast', 1) + ') blur(' + value(f, 'blur', 0) * f.unit / b.scale + 'px)');
     var transform = b.transform + ' translate(' + x / b.scale + 'px,' + y / b.scale + 'px) rotate(' + value(f, 'rotation', 0) * job.dir + 'rad) scale(' + (s.mirror ? -1 : 1) * value(f, 'scale', 1) + ',' + value(f, 'scale', 1) + ')';
     if (s.scaleProperty) setStyle(job,el,'scale',String(s.scaleWhenVisible&&value(f,'opacity',1)<=0?1:value(f,'scale',1)));
     else if (hasTransform) setStyle(job, el, 'transform', transform);

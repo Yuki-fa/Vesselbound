@@ -27,7 +27,9 @@ var VbFxLabModel = (function () {
   }
   function effects(definitions, saved, base) {
     return definitions.map(function (d, i) { return {name:d.name,definition:d,index:i,meta:meta(d.name,saved,base)}; })
-      .sort(function (a,b) { return Number(b.meta.unregistered)-Number(a.meta.unregistered) || Number(a.meta.listLast)-Number(b.meta.listLast) || b.meta.addedAt.localeCompare(a.meta.addedAt) || a.index-b.index; });
+      .sort(function (a,b) { return Number(b.meta.unregistered)-Number(a.meta.unregistered) || Number(a.meta.listLast)-Number(b.meta.listLast)
+        // 末尾の組は古い順（新しく足した演出が後ろへ付くだけで、利用者の使う番号がずれない。2026-10-26）。
+        || (a.meta.listLast ? a.meta.addedAt.localeCompare(b.meta.addedAt) : b.meta.addedAt.localeCompare(a.meta.addedAt)) || a.index-b.index; });
   }
   function definitionName(media) { return media.definition || (String(media.path || '').match(/^vfx:[^:]+:([^:]+)$/) || [])[1] || ''; }
   function codeOf(media) { return media.sourceCode || (String(media.path || '').match(/^vfx:([^:]+):/) || [])[1] || ''; }
@@ -77,6 +79,23 @@ var VbFxLabModel = (function () {
     });
     if (labFx.shield_break && labFx.shield_break[0]===name) {var shield=cards.find(function(c){return c.kind==='keyword'&&c.name==='結界';});if(shield)add(shield,'消失','PRESENT_LAB_FX','shield_break');}
     return result;
+  }
+  // ゲームのコードの表から名前で引かれる演出（カードの番号を通らない経路も含む）。LAB の「未使用」の印はここに無いものだけ。
+  var referenced = null;
+  function codeReferenced(name) {
+    if (!referenced) {
+      referenced = new Set();
+      var add = function (v) { if (typeof v === 'string') { var m = /^vfx:[^:]+:(.+)$/.exec(v); referenced.add(m ? m[1] : v); } };
+      var walk = function (o) { if (!o || typeof o !== 'object') return add(o); Object.keys(o).forEach(function (k) { walk(o[k]); }); };
+      if (typeof PRESENT_LAB_FX !== 'undefined') Object.keys(PRESENT_LAB_FX).forEach(function (k) { add(PRESENT_LAB_FX[k][0]); });
+      if (typeof PRESENT_ACTIVATION_FX !== 'undefined') walk(PRESENT_ACTIVATION_FX);
+      if (typeof PRESENT_ITEM_USE_FX !== 'undefined') walk(PRESENT_ITEM_USE_FX);
+      if (typeof PRESENT_DIRECT_LAB_FX !== 'undefined') PRESENT_DIRECT_LAB_FX.forEach(function (d) { add(d.effect); });
+      if (typeof Assets !== 'undefined' && Assets.vfx) walk(Assets.vfx);
+      Object.keys(states).forEach(function (k) { add(states[k]); });
+      referenced.add('activation-devour'); // ヘルナイトの定義が無い時の予備（present.js presentActivationFx）
+    }
+    return referenced.has(name);
   }
   function generic(card, cards, routes, keywordKeys, labFx) {
     var out=[];
@@ -154,6 +173,6 @@ var VbFxLabModel = (function () {
   }
   return {pages:pages,assignKinds:assignKinds,states:states,MAX_ASSIGN:MAX_ASSIGN,empty:empty,clone:clone,
     pageFor:pageFor,target:target,meta:meta,effects:effects,definitionName:definitionName,codeOf:codeOf,keywordNames:keywordNames,
-    currentUses:currentUses,generic:generic,suppressed:suppressed,assignmentsFor:assignmentsFor,scene:scene,validate:validate,materialize:materialize,
+    currentUses:currentUses,codeReferenced:codeReferenced,generic:generic,suppressed:suppressed,assignmentsFor:assignmentsFor,scene:scene,validate:validate,materialize:materialize,
     rawVfx:rawVfx,rawSe:rawSe};
 })();

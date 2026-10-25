@@ -676,8 +676,10 @@ function _playItemUseVfx(key,slotIdx){
   if(!el||!el.isConnected) return;
   if(typeof _vfxClipLayer==='function') VbFx.settings.layer=_vfxClipLayer;
   VbFx.play(name,{source:el,targets:[el],speed:1,seed:53,dir:1}).catch(()=>{});
-  // SEは5種で共通（2026-10-17 利用者指定）。以前は演出名からカード番号の音を引こうとして、常に無音だった。
-  if(typeof playSfx==='function') playSfx('itemScroll',{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
+  // SEは巻物ごと（2026-10-26 利用者指定「アイテムにもSEを」。以前は5種で共通）。山場を演出の山場へ合わせる。無い巻物は共通音。
+  const sfxKey=typeof presentItemUseSfxKey==='function'?presentItemUseSfxKey('I'+def.no):'itemScroll';
+  if(sfxKey!=='itemScroll'&&typeof _playSfxAtVfxCue==='function'&&VbFx.impactMs) _playSfxAtVfxCue(sfxKey,VbFx.impactMs(name,1),{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
+  else if(typeof playSfx==='function') playSfx('itemScroll',{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
 }
 function _handlePendingItemBoardTarget(slotIdx){
   const pending=G._pendingItemUse;

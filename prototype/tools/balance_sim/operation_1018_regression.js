@@ -118,7 +118,7 @@ const def = no => PANEL_POOL.find(p => p.no === no);
     const keys = Object.keys(Assets.sfx).filter(key => key !== 'E006' && !_isBgmKey(key));
     for (const key of keys.slice(0, SFX_SETTINGS.maxVoices)) assert.equal(playSfx(key, { guardMs: 0, maxPlayMs: 0 }), true);
     assert.equal(_sfxActiveVoices, 24);
-    _battleFxSound('E006', 1.5, VbFx.duration('dark-fire', 1.5), false);
+    _battleFxSound('E006', 1.5, VbFx.duration(presentLabFx('E006')[0], 1.5), false); // 2026-10-26 闇の炎は dark-fireball
     const due = [...timers.entries()].filter(([, t]) => t.ms === 0);
     due.forEach(([id, t]) => { timers.delete(id); t.fn(); });
     assert.equal(_sfxPlayingByKey.E006, 1, 'グローバルの同時発音数上限でE006を捨てない');

@@ -44,6 +44,8 @@ var VbFxLabFixed = {
   'grimalkin-glint':'2026-10-25','stealth-veil':'2026-10-25','guard-stance':'2026-10-25',
   'erinyes-flame':'2026-10-25','kele-blood-nova':'2026-10-25','speed-ring':'2026-10-25','frost-retaliate':'2026-10-25',
   'echo-bolt':'2026-10-25','activation-transform':'2026-10-25','activation-empower':'2026-10-25','activation-devour':'2026-10-25',
+  // 2026-10-26 FIX（LAB 02 SE2・04 SE2・05 SE1・11 SE3・12 SE2・13 SE3）
+  'ymir-aura':'2026-10-26','grimalkin-pillar':'2026-10-26','reward-blessing':'2026-10-26','banshee-miasma':'2026-10-26','atlas-burden':'2026-10-26','thunderbird-charge':'2026-10-26',
 };
 
 /* 2026-10-23 VFX の全検査（利用者指定「FIX&設定されているものは★、されていないものは☆のまま。FIX&設定されていないものは新しくVFXを検討して割り当てる」）。
@@ -51,28 +53,38 @@ var VbFxLabFixed = {
  * VbFxLabStarNotes：戦闘中に演出を出さないもの（－）の理由。 */
 var VbFxLabPending = {
   C067:'mana-buff（ウォーグのバフに出ていなかった）', C070:'aura-buff（敵が状態異常を得るたびHP+）', C047:'aura-buff（眷属が召喚されるたび）',
-  C092:'aura-buff（2026-10-25 本文変更：味方の攻撃効果が発動するたび永久+1/+1。シートの列 S009）', C012:'injury-buff＋S006の音（音が鳴っていなかった）',
-  R035:'aura-buff＋S009の音（味方が結界を失うたび全ての味方+1/+1。2026-10-25 音が鳴らなかった）', M003:'map-life（開戦の着地。旧・生命の力の演出）',
-  I015:'keyword-grant', I016:'keyword-grant', I017:'keyword-grant', I018:'keyword-grant', I019:'keyword-grant',
-  I020:'keyword-grant', I021:'keyword-grant', I022:'keyword-grant', I023:'keyword-grant',
+  C012:'injury-buff＋S006の音（音が鳴っていなかった）',
+  R035:'aura-buff＋S009の音（味方が結界を失うたび全ての味方+1/+1。2026-10-25 音が鳴らなかった）',
+  
   // 新しく作った演出（additions_1023.js）
   C084:'activation-transform（新作。起動の変身）',
   // 2026-10-25 利用者指定の割り当て（流用）
-  C011:'scylla（スキュラと同じ）', EN060:'scylla（スキュラと同じ）', C020:'aura-buff（常時バフ）', E005:'aura-buff（常時バフ）', E023:'aura-buff（常時バフ）',
+  C011:'scylla（スキュラと同じ）', C020:'aura-buff（常時バフ）', E023:'aura-buff（常時バフ）',
   E027:'即死の演出（即死が起きた時）', E028:'leprechaun（レプラコーンと同じ。そのカード自身の永久バフ）', E044:'attack-buff（攻撃バフ）',
-  E015:'毒を与えた時の演出', E016:'dragonnet（ドラゴネットと同じ変身）', C040:'aura-buff（報酬に青キャラクターが出た時）',
+  E016:'dragonnet（ドラゴネットと同じ変身）', C040:'aura-buff（報酬に青キャラクターが出た時）',
   // 2026-10-25 新しく作った演出（additions_1025.js）
-  C062:'ymir-aura（新作。終戦のリロール。2026-10-25 SE を選び直し：2回目は SE1・3）', C095:'grimalkin-pillar（2026-10-25 SE2・3を選び直し。煌めき C095_1 は FIX）',
-  C114:'reward-blessing（2026-10-25 2回目の作り直し：真上から見た形でカードの上から昇り去る。SE は3候補とも選び直し）', C008:'reward-blessing（作り直し）＋負傷のバフ演出 S006 を同時に',
-  C116:'hellknight-slash（2026-10-25 候補4を採用中。切断の音を強くした候補5〜7を追加）', R018:'revival-ring（2026-10-25 SE1・2をもう一度選び直し）',
-  K013:'stealth-veil（FIX。隠密を得た瞬間）＋stealth-state（新作。隠密を持っている間）',
-  K014:'guard-stance（FIX。防戦を得た瞬間）＋guard-state（新作。防戦を持っている間）',
+  
+  
   // 2026-10-25 新しいキャラクター25枚（新作6種はSE候補を仮に採用。流用・汎用は既存の演出）
-  C001:'alastor-brand（新作。2026-10-25 SE1 の後半の高音を低い響きへ移してゆっくり消した）', C004:'shockwave（仮。2026-10-25 利用者指摘で毒緑と紫の波をバンシーへ付け替えた）',
-  C034:'banshee-miasma（旧 echidna-wave。2026-10-25 エキドナから付け替え）', C005:'atlas-burden（新作。2026-10-25 SE1・2を控えめな音で選び直し）',
-  C052:'thunderbird-charge（2026-10-25 バフの形に作り直し。SE は雷系3候補。旧演出は thunder-strike）', C026:'scylla（流用）', C051:'scylla（流用）', C027:'dark-fire（流用）',
+  
+  C026:'scylla（流用）', C051:'scylla（流用）', C027:'dark-fire（流用）',
   C053:'melusine（流用）', C077:'eidolon（流用。旧シャナの本文）', C003:'gold-gain（起動）',
-  C055:'reward-blessing（報酬とトレーダーの強化）', C007:'弱体の汎用演出（2026-10-25 本文変更。肩代わりの attack-recoil を外した）',
+  // 2026-10-26 LAB の4回目の指摘（FIX：02 SE2・04 SE2・05 SE1・11 SE3・12 SE2・13 SE3・エイトヴォルム）。以下は確認待ち。
+  C116:'hellknight-slash（候補4を採用中。2026-10-26 魔力を帯びた強く鋭い音の候補5〜7に差し替え）', R018:'revival-ring（2026-10-26 SE1・2を白魔法の音で選び直し）',
+  C001:'alastor-brand（2026-10-26 演出の終わりで音をフェードしない・高音をゆっくり低い響きへ移す）',
+  K013:'stealth-veil（FIX）＋stealth-state（光学迷彩。2026-10-26 数字は暗くしない）', K014:'guard-stance（FIX）＋guard-state（灰色の重さ。2026-10-26 数字は暗くしない）',
+  C004:'dark-fire（2026-10-26 利用者指定：闇の炎の全体の波。E006 の音）', E006:'dark-fireball（2026-10-26 新作：単体へ飛ぶ黒い火球。音は仮に旧 dark-fire）',
+  E015:'poison-spit（2026-10-26 新作：飛んでいく毒液。単体に飛ばす毒の共通。音は仮に毒牙）',
+  C007:'weaken-wave（2026-10-26 新作：紫の弱体の波）', C103:'weaken-wave（2026-10-26）',
+  C092:'leprechaun（2026-10-26 永久バフは成長に統一）', C121:'leprechaun（2026-10-26 永久バフ）', E005:'leprechaun（2026-10-26 永久バフ）',
+  C028:'keyword-grant-fang（2026-10-26 毒牙の付与の色違い）', E013:'magic-ring-mana（2026-10-26 開戦のマナ）', E018:'atk-down（2026-10-26 邪眼）',
+  E037:'penance-ring（2026-10-26 懺悔＝苦行の指輪と同じ）', E055:'atlas-burden（2026-10-26 団結＝アトラスと同じ分散）',
+  E060:'shield-break（2026-10-26 武器破壊。コアに実体が無いので実体が出た時に出す）', R029:'map-duplicate（2026-10-26 呼応の指輪＝複製。コアに実体が無い）',
+  EN045:'all-ring（2026-10-26 グンダの全体ダメージ。SE は候補4。コアに実体が無い）', EN043:'minotaur（2026-10-26 負傷で直ちに割り込み攻撃＝ミノタウロスと同じ）',
+  I008:'scroll-mana（2026-10-26 永劫の巻物）', I013:'map-resonance（2026-10-26 絆の巻物）',
+  I015:'keyword-grant-fang', I016:'keyword-grant-evil-eye', I017:'keyword-grant-impact', I018:'keyword-grant-double', I019:'keyword-grant-stealth',
+  I020:'keyword-grant-first', I021:'keyword-grant-tri', I022:'keyword-grant-drain', I023:'keyword-grant-pierce',
+  C117:'wendigo（FIX。2026-10-26 音の途中から鳴らす時の立ち上げを 420ms に）', M003:'map-life＋魔導板の変化（2026-10-26 LAB に魔導板の変化を足した）', M005:'map-duplicate＋魔導板の変化（2026-10-26）',
 };
 var VbFxLabStarNotes = {
   E029:'開戦で死亡効果を発動する（発動した死亡効果の演出が出る）',

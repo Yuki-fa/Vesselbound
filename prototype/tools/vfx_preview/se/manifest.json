@@ -5655,7 +5655,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "ユミル：神秘的なオーラ（差し替え）",
       "sha256": "85eec03dd8b71ab4de49279dff5823610fa96e07cfa42b534393bf64d100b885"
@@ -5745,7 +5745,7 @@
       "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": true,
+      "adopted": false,
       "provisional": false,
       "reason": "グリマルキン：4回目の豪華な光の柱",
       "sha256": "3da12d3c762102605b3710e3c74fca8d17a8d18a54c4a91c85c397b54bed6b19"
@@ -5763,7 +5763,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "グリマルキン：光の柱が立つ澄んだ鐘（2026-10-25 利用者指摘で選び直し）",
       "sha256": "5ce7675d1918b8b3fc1d3e36e65d45470eeddc5606004a5bab1d6ef961944e17"
@@ -5799,7 +5799,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "報酬への祝福：光が昇って抜けていく（金貨の音を使わない）（2026-10-25 利用者指摘で選び直し）",
       "sha256": "760bc41eae4c5958c88c3f3baf5a4e460c38d7f82731b922112cdd42e968c8ef"
@@ -5896,39 +5896,39 @@
     },
     "revival-ring-1": {
       "id": "revival-ring-1",
-      "filename": "Production Element Title Transition Bell Swell 06.wav",
-      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Swell 06.wav",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-02.wav",
       "url": "vfx_preview/se/revival-ring-1.wav",
-      "duration": 1.95,
-      "originalDuration": 3.609187,
-      "start": 0.0,
+      "duration": 1.572021,
+      "originalDuration": 1.91,
+      "start": 0.337979,
       "trimmed": true,
-      "peak": 0.062812,
-      "tailFadeMs": 400,
+      "peak": 0.45,
+      "tailFadeMs": 30,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "復活の指輪：降りる光と鐘の余韻（2026-10-25 利用者指摘で選び直し）",
-      "sha256": "d9c9876fafd08728383708ff696fb90e2dca818397cfe8207d1a47aead45a33a"
+      "reason": "復活の指輪：白魔法の澄んだ詠唱（蘇りの光）（2026-10-26 利用者指摘）",
+      "sha256": "14d1b4cfb9b1de96e7b4a26b61d27320de0fe2c707c89ce850927f2401885ed6"
     },
     "revival-ring-2": {
       "id": "revival-ring-2",
-      "filename": "14 BOOM Lightburst_Eb.wav",
-      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/14 BOOM Lightburst_Eb.wav",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-03.wav",
       "url": "vfx_preview/se/revival-ring-2.wav",
       "duration": 1.95,
-      "originalDuration": 11.640313,
+      "originalDuration": 4.37,
       "start": 0.0,
       "trimmed": true,
-      "peak": 0.036583,
+      "peak": 0.021167,
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "復活の指輪：光が弾けて蘇る（2026-10-25 利用者指摘で選び直し）",
-      "sha256": "653f6fefd5353e11e78b6ddc2b1f3ae4c7507b2a2cbf0e2dc132ad582d1f1d75"
+      "reason": "復活の指輪：白い光が弾けて戻る（2026-10-26 利用者指摘）",
+      "sha256": "0465cee322653c9d594eabc49781c2587e295421ec6c1ec8575b5ea8b348db9e"
     },
     "revival-ring-3": {
       "id": "revival-ring-3",
@@ -6064,15 +6064,15 @@
       "filename": "SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav",
       "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav",
       "url": "vfx_preview/se/alastor-brand-1.wav",
-      "duration": 1.75,
+      "duration": 1.95,
       "peak": 0.242771,
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": true,
       "provisional": false,
-      "reason": "アラストル：後半の高音を 0.62〜0.95秒で低域だけの響きへ移し、1.05〜1.75秒でゆっくり消した（2026-10-25 利用者指摘「後半の高音」→「音が切れた感じ」）",
-      "sha256": "74b3401f5f03f32272a065a35f359be0fdc249340402ba1badafcd73eeafa65d"
+      "reason": "アラストル：後半の高音を 0.5〜1.25秒でゆっくり低い響きへ移し、1.25〜1.95秒で自然に消す。演出の終わりで音を切らない（2026-10-26 利用者指摘「音が切れた感じ」）",
+      "sha256": "bab37cdb475879e410067a25dfe49b562f2b4ac46530ea15bd59884b02df2d84"
     },
     "alastor-brand-2": {
       "id": "alastor-brand-2",
@@ -6195,7 +6195,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "アトラス：鈍く重い一打（控えめ）（2026-10-25 利用者指摘で選び直し）",
       "sha256": "d5b23115ee7f1aa99f7eb13aeb3fce1fe569d951a75a57b208cecf5713fe4280"
@@ -6267,7 +6267,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "サンダーバード：落雷の鋭い一撃（雷系）（2026-10-25 利用者指摘で選び直し）",
       "sha256": "bff0de28c7b5c8e512c457d7c24c42cafd290b950b4b91c29474ec4be4e65f95"
@@ -6355,9 +6355,9 @@
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "ヘルナイト：剣が肉を断つ重い一撃（Falchion Impale）から候補1（暗い衝撃）へつなぐ（2026-10-25 利用者指摘「切断の音が地味」）。山場（peak）は候補1の衝撃の位置（0.87秒）に合わせ、斬撃の音が演出の剣戟と同じ頃に鳴るようにした",
-      "sha256": "0d6ba7284d4aaf9a9738aec38f0bbf9517938d161a1e21438a6d205f894436a1",
-      "filename": "HERO - DESIGNED - SWORD Falchion Impale-01.wav + hellknight-slash-1.wav",
+      "reason": "ヘルナイト：音速の斬撃（Sonic Strike の山場）から候補1（暗い衝撃）へ。戦闘の剣の攻撃音とは違う、魔力を帯びた強く鋭い音（2026-10-26 利用者指摘「強力な鋭い音」）。山場は候補1の衝撃 0.87秒に合わせた",
+      "sha256": "fac170c9cf86b3aa9479b47a0328fb27dcf9e6b0634c83b8e5b5a6ff6c022e6a",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Sonic Strike_RTSB_COL-01.wav + hellknight-slash-1.wav",
       "source": "tools/vfx_preview/se_tools_1025.py"
     },
     "hellknight-slash-6": {
@@ -6372,9 +6372,9 @@
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "ヘルナイト：鋭く澄んだ刃鳴り（Energy Sword Shing）から候補1（暗い衝撃）へつなぐ（2026-10-25 利用者指摘「切断の音が地味」）。山場（peak）は候補1の衝撃の位置（0.87秒）に合わせ、斬撃の音が演出の剣戟と同じ頃に鳴るようにした",
-      "sha256": "93c5926feba5208d83f5dbe38dd02450421c8e839f2e39c8da67b6ea64ae1b28",
-      "filename": "WEAPSwrd_Mecha Energy Sword Shing_RogueWaves_AnimeStudio.wav + hellknight-slash-1.wav",
+      "reason": "ヘルナイト：空を断つ強烈な一撃（Ruthless Air Strike の山場）から候補1（暗い衝撃）へ。戦闘の剣の攻撃音とは違う、魔力を帯びた強く鋭い音（2026-10-26 利用者指摘「強力な鋭い音」）。山場は候補1の衝撃 0.87秒に合わせた",
+      "sha256": "5ce9a4760b3e86057832e2834b956147e115220fbca407f2515e5ee802e7151b",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Ruthless Air Strike_RTSB_COL-01.wav + hellknight-slash-1.wav",
       "source": "tools/vfx_preview/se_tools_1025.py"
     },
     "hellknight-slash-7": {
@@ -6389,9 +6389,9 @@
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "ヘルナイト：空を裂く鋭い斬撃（Furious Whip の山場）から候補1（暗い衝撃）へつなぐ（2026-10-25 利用者指摘「切断の音が地味」）。山場（peak）は候補1の衝撃の位置（0.87秒）に合わせ、斬撃の音が演出の剣戟と同じ頃に鳴るようにした",
-      "sha256": "ba1062a927179c742f3e4bfce93a724d0d6ce03db454eed0a1633937e51c71d8",
-      "filename": "DSGNImpt-DS_WHOOSH HIT-Furious Whip_RTSB_COL-01.wav + hellknight-slash-1.wav",
+      "reason": "ヘルナイト：鋭い衝撃の一閃（Aether Strike の山場）から候補1（暗い衝撃）へ。戦闘の剣の攻撃音とは違う、魔力を帯びた強く鋭い音（2026-10-26 利用者指摘「強力な鋭い音」）。山場は候補1の衝撃 0.87秒に合わせた",
+      "sha256": "251f3a353b23b72d571bfa3a0228c632c3d1e9b63d435e2e522314c6bc201816",
+      "filename": "DSGNImpt-DS_WHOOSH HIT-Aether Strike_RTSB_COL-01.wav + hellknight-slash-1.wav",
       "source": "tools/vfx_preview/se_tools_1025.py"
     },
     "banshee-miasma-1": {
@@ -6407,7 +6407,7 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": true,
+      "adopted": false,
       "provisional": false,
       "reason": "バンシー（旧エキドナ）：毒蛇の波が全員へ広がる",
       "sha256": "7fe351fd7986e4e54b6c7f87a8f4303a9cd707b0f7b1b8c1e16a4c11b5fe2d09"
@@ -6443,10 +6443,64 @@
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
-      "adopted": false,
+      "adopted": true,
       "provisional": false,
       "reason": "バンシー（旧エキドナ）：毒蛇の波が全員へ広がる",
       "sha256": "273d635e537f9b803b4461da17181e27ce42c3545f844f64a952c35d5a5df431"
+    },
+    "thunder-strike-1": {
+      "id": "thunder-strike-1",
+      "filename": "Weather Storm Lightning Bolt Crash Crack 05.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/雨・雷・風など天候/Weather Storm Lightning Bolt Crash Crack 05.wav",
+      "url": "vfx_preview/se/thunder-strike-1.wav",
+      "duration": 1.95,
+      "originalDuration": 8.270333,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.296312,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "落雷：鋭く裂ける雷鳴（2026-10-26 利用者指摘）",
+      "sha256": "52cadd2b6b670169c3201289a4dd2bba79fbca86b02c0446cc7902b4a2cbb1de"
+    },
+    "thunder-strike-2": {
+      "id": "thunder-strike-2",
+      "filename": "13 BOOM Thunder Abyss_Gb.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/13 BOOM Thunder Abyss_Gb.wav",
+      "url": "vfx_preview/se/thunder-strike-2.wav",
+      "duration": 1.95,
+      "originalDuration": 10.19925,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.047167,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "落雷：深く轟く雷（2026-10-26 利用者指摘）",
+      "sha256": "9c03cd0981f3cb0d2f9553718572dde32f8c618cad65144d6e08a07e42eb75d6"
+    },
+    "thunder-strike-3": {
+      "id": "thunder-strike-3",
+      "filename": "77 BOOM Thunder Grave_Gb.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/BOOM/BOOM/77 BOOM Thunder Grave_Gb.wav",
+      "url": "vfx_preview/se/thunder-strike-3.wav",
+      "duration": 1.95,
+      "originalDuration": 11.643958,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.153854,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "落雷：重く落ちる雷（2026-10-26 利用者指摘）",
+      "sha256": "f3bcb627ff916bef02b83eb51935750f7bc1adc700c1aed23fdd170f155f7ec0"
     }
   },
   "effects": {
@@ -7107,6 +7161,11 @@
       "banshee-miasma-1",
       "banshee-miasma-2",
       "banshee-miasma-3"
+    ],
+    "thunder-strike": [
+      "thunder-strike-1",
+      "thunder-strike-2",
+      "thunder-strike-3"
     ]
   }
 }

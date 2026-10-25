@@ -311,9 +311,9 @@ function _playActivationFx(source, at, sourceIndex) {
   VbFx.play(name, { source: from, targets: [target], speed: 1, seed: 53, dir: 1 }).catch(() => {})
     .finally(() => { if (anchor) anchor.remove(); });
   // SEは LAB で採用したカード固有の音（2026-10-25：チェンジリング・インキュバス・ヘルナイト）。山場（present.js の実測ピーク）を演出の山場へ合わせる。
-  // 固有の音が無いカード（マモン等）は巻物の使用と同じ共通音。
-  const sfxKey = typeof getEffectSfxKey === 'function' ? getEffectSfxKey(code) : '';
-  if (sfxKey && typeof _playSfxAtVfxCue === 'function' && VbFx.impactMs) {
+  // 固有の音が無いカードは同じ演出の音（マモン＝ノームの金貨。present.js presentActivationSfxKey）、それも無ければ巻物の使用と同じ共通音。
+  const sfxKey = typeof presentActivationSfxKey === 'function' ? presentActivationSfxKey(code) : '';
+  if (sfxKey && sfxKey !== 'itemScroll' && typeof _playSfxAtVfxCue === 'function' && VbFx.impactMs) {
     _playSfxAtVfxCue(sfxKey, VbFx.impactMs(name, 1), { group: 'magic', guardKey: `activation:${name}`, guardMs: 120, maxPlayMs: 0 });
   } else if (typeof playSfx === 'function') playSfx('itemScroll', { group: 'magic', guardKey: `activation:${name}`, guardMs: 120, maxPlayMs: 0 });
 }

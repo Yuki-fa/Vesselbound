@@ -57,12 +57,14 @@ function _battleFxSound(code, speed, duration, howl, cueMs) {
   const end = howl ? duration * .44 : duration;
   // 遠吠えは登場SEの前に閉じる。通常はLABと同じcos²の1.1秒フェード。
   const fadeAtMs = howl ? Math.max(0,end-startAt-120) : Math.max(0,Math.max(hit+250,end*.95)-startAt);
-  const fadeEndMs = howl ? Math.max(1,end-startAt) : fadeAtMs + PRESENT_LAB_SOUND_FADE_MS;
+  // 音を最後まで鳴らす演出（PRESENT_LAB_SOUND_NO_FADE）はフェードしない。LAB（preview.js）も同じ表。
+  const noFade = !howl && typeof PRESENT_LAB_SOUND_NO_FADE !== 'undefined' && PRESENT_LAB_SOUND_NO_FADE.has(spec[0]);
+  const fadeEndMs = noFade ? 0 : howl ? Math.max(1,end-startAt) : fadeAtMs + PRESENT_LAB_SOUND_FADE_MS;
   const token = _battleFxGeneration;
   _battleFxTimer(() => {
     if (token !== _battleFxGeneration) return;
     playSfx(presentLabSoundCode(code),{group:'magic',guardKey:`lab:${++_battleFxSequence}`,guardMs:0,maxPlayMs:0,playbackRate:1,
-      offsetMs,fadeInMs:offsetMs>0?60:0,fadeAtMs,fadeEndMs,
+      offsetMs,fadeInMs:offsetMs>0?(typeof PRESENT_LAB_SOUND_FADE_IN_MS!=='undefined'&&PRESENT_LAB_SOUND_FADE_IN_MS[spec[0]]||60):0,fadeAtMs:noFade?0:fadeAtMs,fadeEndMs,
       onVoice:voice=>{ _battleFxVoices.add(voice); voice.finished.then(()=>_battleFxVoices.delete(voice)); }});
   },startAt);
 }

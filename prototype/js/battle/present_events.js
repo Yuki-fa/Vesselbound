@@ -95,7 +95,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   const own=data?data.ownCard(owner):owner;
   // エンチャントが持つ効果は、そのエンチャントの本文で発動の種類を確かめる（2026-10-22 シート改訂で多くの効果がエンチャントへ移った）。
   const textCard=source&&source.kind==='enchant'?source.card:own;
-  const trigger={C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C092:'passive',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
+  const trigger={C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C092:'passive',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',EN043:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
   if(!presentActionBannerEffectText(textCard,trigger))return null;
   const members=[ev];
   for(let i=index+1;i<events.length;i++){
@@ -142,7 +142,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
       if(next.type==='attack'&&next.attackerId===owner.id&&next.attackVisual!==false){contactEvent=next;break;}
     }
   }
-  if(code==='C014'){
+  if(PRESENT_LAB_REACTION_CODES.has(code)){
     // 負傷の発光の直後に続く本人の割り込み攻撃だけを見る（次の発光・手番の区切りで止める）。
     // 列の最後まで探すと、別の負傷（戦闘ダメージで割り込まない時）に後の割り込み攻撃を拾い、
     // イベント列を全部持つオンラインだけ演出が出ていた（2026-10-23 present_parity で検出）。
@@ -194,7 +194,7 @@ function _presentLabPlan(ev, events, index, api, context) {
       /効果を(?:\d+回)?発動する/.test(presentActionBannerEffectText(data.ownCard(unit),ev.trigger)))
       source={card:unit,side:unit.side,kind:'character'};
     // 新本文には結界獲得が無いので、続く割り込み攻撃を持つ負傷の発光から怒りの演出を始める。
-    if(unit&&(unit.no||unit.artCode)==='C014'&&ev.trigger==='injury')
+    if(unit&&PRESENT_LAB_REACTION_CODES.has(unit.no||unit.artCode)&&ev.trigger==='injury')
       source={card:unit,side:unit.side,kind:'character'};
   }
   let code = ev.type === 'mana_threshold' ? String(ev.effectNo || '')
@@ -236,7 +236,8 @@ function _presentLabPlan(ev, events, index, api, context) {
   const members = presentLabEffectEvents(events,index,code,sourceId).filter(e=>presentAssignedLabEventMatches(code,e));
   let targets = members.filter(e=>!['mana_threshold','effect_flash'].includes(e.type)).map(e=>find(e.type==='summon'&&e.unit?e.unit.id:e.unitId)).filter(Boolean);
   // 2026-10-25 アトラス：常時の発光から、続く「割り振られたダメージ」（damage.redirectedFrom＝アトラス）を受けた味方へ。
-  if (ev.type === 'effect_flash' && code === 'C005') {
+  // 団結（E055、接続した味方へ分散）も同じ形（2026-10-26）。
+  if (ev.type === 'effect_flash' && (code === 'C005' || code === 'E055')) {
     const shared=[];for(let i=index+1;i<(events||[]).length;i++){const e=events[i];if(!e||['attack','turn_begin','battle_end'].includes(e.type))break;
       if(e.type==='damage'&&e.redirectedFrom===ev.unitId)shared.push(e);}
     targets=[...new Set(shared.map(e=>find(e.unitId)).filter(Boolean))];
@@ -347,14 +348,14 @@ function _presentLabStart(plan, options) {
   })));
   plan.done = playBattleLabFx(plan.code,plan.owner,plan.targets,{side:plan.side,sourceRect:plan.sourceRect,
     durationMs:plan.repeat
-      ? presentEffectRunDuration(true)/((plan.code==='C014'?PRESENT_LAB_REACTION_AURA_END:1)*(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1))
-      : plan.code==='C014'?PRESENT_LAB_REACTION_FLASH_MS/PRESENT_LAB_REACTION_AURA_END/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
+      ? presentEffectRunDuration(true)/((PRESENT_LAB_REACTION_CODES.has(plan.code)?PRESENT_LAB_REACTION_AURA_END:1)*(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1))
+      : PRESENT_LAB_REACTION_CODES.has(plan.code)?PRESENT_LAB_REACTION_FLASH_MS/PRESENT_LAB_REACTION_AURA_END/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1):undefined,
     value:plan.value,colors:plan.colors,silent:!!(options && options.silent),
     impactTimes:plan.code==='C120'?plan.targets.map((_,i)=>.43+.49*i/Math.max(1,plan.targets.length-1)):null,
     cueTimes,onCue:i=>(pulseResolvers[i]||[]).forEach(resolve=>resolve()),
     onImpact:i=>{ if(resolvers[i])resolvers[i](); }});
   // ミノタウロスの激怒は定義の前半（オーラ）だけを見せ、オーラが消えた時点で次へ進む（後半は value=1 では何も描かない）。
-  if(plan.code==='C014'){const shown=plan.done;
+  if(PRESENT_LAB_REACTION_CODES.has(plan.code)){const shown=plan.done;
     plan.done=Promise.race([shown,new Promise(resolve=>battlePresentationSetTimeout(resolve,presentEffectRunDuration(plan.repeat,PRESENT_LAB_REACTION_FLASH_MS)))]).then(()=>{VbFx.stop({name:plan.spec[0]});return true;});}
   plan.done.finally(()=>{resolvers.forEach(resolve=>resolve());pulseResolvers.flat().forEach(resolve=>resolve());});
 }
@@ -438,9 +439,9 @@ async function presentLabBeginEvent(ev, events, index, api) {
     if(['C011','EN060'].includes(claimed.code)&&!context.active)context.active=claimed;
     if(PRESENT_LAB_1012_CODES.has(claimed.code)&&!claimed.contactEvent&&!context.active&&ev.type!=='attack')context.active=claimed;
     if(ev.type==='mana_gain'&&PRESENT_LAB_1012_CODES.has(claimed.code)&&!claimed.contactEvent)await claimed.done;
-    if(claimed.code==='C014'&&ev.type==='attack'){
+    if(PRESENT_LAB_REACTION_CODES.has(claimed.code)&&ev.type==='attack'){
       await _presentLabFinish(claimed);
-      await playBattleLabFx('C014',claimed.owner,claimed.targets,{side:claimed.side,value:2,silent:true,
+      await playBattleLabFx(claimed.code,claimed.owner,claimed.targets,{side:claimed.side,value:2,silent:true,
         durationMs:presentEffectRunDuration(claimed.repeat,PRESENT_LAB_REACTION_AIM_MS)/(typeof getBattlePresentationSpeedScale==='function'?getBattlePresentationSpeedScale():1)});context.active=null;
       return;
     }
@@ -469,7 +470,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
     if (ms > 0) await new Promise(resolve => (typeof battlePresentationSetTimeout==='function' ? battlePresentationSetTimeout : setTimeout)(resolve, ms));
   }
   // ミノタウロス（C014）は発光で始めて、続く割り込み攻撃（claimed の attack）で締める。ここで最後まで待たない。
-  if (plan.code==='C056'&&ev.type!=='mana_threshold' || ev.type==='effect_flash'&&plan.code!=='C014') {
+  if (plan.code==='C056'&&ev.type!=='mana_threshold' || ev.type==='effect_flash'&&!PRESENT_LAB_REACTION_CODES.has(plan.code)) {
     await _presentLabFinish(plan); context.active = null;
   } else if (PRESENT_LAB_WAIT_IMPACT.has(plan.code) || plan.spec[2]==='morph') {
     const wait = plan.eventImpact&&plan.eventImpact.get(ev)||plan.impact.get(String(ev.unitId)); if (wait) await wait;

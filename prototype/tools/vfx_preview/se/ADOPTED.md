@@ -96,13 +96,9 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 
 | 番号 | 演出 | 元の素材 | 長さ | peak |
 |---|---|---|---|---|
-| C001 | alastor-brand | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav | 1.75秒 | 0.242771 |
 | C002 | erinyes-flame | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-03.wav | 1.95秒 | 0.438229 |
-| C005 | atlas-burden | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Stone Crush_RTSB_COL-01.wav | 1.401秒 | 0.247667 |
-| C052 | thunderbird-charge | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-04.wav | 1.316625秒 | 0.45 |
 | C105 | kele-blood-nova | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Annihilating Blast_RTSB_COL-01.wav | 1.95秒 | 0.296875 |
 | C095_1 | grimalkin-glint | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Tinkly 01.wav | 1.95秒 | 0.256979 |
-| C095 | grimalkin-pillar | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ascend 02.wav | 1.473875秒 | 0.122354 |
 | K013 | stealth-veil | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Drone 02.wav | 1.95秒 | 0.4785 |
 | K014 | guard-stance | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Hollow Slam_RTSB_COL-01.wav | 1.95秒 | 0.156354 |
 | EN031 | frost-retaliate | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-01.wav | 1.95秒 | 0.45 |
@@ -110,7 +106,26 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | C080 | activation-transform | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-04.wav | 1.95秒 | 0.45 |
 | C109 | activation-empower | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-04.wav | 1.95秒 | 0.45 |
 | C116 | hellknight-slash | tools/vfx_preview/se_tools_1025.py | 2.35秒 | 0.85 |
-| C034 | banshee-miasma | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav | 1.95秒 | 0.45 |
+
+## 2026-10-26 正式採用（利用者がLABで選択）
+
+台帳 adopted_1026.json。ゲームの assets/sfx に配置済み。
+
+| 番号 | 演出 | 元の素材 | 長さ | peak |
+|---|---|---|---|---|
+| C062 | ymir-aura | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Swell 01.wav | 1.95秒 | 0.45 |
+| C095 | grimalkin-pillar | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Bell Element 02.wav | 1.95秒 | 0.45 |
+| C005 | atlas-burden | BOOM/BOOM/PERCUSSIVE TONE 07_A.wav | 1.95秒 | 0.324083 |
+| C034 | banshee-miasma | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Medium 01-04.wav | 1.95秒 | 0.45 |
+| C052 | thunderbird-charge | Adobe/雨・雷・風など天候/Weather Storm Lightning Bolt Crash Crack 04.wav | 1.95秒 | 0.45 |
+| C001 | alastor-brand | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav | 1.95秒 | 0.242771 |
+| EN045 | all-ring | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_WHOOSH HIT-Quasar Wave_RTSB_COL-01.wav | 1.95秒 | 0.45 |
+| I003 | scroll-revive | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03.wav | 1.95秒 | 0.45 |
+| I004 | scroll-shield | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03.wav | 1.95秒 | 0.45 |
+| I005 | scroll-giant | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03.wav | 1.95秒 | 0.45 |
+| I012 | scroll-guts | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03.wav | 1.95秒 | 0.45 |
+| I008 | scroll-mana | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03.wav | 1.95秒 | 0.45 |
+| C114 | reward-blessing | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ascend 08.wav | 1.95秒 | 0.45 |
 
 ## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 

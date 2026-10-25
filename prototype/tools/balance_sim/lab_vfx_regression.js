@@ -302,6 +302,14 @@ async function extraChecks() {
     if(!renumbered&&cells[1]==='C034'){
       assert.equal(presentLabFx('C034')[0],'banshee-miasma','2026-10-25指定の付け替え');assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
     }
+    // 2026-10-26：闇の炎 E006 は単体へ飛ぶ黒い火球へ作り替え（全体の黒い炎の波 dark-fire はエキドナ・ドラウグルが同じ E006 の音で使う）。
+    if(cells[1]==='E006'&&cells[2]==='dark-fire'){
+      assert.equal(presentLabFx('E006')[0],'dark-fireball');assert.equal(presentLabFx('C004')[0],'dark-fire');assert.equal(presentLabSoundCode('C004'),'E006');continue;
+    }
+    // 2026-10-26：マータ C007 は本文が「負傷：全ての敵に弱体1」になり、肩代わりの attack-recoil から紫の弱体の波へ（旧定義は残す）。
+    if(cells[1]==='C007'&&cells[2]==='attack-recoil'){
+      assert.equal(presentLabFx('C007')[0],'weaken-wave');assert.ok(VbFx.effects.some(d=>d.name==='attack-recoil'),'定義は残す attack-recoil');continue;
+    }
     if(['C114'].includes(cells[1])){
       assert.equal(presentLabFx(cells[1]),null,'旧効果の割り当てを外す '+cells[1]);assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
     }

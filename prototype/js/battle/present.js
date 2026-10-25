@@ -2002,15 +2002,24 @@ const PRESENT_LAB_FX = {
   E028:['leprechaun',.9,'self','C088'],
   E044:['attack-buff',.511,'target','S005'], E016:['dragonnet',.58,'morph','C064'],
   E027:['death-mark',null,'target',getKeywordAssetKey('即死')],
-  E015:['fang-poison',null,'target',getKeywordAssetKey('毒牙')],
+  // 2026-10-26 利用者指定：単体に飛ばす毒は毒液の共通演出（全体はスキュラの波）。音は毒牙の音を仮に共有。
+  E015:['poison-spit',.45,'foes',getKeywordAssetKey('毒牙')],
   // 2026-10-25 新しいキャラクター（additions_1025.js の新作6種と、既存演出の流用）。第2要素は採用したSEのピーク（秒）。
-  C001:['alastor-brand',0.242771,'friend'], C002:['erinyes-flame',0.438229,'foe'], C004:['shockwave',0.45,'foes','E071'],
-  C005:['atlas-burden',0.247667,'friends'], C052:['thunderbird-charge',0.45,'self'], C105:['kele-blood-nova',0.296875,'foes'],
+  C001:['alastor-brand',0.242771,'friend'], C002:['erinyes-flame',0.438229,'foe'], C004:['dark-fire',.5,'foes','E006'],
+  C005:['atlas-burden',0.324083,'friends'], C052:['thunderbird-charge',0.45,'self'], C105:['kele-blood-nova',0.296875,'foes'],
   // 2026-10-25 利用者指摘：毒緑と紫の波は毒と弱体を与えるバンシー（死亡）の演出（旧 echidna-wave を改名）。エキドナは全体ダメージの衝撃波（仮。E071 の音）。
   C034:['banshee-miasma',0.45,'foes'],
-  C026:['scylla',.45,'foes','C071'], C051:['scylla',.45,'foes','C071'], C027:['dark-fire',.5,'foes'],
-  C053:['melusine',.9,'foe'], C077:['eidolon',.218375,'kenzoku','C044'],
-  E006:['dark-fire',.5,'foes'], E035:['resentment',.7,'foe'],
+  // 2026-10-26 LAB の4回目の指摘：未割り当ての効果へ割り当て。永久バフは成長（レプラコーン）に統一。第4要素は共有する音の番号。
+  C092:['leprechaun',.9,'self','C088'], C121:['leprechaun',.9,'self','C088'], E005:['leprechaun',.9,'self','C088'],
+  C007:['weaken-wave',.2,'foes',getKeywordAssetKey('弱体')], C103:['weaken-wave',.2,'foes',getKeywordAssetKey('弱体')],
+  C028:['keyword-grant-fang',.45,'friends','EN044'], E013:['magic-ring-mana',.45,'self','R013'],
+  E018:['atk-down',.44,'target',getKeywordAssetKey('邪眼')], E037:['penance-ring',.45,'self','R012'],
+  E055:['atlas-burden',0.324083,'friends','C005'], E060:['shield-break',0.318812,'target','shield_break'],
+  R029:['map-duplicate',.45,'self','map:duplicate'], EN045:['all-ring',0.45,'foes'],
+  C026:['scylla',.45,'foes','C071'], C051:['scylla',.45,'foes','C071'], C027:['dark-fire',.5,'foes','E006'],
+  C053:['melusine',.9,'foe','C089'], C077:['eidolon',.218375,'kenzoku','C044'],
+  // 2026-10-26 利用者指定：闇の炎は単体へ飛ぶ黒い火球（全体の黒い炎の波はエキドナ・ドラウグルへ）。音は旧 dark-fire の E006 を仮に使う。
+  E006:['dark-fireball',.5,'foes'], E035:['resentment',.7,'foe'],
   C050:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
   E071:['shockwave',0.45,'foes'], E075:['demon-soul',.9,'foes'], C042:['vrykolakas',.9,'friend'],
   C048:['bone-chariot',.9,'friend'], C061:['jackalope',.7,'green'],
@@ -2040,7 +2049,7 @@ const PRESENT_LAB_FX = {
   R013:['magic-ring-mana',0.45,'field'], R016:['intimidate-ring',0.450021,'foes'],
   // 2026-10-23 VFX の全検査で割り当て（利用者の確認待ち）：絶魔の指輪（味方が結界を失うたび全ての味方+1/+1）＝常時の強化、
   // 永劫の力（開戦のたびに永久に+1/+1）＝使われなくなった生命の力の演出。
-  R035:['aura-buff',0.45,'friends','S009'], 'map:eternal':['map-life',0.45,'self'],
+  R035:['aura-buff',0.45,'friends','S009'], 'map:eternal':['map-life',0.45,'self','map:life'],
   // 新しく作った演出（additions_1023.js）：残響の魔導師の負傷（ランダムな敵へ）・凍てつく亡霊の負傷（ダメージを与えた敵へ）。
   EN013:['echo-bolt',0.45,'foes'], EN031:['frost-retaliate',0.45,'foes'],
   'map:duplicate':['map-duplicate',0.45,'self'],
@@ -2056,7 +2065,9 @@ const PRESENT_LAB_FX = {
   C075:['behemoth',0.48,'self'],E031:['sylph',0.284083,'self'],C091:['nymph',0.736167,'colors'],
   C107:['fiend',0.833771,'foe'],C039:['phantom',0.218375,'kenzoku'],C044:['eidolon',0.218375,'kenzoku'],
   C124:['arch-demon',0.774937,'purple'],C108:['gremlin',0.341896,'foes'],C120:['lilith',0.384333,'sequence'],
-  C122:['overlord',0.48,'self'],C014:['minotaur',0.2575,'reaction'],E056:['sleep-sheep',0.45,'self'],
+  C122:['overlord',0.48,'self'],C014:['minotaur',0.2575,'reaction'],
+  // 2026-10-26 利用者指摘「咬竜“グレイプニル”など、個別VFXを再生できません」：負傷で直ちに割り込み攻撃する体はミノタウロスと同じ演出・同じ音。
+  EN043:['minotaur',0.2575,'reaction','C014'],E056:['sleep-sheep',0.45,'self'],
   C071:['scylla',0.45,'foes'],C086:['undine',0.16925,'foes'],C099:['spriggan',0.45,'friend'],
   E024:['incubus',0.45,'victim'],C119:['chaos-imp',0.923583,'retrigger'],
 };
@@ -2066,20 +2077,35 @@ const PRESENT_LAB_FX = {
 // 2026-10-18 利用者指定：盾の巻物（I003）と幻視の巻物（I004）の演出を入れ替えている。
 // 2026-10-22 シート改訂：魔力の巻物（I011）は「再抽選が3回可能になる」になり、キャラクターに使わないので外した。
 // 2026-10-23：「対象のキャラクターに〇〇を与える。」の巻物（I015〜I023）＝キーワードの付与の演出（利用者の確認待ち）。
+// 2026-10-26 利用者指定：キーワードの巻物はキーワードごとの色違い、永劫の巻物＝渦を巻く魔力、絆の巻物＝重なる金の波紋。
 const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'scroll-giant', I012:'scroll-guts',
-  I015:'keyword-grant', I016:'keyword-grant', I017:'keyword-grant', I018:'keyword-grant', I019:'keyword-grant',
-  I020:'keyword-grant', I021:'keyword-grant', I022:'keyword-grant', I023:'keyword-grant',
+  I015:'keyword-grant-fang', I016:'keyword-grant-evil-eye', I017:'keyword-grant-impact', I018:'keyword-grant-double', I019:'keyword-grant-stealth',
+  I020:'keyword-grant-first', I021:'keyword-grant-tri', I022:'keyword-grant-drain', I023:'keyword-grant-pierce',
+  I008:'scroll-mana', I013:'map-resonance',
   // 変身の巻物＝起動の変身と同じ演出（additions_1023.js）。
   I002:'activation-transform' };
+// アイテムの使用の音（2026-10-26 利用者指定「アイテムにもSEを」）：その巻物の番号の音（LAB採用）、無ければ同じ演出の音、それも無ければ巻物の共通音。
+const PRESENT_ITEM_USE_SFX = { I002:'C080', I013:'map:resonance',
+  I015:'EN044', I016:'EN044', I017:'EN044', I018:'EN044', I019:'EN044', I020:'EN044', I021:'EN044', I022:'EN044', I023:'EN044' };
+function presentItemUseSfxKey(no) {
+  const code = String(no || ''), sfx = typeof Assets !== 'undefined' && Assets.sfx || {};
+  return sfx[code] ? code : sfx[PRESENT_ITEM_USE_SFX[code]] ? PRESENT_ITEM_USE_SFX[code] : 'itemScroll';
+}
 // 起動（魔導板で対象に使う効果）の演出。activation.js が対象のカードの上（破壊は破壊したカードからヘルナイトへ）に出す。
 // 2026-10-25：マモン（アイテムを破壊して金貨）＝金貨、チェンジリング（魔導板と報酬の入れ替え）＝翡翠の変身。
 const PRESENT_ACTIVATION_FX = { C084:'dragonnet', C109:'activation-empower', C116:'hellknight-slash', C003:'gold-gain', C080:'activation-transform' };
+// 起動の音：カード固有の音（LAB採用）、無ければ同じ演出の音（マモン＝ノームの金貨・シルフ＝ドラゴネット）、それも無ければ巻物の共通音。
+const PRESENT_ACTIVATION_SFX = { C003:'S003', C084:'C064' };
+function presentActivationSfxKey(code) {
+  const own = typeof getEffectSfxKey === 'function' ? getEffectSfxKey(code) : '', sfx = typeof Assets !== 'undefined' && Assets.sfx || {};
+  return own || (sfx[PRESENT_ACTIVATION_SFX[code]] ? PRESENT_ACTIVATION_SFX[code] : 'itemScroll');
+}
 function presentActivationFx(code, available) {
   const name = PRESENT_ACTIVATION_FX[String(code || '')];
   return name === 'hellknight-slash' && !available.includes(name) ? 'activation-devour' : name || '';
 }
 // この割り当ては既存の対象バフ／キーワード入口が描画する。LABの表を追加しても二重に再生しない。
-const PRESENT_ASSIGNED_SHARED_FX = new Set(['C020','C047','C070','E005','E023','C040','E044','E015','E027']);
+const PRESENT_ASSIGNED_SHARED_FX = new Set(['C020','C047','C070','E023','C040','E044','E027']);
 function presentAssignedLabEventMatches(code, ev) {
   if (PRESENT_ASSIGNED_SHARED_FX.has(code)) return false;
   if (['C011','EN060','C026','C051'].includes(code)) return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0
@@ -2089,6 +2115,21 @@ function presentAssignedLabEventMatches(code, ev) {
   if (code === 'C002') return ev.type === 'damage' && ev.reason === 'ally_color_injury_damage';
   if (code === 'C004') return ev.type === 'damage' && ev.reason === 'ally_death_all_damage';
   if (code === 'C034') return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0 && ev.effectTrigger === 'death';
+  // 2026-10-26 割り当て：効果の実体（コアの reason・効果の種類）だけで出す。コアにまだ実体が無いもの（E060・R029・EN045）は、実体が出た時に選ぶ契約。
+  if (code === 'C092') return ev.type === 'stat_change' && ev.reason === 'ally_attack_permanent_buff';
+  if (code === 'C121') return ev.type === 'stat_change' && ev.reason === 'ally_release_permanent_buff';
+  if (code === 'E005') return ev.type === 'stat_change' && ev.reason === 'kill_permanent_buff';
+  if (code === 'C007') return ev.type === 'keyword_effect' && ev.effect === 'weaken' && Number(ev.amount) > 0;
+  if (code === 'C103') return ev.type === 'keyword_effect' && ev.effect === 'weaken' && Number(ev.amount) > 0 && ev.effectTrigger === 'death';
+  if (code === 'C028') return ev.type === 'keyword_effect' && ev.effect === 'keyword_gain' && /^毒牙/.test(String(ev.keyword || ''));
+  if (code === 'E013') return ev.type === 'mana_gain' && ['opening_mana','wild_power'].includes(ev.reason) && Number(ev.amount) > 0;
+  if (code === 'E015') return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0;
+  if (code === 'E018') return ev.type === 'keyword_effect' && ev.effect === 'evil_eye';
+  if (code === 'E037') return ev.type === 'damage' && ev.unitId === ev.sourceId;
+  if (code === 'E055') return ev.type === 'damage' && ev.redirectedFrom != null;
+  if (code === 'E060') return ev.type === 'keyword_effect' && ev.effect === 'keyword_nullify';
+  if (code === 'R029') return ev.type === 'summon' && ev.reason === 'release_copy';
+  if (code === 'EN045') return ev.type === 'damage' && ev.reason === 'ally_attack_all_damage';
   if (code === 'C105') return ev.type === 'damage' && ev.reason === 'blood_multiple_damage';
   if (code === 'C053') return ev.type === 'damage' && ev.reason === 'attack_poison_damage';
   if (code === 'E028') return ev.type === 'stat_change' && ev.reason === 'battle_end_permanent_buff'
@@ -2105,7 +2146,9 @@ const PRESENT_DIRECT_LAB_FX = [
 ];
 // 2026-10-22 シート改訂：効果が移った番号へ付け替え（C025→E083・C031→E043・C084→E031・C057→E056・C109→E024、
 // アークデーモン C082 とフィーンド C099 は効果が入れ替わったので演出も入れ替え）。ファミリア C089 は効果が変わったので外した。
-const PRESENT_LAB_1012_CODES=new Set(['C052','C009','E083','E043','C075','E031','C091','C124','C039','C044','C077','C107','C108','C120','C122','C014','E056','C071','C086','C099','E024','C119']);
+// 負傷の発光で始め、続く本人の割り込み攻撃で締める演出（ミノタウロスの怒り）。
+const PRESENT_LAB_REACTION_CODES=new Set(['C014','EN043']);
+const PRESENT_LAB_1012_CODES=new Set(['C052','C009','E083','E043','C075','E031','C091','C124','C039','C044','C077','C107','C108','C120','C122','C014','EN043','E056','C071','C086','C099','E024','C119']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
 // 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
 function presentLab1012EventMatches(code,ev){
@@ -2122,7 +2165,7 @@ function presentLab1012EventMatches(code,ev){
   if(code==='C120')return ev.type==='stat_change'&&ev.reason==='lilith';
   if(code==='C122')return ev.type==='stat_change'&&ev.reason==='overload';
   // 2026-10-22 シート改訂：ミノタウロスは結界を得なくなった。負傷の発光（この後に本人の割り込み攻撃が続く）で始める。
-  if(code==='C014')return ev.type==='effect_flash'&&ev.trigger==='injury';
+  if(PRESENT_LAB_REACTION_CODES.has(code))return ev.type==='effect_flash'&&ev.trigger==='injury';
   if(code==='E056'||code==='E024')return ev.type==='blood_set'&&ev.sourceId!=null&&Number(ev.gained)>0;
   return false;
 }
@@ -2144,6 +2187,10 @@ const PRESENT_LAB_REACTION_AIM_MS=300;
 const PRESENT_LAB_SPEED_BY_CODE = { S001:2.5 };
 function presentLabSpeed(code) { return PRESENT_LAB_SPEED * (PRESENT_LAB_SPEED_BY_CODE[String(code || '').trim()] || 1); }
 const PRESENT_LAB_SOUND_FADE_MS = 1100;
+// 演出の終わりで音をフェードしない演出（音を最後まで鳴らす）。2026-10-26 利用者指摘：アラストルの音が「切れた感じ」（演出が短く、余韻を途中で消していた）。
+const PRESENT_LAB_SOUND_NO_FADE = new Set(['alastor-brand']);
+// 音の途中から鳴らす時の立ち上げ（ms。標準60）。2026-10-26 利用者指摘：ウェンディゴの音の始まりが急（吹雪の途中から鳴る）。
+const PRESENT_LAB_SOUND_FADE_IN_MS = { wendigo: 420 };
 function presentLabFx(code) { return PRESENT_LAB_FX[String(code || '').trim()] || null; }
 function presentLabSoundCode(code) { return presentLabFx(code)?.[3] || code; }
 function presentLabManualTarget(events, index, code) {
@@ -2203,7 +2250,9 @@ const PRESENT_SFX_PEAK_SEC = {
   C115: .130, appearance: .029 /* 開戦の砂煙の着地音（実測） */, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
   [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
   // 2026-10-25 LAB採用：グリマルキン（終戦）と起動（チェンジリング・インキュバス・ヘルナイト）。
-  C095: 0.122354, C095_1: 0.256979, C080: 0.45, C109: 0.45, C116: 0.85,
+  C095: 0.45, C095_1: 0.256979, C080: 0.45, C109: 0.45, C116: 0.85, C062: 0.45, C114: 0.45, // 2026-10-26 C095 は候補2・C062・C114 を採用
+  // 2026-10-26：起動・アイテムの使用で共有する音（presentActivationSfxKey・presentItemUseSfxKey）。
+  C064: .58, EN044: .45, 'map:resonance': 0.072292, I003: 0.45, I004: 0.45, I005: 0.45, I008: 0.45, I012: 0.45,
 };
 function presentSfxPeakSec(key) {
   const n = Number(PRESENT_SFX_PEAK_SEC[String(key || '')]);

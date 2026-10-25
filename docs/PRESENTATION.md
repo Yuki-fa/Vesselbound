@@ -871,3 +871,19 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
     どちらもループの card 層でカードの見た目（不透明度・彩度・明るさ）を変える。
   - LAB の一覧：新しい演出を途中へ入れると番号がずれるので、thunder-strike も lab_meta.js `listLast` で末尾へ。
   - **定義JSONの上限を一旦 1.1MB に上げた**（tools/vfx_export.js・vfx_1012_regression.js。利用者の方針：後で使っていない演出を削って 1MB へ戻す。削る候補は利用者の確認待ち）。
+- 2026-10-26 LAB の指摘の反映（4回目）
+  - FIX：02 ymir-aura SE2（C062）・04 grimalkin-pillar SE2（C095）・05 reward-blessing SE1（C114_blessing.wav。C114.wav は旧 familiar の音）・11 banshee-miasma SE3・12 atlas-burden SE2・13 thunderbird-charge SE3・エイトヴォルム。
+  - LAB の SE：カードの再生で、PRESENT_LAB_FX の第4要素（共有する音の番号）・起動（present.js `presentActivationSfxKey`。マモン＝ノームの金貨 S003、シルフ＝ドラゴネット C064）・
+    巻物の使用（`presentItemUseSfxKey`）・ラン効果（Assets.vfx.characterEffect の番号）の音を、ゲームと同じ表から引く（tools/vfx_preview/cards.js `gameSound`）。ゲームにまだ音の無い演出は候補の採用音（無ければ候補1）。
+    ゲーム側も音が無かったドラウグル・ヒュドラ・永劫の力の着地に共有の音を付けた。cards_routes.js は cards_scan.cjs で採り直し。
+  - LAB の「未使用」：コードの表（PRESENT_LAB_FX・起動・巻物・Assets.vfx・状態）から引かれる演出は使用に数える（lab_model.js `codeReferenced`）。
+  - LAB の一覧：新しく足した演出は lab_meta.js `listLast` で末尾へ古い順に付け、利用者の使う番号をずらさない。
+  - 音：アラストルは演出の終わりでフェードしない（present.js `PRESENT_LAB_SOUND_NO_FADE`、battle_fx.js・preview.js 共通）。ウェンディゴは音の途中から鳴らす時の立ち上げを 420ms（`PRESENT_LAB_SOUND_FADE_IN_MS`）。
+  - 新しい演出：闇の炎 E006＝dark-fireball（単体へ飛ぶ黒い火球）、エキドナ C004＝dark-fire（全体の黒い炎の波。E006 の音）、毒袋 E015＝poison-spit（飛んでいく毒液。単体に飛ばす毒の共通）、
+    マータ C007・カトブレパス C103＝weaken-wave（紫の弱体の波）、キーワードの巻物 I015〜I023・アムピスバエナ C028＝keyword-grant の色違い9種。
+  - 割り当て：永久バフ（シャナ C092・ナイトメア C121・執念の炎 E005）＝成長と同じ leprechaun、野生の力 E013＝magic-ring-mana、邪眼 E018＝atk-down、懺悔 E037＝penance-ring、団結 E055＝atlas-burden、
+    武器破壊 E060＝shield-break、呼応の指輪 R029＝map-duplicate、グンダ EN045＝all-ring、咬竜グレイプニル EN043＝minotaur（負傷で直ちに割り込み攻撃。`PRESENT_LAB_REACTION_CODES`）、
+    永劫の巻物 I008＝scroll-mana、絆の巻物 I013＝map-resonance。E060・R029・EN045 はコアに実体イベントが無いので、実体が出た時に選ぶ契約（present.js `presentAssignedLabEventMatches`）。
+  - 巻物の使用の音：巻物の番号の音（I003〜I005・I008・I012）、無ければ同じ演出の音、それも無ければ共通音（reward_items.js `_playItemUseVfx`）。
+  - 隠密・防戦の状態：カードの層の `artOnly` を残像以外でも絵だけに効かせる（js/vfx/renderer.js）。ATK/HP の数字は暗くしない。防戦の影は上から（下の数字へ届かせない）。
+  - 01 ヘルナイト候補5〜7・06 復活の指輪 SE1・2・160 thunder-strike の SE 3候補を追加・差し替え。定義JSONは 1,054,219 バイト（上限 1.1MB）。

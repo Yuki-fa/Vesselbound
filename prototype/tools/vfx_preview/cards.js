@@ -17,11 +17,22 @@ var VbFxCards = (function () {
     var list=codes.filter(function(c){if(!labFx[c]||seen[labFx[c][0]])return false;seen[labFx[c][0]]=1;return true;}).map(function(c){return {name:labFx[c][0]};});
     // 2026-10-25 利用者指摘「アイテムはほとんどバフがあるはずですが、プレビューでは見れません」：
     // 番号の表（PRESENT_LAB_FX）に無い、巻物の使用（PRESENT_ITEM_USE_FX）・起動（PRESENT_ACTIVATION_FX）・マスの力の演出も、ゲームと同じ表から再生する。
+    // 2026-10-26 利用者指摘「LABではSEが鳴りません」：起動・巻物の使用の音もゲームと同じ関数で引く（present.js presentActivationSfxKey・presentItemUseSfxKey）。
     var extra=[];
-    if(typeof PRESENT_ITEM_USE_FX!=='undefined'&&PRESENT_ITEM_USE_FX[card.no])extra.push(PRESENT_ITEM_USE_FX[card.no]);
-    if(window.VbFxLabActivationFx&&VbFxLabActivationFx[card.no])extra.push(VbFxLabActivationFx[card.no]);
-    if(card.kind==='mapPanelPower'&&typeof PRESENT_MAP_POWER_NO!=='undefined')Object.keys(PRESENT_MAP_POWER_NO).forEach(function(id){if(PRESENT_MAP_POWER_NO[id]===card.no&&labFx['map:'+id])extra.push(labFx['map:'+id][0]);});
-    extra.forEach(function(name){if(!seen[name]&&VbFx.effects.some(function(d){return d.name===name;})){seen[name]=1;list.push({name:name});}});
+    if(typeof PRESENT_ITEM_USE_FX!=='undefined'&&PRESENT_ITEM_USE_FX[card.no])extra.push({name:PRESENT_ITEM_USE_FX[card.no],sfx:typeof presentItemUseSfxKey==='function'?presentItemUseSfxKey(card.no):'itemScroll'});
+    if(window.VbFxLabActivationFx&&VbFxLabActivationFx[card.no])extra.push({name:VbFxLabActivationFx[card.no],sfx:typeof presentActivationSfxKey==='function'?presentActivationSfxKey(card.no):'itemScroll'});
+    // ラン効果（報酬とトレーダーの強化・リロール・接続エンチャントの強化）と復活の指輪：実経路の素材が Assets.vfx.characterEffect の番号なら、その番号の音（ゲームの _playCardEffectSfxAtCue と同じ）。
+    var effectTable=typeof Assets!=='undefined'&&Assets.vfx&&Assets.vfx.characterEffect||{};
+    M.rawVfx(card,VbFxCardRoutes).forEach(function(m){
+      var n=M.definitionName(m),key=Object.keys(effectTable).find(function(k){return effectTable[k]===m.path;});
+      if(n&&key&&!labFx[key]&&!labFx[M.codeOf(m)])extra.push({name:n,sfx:Assets.sfx[key]?key:''});
+    });
+    // マスの力：置いた時の魔導板の変化（実経路の board-summon／board-enchant と、その音）を先に、続けて開戦の演出（2026-10-26 利用者指摘「永劫の力と複製の力に魔導板変化VFXが入っていない」）。
+    if(card.kind==='mapPanelPower'){
+      M.rawVfx(card,VbFxCardRoutes).forEach(function(m){var n=M.definitionName(m);if(/^board-/.test(n||'')){var se=card.seRoutes.find(function(s){return /board_change/.test(s.path||'');});extra.unshift({name:n,file:se&&se.path});}});
+      if(typeof PRESENT_MAP_POWER_NO!=='undefined')Object.keys(PRESENT_MAP_POWER_NO).forEach(function(id){if(PRESENT_MAP_POWER_NO[id]===card.no&&labFx['map:'+id])extra.push({name:labFx['map:'+id][0],code:'map:'+id});});
+    }
+    extra.forEach(function(x){if(!seen[x.name]&&VbFx.effects.some(function(d){return d.name===x.name;})){seen[x.name]=1;list.push(x);}});
     return list;
   }
   function allowed(card,vfx){return !M.suppressed(card,vfx,VbFxLabStore.get(),keywordKeys);}
@@ -347,9 +358,17 @@ var VbFxCards = (function () {
     for (var se of sounds) { if (id !== token) return; status(card.no + ' · ' + (adopted ? '採用SE' : '現行SE') + '：' + se.path); await audio(se.path); }
     if (id === token && sounds.length) status(card.no + ' · SE再生が完了');
   }
-  function gameSound(card,name){
-    var codes=[card.kind==='keyword'?keywordKeys[card.name]:card.no].concat(card.kind==='specialFx'&&keywordKeys[card.name]?[keywordKeys[card.name]]:[],String(card.row['VFX/SE']||'').split(/[\s,、/]+/));
+  // ゲームにまだ音が無い演出は、LAB の候補一覧の採用音（無ければ候補1）を仮に鳴らす（2026-10-26「LABではSEが鳴りません」）。
+  function catalogSound(name){var ids=VbFxSeCatalog.effects[name]||[];var id=ids.find(function(k){return VbFxSeCatalog.sounds[k].adopted;})||ids[0];return id?VbFxSeCatalog.sounds[id]:null;}
+  function gameSound(card,name,fx){
+    // 起動・巻物の使用（音の番号）・マスの変化（実経路のファイル）は、gameLab が引いた音をそのまま使う。
+    if(fx&&fx.sfx!==undefined){var key=fx.sfx;if(!key)return catalogSound(name);return Assets.sfx[key]?{id:'game:'+key,url:'../'+Assets.sfx[key],filename:Assets.sfx[key],peak:presentSfxPeakSec(key)}:null;}
+    if(fx&&fx.file)return {id:'game:'+fx.file,url:'../'+fx.file,filename:fx.file,peak:0};
+    var codes=[card.kind==='keyword'?keywordKeys[card.name]:card.no].concat(card.kind==='specialFx'&&keywordKeys[card.name]?[keywordKeys[card.name]]:[],String(card.row['VFX/SE']||'').split(/[\s,、/]+/),fx&&fx.code?[fx.code]:[]);
     var code=codes.find(function(c){return labFx[c]&&labFx[c][0]===name;});
+    // 第4要素（共有する音の番号）があれば、ゲーム（battle_fx.js _battleFxSound → presentLabSoundCode）と同じくその音を、PRESENT_LAB_FX のピークで鳴らす。
+    if(code&&labFx[code]){var sc=typeof presentLabSoundCode==='function'?presentLabSoundCode(code):code;
+      if(Assets.sfx[sc])return {id:'game:'+sc,url:'../'+Assets.sfx[sc],filename:Assets.sfx[sc],peak:labFx[code][1]!=null?labFx[code][1]:presentSfxPeakSec(sc)};}
     if(!code){var media=M.rawVfx(card,VbFxCardRoutes).find(function(m){return M.definitionName(m)===name;});code=media&&M.codeOf(media);}
     if(!code)code=codes.find(function(c){return Assets.sfx[c];});
     if(code==='hit')code='attack';
@@ -357,7 +376,7 @@ var VbFxCards = (function () {
     var se=card.seRoutes.find(function(s){return s.key===code;});
     if(!code){se=card.seRoutes.find(function(s){return s.key&&s.key!=='effectDamage'&&s.key!=='attack';});code=se&&se.key;}
     var file=se&&se.path || code&&Assets.sfx[code];
-    return file?{id:'game:'+code,url:'../'+file,filename:file,peak:presentSfxPeakSec(code)}:null;
+    return file?{id:'game:'+code,url:'../'+file,filename:file,peak:presentSfxPeakSec(code)}:catalogSound(name);
   }
   async function playAssigned(card,list){
     if(window.VbFxLabCheck&&VbFxLabCheck.busy())return;
@@ -365,8 +384,8 @@ var VbFxCards = (function () {
     for(var fx of list){
       if(id!==token)return;
       var entry=record(card,'assignment',fx.name),opts={suppress:suppressedNames(card)},a=fx.assign;
-      if(a){opts.sound=a.se==='game'?gameSound(card,fx.name):a.se===null?null:VbFxSeCatalog.sounds[a.se]||null;}
-      else opts.sound=gameSound(card,fx.name);
+      if(a){opts.sound=a.se==='game'?gameSound(card,fx.name,fx):a.se===null?null:VbFxSeCatalog.sounds[a.se]||null;}
+      else opts.sound=gameSound(card,fx.name,fx);
       entry.status='playing';entry.startedAt=performance.now();entry.expectedMs=VbFx.duration(fx.name,Number($('speed').value));
       status(card.no+' · '+VbFxLabStore.meta(fx.name).title+' / '+(a&&a.trigger||'現行ゲーム'));
       try{var result=await VbFxPreview.playInScene(fx.name,M.scene(card,a&&a.trigger),opts);entry.result=result.result;entry.completed=!result.result.cancelled;entry.status=entry.completed?'completed':'cancelled';entry.finishedAt=performance.now();entry.elapsedMs=entry.finishedAt-entry.startedAt;}
@@ -541,6 +560,12 @@ var VbFxCards = (function () {
   return { cards: function () { return cards.slice(); }, summary: function () { return VbFxCardCatalog.summary(cards); },
     choose: choose, show: switchTab, play: function (no) { var c = cards.find(function (x) { return x.no === no; }); if (c) return playCard(c); },
     refresh:render, generics:function(no){return generics(cards.find(function(c){return c.no===no;}));},
+    // 検査用：カードを押した時に再生する演出とSE（playCard と同じ選び方）。2026-10-26「LABではSEが鳴りません」の一括確認。
+    plan:function(no){var c=cards.find(function(x){return x.no===no;});if(!c)return null;var list=overrides(c),source='assign';
+      if(!list.length){list=gameLab(c).filter(function(f){return suppressedNames(c).indexOf(f.name)<0;});source=list.length?'game':'current';}
+      return {no:c.no,name:c.name,kind:c.kind,source:source,currentVfx:c.vfx.map(function(v){return M.definitionName(v)||v.fn||v.path;}),currentSe:c.se.map(function(s){return s.path;}),
+        fx:list.map(function(f){var a=f.assign,snd=a?(a.se==='game'?gameSound(c,f.name,f):a.se===null?null:VbFxSeCatalog.sounds[a.se]||null):gameSound(c,f.name,f);
+          return {name:f.name,loop:!!(VbFx.effects.find(function(d){return d.name===f.name;})||{}).loop,sound:snd&&(snd.id||snd.url)};})};},
     playCurrent: function (no) { var c = cards.find(function (x) { return x.no === no; }); if (c) return playCurrent(c); },
     history: function () { return history.map(function (entry) { return Object.assign({}, entry); }); }, stop: stop };
 })();

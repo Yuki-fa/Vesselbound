@@ -71,7 +71,8 @@ var VbFxLabUI = (function () {
   init();
   return {select:function(effect){name=effect;renderEditor();},
     // 2026-10-18 利用者指定：ゲームで使っていない（実経路にも編集中の割り振りにも無い）演出には一覧で印を出す。
-    unused:function(effect){return !(uses[effect]||[]).length&&!(((S.get().effects[effect]||{}).assign)||[]).length;},
+    // 2026-10-26：起動・ラン効果・状態・素材の表（Assets.vfx）など、コードの表から引かれる演出も「使用」に数える（以前は未使用と誤表示していた）。
+    unused:function(effect){return !(uses[effect]||[]).length&&!(((S.get().effects[effect]||{}).assign)||[]).length&&!M.codeReferenced(effect);},
     searchText:function(effect){return uses[effect].map(function(a){return a.id+' '+a.name;}).concat(((S.get().effects[effect]||{}).assign||[]).map(function(a){return a.id+' '+a.name;}));},
     current:function(effect){return M.clone(uses[effect]||[]);}};
 })();

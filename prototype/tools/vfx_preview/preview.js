@@ -195,7 +195,7 @@ var VbFxPreview = (function () {
     var base = Number($('volume').value), audio = new Audio(sound.url + (sound.sha256 ? '?v=' + sound.sha256.slice(0, 10) : '')); audio.volume = base; audioVoices.add(audio);
     if (opts.offset > 0) audio.currentTime = opts.offset;
     // 音の途中から鳴らす時は、頭の60msで立ち上げる（途中で切った所がプツッと鳴らないように）。
-    var fadeIn = opts.offset > 0 ? 60 : 0;
+    var fadeIn = opts.offset > 0 ? (opts.fadeIn || 60) : 0;
     if (fadeIn) audio.volume = 0;
     if (opts.fadeEnd > 0 || fadeIn) {
       var began = performance.now(), fadeAt = Math.max(0, opts.fadeAt || 0), fadeEnd = Math.max(fadeAt + 1, opts.fadeEnd || 0);
@@ -434,7 +434,10 @@ var VbFxPreview = (function () {
       var soundEnd = name === 'direwolf' ? ms * .44 : ms;
       // 2026-10-06 利用者指摘「最後に途切れる感じ」：演出の終わりから1.1秒かけて、なだらかに消す（命中直後には消し始めない）。
       var fadeAt = Math.max(0, Math.max(hit + 250, soundEnd * .95) - startAt), fadeEnd = fadeAt + 1100;
-      timer(function () { if (generation === token) playSound(sound, { offset: offset, fadeAt: fadeAt, fadeEnd: fadeEnd }); }, startAt);
+      // 音を最後まで鳴らす演出（present.js PRESENT_LAB_SOUND_NO_FADE。ゲームと同じ表）。
+      if (typeof PRESENT_LAB_SOUND_NO_FADE !== 'undefined' && PRESENT_LAB_SOUND_NO_FADE.has(name)) fadeAt = fadeEnd = 0;
+      var fadeInMs = typeof PRESENT_LAB_SOUND_FADE_IN_MS !== 'undefined' && PRESENT_LAB_SOUND_FADE_IN_MS[name] || 0;
+      timer(function () { if (generation === token) playSound(sound, { offset: offset, fadeAt: fadeAt, fadeEnd: fadeEnd, fadeIn: fadeInMs }); }, startAt);
     }
     if (conf.auxiliary) timer(function () { if (generation === token) playSound(VbFxSeCatalog.sounds[conf.auxiliary]); }, ms * .46);
     var placement = definitionPlacement(conf, VbFx.rect(card(sourceId)), targets, ms);

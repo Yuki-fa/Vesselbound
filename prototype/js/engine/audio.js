@@ -147,7 +147,15 @@ const SFX_SETTINGS={
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
-    C034: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 banshee-miasma 候補1・旧 echidna-wave の候補1。エキドナから付け替え。C034.wav は旧 banshee の音なので別名）
+    I008: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-mana 候補3・アイテムの使用の音）
+    I012: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-guts 候補3・アイテムの使用の音）
+    I005: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-giant 候補3・アイテムの使用の音）
+    I004: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-shield 候補3・アイテムの使用の音）
+    I003: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-revive 候補3・アイテムの使用の音）
+    EN045: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 all-ring 候補2）
+    C114: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 reward-blessing 候補1・C114.wav は旧 familiar の音なので別名）
+    C062: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 ymir-aura 候補2）
+    C034: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 banshee-miasma 候補3・C034.wav は旧 banshee の音なので別名）
     C116: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 hellknight-slash 候補4）
     C109: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 activation-empower 候補2）
     C080: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 activation-transform 候補3）
@@ -155,13 +163,13 @@ const SFX_SETTINGS={
     EN031: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 frost-retaliate 候補3）
     K014: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 guard-stance 候補3）
     K013: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 stealth-veil 候補2）
-    C095: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 grimalkin-pillar 候補1）
+    C095: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 grimalkin-pillar 候補2）
     C095_1: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 grimalkin-glint 候補1）
     C105: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 kele-blood-nova 候補3）
-    C052: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 thunderbird-charge 候補1）
-    C005: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 atlas-burden 候補1）
+    C052: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 thunderbird-charge 候補3）
+    C005: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 atlas-burden 候補2）
     C002: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 erinyes-flame 候補1）
-    C001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 alastor-brand 候補1）
+    C001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 alastor-brand 候補1・演出の終わりでフェードしない（PRESENT_LAB_SOUND_NO_FADE））
     R031: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 speed-ring 候補2）
     K001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 death-mark 候補1）
     R016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 intimidate-ring 候補1・長めに切り直した候補）

@@ -324,7 +324,15 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
-    C034: 'assets/sfx/C034_miasma.wav', // LAB採用（2026-10-25 banshee-miasma 候補1・旧 echidna-wave の候補1。エキドナから付け替え。C034.wav は旧 banshee の音なので別名）
+    I008: 'assets/sfx/I008.wav', // LAB採用（2026-10-26 scroll-mana 候補3・アイテムの使用の音）
+    I012: 'assets/sfx/I012.wav', // LAB採用（2026-10-26 scroll-guts 候補3・アイテムの使用の音）
+    I005: 'assets/sfx/I005.wav', // LAB採用（2026-10-26 scroll-giant 候補3・アイテムの使用の音）
+    I004: 'assets/sfx/I004.wav', // LAB採用（2026-10-26 scroll-shield 候補3・アイテムの使用の音）
+    I003: 'assets/sfx/I003.wav', // LAB採用（2026-10-26 scroll-revive 候補3・アイテムの使用の音）
+    EN045: 'assets/sfx/EN045.wav', // LAB採用（2026-10-26 all-ring 候補2）
+    C114: 'assets/sfx/C114_blessing.wav', // LAB採用（2026-10-26 reward-blessing 候補1・C114.wav は旧 familiar の音なので別名）
+    C062: 'assets/sfx/C062.wav', // LAB採用（2026-10-26 ymir-aura 候補2）
+    C034: 'assets/sfx/C034_miasma.wav', // LAB採用（2026-10-26 banshee-miasma 候補3・C034.wav は旧 banshee の音なので別名）
     C116: 'assets/sfx/C116.wav', // LAB採用（2026-10-25 hellknight-slash 候補4）
     C109: 'assets/sfx/C109.wav', // LAB採用（2026-10-25 activation-empower 候補2）
     C080: 'assets/sfx/C080.wav', // LAB採用（2026-10-25 activation-transform 候補3）
@@ -332,13 +340,13 @@ const Assets = {
     EN031: 'assets/sfx/EN031.wav', // LAB採用（2026-10-25 frost-retaliate 候補3）
     K014: 'assets/sfx/K014.wav', // LAB採用（2026-10-25 guard-stance 候補3）
     K013: 'assets/sfx/K013.wav', // LAB採用（2026-10-25 stealth-veil 候補2）
-    C095: 'assets/sfx/C095.wav', // LAB採用（2026-10-25 grimalkin-pillar 候補1）
+    C095: 'assets/sfx/C095.wav', // LAB採用（2026-10-26 grimalkin-pillar 候補2）
     C095_1: 'assets/sfx/C095_1.wav', // LAB採用（2026-10-25 grimalkin-glint 候補1）
     C105: 'assets/sfx/C105.wav', // LAB採用（2026-10-25 kele-blood-nova 候補3）
-    C052: 'assets/sfx/C052.wav', // LAB採用（2026-10-25 thunderbird-charge 候補1）
-    C005: 'assets/sfx/C005.wav', // LAB採用（2026-10-25 atlas-burden 候補1）
+    C052: 'assets/sfx/C052.wav', // LAB採用（2026-10-26 thunderbird-charge 候補3）
+    C005: 'assets/sfx/C005.wav', // LAB採用（2026-10-26 atlas-burden 候補2）
     C002: 'assets/sfx/C002.wav', // LAB採用（2026-10-25 erinyes-flame 候補1）
-    C001: 'assets/sfx/C001.wav', // LAB採用（2026-10-25 alastor-brand 候補1）
+    C001: 'assets/sfx/C001.wav', // LAB採用（2026-10-26 alastor-brand 候補1・演出の終わりでフェードしない（PRESENT_LAB_SOUND_NO_FADE））
     R031: 'assets/sfx/R031.wav', // LAB採用（2026-10-21 speed-ring 候補2）
     E078: 'assets/sfx/E078.wav', // LAB採用（2026-10-21 gold-loss 候補1）
     R012: 'assets/sfx/R012.wav', // LAB採用（2026-10-21 penance-ring 候補2）
