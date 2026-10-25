@@ -122,7 +122,7 @@ function extraPanelKeywords(card){
 // 祝福の炎と図鑑で共用する、シート由来の強化後の姿。
 function panelHasEnhancementForm(card){
   return !!(card&&card.mergedForm&&card._mergedSource
-    &&(String(card._mergedSource.desc||'').trim()||String(card._mergedSource.keywords||'').trim()));
+    &&(String(card._mergedSource.desc||'').trim()||String(card._mergedSource.keywords||'').trim()||card._mergedSource.clearsText));
 }
 function enhancedPanelCopy(card){
   if(!panelHasEnhancementForm(card)||card._merged||card._tripleMerged||card._mergedFormApplied) return null;

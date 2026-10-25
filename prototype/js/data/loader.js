@@ -1163,6 +1163,8 @@ async function loadGameData() {
       const kept = (base || []).filter(k => !prefixes.has(prefixOf(k)));
       return _mergeUniqueKeywords(kept, merged);
     };
+    // 強化効果の列が空欄でも強化でき、強化すると効果文が消えるカードの番号。
+    const ENHANCE_CLEARS_TEXT_NOS = new Set(['E010']);
     const _buildMergedPanelForm = panel => {
       delete panel.mergedForm;
       const src = panel && panel._mergedSource;
@@ -1170,7 +1172,7 @@ async function loadGameData() {
       const mergedDescRaw = String(src.desc || '').trim();
       const mergedKwRaw = String(src.keywords || '').trim();
       const sheetKeywords = Array.isArray(src.sheetKeywords) ? src.sheetKeywords : [];
-      if (!mergedDescRaw && !mergedKwRaw) return;
+      if (!mergedDescRaw && !mergedKwRaw && !src.clearsText) return;
       // 「合体キーワード」列が合体後のキーワードの正。列が無い（古いシート）場合だけ、
       // 「合体効果」列がキーワードだけならそれをキーワードとして読む。
       const descIsText = !!mergedDescRaw && !_isMergedKeywordOnly(mergedDescRaw);
@@ -1182,7 +1184,8 @@ async function loadGameData() {
       draft.adjacentKeywords = Array.isArray(panel.adjacentKeywords) ? panel.adjacentKeywords.slice() : [];
       // 効果文：「合体効果」列が効果文ならそれ。空欄／キーワードだけなら元の文のまま
       // （文中のキーワードだけ合体後の値へ置き換える）。
-      draft.desc = descIsText ? mergedDescRaw
+      draft.desc = src.clearsText && !mergedDescRaw && !mergedKwRaw ? ''
+        : descIsText ? mergedDescRaw
         : _substituteMergedKeywords(String(panel.desc || ''), mergedSheetKeywords);
       if (draft.category === 'キャラクター') {
         _setPanelKeywordsFromDesc(draft);
@@ -1301,6 +1304,8 @@ async function loadGameData() {
         desc: String(row['強化効果'] ?? row['合体効果'] ?? '').trim(),
         keywords: String(row['強化キーワード'] ?? row['合体キーワード'] ?? '').trim(),
         sheetKeywords: sheetKeywords.slice(),
+        // 強化すると効果文が消えるカード（魔導回路：-2/-2 が消える。2026-10-26 利用者指定）。強化効果の列は空欄のまま。
+        clearsText: ENHANCE_CLEARS_TEXT_NOS.has(String(row['No.'] || '').trim()),
       };
     };
     const cardRows = _parseCSVWithHeader(pt || '名前\n', ['No.', '名前']);
