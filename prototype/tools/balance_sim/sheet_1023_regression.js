@@ -104,7 +104,8 @@ const splitNames=value=>String(value||'').split(/[、,／\/]/).map(v=>v.trim()).
       const connected={name:'接続先',category:'キャラクター',keywords:[],desc:''};
       const connectedPreview=_keywordOnlyPreviewText(connected,'',0);
       assert.match(connectedPreview,/マナ効果：/);assert.match(connectedPreview,/起動効果：カードをクリックして起動する。/);
-      assert.match(_unitPreviewText(connected,'',0),/起動効果：カードをクリックして起動する。/);
+      // 2026-10-25：本文（_unitPreviewText）には重ねない。説明はキーワード説明の欄（_keywordOnlyPreviewText）だけ。
+      assert.doesNotMatch(_unitPreviewText(connected,'',0),/起動効果：/);
     }finally{
       _groupedEnchantEffectTexts=grouped;
       if(oldActivation===undefined) delete KW_DESC_MAP['起動効果']; else KW_DESC_MAP['起動効果']=oldActivation;

@@ -1555,9 +1555,6 @@ body.map-forge-roll-hide-cards .map-forge-roll-highlight::after{
   z-index:9500;
 }
 #btn-pass,
-#btn-pass:hover:not(:disabled),
-#btn-pass:focus-visible,
-#btn-pass:active:not(:disabled),
 #hand-pane{
   top:auto!important;
   width:1572px!important;
@@ -2414,7 +2411,6 @@ body #f-enemy{
   gap:var(--field-gap)!important;
   justify-content:center!important;
 }
-body #f-ally,
 body .slot.unit-card .slot-stats{
   bottom:.8%!important;
 }
@@ -2925,7 +2921,6 @@ body #hand-slots.board-slots{
   width:calc(var(--hand-card-w) * 10 + var(--field-gap) * 9)!important;
   height:var(--hand-card-h)!important;
 }
-body #hand-slots.board-slots > .card,
 body #hand-slots.board-slots::before,
 body.reward-screen-active #hand-pane::before{
   content:none!important;
@@ -2964,7 +2959,6 @@ body.reward-screen-active #hand-pane,
 body #hand-pane:has(#hand-slots.board-slots){
   top:1000px!important;
 }
-body #hand-slots.board-slots > .card,
 body.reward-screen-active #reward-info-bar,
 body:not(.reward-screen-active) #reward-info-bar{
   right:268px!important;
@@ -3004,7 +2998,6 @@ body #hand-slots.board-slots{
   grid-template-columns:var(--hand-card-w) 46px repeat(5,var(--hand-card-w))!important;
   width:calc(var(--hand-card-w) * 6 + var(--field-gap) * 6 + 46px)!important;
 }
-body #hand-slots.board-slots > .card,
 body #hand-slots.board-slots::before{
   content:''!important;
   position:absolute!important;
@@ -3622,8 +3615,6 @@ html body .attack-motion-clone .unit-hit-layer{
   content:none!important;
   display:none!important;
 }
-html body .attack-motion-clone .slot-stats,
-html body .attack-motion-clone .slot-stats .a,
 html body #hand-slots.board-slots .panel-character-card .card-summon-atk,
 html body #hand-slots.board-slots .card .card-summon-atk,
 html body #rw-cards .panel-character-card .card-summon-atk,
@@ -5329,7 +5320,6 @@ html body.reward-screen-active :is(#reward-move-btns,#reward-offer-section) .rew
   width:497px!important;
   height:123px!important;
 }
-html body.reward-screen-active #reward-move-btns .rew-move-btn::before,
 html body.reward-screen-active #reward-move-btns .rew-move-btn::after,
 html body.reward-screen-active :is(#reward-move-btns,#reward-offer-section) .rew-reset-btn::after{
   z-index:2!important;
@@ -5647,9 +5637,6 @@ html body.reward-screen-active #hand-pane #hand-slots.board-slots{
   gap:28px!important;
   justify-content:start!important;
 }
-html body.reward-screen-active:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-offer,.dragzone-spellslot) #reward-offer-section,
-html body.reward-screen-active:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-offer,.dragzone-spellslot) #reward-offer-section *,
-html body.reward-screen-active:is(.dragzone-board,.dragzone-reward-spell,.dragzone-reward-nonspell,.dragzone-reward-offer,.dragzone-spellslot) #reward-offer-section::before,
 html body.reward-screen-active.dragzone-board #hand-pane,
 html body.reward-screen-active.dragzone-reward-spell #hand-pane,
 html body.reward-screen-active.dragzone-reward-nonspell #hand-pane,
@@ -6914,11 +6901,6 @@ html body #hand-slots.board-slots > .card:not([data-map-board]) .card-summon-hp{
   z-index:300!important;
 }
 /* 魔導板カード本体・特殊マス枠・ホバー発光の角丸をカード枠R=19pxに統一 */
-html body #hand-slots.board-slots > .card,
-html body #hand-slots.board-slots > [data-map-board="summon"]::after,
-html body #hand-slots.board-slots > [data-map-board="life"]::after,
-html body #hand-slots.board-slots > [data-map-board="eternal"]::after,
-html body #hand-slots.board-slots > [data-map-board="resonance"]::after,
 html body #hand-slots.board-slots > .card:hover:not(.inert),
 html body #hand-slots.board-slots > .card.drag-over{
   border-radius:var(--card-frame-r,5.65% / 3.721%)!important;
@@ -8601,9 +8583,6 @@ html body #hand-slots.board-slots .panel-character-card .card-summon-atk,
 html body .card .card-summon-hp,
 html body .rew-card .card-summon-hp,
 html body .panel-character-card .card-summon-hp,
-html body #hand-slots.board-slots .card .card-summon-hp,
-html body #hand-slots.board-slots .panel-character-card .card-summon-hp,
-html body .slot-stats .a,
 
 /* ==========================================================================
    通常時（1〜2桁）の位置を100%維持したまま、3桁数値のカード枠外切り落としを解消
@@ -12583,7 +12562,6 @@ html body #kw-tooltip.no-title-rule::after{
   mask:linear-gradient(to right,transparent 0%,rgba(0,0,0,.085) 18%,rgba(0,0,0,.56) 29%,rgba(0,0,0,.89) 39%,#000 50%,rgba(0,0,0,.89) 61%,rgba(0,0,0,.56) 71%,rgba(0,0,0,.085) 82%,transparent 100%) -3.8px 0/calc(100% + 7.6px) 100% repeat-y no-clip!important;
 }
 /* キャラクターと旅の進捗内のエリート／ボスは指定の黒茶色にする。 */
-html body #kw-tooltip.character-tooltip,
 /* 各説明枠の地色は維持し、透過率だけを95%へ統一する。 */
 html body #kw-tooltip{
   background-color:rgba(47,26,11,.95)!important;
@@ -14315,9 +14293,6 @@ html body.reward-screen-active #rw-cards .rew-card.item-visual.item-visual-fille
 /* 装備済み枠の発光は、黒背景の上へ回り込まない外周だけにする。 */
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.ring-visual.ring-visual-filled:hover,
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual.item-visual-filled:hover,
-html body.reward-screen-active #reward-offer-row > .rew-card.ring-visual.ring-visual-filled:hover,
-html body.reward-screen-active #reward-offer-row > .rew-card.item-visual.item-visual-filled:hover,
-html body.reward-screen-active #rw-cards .rew-card.ring-visual.ring-visual-filled:hover,
 /* ドラッグ先の空き枠は、既存の枠全体の発光を優先する。 */
 html body.reward-screen-active .reward-prod-ring .reward-prod-slots i.ring-visual.drag-over,
 html body.reward-screen-active .reward-prod-item .reward-prod-slots i.item-visual.drag-over{

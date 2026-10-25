@@ -6,7 +6,9 @@ function _debugPanelSortValue(card){
     card.no??card.No??card['No.']??card.imageNo??card.artCode??''
   )||'').trim();
   const n=parseInt(raw.replace(/^\D+/,''),10);
-  return Number.isFinite(n)?n:99999;
+  // 2026-10-25：召喚（CF007 等）は数字だけで並べると通常のキャラクター（C007）の間に入るので、通常の後ろへ回す。
+  const summon=/^CF/i.test(raw)?100000:0;
+  return Number.isFinite(n)?summon+n:999999;
 }
 
 function _debugImplementedPanelCards(){

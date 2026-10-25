@@ -291,10 +291,8 @@ function _unitCombinedDescHtml(unit,baseDesc,slotIdx){
     const decorated=_boldKeywordsInHtml(safe);
     return `<div class="slot-desc-enchant-line">${typeof _injectManaIcons==='function'?_injectManaIcons(decorated):decorated}</div>`;
   };
-  const pseudoLines=typeof _keywordOnlyPreviewText==='function'
-    ?_keywordOnlyPreviewText(unit,shownBaseDesc,slotIdx).split('\n')
-      .filter(line=>/^(?:マナ効果|起動効果)：/.test(String(line||''))):[];
-  const pseudoHtml=pseudoLines.map(toLineHtml).join('');
+  // 2026-10-25：マナ効果・起動効果の説明はキーワード説明の欄にだけ出す（本文へは重ねない。利用者指定）。
+  const pseudoHtml='';
   if(!battleNormalTexts.length&&!battleCharTexts.length) return (kwHtml||pseudoHtml||baseHtml)
     ?`<div class="slot-desc">${kwHtml}${baseHtml}${pseudoHtml?`<div class="slot-desc-enchant">${pseudoHtml}</div>`:''}</div>`:'';
   const effectsHtml=battleNormalTexts.map(toLineHtml).join('');
@@ -454,10 +452,7 @@ function _unitPreviewText(unit, desc, slotIdx){
   // 「キーワード：」というラベルは表示せず、キーワードそのものを太字で並べる
   // （_formatPreviewHtmlがこのマーカー行を検出してラベルなし・太字表示に変換する）
   if(kws.length) lines.push(`キーワード：${kws.join(' / ')}`);
-  const pseudoPreview=typeof _keywordOnlyPreviewText==='function'
-    ?_keywordOnlyPreviewText(unit,shownDesc,slotIdx).split('\n')
-      .filter(line=>/^(?:マナ効果|起動効果)：/.test(String(line||''))):[];
-  if(pseudoPreview.length) lines.push(pseudoPreview.join('\n'));
+  // 2026-10-25：マナ効果・起動効果の説明はキーワード説明の欄にだけ出す（本文へは重ねない。利用者指定）。
   // 戦闘実行後に付与された状態異常（毒など）は静的なdesc/keywordsには含まれないため、
   // 現在値をここで都度追記しないとホバー説明文に反映されない
   // **「状態」は戦闘中だけ出す。** 編成画面では結界はキーワード欄に出ており、
