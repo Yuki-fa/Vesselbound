@@ -10,8 +10,8 @@
     "gainDb": null,
     "note": null,
     "labWired": true,
-    "duration": 0.95,
-    "sha256": "2e605978bf38628fe87b4f4f12a208dadc69c7d9fc414d8a02e81039602656b9"
+    "duration": 1.75,
+    "sha256": "74b3401f5f03f32272a065a35f359be0fdc249340402ba1badafcd73eeafa65d"
   },
   "C002": {
     "code": "C002",
@@ -26,20 +26,6 @@
     "labWired": true,
     "duration": 1.95,
     "sha256": "ade6d5eff55a8217f3d0578452fddf96b60c828e30a8dac6fc31642746695424"
-  },
-  "C004": {
-    "code": "C004",
-    "effect": "echidna-wave",
-    "candidate": "echidna-wave-1",
-    "file": "assets/sfx/C004.wav",
-    "source": "SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav",
-    "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav",
-    "peak": 0.45,
-    "gainDb": null,
-    "note": null,
-    "labWired": true,
-    "duration": 1.95,
-    "sha256": "7fe351fd7986e4e54b6c7f87a8f4303a9cd707b0f7b1b8c1e16a4c11b5fe2d09"
   },
   "C005": {
     "code": "C005",
@@ -216,5 +202,19 @@
     "file": null,
     "source": "Production Element Title Transition Stab Dark Demonic 01.wav",
     "note": "ゲーム未使用のVFX。採用印だけ"
+  },
+  "C034": {
+    "code": "C034",
+    "effect": "banshee-miasma",
+    "candidate": "banshee-miasma-1",
+    "file": "assets/sfx/C034_miasma.wav",
+    "source": "SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav",
+    "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav",
+    "peak": 0.45,
+    "gainDb": null,
+    "note": "旧 echidna-wave の候補1。エキドナから付け替え。C034.wav は旧 banshee の音なので別名",
+    "labWired": true,
+    "duration": 1.95,
+    "sha256": "7fe351fd7986e4e54b6c7f87a8f4303a9cd707b0f7b1b8c1e16a4c11b5fe2d09"
   }
 }

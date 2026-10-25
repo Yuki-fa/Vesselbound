@@ -57,7 +57,8 @@ function validatedBundle(){
   const sourceBytes=DEFINITION_SCRIPTS.slice(1).reduce((sum,file)=>sum+fs.statSync(path.join(ROOT,file)).size,0);
   const jsonBytes=Buffer.byteLength(JSON.stringify(copy,null,JSON_INDENT)+'\n');
   // 分布・複数材質・縁の減衰を省略せず宣言するための上限。描画コードや画像は含めない。
-  assert.ok(jsonBytes<=1000000,'定義JSONが1MBを超えています');
+  // 2026-10-25 利用者の方針：一旦 1.1MB に上げる。後で使っていない演出を削って 1MB へ戻す（削る候補は利用者が確認してから）。
+  assert.ok(jsonBytes<=1100000,'定義JSONが1.1MBを超えています');
   return {bundle:copy,counts,sourceBytes,jsonBytes};
 }
 function main(){

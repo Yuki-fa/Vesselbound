@@ -40,8 +40,8 @@ var VbFxLabFixed = {
   'revive-burst':'2026-10-21',
   // 2026-10-21 6回目：FIX（47 グレムリン SE2）
   'gremlin':'2026-10-21',
-  // 2026-10-25 FIX（LAB 03・04 SE1、07 SE2、08 SE3、10・14・35、15・16・17 SE3、18 SE2、19 SE3＋6dB）
-  'grimalkin-glint':'2026-10-25','grimalkin-pillar':'2026-10-25','stealth-veil':'2026-10-25','guard-stance':'2026-10-25',
+  // 2026-10-25 FIX（LAB 03 SE1（04 は 2回目の指摘で SE2・3 を選び直すので外した）、07 SE2、08 SE3、10・14・35、15・16・17 SE3、18 SE2、19 SE3＋6dB）
+  'grimalkin-glint':'2026-10-25','stealth-veil':'2026-10-25','guard-stance':'2026-10-25',
   'erinyes-flame':'2026-10-25','kele-blood-nova':'2026-10-25','speed-ring':'2026-10-25','frost-retaliate':'2026-10-25',
   'echo-bolt':'2026-10-25','activation-transform':'2026-10-25','activation-empower':'2026-10-25','activation-devour':'2026-10-25',
 };
@@ -62,14 +62,15 @@ var VbFxLabPending = {
   E027:'即死の演出（即死が起きた時）', E028:'leprechaun（レプラコーンと同じ。そのカード自身の永久バフ）', E044:'attack-buff（攻撃バフ）',
   E015:'毒を与えた時の演出', E016:'dragonnet（ドラゴネットと同じ変身）', C040:'aura-buff（報酬に青キャラクターが出た時）',
   // 2026-10-25 新しく作った演出（additions_1025.js）
-  C062:'ymir-aura（新作。終戦のリロール。2026-10-25 SE2・3を選び直し）',
-  C114:'reward-blessing（2026-10-25 金貨をやめて作り直し）', C008:'reward-blessing（作り直し）＋負傷のバフ演出 S006 を同時に',
-  C116:'hellknight-slash（2026-10-25 剣で切る音から SE1 へつなげた候補4を採用）', R018:'revival-ring（2026-10-25 SE1・2を選び直し）',
+  C062:'ymir-aura（新作。終戦のリロール。2026-10-25 SE を選び直し：2回目は SE1・3）', C095:'grimalkin-pillar（2026-10-25 SE2・3を選び直し。煌めき C095_1 は FIX）',
+  C114:'reward-blessing（2026-10-25 2回目の作り直し：真上から見た形でカードの上から昇り去る。SE は3候補とも選び直し）', C008:'reward-blessing（作り直し）＋負傷のバフ演出 S006 を同時に',
+  C116:'hellknight-slash（2026-10-25 候補4を採用中。切断の音を強くした候補5〜7を追加）', R018:'revival-ring（2026-10-25 SE1・2をもう一度選び直し）',
   K013:'stealth-veil（FIX。隠密を得た瞬間）＋stealth-state（新作。隠密を持っている間）',
   K014:'guard-stance（FIX。防戦を得た瞬間）＋guard-state（新作。防戦を持っている間）',
   // 2026-10-25 新しいキャラクター25枚（新作6種はSE候補を仮に採用。流用・汎用は既存の演出）
-  C001:'alastor-brand（新作。2026-10-25 SE1の後半の高音をフェードで消した）', C004:'echidna-wave（新作）', C005:'atlas-burden（新作。2026-10-25 SE2・3を選び直し）',
-  C052:'thunderbird-charge（新作）', C026:'scylla（流用）', C051:'scylla（流用）', C027:'dark-fire（流用）',
+  C001:'alastor-brand（新作。2026-10-25 SE1 の後半の高音を低い響きへ移してゆっくり消した）', C004:'shockwave（仮。2026-10-25 利用者指摘で毒緑と紫の波をバンシーへ付け替えた）',
+  C034:'banshee-miasma（旧 echidna-wave。2026-10-25 エキドナから付け替え）', C005:'atlas-burden（新作。2026-10-25 SE1・2を控えめな音で選び直し）',
+  C052:'thunderbird-charge（2026-10-25 バフの形に作り直し。SE は雷系3候補。旧演出は thunder-strike）', C026:'scylla（流用）', C051:'scylla（流用）', C027:'dark-fire（流用）',
   C053:'melusine（流用）', C077:'eidolon（流用。旧シャナの本文）', C003:'gold-gain（起動）',
   C055:'reward-blessing（報酬とトレーダーの強化）', C007:'弱体の汎用演出（2026-10-25 本文変更。肩代わりの attack-recoil を外した）',
 };

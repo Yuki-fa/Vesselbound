@@ -29,10 +29,14 @@ def cos2_tail(d, ms):
     if n > 1: d[-n:] *= (np.cos(np.linspace(0, math.pi / 2, n)) ** 2)[:, None]
     return d
 def combine(out, parts, total=2.2):
-    """parts: [(path, 開始秒, 長さ秒 or None, 倍率)]"""
+    """parts: [(path, 開始秒, 長さ秒 or None, 倍率[, 素材の何秒目から使うか])]"""
     mix = np.zeros((int(total * SR), 2))
-    for path, at, length, scale in parts:
-        d = trim_head(load(path)) / 32767.0
+    for part in parts:
+        path, at, length, scale = part[:4]; skip = part[4] if len(part) > 4 else 0
+        d = load(path)
+        if skip:   # 長い溜めのある素材は、山場の手前から使う（頭を40msで立ち上げる）
+            d = d[int(skip * SR):].copy(); f = int(.04 * SR); d[:f] *= np.linspace(0, 1, f)[:, None]
+        d = trim_head(d) / 32767.0
         if length: d = cos2_tail(d[:int(length * SR)].copy(), 120)
         d = d / max(1e-9, np.abs(d).max())   # 素材ごとの音量差をそろえてから倍率を掛ける
         s = int(at * SR); e = min(len(mix), s + len(d)); mix[s:e] += d[:e - s] * scale
@@ -43,6 +47,18 @@ def fade_tail(path, start, end, out=None):
     curve = np.ones(len(d)); curve[s:e] = np.cos(np.linspace(0, math.pi / 2, e - s)) ** 2; curve[e:] = 0
     d = d * curve[:, None]; d = d[:max(e, 1)]
     save(out or path, d)
+def soften_tail(path, start, end, cutoff, fade_at, fade_end, out=None):
+    """後半の高音だけを消す（2026-10-25 アラストル：音量ごと切ると「音が切れた」感じになる）。
+    start〜end の間に原音から低域だけの音（cutoff Hz 以下、なだらかな肩）へ移し、残った低い響きは fade_at〜fade_end でゆっくり消す。"""
+    d = load(path); n = len(d)
+    f = np.fft.rfftfreq(n, 1 / SR); shoulder = np.clip((cutoff * 1.6 - f) / (cutoff * .6), 0, 1) ** 2
+    low = np.stack([np.fft.irfft(np.fft.rfft(d[:, c]) * shoulder, n) for c in range(2)], axis=1)
+    t = np.arange(n) / SR; mix = np.clip((t - start) / max(1e-6, end - start), 0, 1); mix = (np.sin(mix * math.pi / 2)) ** 2
+    y = d * (1 - mix)[:, None] + low * mix[:, None]
+    amp = np.ones(n); a, b = int(fade_at * SR), min(n, int(fade_end * SR))
+    amp[a:b] = np.cos(np.linspace(0, math.pi / 2, b - a)) ** 2; amp[b:] = 0
+    y = (y * amp[:, None])[:max(b, 1)]
+    save(out or path, y)
 def gain(path, db, out=None):
     d = load(path) * 10 ** (db / 20)
     peak = np.abs(d).max(); lim = 32767 * 10 ** (-1 / 20)

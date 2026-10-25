@@ -859,3 +859,15 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
     戦闘中に得た瞬間（keyword_gain）は stealth-veil・guard-stance（K013・K014）を出し、状態を進める（present_events.js）。LAB の状態の表は lab_model.js `states`。
   - SE の選び直し：ymir-aura 2・3、atlas-burden 2・3、revival-ring 1・2 を差し替え。alastor-brand 1 の後半の高音をフェード（0.8〜0.95秒）して C001 に採用し直し。
   - 定義JSONは 999,682 バイト（残り約300）。祝福を軽くし、状態ループは3〜4層の軽い作りにして収めた。**次に演出を足すには上限を上げる判断が要る。**
+- 2026-10-25 LAB の指摘の反映（3回目。番号は 5470809 以降の並び）
+  - 01 ヘルナイト：切断の音を強くした候補5〜7（Falchion Impale／Energy Sword Shing／Furious Whip の山場＋候補1。peak は候補1の衝撃 0.87秒に合わせた）。採用は候補4のまま。
+  - SE の選び直し：02 ymir-aura 1・3、04 grimalkin-pillar 2・3（FIX から外した）、05 reward-blessing 1〜3（金貨の音をやめ、昇る光・鐘）、06 revival-ring 1・2、12 atlas-burden 1・2（控えめな低音）、13 thunderbird-charge 1〜3（雷系）。
+  - 09 アラストル：音量ごと切ると「音が切れた」ので、後半の高音だけを低い響きへ移してからゆっくり消す（se_tools_1025.py `soften_tail`。1.75秒）。
+  - 05 reward-blessing：真上から見た形に作り直し（上辺の平たい帯が横から見た円盤に見えた）。カードの面が灯り、その上から光の粒が立ちのぼって画面の外へ。
+  - 11：毒緑と紫の波は毒と弱体を与えるバンシー（C034 の死亡）の演出。echidna-wave を banshee-miasma に改名して付け替え（present.js `PRESENT_LAB_FX`・`presentAssignedLabEventMatches`。SE は assets/sfx/C034_miasma.wav。C034.wav は旧 banshee の音のまま）。
+    エキドナ（C004）は全体ダメージの衝撃波 shockwave（E071 の音）を仮に割り当て。
+  - 13 サンダーバード：自分がダメージを受けるように見えたので、常時の強化の層組みで金色の雷の充填（バフの形）に作り直し。旧演出は thunder-strike（未割り当て、LAB の末尾）。
+  - 158 隠密の状態：カード自体が半ば透けて背景に溶け（不透明度の揺らぎ）、輪郭が揺れ、屈折の光の筋が走る光学迷彩。159 防戦の状態：灰色に沈むカード・のしかかる影・厚い石灰色の縁。
+    どちらもループの card 層でカードの見た目（不透明度・彩度・明るさ）を変える。
+  - LAB の一覧：新しい演出を途中へ入れると番号がずれるので、thunder-strike も lab_meta.js `listLast` で末尾へ。
+  - **定義JSONの上限を一旦 1.1MB に上げた**（tools/vfx_export.js・vfx_1012_regression.js。利用者の方針：後で使っていない演出を削って 1MB へ戻す。削る候補は利用者の確認待ち）。

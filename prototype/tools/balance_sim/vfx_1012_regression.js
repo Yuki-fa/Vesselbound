@@ -43,7 +43,8 @@ async function newDataChecks(){
   // 2026-10-23: additions_1023.js（VFX の全検査で新しく作った演出）も同じく除く。
   // 2026-10-25: additions_1025.js（利用者指定の新しい演出）も同じく除く。
   const added1017=['additions_1017.js','additions_1023.js','additions_1025.js'].reduce((n,f)=>n+(t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/'+f),'utf8')).effects.length,0);
-  assert.ok(jsonBytes<=1e6);assert.equal(bundle.effects.length,102+added1017);
+  // 2026-10-25 利用者の方針：一旦 1.1MB（tools/vfx_export.js と同じ。後で使っていない演出を削って 1MB へ戻す）。
+  assert.ok(jsonBytes<=1.1e6);assert.equal(bundle.effects.length,102+added1017);
   const h=harness(false);assert.equal(h.fx.effects.length,103+added1017);
   assert.equal(h.fx.effects.find(d=>d.name==='phantom').layers,h.fx.effects.find(d=>d.name==='eidolon').layers,'共有定義の層を参照し、複製しない');
   for(const name of names)for(const speed of [1.5,3,4.5]){

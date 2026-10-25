@@ -96,9 +96,8 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 
 | 番号 | 演出 | 元の素材 | 長さ | peak |
 |---|---|---|---|---|
-| C001 | alastor-brand | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav | 0.95秒 | 0.242771 |
+| C001 | alastor-brand | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav | 1.75秒 | 0.242771 |
 | C002 | erinyes-flame | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-03.wav | 1.95秒 | 0.438229 |
-| C004 | echidna-wave | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav | 1.95秒 | 0.45 |
 | C005 | atlas-burden | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Stone Crush_RTSB_COL-01.wav | 1.401秒 | 0.247667 |
 | C052 | thunderbird-charge | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-04.wav | 1.316625秒 | 0.45 |
 | C105 | kele-blood-nova | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Annihilating Blast_RTSB_COL-01.wav | 1.95秒 | 0.296875 |
@@ -111,6 +110,7 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | C080 | activation-transform | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-04.wav | 1.95秒 | 0.45 |
 | C109 | activation-empower | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-04.wav | 1.95秒 | 0.45 |
 | C116 | hellknight-slash | tools/vfx_preview/se_tools_1025.py | 2.35秒 | 0.85 |
+| C034 | banshee-miasma | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav | 1.95秒 | 0.45 |
 
 ## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 

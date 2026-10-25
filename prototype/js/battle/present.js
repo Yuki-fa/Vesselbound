@@ -2004,8 +2004,10 @@ const PRESENT_LAB_FX = {
   E027:['death-mark',null,'target',getKeywordAssetKey('即死')],
   E015:['fang-poison',null,'target',getKeywordAssetKey('毒牙')],
   // 2026-10-25 新しいキャラクター（additions_1025.js の新作6種と、既存演出の流用）。第2要素は採用したSEのピーク（秒）。
-  C001:['alastor-brand',0.242771,'friend'], C002:['erinyes-flame',0.438229,'foe'], C004:['echidna-wave',0.45,'foes'],
+  C001:['alastor-brand',0.242771,'friend'], C002:['erinyes-flame',0.438229,'foe'], C004:['shockwave',0.45,'foes','E071'],
   C005:['atlas-burden',0.247667,'friends'], C052:['thunderbird-charge',0.45,'self'], C105:['kele-blood-nova',0.296875,'foes'],
+  // 2026-10-25 利用者指摘：毒緑と紫の波は毒と弱体を与えるバンシー（死亡）の演出（旧 echidna-wave を改名）。エキドナは全体ダメージの衝撃波（仮。E071 の音）。
+  C034:['banshee-miasma',0.45,'foes'],
   C026:['scylla',.45,'foes','C071'], C051:['scylla',.45,'foes','C071'], C027:['dark-fire',.5,'foes'],
   C053:['melusine',.9,'foe'], C077:['eidolon',.218375,'kenzoku','C044'],
   E006:['dark-fire',.5,'foes'], E035:['resentment',.7,'foe'],
@@ -2086,6 +2088,7 @@ function presentAssignedLabEventMatches(code, ev) {
   if (code === 'C001') return ev.type === 'keyword_effect' && ev.effect === 'trigger_grant';
   if (code === 'C002') return ev.type === 'damage' && ev.reason === 'ally_color_injury_damage';
   if (code === 'C004') return ev.type === 'damage' && ev.reason === 'ally_death_all_damage';
+  if (code === 'C034') return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0 && ev.effectTrigger === 'death';
   if (code === 'C105') return ev.type === 'damage' && ev.reason === 'blood_multiple_damage';
   if (code === 'C053') return ev.type === 'damage' && ev.reason === 'attack_poison_damage';
   if (code === 'E028') return ev.type === 'stat_change' && ev.reason === 'battle_end_permanent_buff'

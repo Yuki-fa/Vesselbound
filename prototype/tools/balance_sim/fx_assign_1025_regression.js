@@ -12,6 +12,8 @@ const cases=[
   {no:'C011',label:'負傷',fx:'scylla',targets:2,fire:x=>coreApplyInjuryEffects(x.find('owner'),1,x.state,x.rng,x.emit,x.hit,x.find('foe0'))},
   {no:'C011',label:'死亡',fx:'scylla',targets:2,fire:x=>{x.find('owner').hp=0;coreApplyDeathEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit);}},
   {no:'EN060',fx:'scylla',targets:2,fire:x=>coreApplyOpeningEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit)},
+  // 2026-10-25 利用者指摘：毒緑と紫の波（旧 echidna-wave）はバンシーの死亡（全ての敵に毒と弱体）。
+  {no:'C034',label:'死亡',fx:'banshee-miasma',targets:2,fire:x=>{x.find('owner').hp=0;coreApplyDeathEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit);}},
   {no:'C020',fx:'S009',targets:1,support:'C017',fire:x=>coreApplyInjuryEffects(x.find('support'),1,x.state,x.rng,x.emit,x.hit,x.find('foe0'))},
   {no:'C047',fx:'S009',targets:1,fire:summon},
   {no:'C070',fx:'S009',targets:1,fire:x=>coreEmitAilment(x.state,x.emit,{type:'keyword_effect',side:x.find('foe0').side,unitId:'foe0',sourceId:'owner',effect:'poison',amount:1})},

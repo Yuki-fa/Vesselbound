@@ -298,7 +298,11 @@ async function extraChecks() {
       assert.equal(presentLabFx(cells[1])[0],'aura-buff','2026-10-25指定の常時バフへ再割り当て '+cells[1]);
       assert.equal(presentLabSoundCode(cells[1]),'S009');assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'旧定義は残す '+cells[2]);continue;
     }
-    if(['C034','C114'].includes(cells[1])){
+    // 2026-10-25：バンシー C034 は毒緑と紫の波（banshee-miasma、旧 echidna-wave）へ付け替えた。旧 banshee の行は定義だけ残す。
+    if(!renumbered&&cells[1]==='C034'){
+      assert.equal(presentLabFx('C034')[0],'banshee-miasma','2026-10-25指定の付け替え');assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
+    }
+    if(['C114'].includes(cells[1])){
       assert.equal(presentLabFx(cells[1]),null,'旧効果の割り当てを外す '+cells[1]);assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
     }
     if(!renumbered)cells[1]=moved[cells[1]]||cells[1];

@@ -324,6 +324,7 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    C034: 'assets/sfx/C034_miasma.wav', // LAB採用（2026-10-25 banshee-miasma 候補1・旧 echidna-wave の候補1。エキドナから付け替え。C034.wav は旧 banshee の音なので別名）
     C116: 'assets/sfx/C116.wav', // LAB採用（2026-10-25 hellknight-slash 候補4）
     C109: 'assets/sfx/C109.wav', // LAB採用（2026-10-25 activation-empower 候補2）
     C080: 'assets/sfx/C080.wav', // LAB採用（2026-10-25 activation-transform 候補3）
@@ -336,7 +337,6 @@ const Assets = {
     C105: 'assets/sfx/C105.wav', // LAB採用（2026-10-25 kele-blood-nova 候補3）
     C052: 'assets/sfx/C052.wav', // LAB採用（2026-10-25 thunderbird-charge 候補1）
     C005: 'assets/sfx/C005.wav', // LAB採用（2026-10-25 atlas-burden 候補1）
-    C004: 'assets/sfx/C004.wav', // LAB採用（2026-10-25 echidna-wave 候補1）
     C002: 'assets/sfx/C002.wav', // LAB採用（2026-10-25 erinyes-flame 候補1）
     C001: 'assets/sfx/C001.wav', // LAB採用（2026-10-25 alastor-brand 候補1）
     R031: 'assets/sfx/R031.wav', // LAB採用（2026-10-21 speed-ring 候補2）
