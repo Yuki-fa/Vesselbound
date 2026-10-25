@@ -13,7 +13,10 @@ const {createSeededRng} = require('../../js/online/protocol');
 const {sheetRows} = require('./sheet_data');
 
 const ROOT = path.resolve(__dirname, '../..');
-function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
+function read(rel) {
+  const files={"js/engine/render.js":["js/engine/render.js","js/engine/render_attack_motion.js","js/engine/render_tooltip_helpers.js"]};
+  return (files[rel]||[rel]).map(file=>fs.readFileSync(path.join(ROOT,file), 'utf8')).join('\n');
+}
 function oldRead(rel) {
   return cp.execFileSync('git', ['show', `HEAD:prototype/${rel}`], {
     cwd: path.resolve(ROOT, '..'), encoding: 'utf8'

@@ -4,7 +4,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {validatedBundle}=require('../vfx_export');
 const {harness,traceQuality}=require('./vfx_data_regression');
 const ROOT=path.resolve(__dirname,'../..');
-const read=file=>fs.readFileSync(path.join(ROOT,file),'utf8');
+const read=file=>{
+  const files={"js/engine/render.js":["js/engine/render.js","js/engine/render_attack_motion.js","js/engine/render_tooltip_helpers.js"]};
+  return (files[file]||[file]).map(rel=>fs.readFileSync(path.join(ROOT,rel),'utf8')).join('\n');
+};
 const manifest=JSON.parse(read('tools/vfx_capture/webp_manifest.json'));
 async function run(){
   const {bundle}=validatedBundle(),effects=bundle.effects.filter(d=>manifest.effects.some(ref=>ref.name===d.name)),names=effects.map(d=>d.name);

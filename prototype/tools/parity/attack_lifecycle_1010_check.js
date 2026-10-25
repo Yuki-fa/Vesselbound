@@ -204,7 +204,7 @@ async function nodeChecks() {
       if (route === '初撃で対象死亡' && v.count > 1) assert.notEqual(attacks[0].targetId, attacks[1].targetId, '倒した対象から再選択');
     }
   }
-  const currentRender = fs.readFileSync(path.join(ROOT, 'js/engine/render.js'), 'utf8');
+  const currentRender = ['js/engine/render.js','js/engine/render_attack_motion.js','js/engine/render_tooltip_helpers.js'].map(file=>fs.readFileSync(path.join(ROOT,file),'utf8')).join('\n');
   const oldRender = execFileSync('git', ['show', '44bf3d5:prototype/js/engine/render.js'], { cwd: ROOT, encoding: 'utf8' });
   for (const speed of [1, 2, 3]) {
     assert.ok((await overlappingMotion(oldRender, speed)).length, '変更前で複製の重なりを再現');
