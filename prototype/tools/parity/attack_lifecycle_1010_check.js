@@ -329,7 +329,7 @@ async function browserChecks() {
         const results=[];
         for(const mode of ['pve','online']) {
           await b.goto(process.env.VB_URL || pathToFileURL(path.join(ROOT,'index.html')).href);
-          await b.waitFor("typeof G!=='undefined'&&typeof _flushCorePveHitEvents==='function'&&PANEL_POOL.length>0");
+          await b.waitFor("document.readyState==='complete'&&typeof G!=='undefined'&&typeof _flushCorePveHitEvents==='function'&&PANEL_POOL.length>0");
           const r=await b.eval(browserScript(setupFor(v,route),mode,speed));results.push(r);
           assert.ok(r.frames>3, tag+': rAFで実際に観測する');
           assert.deepEqual(r.overlap,[],tag+'/'+mode+'/'+speed+': 同じIDが2枚見えない '+JSON.stringify(r.overlap));
