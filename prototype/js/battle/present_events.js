@@ -95,7 +95,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   const own=data?data.ownCard(owner):owner;
   // エンチャントが持つ効果は、そのエンチャントの本文で発動の種類を確かめる（2026-10-22 シート改訂で多くの効果がエンチャントへ移った）。
   const textCard=source&&source.kind==='enchant'?source.card:own;
-  const trigger={C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C092:'passive',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',EN043:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
+  const trigger={C001:'mana',C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C092:'passive',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',EN043:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
   if(!presentActionBannerEffectText(textCard,trigger))return null;
   const members=[ev];
   for(let i=index+1;i<events.length;i++){
@@ -196,6 +196,9 @@ function _presentLabPlan(ev, events, index, api, context) {
     // 新本文には結界獲得が無いので、続く割り込み攻撃を持つ負傷の発光から怒りの演出を始める。
     if(unit&&PRESENT_LAB_REACTION_CODES.has(unit.no||unit.artCode)&&ev.trigger==='injury')
       source={card:unit,side:unit.side,kind:'character'};
+    // アトラス（常時：受けたダメージを他の味方へ割り振る）は、常時の発光から割り振りのダメージへ（2026-10-26 利用者指摘「アトラスのVFXが出ていない」：発生元が引けず出ていなかった）。
+    if(unit&&(unit.no||unit.artCode)==='C005'&&ev.trigger==='passive')
+      source={card:unit,side:unit.side,kind:'character'};
   }
   let code = ev.type === 'mana_threshold' ? String(ev.effectNo || '')
     : source && String(source.card.no || source.card.artCode || '');
@@ -213,6 +216,8 @@ function _presentLabPlan(ev, events, index, api, context) {
     if(original&&original._mapPanelPower==='duplicate') code='map:duplicate';
   }
   if (ev.blockedBy === 'great_shield') code = 'E062';
+  // アラストルが付与した「負傷：ランダムな敵に1ダメージ」のダメージは、逆上（E032）と同じ演出（2026-10-26 利用者指定）。
+  if (ev.type === 'damage' && ev.reason === 'granted_injury_damage') code = 'E032';
   if(!presentLabFx(code)) {
     if(ev.type==='keyword_effect'&&ev.effect==='weaken') code=getKeywordAssetKey('弱体');
   }

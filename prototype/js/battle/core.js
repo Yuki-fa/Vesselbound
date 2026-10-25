@@ -4587,7 +4587,8 @@ function coreApplyInjuryEffectsBody(unit, actualDamage, state, rng, emit, applyH
       unit._currentAttackTarget = target;
       coreApplyAttackEffects(unit, state, rng, emit, applyHit);
       const counterNotice = {}, counter = coreCounterDamage(unit, target, counterNotice);
-      emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: counter, immediate: true });
+      // 割り込み攻撃の印（ミノタウロスと同じ。演出が負傷の発光からこの攻撃へつなぐ。2026-10-26）。
+      emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: counter, immediate: true, reactionSourceId: unit.id });
       const targetResult = applyHit(unit, target, unit.atk);
       if (coreReactionCounterAllowed(unit, target, targetResult)) {
         applyHit(target, unit, counter, true);

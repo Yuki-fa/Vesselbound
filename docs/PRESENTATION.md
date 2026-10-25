@@ -887,3 +887,10 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
   - 巻物の使用の音：巻物の番号の音（I003〜I005・I008・I012）、無ければ同じ演出の音、それも無ければ共通音（reward_items.js `_playItemUseVfx`）。
   - 隠密・防戦の状態：カードの層の `artOnly` を残像以外でも絵だけに効かせる（js/vfx/renderer.js）。ATK/HP の数字は暗くしない。防戦の影は上から（下の数字へ届かせない）。
   - 01 ヘルナイト候補5〜7・06 復活の指輪 SE1・2・160 thunder-strike の SE 3候補を追加・差し替え。定義JSONは 1,054,219 バイト（上限 1.1MB）。
+- 2026-10-26 ゲーム内で出ていなかった演出（利用者指摘「FIXしたものはゲーム内に出すように」）
+  - アラストル C001：3マナ毎のマナ到達で始め、続く付与（trigger_grant）の味方へ（PRESENT_LAB_1012_CODES。マナ効果の発光が先に処理して出ていなかった）。
+    付与された「負傷：ランダムな敵に1ダメージ」のダメージ（reason granted_injury_damage）は逆上 E032 と同じ rage-shards と音（present_events.js `_presentLabPlan`）。
+  - アトラス C005：常時の発光の発生元が引けず出ていなかった。発光から割り振りのダメージを受けた味方へ。
+  - 咬竜グレイプニル EN043：割り込み攻撃のイベントに reactionSourceId を付けた（core.js。ミノタウロスと同じ形で演出がつなぐ）。
+  - マモン C003 の起動：金貨はアイテムの枠ではなくマモン自身から出す（activation.js `handleCardActivationItemTarget`）。
+  - 一括の洗い出し：tools/balance_sim/fixed_fx_sweep_1026.js（PRESENT_LAB_FX の各カードで戦闘を回し、PvE は1手ずつ・オンラインは全イベントで、FIX 済みの演出と音を数える。報告用で検査ではない）。

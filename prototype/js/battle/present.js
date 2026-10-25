@@ -2111,7 +2111,8 @@ function presentAssignedLabEventMatches(code, ev) {
   if (['C011','EN060','C026','C051'].includes(code)) return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0
     && (!ev.effectTrigger || ({ C011:['injury','death'], EN060:['opening'], C026:['death'], C051:['injury'] })[code].includes(ev.effectTrigger));
   // 2026-10-25 新しいキャラクター：効果の実体（コアの reason）だけで出す。
-  if (code === 'C001') return ev.type === 'keyword_effect' && ev.effect === 'trigger_grant';
+  // アラストルは3マナ毎のマナ到達で始め、続く付与（trigger_grant）の味方へ（2026-10-26 利用者指摘「付与のVFXが出ない」：マナ効果の発光が先に処理して出ていなかった）。
+  if (code === 'C001') return ev.type === 'mana_threshold' && ev.effectNo === 'C001' || ev.type === 'keyword_effect' && ev.effect === 'trigger_grant';
   if (code === 'C002') return ev.type === 'damage' && ev.reason === 'ally_color_injury_damage';
   if (code === 'C004') return ev.type === 'damage' && ev.reason === 'ally_death_all_damage';
   if (code === 'C034') return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0 && ev.effectTrigger === 'death';
@@ -2148,12 +2149,12 @@ const PRESENT_DIRECT_LAB_FX = [
 // アークデーモン C082 とフィーンド C099 は効果が入れ替わったので演出も入れ替え）。ファミリア C089 は効果が変わったので外した。
 // 負傷の発光で始め、続く本人の割り込み攻撃で締める演出（ミノタウロスの怒り）。
 const PRESENT_LAB_REACTION_CODES=new Set(['C014','EN043']);
-const PRESENT_LAB_1012_CODES=new Set(['C052','C009','E083','E043','C075','E031','C091','C124','C039','C044','C077','C107','C108','C120','C122','C014','EN043','E056','C071','C086','C099','E024','C119']);
+const PRESENT_LAB_1012_CODES=new Set(['C001','C052','C009','E083','E043','C075','E031','C091','C124','C039','C044','C077','C107','C108','C120','C122','C014','EN043','E056','C071','C086','C099','E024','C119']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
 // 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
 function presentLab1012EventMatches(code,ev){
   if(!ev||ev.effectSource===false)return false;
-  if(['C009','C071','C086','C099','C052'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
+  if(['C001','C009','C071','C086','C099','C052'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
   if(['E083','E043','E031','C091'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({E083:'injury_chance_mana',E043:'manaOnDeath',E031:'manaOnAttack',C091:'nymph_colors'})[code];
   if(code==='C075')return ev.type==='mana_set'&&ev.reason==='behemoth'&&Number(ev.gained)>0;
   if(code==='C039'||code==='C044')return ev.type==='summon_buff';

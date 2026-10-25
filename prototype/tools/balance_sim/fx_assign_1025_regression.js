@@ -115,6 +115,37 @@ async function play(x,mode){
     assert.equal(h.calls.filter(v=>v.name==='aura-buff').length,2);assert.equal(h.sounds.filter(v=>v.code==='S009').length,2);assert.ok(!h.sounds.some(v=>v.code==='R035'));
     await x.online();assert.equal(h.calls.filter(v=>v.name==='aura-buff').length,2);assert.equal(h.sounds.filter(v=>v.code==='S009').length,2);
   });
+  // 2026-10-26 利用者指摘「アラストルの付与のVFXが出ない」「付与された負傷のダメージは逆上と同じVFX」「アトラスのVFXが出ていない」「咬竜グレイプニル」：
+  // コアを1手ずつ進めて PvE で、全イベントでオンラインで再生し、実体イベントの数だけ演出を出す。
+  const battle=async(units,foes,names,steps=30)=>{
+    const out={};
+    for(const mode of ['pve','online']){
+      const x=h.setup({sides:{p1:{units:units()},p2:{units:foes()}}});const runner=createBattleRunner(x.state,x.rng,x.emit,{skipOpening:true});const all=[],count={};
+      const add=()=>names.forEach(n=>count[n]=(count[n]||0)+h.calls.filter(v=>v.name===n).length);
+      if(mode==='pve'){for(let i=0;i<steps&&!runner.result;i++){x.events.length=0;runner.step({deferCompact:true});all.push(...x.events);await x.pve();add();h.calls.length=0;runner.compact();}}
+      else{for(let i=0;i<steps&&!runner.result;i++)runner.step();all.push(...x.events);await x.online();add();}
+      out[mode]={count,events:all};
+    }
+    return out;
+  };
+  await check('アラストル：3マナ毎の付与を出し、付与された負傷のダメージは逆上と同じ演出',async()=>{
+    const r=await battle(()=>[h.unit('owner','C001',{hp:30,maxHp:30}),h.unit('a1',null,{atk:3,hp:30,maxHp:30,manaOnAttack:3})],
+      ()=>[h.unit('f0',null,{atk:2,hp:40,maxHp:40}),h.unit('f1',null,{atk:2,hp:40,maxHp:40})],['alastor-brand','rage-shards']);
+    for(const mode of ['pve','online']){
+      const grants=r[mode].events.filter(e=>e.effect==='trigger_grant').length,hits=r[mode].events.filter(e=>e.reason==='granted_injury_damage').length;
+      assert.ok(grants>0&&hits>0,'再現条件（付与と付与された負傷のダメージ）');
+      assert.equal(r[mode].count['alastor-brand'],grants,mode+'：付与ごとに1回');assert.ok(r[mode].count['rage-shards']>0,mode+'：逆上と同じ演出');
+    }
+    assert.deepEqual(r.pve.count,r.online.count,'PvE とオンラインで同じ回数');
+  });
+  await check('アトラス：常時の発光から割り振りを受けた味方へ／咬竜グレイプニル：負傷の割り込み攻撃',async()=>{
+    const a=await battle(()=>[h.unit('owner','C005'),h.unit('a1',null,{atk:3,hp:9,maxHp:9})],()=>[h.unit('f0',null,{atk:3,hp:8,maxHp:8})],['atlas-burden'],8);
+    for(const mode of ['pve','online'])assert.ok(a[mode].count['atlas-burden']>0&&a[mode].count['atlas-burden']===a[mode].events.filter(e=>e.type==='effect_flash'&&e.unitId==='owner').length,mode+'：アトラス');
+    const row=h.sheetRows('enemy').find(r=>r['No.']==='EN043');
+    const g=await battle(()=>[h.unit('owner',null,{no:'EN043',artCode:'EN043',name:row['名前'],desc:row['効果'],keywords:String(row['キーワード']||'').split(/\s+/).filter(Boolean),atk:6,hp:20,maxHp:20})],
+      ()=>[h.unit('f0',null,{atk:3,hp:30,maxHp:30})],['minotaur'],8);
+    for(const mode of ['pve','online'])assert.ok(g[mode].count.minotaur>0&&g[mode].events.some(e=>e.type==='attack'&&e.reactionSourceId==='owner'),mode+'：グレイプニル');
+  });
   await check('起動：シルフと変身の巻物の割り当てを区別し、剣戟未登録なら従来へ戻す',()=>{
     assert.equal(PRESENT_ACTIVATION_FX.C084,'dragonnet');assert.equal(PRESENT_ITEM_USE_FX.I002,'activation-transform');
     assert.equal(presentActivationFx('C116',['activation-devour']),'activation-devour');
