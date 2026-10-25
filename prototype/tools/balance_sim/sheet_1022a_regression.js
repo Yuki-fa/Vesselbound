@@ -58,12 +58,13 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    assert.equal(b.state.blood[side],0);assert.equal(b.state.resources[side].mana,enhanced?2:1);
    assert.equal(b.events.find(e=>e.reason==='blood_to_mana').unitId,'basilisk','変換後のマナの発生元はバジリスク');
   });
-  check(`${side}/${enhanced}：全色HP倍率・割合ダメージ・色別死亡強化`,()=>{
+  check(`${side}/${enhanced}：色数条件の弱体・割合ダメージ・色別死亡強化`,()=>{
    const own=[unit('C100','elemental',enhanced),...['赤','青','緑','黄','紫'].map(c=>plain(c,{color:c}))];
    const h=setup(side,own),before=h.state.units[side].map(u=>[u.atk,u.maxHp]);
    coreApplyOpeningEffects(h.u,h.state,h.rng,h.emit,h.hit);
-   const multiplier=Number(h.u.desc.match(/HPを(\d+)倍/)[1]);
-   h.state.units[side].forEach((u,i)=>assert.deepEqual([u.atk,u.maxHp],[before[i][0],before[i][1]*multiplier]));
+   const amount=Number(h.u.desc.match(/弱体(\d+)/)[1]);
+   h.state.units[side].forEach((u,i)=>assert.deepEqual([u.atk,u.maxHp],before[i]));
+   h.state.units[h.other].forEach(u=>assert.equal(u.weaken,amount));
    const t=setup(side,[unit('C019','titan',enhanced)]);coreApplyOpeningEffects(t.u,t.state,t.rng,t.emit,t.hit);
    const percent=Number(t.u.desc.match(/HPの(\d+)%/)[1]);
    assert.deepEqual(t.events.filter(e=>e.type==='damage').map(e=>e.amount),[percent,percent]);

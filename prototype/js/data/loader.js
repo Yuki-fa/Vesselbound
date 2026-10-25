@@ -1586,7 +1586,9 @@ async function loadGameData() {
       const hit = _filterBySheetCode(PANEL_POOL, code).concat(_filterBySheetCode(PANEL_POOL, code.slice(0, 1) + String(parseInt(code.slice(1), 10)).padStart(3, '0')));
       [...new Set(hit)].forEach(panel => {
         if (!panel) return;
-        if (cfg.name) panel.name = cfg.name;
+        // 名称も本文と同じシート由来の定義を使う。E046を旧名へ戻すと、
+        // 血盟の本文のまま「攻防一体」が表示側へ付与され、ATK表示だけHPになる。
+        if (cfg.name && !panel._sheetDescLoaded) panel.name = cfg.name;
         // **シートの列がある限り、シートの値を使う。** ここはシートを読めない時の予備。
         const useDesc = cfg.desc != null && !panel._sheetDescLoaded;
         const useKeywords = !!cfg.keywords && !panel._sheetKeywordsLoaded;

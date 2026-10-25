@@ -161,8 +161,13 @@ function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
       for(let i=0;i<copies;i++) enh.effectNames.push(name);
       enh.effectScales[name]=Math.max(enh.effectScales[name]||1,copies);
     }
+    // 同じ接続カードにつながる体だけを渡す。効果の条件・倍率はコアが決める。
+    const connectedCharacters=coreConnectedColorStatMultiplier(panel)==null?[]:
+      (unit.boardCards||[]).filter((card,idx)=>card&&idx!==slotIdx&&String(card.category||'')==='キャラクター'
+        &&_collectEnhancementPanelsForSlot(unit,idx).some(link=>link.idx===entry.idx));
     const stats=corePanelStatBonuses(panel,{stageNumber:stageNumber
-      ||Number(typeof G!=='undefined'&&G&&G._wave)||1});
+      ||Number(typeof G!=='undefined'&&G&&G._wave)||1,
+      character:(unit.boardCards||[])[slotIdx],connectedCharacters});
     enh.atk+=stats.atk;
     enh.hp+=stats.hp;
     enh.releaseAtkBonus=Math.max(enh.releaseAtkBonus,Number(panel.releaseAtkBonus)||0);

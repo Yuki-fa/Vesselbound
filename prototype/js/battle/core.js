@@ -59,7 +59,7 @@ const CORE_EFFECT_CARD_NAMES = new Set([...CORE_KEYWORD_CARD_NAMES,
   '逆襲', '闇の儀式', '執念の炎', '闇の炎', '狂気', '野生の力', '治癒能力', 'マナ生成',
   '逆上', '剣技', '怨念', '錬成', 'マナの種', '恩寵', '狙撃', '魔族の魂',
   '大いなる守護', '内なる大力', '魔導回路', '魔術の知識', '毒袋', '変化', '闇のオーラ', '制圧', '死者の守護', 'マナの放出', '武威', '渇望', '遺産', '奇妙な絆', '成長', '死の体感', 'マナの生成', '翡翠の壺', '黄金の壺', '天の雷槌', 'マナの残滓', '復讐の炎', '活性化', '乱れ撃ち', '継承', '咆哮', '威光', '屍術', '魔鏡', '献身', '援護射撃', '進軍の歌', '栄光の歌', '報復の歌', '衝撃波', '血の結束', '英雄の印', '漲る力',
-  '反抗心', '血の雫',
+  '反抗心', '血の雫', '血盟',
   '宿業の刻印', '抑圧の刻印', '受難の刻印', '苦悶の刻印', '修道の刻印', '我慢の刻印']);
 // 効果文に書かれていれば自身が持つものとして扱うキーワード。
 const CORE_TEXT_KEYWORDS = ['復活', '根性', 'ヘイト', '二段攻撃', '三段攻撃', '三方向攻撃', '全体攻撃', '先制', '隠密'];
@@ -1055,6 +1055,13 @@ function coreEngravingStageValue(unit, name, state) {
 // 接続カードの常時能力修正。Xも編成時に確定し、通常の正負修正と同じ入口へ渡す。
 // 取得時ステージ・祝福はカード個体ごとに使い、基礎能力のレベル倍率は掛けない。
 function corePanelStatBonuses(card, state) {
+  const colorLink = coreConnectedColorStatMultiplier(card);
+  if (colorLink != null) {
+    const target = state && state.character, others = state && state.connectedCharacters || [];
+    const value = target && others.length && others.every(other => other.color === target.color)
+      ? coreBoonDynamicValue(card, card.desc, others.length * colorLink, 'mod') : 0;
+    return { atk: value, hp: value };
+  }
   if (/(?:^|\n)\s*常時[：:]\s*(?:このキャラクターは\s*)?-X\s*\/\s*-Xを得る/.test(String(card && card.desc || ''))) {
     const stage = Math.max(1, Math.floor(Number(card._engravingStage)
       || coreEngravingStageNumber(card, state, coreEffectKey(card.name))));
@@ -1063,6 +1070,10 @@ function corePanelStatBonuses(card, state) {
     return { atk: bonus, hp: bonus };
   }
   return { atk: Number(card && card.adjacentAtkBonus) || 0, hp: Number(card && card.adjacentHpBonus) || 0 };
+}
+function coreConnectedColorStatMultiplier(card) {
+  const match = coreUnitEffectText(card).match(/常時[：:]「[^」]+」によって同じ色の味方とだけ接続している場合、\+X\/\+Xを得る。Xは接続している同じ色の味方の数の(\d+)倍に等しい/);
+  return match ? Number(match[1]) : null;
 }
 
 // 封印X。∞なら Infinity（解放されない）。0なら封印されていない。
@@ -3930,38 +3941,20 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
     if (!hadObserved) delete unit._coreDeathObserved;
     }
   }
-  // 開戦：全ての色の味方がいる場合、〜（エレメンタル）
-  // 本文が「生命吸収を得る」か「ATKとHPを2倍にする」かで分かれる。
-  const openingAllColors = () => {
-    const colors = new Set(allies.filter(x => x.hp > 0 && !coreIsSealed(x)).map(x => x.color).filter(Boolean));
-    return ['赤', '青', '緑', '黄', '紫'].every(c => colors.has(c));
-  };
-  // ※ desc は「開戦：」の接頭辞を含んだまま返る（coreUnitTriggerText）。
-  if (/開戦\s*[：:]\s*全ての色の味方がいる場合、生命吸収を得る/.test(desc)
-    ) {
-    if (openingAllColors()) {
-      unit.keywords = coreUnitKeywords(unit).concat(['生命吸収']);
-      emit({ type: 'keyword_effect', effect: 'keyword_gain', side: unit.side, unitId: unit.id, keyword: '生命吸収', sourceId: unit.id });
-    }
-  }
-  for (const m of coreTriggerEffectEntries(unit, '開戦', /全ての色の味方がいる場合、全ての味方のHPを(\d+)倍にする/)) {
-    if (openingAllColors()) allies.filter(x => x.hp > 0 && !coreIsSealed(x))
-      .forEach(x => addStats(x, 0, x.maxHp * (Number(m[1]) - 1), 'opening_all_color_hp'));
+  // 色数の条件・弱体の量を本文から読む。既存の弱体イベントを両方の再生経路へ渡す。
+  for (const m of coreTriggerEffectEntries(unit, '開戦', /^味方の色が(\d+)色以上の場合、全ての敵に弱体(\d+)を与える/)) {
+    const colors = new Set(allies.filter(x => x.hp > 0 && !coreIsSealed(x) && x.color).map(x => x.color));
+    if (colors.size < Number(m[1])) continue;
+    const amount = Number(m[2]);
+    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
+      x.weaken = (Number(x.weaken) || 0) + amount;
+      coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'weaken', side: x.side,
+        unitId: x.id, sourceId: unit.id, amount });
+    });
   }
   for (const m of coreTriggerEffectEntries(unit, '開戦', /全ての敵にXダメージを与える。Xはそれぞれの敵のHPの(\d+)%に等しい/)) {
     coreHitAll(state, rng, emit, applyHit, unit, foes.filter(x => x.hp > 0 && !coreIsSealed(x)),
       target => coreBoonDynamicValue(unit,m,Math.ceil(target.hp * Number(m[1]) / 100),'damage'), coreMatchHitOpt(unit, m));
-  }
-  const allColorMultiplier = desc.match(/全ての色の味方がいる場合、このキャラクターのATKとHPを(\d+)倍にする/);
-  if (allColorMultiplier && openingAllColors()) {
-    const addAtk = Math.max(0, Number(unit.atk) || 0) * (Number(allColorMultiplier[1]) - 1);
-    const addHp = Math.max(0, Number(unit.maxHp) || 0) * (Number(allColorMultiplier[1]) - 1);
-    unit.atk = Math.max(0, unit.atk + addAtk);
-    unit.maxHp = Math.max(1, unit.maxHp + addHp);
-    unit.hp = Math.max(0, unit.hp + addHp);
-    emit({ type: 'stat_change', side: unit.side, unitId: unit.id, atk: addAtk, hp: addHp,
-      reason: 'opening_all_color_double', sourceId: unit.id });
-    coreTriggerAtkGainEffects(unit, addAtk, state, rng, emit, applyHit);
   }
   coreApplyWargThreshold(state, unit.side, emit, rng, applyHit);
   if (coreHasEffect(unit, '刻を織る者"ウルズ・ラグナ"')) {
@@ -3973,10 +3966,6 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
     state.life = state.life || { p1: null, p2: null };
     state.life.p1 = 1;
     emit({ type: 'life_set', side: 'p1', amount: 1, sourceId: unit.id });
-  }
-  if (coreHasEffect(unit, '生命吸収') && desc.includes('全ての色')) {
-    if (!coreUnitHasKeyword(unit, '生命吸収')) unit.keywords.push('生命吸収');
-    emit({ type: 'keyword_effect', effect: 'life_drain', side: unit.side, unitId: unit.id, sourceId: unit.id, amount: 1 });
   }
   for (const entry of coreTriggerEffectEntries(unit, '開戦', /^ランダムなアイテムを得る/)) {
     const pool = Array.isArray(state.itemDefs)
@@ -5384,18 +5373,6 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   }
   // **レムレースに報酬の効果はない（シート優先）。** 以前は「倒した相手を報酬に出す」古い処理が残り、
   // レムレースを倒した敵のウィスプが報酬に出ていた（利用者報告）。
-  if (coreHasEffect(unit, 'バンシー')) {
-    // 対象の人数は本文から読む（合体後は2体）。
-    const banshee = Math.max(1, coreEffectNumbers(unit, '死亡', /ランダムな敵(\d+)体にXダメージを与える/, [1])[0]);
-    const extraTargets = coreRandomTargetCount(unit, 0);
-    for (let i = 0; i < repeats * (extraTargets ? 1 : banshee) * coreEffectRepeatCount(unit, 'バンシー'); i++) {
-      const candidates = foes.filter(x => x.hp > 0 && !coreIsSealed(x));
-      if (!candidates.length) break;
-      const amount = coreBoonNamedValue(unit, 'バンシー', Math.max(0, Number(unit.atk) || 0), 'damage');
-      if (extraTargets) coreHitAll(state, rng, emit, applyHit, unit, coreRandomDistinctTargets(unit, rng, candidates, banshee), amount, { area: false });
-      else coreRandomHit(state, rng, emit, applyHit, unit, candidates, amount);
-    }
-  }
   // 怨念：持っているユニットだけが発動する。Math.max(1,…)でループ回数を作ると
   // 怨念を持たない全ユニットの死亡時にATK分のダメージが1回飛んでしまう。
   // 怨念：ATKに対する倍率は本文から読む（合体後はATKの2倍）。
@@ -5439,18 +5416,6 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       coreGainBlood(state, killer.side, gain, killer, event => emit(event.type === 'blood_set'
         ? { ...event, victimId: unit.id, victimSide: unit.side } : event), rng, applyHit);
     }
-  }
-  // サキュバス：この攻撃で倒した敵の状態を味方として召喚する。
-  const lastSource = unit._lastDamageSource;
-  // サキュバスは「通常攻撃で倒した敵」だけを仲間にする。最後のダメージ源
-  // だけを参照すると、反撃・負傷効果・毒などで後から死亡した敵まで捕獲し、
-  // 反撃時の誤発動や同じ敵の二重捕獲につながる。
-  if (unit.side === 'p2' && !unit._lastDamageWasCounter && lastSource && lastSource !== unit
-    && lastSource._coreAttackContact === true
-    && lastSource.side === 'p1' && coreHasEffect(lastSource, 'サキュバス')
-    && !/ランダムな前衛の敵を奪う/.test(coreUnitEffectText(lastSource))) {
-    // 倒した敵をそのまま味方の前衛右端へ移す（召喚し直さない）。
-    coreStealUnit(state, unit, 'p1', emit, lastSource.id, { restoreHp: true }, rng, applyHit);
   }
   // 新しい本文では負傷トリガへ移る。負傷側に書かれていたら死亡側では動かさない。
   if (coreHasEffect(unit, 'ボーンチャリオット')
