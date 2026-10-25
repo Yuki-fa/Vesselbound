@@ -13,7 +13,7 @@ const path = require('node:path');
 const core = require('../../js/battle/core');
 
 const ROOT = path.resolve(__dirname, '../..');
-const battleSrc = ['js/engine/battle.js','js/engine/battle_intro.js', 'js/engine/battle_events.js']
+const battleSrc = ['js/engine/battle.js','js/engine/battle_panel_formation.js','js/engine/battle_intro.js', 'js/engine/battle_events.js']
   .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8')).join('\n');
 const coreSrc = fs.readFileSync(path.join(ROOT, 'js/battle/core.js'), 'utf8');
 
