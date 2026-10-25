@@ -96,7 +96,7 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 
 | 番号 | 演出 | 元の素材 | 長さ | peak |
 |---|---|---|---|---|
-| C001 | alastor-brand | tools/vfx_preview/se_tools_1025.py | 0.95秒 | 0.242771 |
+| C001 | alastor-brand | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav | 0.95秒 | 0.242771 |
 | C002 | erinyes-flame | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Large Whiplash-03.wav | 1.95秒 | 0.438229 |
 | C004 | echidna-wave | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ACID Cast Large 01-04.wav | 1.95秒 | 0.45 |
 | C005 | atlas-burden | The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT PHSYICS-Stone Crush_RTSB_COL-01.wav | 1.401秒 | 0.247667 |

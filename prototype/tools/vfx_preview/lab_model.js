@@ -23,11 +23,11 @@ var VbFxLabModel = (function () {
   function meta(name, saved, base) {
     var raw = saved && saved.effects && saved.effects[name] || base && base[name];
     return {title:raw && raw.title || '見出し未設定',tags:raw && raw.tags ? raw.tags.slice() : [],
-      addedAt:base && base[name] && base[name].addedAt || '',unregistered:!(base && base[name]),missing:!(raw && raw.title && raw.title!=='見出し未設定')};
+      addedAt:base && base[name] && base[name].addedAt || '',listLast:!!(base && base[name] && base[name].listLast),unregistered:!(base && base[name]),missing:!(raw && raw.title && raw.title!=='見出し未設定')};
   }
   function effects(definitions, saved, base) {
     return definitions.map(function (d, i) { return {name:d.name,definition:d,index:i,meta:meta(d.name,saved,base)}; })
-      .sort(function (a,b) { return Number(b.meta.unregistered)-Number(a.meta.unregistered) || b.meta.addedAt.localeCompare(a.meta.addedAt) || a.index-b.index; });
+      .sort(function (a,b) { return Number(b.meta.unregistered)-Number(a.meta.unregistered) || Number(a.meta.listLast)-Number(b.meta.listLast) || b.meta.addedAt.localeCompare(a.meta.addedAt) || a.index-b.index; });
   }
   function definitionName(media) { return media.definition || (String(media.path || '').match(/^vfx:[^:]+:([^:]+)$/) || [])[1] || ''; }
   function codeOf(media) { return media.sourceCode || (String(media.path || '').match(/^vfx:([^:]+):/) || [])[1] || ''; }

@@ -94,9 +94,16 @@ def register_file(name, idx, path, why, sources):
     """加工して作った候補（合成など）を候補一覧へ登録する。"""
     head, cat, tail = _catalog(); key = f'{name}-{idx}'
     d = load(path); k = int(.02 * SR); e = np.convolve(np.abs(d).max(axis=1), np.ones(k) / k, 'same')
-    cat['sounds'][key] = {'id': key, 'filename': ' + '.join(sources), 'source': 'tools/vfx_preview/se_tools_1025.py', 'url': f'vfx_preview/se/{key}.wav',
-                          'duration': round(len(d) / SR, 6), 'peak': round(int(e.argmax()) / SR, 6), 'peakDbfs': -1, 'peakMode': 'envelope20ms',
-                          'adopted': False, 'provisional': False, 'reason': why, 'sha256': hashlib.sha256(Path(path).read_bytes()).hexdigest()}
+    # 既存の候補を加工し直した時（フェード・音量）は、元の素材の記録（原音の長さ・切り出し位置）を残して上書きする。
+    # LAB（preview.js refreshSound）は originalDuration・start・trimmed を必ず読むので、新しい候補にも入れる（2026-10-25 欠けていて SE を切り替えられなかった）。
+    old = cat['sounds'].get(key) or {}
+    base = old if old.get('source') != 'tools/vfx_preview/se_tools_1025.py' else {}
+    duration = round(len(d) / SR, 6)
+    cat['sounds'][key] = {**{'originalDuration': duration, 'start': 0, 'trimmed': False}, **base,
+                          'id': key, 'url': f'vfx_preview/se/{key}.wav', 'duration': duration, 'peak': round(int(e.argmax()) / SR, 6),
+                          'peakDbfs': -1, 'peakMode': 'envelope20ms', 'adopted': bool(old.get('adopted')), 'provisional': False,
+                          'reason': why, 'sha256': hashlib.sha256(Path(path).read_bytes()).hexdigest()}
+    if not base: cat['sounds'][key].update({'filename': ' + '.join(sources), 'source': 'tools/vfx_preview/se_tools_1025.py'})
     if key not in cat['effects'].setdefault(name, []): cat['effects'][name].append(key)
     (OUT.parent / 'se_catalog.js').write_text(head + json.dumps(cat, ensure_ascii=False, indent=2) + tail)
     man = json.loads((OUT / 'manifest.json').read_text()); man['effects'][name] = cat['effects'][name]; man['sounds'][key] = cat['sounds'][key]

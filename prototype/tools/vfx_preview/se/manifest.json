@@ -5609,10 +5609,14 @@
     "activation-devour-3": {
       "id": "activation-devour-3",
       "filename": "Production Element Title Transition Stab Dark Demonic 01.wav",
-      "source": "tools/vfx_preview/se_tools_1025.py",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Demonic 01.wav",
       "url": "vfx_preview/se/activation-devour-3.wav",
       "duration": 1.95,
+      "originalDuration": 5.458625,
+      "start": 1.940104,
+      "trimmed": true,
       "peak": 0.45,
+      "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": true,
@@ -6055,10 +6059,14 @@
     "alastor-brand-1": {
       "id": "alastor-brand-1",
       "filename": "SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav",
-      "source": "tools/vfx_preview/se_tools_1025.py",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-02.wav",
       "url": "vfx_preview/se/alastor-brand-1.wav",
       "duration": 0.95,
+      "originalDuration": 5.2,
+      "start": 0.007604,
+      "trimmed": true,
       "peak": 0.242771,
+      "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": true,
@@ -6384,7 +6392,10 @@
       "adopted": true,
       "provisional": false,
       "reason": "ヘルナイト：剣で切断する音（最初の一閃）から候補1（暗い衝撃）へつなぐ（2026-10-25 利用者指定）",
-      "sha256": "ed460ae7e6e7d43cfb1c0b9efde5a952e03df2fd3de3e876bbd29714bc0f721f"
+      "sha256": "ed460ae7e6e7d43cfb1c0b9efde5a952e03df2fd3de3e876bbd29714bc0f721f",
+      "originalDuration": 2.35,
+      "start": 0,
+      "trimmed": false
     }
   },
   "effects": {
