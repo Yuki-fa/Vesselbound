@@ -43,6 +43,10 @@ function check(name, fn) {
     assert.equal(presentRunEffectVfxCode({ type: 'run_effect', kind: 'enchant_upgrade', trigger: '終戦', targetSlots: [2] }), 'C095', 'グリマルキン（4回目の終戦）＝光の柱');
     for (const [code, name] of [['C114', 'reward-blessing'], ['C062', 'ymir-aura'], ['C095', 'grimalkin-pillar'], ['C095_1', 'grimalkin-glint'], ['R018', 'revival-ring']])
       assert.equal(getVfxDefinitionName(getCharacterEffectVfxPath({ fxCode: code })), name, code + ' の演出');
+    // 2026-10-25 利用者指定：ゴーレム（負傷）は負傷のバフ演出 S006 を祝福と同時に出す。ファミリア（攻撃）は祝福だけ。
+    assert.equal(presentRunEffectCompanionVfxCode(golem), 'S006', 'ゴーレム＝負傷のバフ演出を重ねる');
+    assert.equal(presentRunEffectCompanionVfxCode(familiar), '', 'ファミリア＝重ねない');
+    assert.equal(getEffectSfxKey('C095_1'), 'C095_1', '枝番の SE も引ける');
   });
   check('PvE とオンラインの受け口が同じ処理を呼ぶ', () => {
     for (const f of ['js/engine/battle_events.js', 'js/online/board.js'])

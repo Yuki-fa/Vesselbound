@@ -13,7 +13,7 @@ var VbFxLabModel = (function () {
   ];
   var assignKinds = {card:'character',enchant:'enchant',item:'item',ring:'ring',enemy:'enemy',char:'npc',mapPanelPower:'board',keyword:'keyword',specialFx:'other'};
   // js/engine/battle_fx.js の _battleFxValues / _battleFxFollowStates の対応。
-  var states = {'結界':'shield-state','毒':'poison-state','弱体':'weaken-state','根性':'guts-state','復活':'revive-state'};
+  var states = {'結界':'shield-state','毒':'poison-state','弱体':'weaken-state','根性':'guts-state','復活':'revive-state','隠密':'stealth-state','防戦':'guard-state'};
   var MAX_ASSIGN = 10;
   function clone(x) { return JSON.parse(JSON.stringify(x)); }
   function empty() { return {version:1,savedAt:null,effects:{},suppressGeneric:{}}; }

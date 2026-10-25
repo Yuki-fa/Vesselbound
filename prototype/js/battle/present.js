@@ -1445,6 +1445,11 @@ function presentRunEffectVfxCode(ev) {
   return trigger ? PRESENT_BUFF_VFX_BY_TRIGGER[trigger] : '';
 }
 function presentRunEffectVfxMs(code, fallback) { return PRESENT_RUN_EFFECT_FX_MS[String(code || '')] || fallback; }
+// 専用演出と同時に重ねるバフの演出（2026-10-25 利用者指定：ゴーレムの負傷は、負傷のバフ演出と報酬への祝福を並行して出す）。
+function presentRunEffectCompanionVfxCode(ev) {
+  if (!ev || ev.type !== 'run_effect' || ev.kind !== 'reward_buff') return '';
+  return PRESENT_RUN_EFFECT_TRIGGERS[String(ev.trigger || '')] === 'injury' ? PRESENT_BUFF_VFX_BY_TRIGGER.injury : '';
+}
 // 列にバフの番号が無くても**一律でバフの演出にする**トリガ。
 // 攻撃＝カードごとの絵にすると攻撃のたびに別の絵が出て何の効果か読めない。
 // 開戦・常時＝利用者指定（S009）。マナ＝発生元の固有VFXと重ねないため。
@@ -2041,6 +2046,8 @@ const PRESENT_LAB_FX = {
   [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], K009_SWEEP:['all-sweep',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
   [getKeywordAssetKey('結界','gain')]:['shield-gain',.22,'target'], [getKeywordAssetKey('復活','gain')]:['revive-gain',.24,'target'],
+  // 2026-10-25 利用者指定：隠密・防戦を得た瞬間（持っている間は状態のループ stealth-state / guard-state）。
+  [getKeywordAssetKey('隠密')]:['stealth-veil',0.4785,'target'], [getKeywordAssetKey('防戦')]:['guard-stance',0.156354,'target'],
   shield_break:['shield-break',0.318812,'target'],
   // 2026-10-12 利用者指定：候補1の仮SE。peakは切り出し後の測定値で後述の音声台帳と揃える。
   C009:['satyr',0.625708,'self'],E083:['hecatoncheir',0.655729,'self'],E043:['zombie',0.263917,'self'],
@@ -2192,6 +2199,8 @@ const PRESENT_SFX_PEAK_SEC = {
   C007: 0.309063, C013: 0.171354, C014: 0.2575, C016: 0 /* 2026-10-21 利用者指定：「SEだけ聴く」と同じく頭から鳴らす（命中が0msなのでピークを合わせると頭を飛ばしていた） */, C022: 0.45, E042: 0.45, E042_HIT: 0.196729, C058: 0.45,
   C115: .130, appearance: .029 /* 開戦の砂煙の着地音（実測） */, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
   [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
+  // 2026-10-25 LAB採用：グリマルキン（終戦）と起動（チェンジリング・インキュバス・ヘルナイト）。
+  C095: 0.122354, C095_1: 0.256979, C080: 0.45, C109: 0.45, C116: 0.85,
 };
 function presentSfxPeakSec(key) {
   const n = Number(PRESENT_SFX_PEAK_SEC[String(key || '')]);

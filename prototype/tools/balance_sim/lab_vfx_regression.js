@@ -290,7 +290,10 @@ async function extraChecks() {
   for(const name of ['shield-state','poison-state','weaken-state','guts-state','revive-state']) assert.equal(VbFx.duration(name,1.5),VbFx.duration(name,4.5),name+'の周期は速度に依存しない');
   const adopted=fs.readFileSync(path.join(ROOT,'tools/vfx_preview/se/ADOPTED.md'),'utf8');
   const moved={C025:'E083',C031:'E043',C084:'E031',C057:'E056',C109:'E024',C121:'E082',C049:'C050',C024:'E042',C107:'C124',C124:'C107'};
-  for(const line of adopted.split('\n')){const cells=line.split('|').map(v=>v.trim());if(!/^[A-Z]+\d{3}(?:_gain)?$/.test(cells[1]||''))continue;
+  // 2026-10-25：10-22 の番号の振り直しより後の節（新番号で書いた行）には旧→新の読み替えをしない。
+  let renumbered=false;
+  for(const line of adopted.split('\n')){const section=line.match(/^## (\d{4}-\d{2}-\d{2})/);if(section)renumbered=section[1]>='2026-10-22';
+    const cells=line.split('|').map(v=>v.trim());if(!/^[A-Z]+\d{3}(?:_gain)?$/.test(cells[1]||''))continue;
     if(['C047','C070'].includes(cells[1])){
       assert.equal(presentLabFx(cells[1])[0],'aura-buff','2026-10-25指定の常時バフへ再割り当て '+cells[1]);
       assert.equal(presentLabSoundCode(cells[1]),'S009');assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'旧定義は残す '+cells[2]);continue;
@@ -298,7 +301,7 @@ async function extraChecks() {
     if(['C034','C114'].includes(cells[1])){
       assert.equal(presentLabFx(cells[1]),null,'旧効果の割り当てを外す '+cells[1]);assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
     }
-    cells[1]=moved[cells[1]]||cells[1];
+    if(!renumbered)cells[1]=moved[cells[1]]||cells[1];
     // 2026-10-18：LAB演出の対応表に無い既存の入口（効果番号の音・キーワードの音）は、登録とファイルの存在だけ確かめる。
     if(!presentLabFx(cells[1])&&Assets.sfx[cells[1]]){assert.ok(fs.existsSync(path.join(ROOT,Assets.sfx[cells[1]])),'採用SEのファイル '+cells[1]);continue;}
     const spec=presentLabFx(cells[1]);assert.ok(spec,'採用SEの登録 '+cells[1]);assert.equal(spec[0],cells[2]);assert.equal(spec[1],Number(cells[5]));assert.ok(fs.existsSync(path.join(ROOT,Assets.sfx[cells[1]])),'採用SEのファイル '+cells[1]);}

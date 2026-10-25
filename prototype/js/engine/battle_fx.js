@@ -123,7 +123,9 @@ function _battleFxValues(unit) {
   const hasRoot = keyword => (unit.keywords||[]).includes(keyword) || (!unit._starterRegenUsed && keywords.includes(keyword));
   return {shield:Number(typeof presentShownShield==='function'?presentShownShield(unit):unit.shield)>0?1:0,
     poison:unit.poison||0,weaken:typeof presentShownWeaken==='function'?presentShownWeaken(unit):unit.weaken||0,
-    guts:hasRoot('根性') ? 1:0,revive:hasRoot('復活') ? 1:0};
+    guts:hasRoot('根性') ? 1:0,revive:hasRoot('復活') ? 1:0,
+    // 隠密・防戦（2026-10-25 利用者指定）：持っている間ずっと出す。
+    stealth:unit.stealth||keywords.includes('隠密') ? 1:0,guard:keywords.includes('防戦') ? 1:0};
 }
 function battleFxAdvanceStates(unit, values) {
   const key = _battleFxKey(unit), entry = _battleFxStates.get(key);
@@ -182,7 +184,7 @@ function _battleFxFollowStates() {
     reads.push({entry,key,r,visible});
   });
   reads.forEach(({entry,key,r,visible}) => {
-    for (const state of ['shield','poison','weaken','guts','revive']) {
+    for (const state of ['shield','poison','weaken','guts','revive','stealth','guard']) {
       const name = `${state}-state`, old = entry.loops.get(name), value = visible ? Number(entry.values[state])||0 : 0;
       // カードの要素が作り直されただけなら、止めずに付け替える（出し直すと明滅する）。
       if (old && value && old.element !== r.element && VbFx.retarget && VbFx.retarget({name,key,element:old.element},r)) old.element = r.element;

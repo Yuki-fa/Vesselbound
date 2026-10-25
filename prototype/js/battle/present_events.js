@@ -365,7 +365,8 @@ async function _presentLabFinish(plan) {
   if(plan.hitGains)await Promise.all(plan.hitGains);
   if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
   // 結界・復活の獲得は、元の効果が消えてから同じ波で続ける。
-  for (const code of [getKeywordAssetKey('弱体'),getKeywordAssetKey('邪眼'),getKeywordAssetKey('結界','gain'),getKeywordAssetKey('復活','gain')]) {
+  for (const code of [getKeywordAssetKey('弱体'),getKeywordAssetKey('邪眼'),getKeywordAssetKey('結界','gain'),getKeywordAssetKey('復活','gain'),
+    getKeywordAssetKey('隠密'),getKeywordAssetKey('防戦')]) {
     if(plan.generation!=null&&plan.generation!==battleFxGeneration()) return;
     const units = [...new Set(plan.gains.filter(g=>g.code===code).map(g=>g.unit))];
     // 弱体・邪眼の付与は見た目だけ続ける。音は元の固有演出のSEで足り、重ねると調和しない（2026-10-18 利用者指摘：グレムリン・ウンディーネ）。
@@ -493,6 +494,7 @@ async function presentLabEndEvent(ev, events, index, api) {
       if (ev.effect==='weaken') battleFxAdvanceStates(unit,{weaken:previous.weaken+(Number(ev.amount)||0)});
       if (ev.effect==='shield') battleFxAdvanceStates(unit,{shield:previous.shield+(Number(ev.amount)||0)});
       if (ev.effect==='keyword_gain' && ['復活','根性'].includes(ev.keyword)) battleFxAdvanceStates(unit,{[ev.keyword==='復活'?'revive':'guts']:1});
+      if (ev.effect==='keyword_gain' && ['隠密','防戦'].includes(ev.keyword)) battleFxAdvanceStates(unit,{[ev.keyword==='隠密'?'stealth':'guard']:1});
     }
     if (ev.type==='stat_change' && ev.reason==='melusine_poison_double' && plan && plan.owner) {
       const factor=coreEffectNumbers(plan.owner,'攻撃',/全ての敵の毒を(\d+)倍にする/,[1])[0];
@@ -518,6 +520,8 @@ async function presentLabEndEvent(ev, events, index, api) {
     // shield_setは開戦時の初期結界にも使う。復活直後の付け直しだけ獲得として見せる。
     if(ev.type==='shield_set'&&Number(ev.amount)>0&&events[index-1]?.type==='revive'&&events[index-1].unitId===ev.unitId) gains.push(getKeywordAssetKey('結界','gain'));
     if (ev.type==='keyword_effect' && ev.effect==='keyword_gain' && ev.keyword==='復活') gains.push(getKeywordAssetKey('復活','gain'));
+    // 隠密・防戦を戦闘中に得た瞬間（2026-10-25 利用者指定）。最初から持っている体は状態のループだけを出す。
+    if (ev.type==='keyword_effect' && ev.effect==='keyword_gain' && ['隠密','防戦'].includes(ev.keyword)) gains.push(getKeywordAssetKey(ev.keyword));
     for (const code of gains) {
       if (plan&&plan.hitReactions?.has(ev)) plan.hitGains.push(playBattleLabFx(code,unit,[unit],{side:ev.side==='p2'?'enemy':'ally',silent:true}));
       else if (plan) plan.gains.push({code,unit});
@@ -896,7 +900,11 @@ async function presentRunEffectEvent(ev, api) {
   const base = typeof PRESENT_CARD_EFFECT_VFX_MS === 'number' ? PRESENT_CARD_EFFECT_VFX_MS : 700;
   const duration = typeof presentRunEffectVfxMs === 'function' ? presentRunEffectVfxMs(code, base) : base;
   if (typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(code, duration);
-  await _playCardEffectVfx(code, [unit], { gateMs: 0, hitDuration: duration });
+  // 負傷のバフ演出（S006）を同じ瞬間に重ねる（報酬への祝福はカードの上辺から昇るだけで、中央を覆わない）。
+  const companion = typeof presentRunEffectCompanionVfxCode === 'function' ? presentRunEffectCompanionVfxCode(ev) : '';
+  if (companion && typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(companion, base);
+  await Promise.all([_playCardEffectVfx(code, [unit], { gateMs: 0, hitDuration: duration }),
+    companion ? _playCardEffectVfx(companion, [unit], { gateMs: 0, hitDuration: base }) : null]);
   return true;
 }
 

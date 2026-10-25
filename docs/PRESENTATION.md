@@ -847,3 +847,15 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
   ヒュドラ＝melusine、ティアマト＝eidolon（旧シャナの本文）、マモンの起動＝gold-gain、チェンジリングの起動＝activation-transform、ノルン＝reward-blessing。ほかはトリガ・キーワードの汎用演出。
   本文が変わったシャナからエイドロンを外し（列の S009）、マータの肩代わりの演出 attack-recoil を外した。
   **VFX 定義JSONの1MB上限（tools/vfx_export.js、UTF-8バイト）がほぼ満杯（999,214）。** 次に演出を足す時は上限を上げるか、重複する層を整理する。
+- 2026-10-25 LAB の指摘の反映（2回目）
+  - FIX（lab_fixed.js `VbFxLabFixed`）：grimalkin-glint・grimalkin-pillar（SE1→C095_1・C095）、stealth-veil（SE2→K013）、guard-stance（SE3→K014）、erinyes-flame・kele-blood-nova・speed-ring（現状のまま）、
+    frost-retaliate・echo-bolt・activation-transform（SE3→EN031・EN013・C080）、activation-empower（SE2→C109）、activation-devour（SE3＋6dB。ヘルナイトの定義が無い時の予備で、ゲームでは鳴らない）。
+  - 起動の SE：カード固有の音（Assets.sfx[番号]）があれば、そのピーク（present.js `PRESENT_SFX_PEAK_SEC`）を演出の山場へ合わせて鳴らす（activation.js `_playActivationFx`）。無いカード（マモン・シルフ）は巻物の共通音のまま。
+    ヘルナイト C116＝剣で切る音（0〜0.45秒）から候補1へつなげた候補4（tools/vfx_preview/se_tools_1025.py `combine`）。
+  - グリマルキンの終戦の SE：枝番の C095_1 も `getEffectSfxKey` で引く（assets.js。/^[A-Z]+\d{3}(?:_\d+)?$/）。
+  - reward-blessing（ファミリア・ゴーレム）を作り直し：金貨・錬成陣をやめ、カードの上辺の光と真上へ昇って画面の外へ抜ける光の筋だけ（中央は覆わない）。
+    ゴーレム（負傷）の報酬の強化は負傷のバフ演出 S006 を同時に出す（present.js `presentRunEffectCompanionVfxCode`、present_events.js `presentRunEffectEvent`。PvE・オンライン共通）。
+  - 隠密・防戦の状態ループ stealth-state・guard-state（additions_1025.js）：battle_fx.js `_battleFxValues` の stealth（unit.stealth か隠密）・guard（防戦）。
+    戦闘中に得た瞬間（keyword_gain）は stealth-veil・guard-stance（K013・K014）を出し、状態を進める（present_events.js）。LAB の状態の表は lab_model.js `states`。
+  - SE の選び直し：ymir-aura 2・3、atlas-burden 2・3、revival-ring 1・2 を差し替え。alastor-brand 1 の後半の高音をフェード（0.8〜0.95秒）して C001 に採用し直し。
+  - 定義JSONは 999,682 バイト（残り約300）。祝福を軽くし、状態ループは3〜4層の軽い作りにして収めた。**次に演出を足すには上限を上げる判断が要る。**

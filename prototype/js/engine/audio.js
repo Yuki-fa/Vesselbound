@@ -147,6 +147,15 @@ const SFX_SETTINGS={
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    C116: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 hellknight-slash 候補4）
+    C109: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 activation-empower 候補2）
+    C080: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 activation-transform 候補3）
+    EN013: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 echo-bolt 候補3）
+    EN031: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 frost-retaliate 候補3）
+    K014: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 guard-stance 候補3）
+    K013: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 stealth-veil 候補2）
+    C095: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 grimalkin-pillar 候補1）
+    C095_1: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 grimalkin-glint 候補1）
     C105: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 kele-blood-nova 候補3）
     C052: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 thunderbird-charge 候補1）
     C005: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 atlas-burden 候補1）

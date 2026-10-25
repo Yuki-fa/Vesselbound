@@ -165,8 +165,10 @@ function audioChecks(){
   const raw=read('tools/vfx_preview/se_catalog.js'),catalog=JSON.parse(raw.slice(raw.indexOf('{'),raw.lastIndexOf('}')+1));
   const picks=JSON.parse(read('tools/vfx_preview/se/picks_1012.json')),used=new Set(),hashes=new Set();
   // 利用者がLABで選んだ候補の台帳（adopted_MMDD.json）。日付順に重ね、同じ番号は新しい採用を正とする（2026-10-21 から全台帳を見る）。
-  const adopted1018=Object.assign({},...fs.readdirSync(path.join(ROOT,'tools/vfx_preview/se')).filter(f=>/^adopted_\d{4}\.json$/.test(f)).sort()
-    .map(f=>JSON.parse(read('tools/vfx_preview/se/'+f))));
+  // 2026-10-25：10-22 の番号の振り直しより前の台帳は旧番号、以後の台帳は新番号（新しい C109＝インキュバスの起動は、旧 C109＝今の E024 とは別物）。
+  const ledgers=fs.readdirSync(path.join(ROOT,'tools/vfx_preview/se')).filter(f=>/^adopted_\d{4}\.json$/.test(f)).sort();
+  const adopted1018=Object.assign({},...ledgers.filter(f=>f.slice(8,12)<'1022').map(f=>JSON.parse(read('tools/vfx_preview/se/'+f))));
+  const adoptedRenumbered=Object.assign({},...ledgers.filter(f=>f.slice(8,12)>='1022').map(f=>JSON.parse(read('tools/vfx_preview/se/'+f))));
   const old=execFileSync('git',['show',BASELINE+':prototype/tools/vfx_preview/se_catalog.js'],{cwd:ROOT,encoding:'utf8'});
   const previous=JSON.parse(old.slice(old.indexOf('{'),old.lastIndexOf('}')+1));
   // 2026-10-18：利用者の指示で選び直し・加工した候補（reason に日付を残す）は変更を許す。
@@ -197,7 +199,7 @@ function audioChecks(){
       for(let ch=0;ch<format.channels;ch++)assert.equal(pcm.readInt16LE(pcm.length-2*(ch+1)),0,'末尾フェード');
       // 2026-10-18：利用者がLABで選んだ候補（adopted_1018.json）があれば、それをそのまま配置。無ければ候補1の仮配置。
       // Bufferの deepEqual は不一致時の差分作成が極端に重いので、ハッシュで比べる。
-      if(i===1){const oldCode=RENAMED_1022[entry.code],pick=adopted1018[oldCode||entry.code],expected=pick?catalog.sounds[pick.candidate].sha256:digest;
+      if(i===1){const oldCode=RENAMED_1022[entry.code],pick=adoptedRenumbered[entry.code]||adopted1018[oldCode||entry.code],expected=pick?catalog.sounds[pick.candidate].sha256:digest;
         assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(ROOT,'assets/sfx',entry.code+'.wav'))).digest('hex'),expected,(pick?'選んだ候補（'+pick.candidate+'）をそのまま採用':'候補1をそのまま仮配置')+': '+entry.code);}
     }
   }

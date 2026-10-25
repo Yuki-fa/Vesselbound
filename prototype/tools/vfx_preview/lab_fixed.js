@@ -40,6 +40,10 @@ var VbFxLabFixed = {
   'revive-burst':'2026-10-21',
   // 2026-10-21 6回目：FIX（47 グレムリン SE2）
   'gremlin':'2026-10-21',
+  // 2026-10-25 FIX（LAB 03・04 SE1、07 SE2、08 SE3、10・14・35、15・16・17 SE3、18 SE2、19 SE3＋6dB）
+  'grimalkin-glint':'2026-10-25','grimalkin-pillar':'2026-10-25','stealth-veil':'2026-10-25','guard-stance':'2026-10-25',
+  'erinyes-flame':'2026-10-25','kele-blood-nova':'2026-10-25','speed-ring':'2026-10-25','frost-retaliate':'2026-10-25',
+  'echo-bolt':'2026-10-25','activation-transform':'2026-10-25','activation-empower':'2026-10-25','activation-devour':'2026-10-25',
 };
 
 /* 2026-10-23 VFX の全検査（利用者指定「FIX&設定されているものは★、されていないものは☆のまま。FIX&設定されていないものは新しくVFXを検討して割り当てる」）。
@@ -52,21 +56,21 @@ var VbFxLabPending = {
   I015:'keyword-grant', I016:'keyword-grant', I017:'keyword-grant', I018:'keyword-grant', I019:'keyword-grant',
   I020:'keyword-grant', I021:'keyword-grant', I022:'keyword-grant', I023:'keyword-grant',
   // 新しく作った演出（additions_1023.js）
-  EN013:'echo-bolt（新作）', EN031:'frost-retaliate（新作）', C084:'activation-transform（新作。起動の変身）',
-  C109:'activation-empower（新作。起動の強化と色の変化）', I002:'activation-transform（新作。変身の巻物）',
+  C084:'activation-transform（新作。起動の変身）',
   // 2026-10-25 利用者指定の割り当て（流用）
   C011:'scylla（スキュラと同じ）', EN060:'scylla（スキュラと同じ）', C020:'aura-buff（常時バフ）', E005:'aura-buff（常時バフ）', E023:'aura-buff（常時バフ）',
   E027:'即死の演出（即死が起きた時）', E028:'leprechaun（レプラコーンと同じ。そのカード自身の永久バフ）', E044:'attack-buff（攻撃バフ）',
   E015:'毒を与えた時の演出', E016:'dragonnet（ドラゴネットと同じ変身）', C040:'aura-buff（報酬に青キャラクターが出た時）',
   // 2026-10-25 新しく作った演出（additions_1025.js）
-  C062:'ymir-aura（新作。終戦のリロール）', C095:'grimalkin-glint／grimalkin-pillar（新作。終戦1〜3回目／4回目）',
-  C114:'reward-blessing（新作。報酬とトレーダーの強化）', C008:'reward-blessing（新作。報酬とトレーダーの強化）',
-  C116:'hellknight-slash（新作。起動の剣戟と血の吸収）', R018:'revival-ring（新作）',
-  K013:'stealth-veil（新作。ゲームでいつ出すかは確認待ち）', K014:'guard-stance（新作。ゲームでいつ出すかは確認待ち）',
+  C062:'ymir-aura（新作。終戦のリロール。2026-10-25 SE2・3を選び直し）',
+  C114:'reward-blessing（2026-10-25 金貨をやめて作り直し）', C008:'reward-blessing（作り直し）＋負傷のバフ演出 S006 を同時に',
+  C116:'hellknight-slash（2026-10-25 剣で切る音から SE1 へつなげた候補4を採用）', R018:'revival-ring（2026-10-25 SE1・2を選び直し）',
+  K013:'stealth-veil（FIX。隠密を得た瞬間）＋stealth-state（新作。隠密を持っている間）',
+  K014:'guard-stance（FIX。防戦を得た瞬間）＋guard-state（新作。防戦を持っている間）',
   // 2026-10-25 新しいキャラクター25枚（新作6種はSE候補を仮に採用。流用・汎用は既存の演出）
-  C001:'alastor-brand（新作）', C002:'erinyes-flame（新作）', C004:'echidna-wave（新作）', C005:'atlas-burden（新作）',
-  C052:'thunderbird-charge（新作）', C105:'kele-blood-nova（新作）', C026:'scylla（流用）', C051:'scylla（流用）', C027:'dark-fire（流用）',
-  C053:'melusine（流用）', C077:'eidolon（流用。旧シャナの本文）', C003:'gold-gain（起動）', C080:'activation-transform（起動）',
+  C001:'alastor-brand（新作。2026-10-25 SE1の後半の高音をフェードで消した）', C004:'echidna-wave（新作）', C005:'atlas-burden（新作。2026-10-25 SE2・3を選び直し）',
+  C052:'thunderbird-charge（新作）', C026:'scylla（流用）', C051:'scylla（流用）', C027:'dark-fire（流用）',
+  C053:'melusine（流用）', C077:'eidolon（流用。旧シャナの本文）', C003:'gold-gain（起動）',
   C055:'reward-blessing（報酬とトレーダーの強化）', C007:'弱体の汎用演出（2026-10-25 本文変更。肩代わりの attack-recoil を外した）',
 };
 var VbFxLabStarNotes = {

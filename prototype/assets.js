@@ -324,6 +324,15 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    C116: 'assets/sfx/C116.wav', // LAB採用（2026-10-25 hellknight-slash 候補4）
+    C109: 'assets/sfx/C109.wav', // LAB採用（2026-10-25 activation-empower 候補2）
+    C080: 'assets/sfx/C080.wav', // LAB採用（2026-10-25 activation-transform 候補3）
+    EN013: 'assets/sfx/EN013.wav', // LAB採用（2026-10-25 echo-bolt 候補3）
+    EN031: 'assets/sfx/EN031.wav', // LAB採用（2026-10-25 frost-retaliate 候補3）
+    K014: 'assets/sfx/K014.wav', // LAB採用（2026-10-25 guard-stance 候補3）
+    K013: 'assets/sfx/K013.wav', // LAB採用（2026-10-25 stealth-veil 候補2）
+    C095: 'assets/sfx/C095.wav', // LAB採用（2026-10-25 grimalkin-pillar 候補1）
+    C095_1: 'assets/sfx/C095_1.wav', // LAB採用（2026-10-25 grimalkin-glint 候補1）
     C105: 'assets/sfx/C105.wav', // LAB採用（2026-10-25 kele-blood-nova 候補3）
     C052: 'assets/sfx/C052.wav', // LAB採用（2026-10-25 thunderbird-charge 候補1）
     C005: 'assets/sfx/C005.wav', // LAB採用（2026-10-25 atlas-burden 候補1）
@@ -685,7 +694,8 @@ function getEffectVfxPath(code){
 // 登録が無ければ空文字。呼び出し側はその時だけマナ効果SE等で代用すること。
 function getEffectSfxKey(code){
   const raw=String(code||'').trim().toUpperCase();
-  if(!/^[A-Z]+\d{3}$/.test(raw)) return '';
+  // 枝番（C095_1＝グリマルキンの1〜3回目の終戦）も同じ番号の演出のSEとして引く（2026-10-25）。
+  if(!/^[A-Z]+\d{3}(?:_\d+)?$/.test(raw)) return '';
   return (Assets.sfx&&Assets.sfx[raw])?raw:'';
 }
 
