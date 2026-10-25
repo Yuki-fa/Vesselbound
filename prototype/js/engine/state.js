@@ -99,6 +99,7 @@ function initState(){
     defeatedEnemies:{p1:[],p2:[]},
     runEffects:{}, runEffectRerollsApplied:0, ascensionLifeBonus:0, activationFormationSeq:0,
     _shopRerollSeq:0,
+    goldenRingRewards:{views:0,pending:0},
     // ── 盤面（MAX_ALLIES/MAX_ENEMIES件・HP持続）──
     allies: Array(MAX_ALLIES||5).fill(null),
     enemies:[],

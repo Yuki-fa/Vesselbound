@@ -6,6 +6,8 @@ const vm = require('node:vm');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const sheet = require('./sheet_data');
+// 1026に本文との不一致を直した効果は専用の新しい回帰検査で検証する。
+const revised1026 = new Set('E011 E020 E022 E047 E055 E060 E062'.split(' '));
 require('./load');
 const copy = value => JSON.parse(JSON.stringify(value));
 const TEXT = '4マナ：このゲーム中に倒したことがあるランダムな敵を、このキャラクターと同じATKとHPにして召喚する。';
@@ -273,7 +275,7 @@ function coreEvents(events) { return events.map(event => { const { pveRewardGold
     const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox); const baseline = sandbox.module.exports;
     const current = require('../../js/battle/core'); let compared = 0;
     const rows = [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')];
-    for (const row of rows.filter(r => r['No.'] !== 'C004')) for (const enhanced of [false, true]) {
+    for (const row of rows.filter(r => r['No.'] !== 'C004' && !revised1026.has(r['No.']))) for (const enhanced of [false, true]) {
       const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
       const card = { ...copy(def), desc: (enhanced ? row['強化効果'] : '') || row['効果'] || '' };
       const own = def.category === 'キャラクター'

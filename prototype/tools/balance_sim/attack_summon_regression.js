@@ -31,6 +31,8 @@ function ring(name) {
   assert.ok(row, 'シートに指輪がない: ' + name);
   return { name, no: row['No.'], desc: row['効果'] };
 }
+// 1026：召喚師+10/+10・光は貫通。値は現行本文から読む。
+const summonerStats = ring('召喚師の指輪').desc.match(/\+(\d+)\/\+(\d+)/).slice(1).map(Number);
 const summonDefs = rows.map(r => card(r['名前'], r['No.']));
 const plain = (id, extra = {}) => ({ id, name: '検査用', atk: 1, hp: 1000, maxHp: 1000,
   color: '青', keywords: [], desc: '', ...extra });
@@ -166,7 +168,7 @@ async function run() {
       desc: '常時：キャラクターがダメージを受けるたび、このキャラクターは+1/+1を得る。' })]); contactShield(h.events, 'A');
   });
   await check('召喚体の即時攻撃の反撃結界も接触に含まれる', () => {
-    const h = oneStrike([card('スケルトンキング', 'king', { hp: 100, maxHp: 100 })], undefined, ['光の指輪']);
+    const h = oneStrike([card('スケルトンキング', 'king', { hp: 100, maxHp: 100, desc: card('スケルトンキング', 'king').desc+'\n常時：このキャラクターが召喚した眷属は結界1を得る。' })], undefined, ['光の指輪']);
     const summon = h.events.find(e => e.type === 'summon'); assert.ok(summon);
     contactShield(h.events, summon.unit.id);
   });
@@ -213,10 +215,11 @@ async function run() {
         const per = core.coreRainbowRingBonusForUnits(h.state.units[side]);
         const live = h.state.units[side].find(u => u.id === ev.unit.id);
         const base = side === 'p2' ? { atk: live._baseAtk, hp: live._baseMaxHp } : { atk: def.atk, hp: def.maxHp };
-        assert.equal(ev.unit.atk, base.atk + 10 + 5 + per, '召喚時ATK');
-        assert.equal(ev.unit.maxHp, base.hp + 10 + 5 + per, '召喚時最大HP');
-        // 結界は重ならない（2026-10-21 利用者指定）：元の結界の有無にかかわらず1。
-        assert.equal(ev.unit.shield, 1, '光の指輪');
+        assert.equal(ev.unit.atk, base.atk + 10 + summonerStats[0] + per, '召喚時ATK');
+        assert.equal(ev.unit.maxHp, base.hp + 10 + summonerStats[1] + per, '召喚時最大HP');
+        // 光は貫通を付与する。結界は召喚体の本来のキーワードだけ。
+        assert.equal(ev.unit.shield, def.keywords.some(k=>/^結界/.test(k))?1:0);
+        assert.ok(ev.unit.keywords.includes('貫通'), '光の指輪');
         assert.ok(ev.unit.keywords.includes('眷属'));
       }
     });
@@ -226,9 +229,9 @@ async function run() {
       const baseAtk = child._baseAtk, baseHp = child._baseMaxHp;
       child.hp = 0; child.shield = 0;
       assert.equal(core.coreTryRevive(child, h.state, h.emit), '復活');
-      assert.equal(child.atk, Math.floor(baseAtk / 2) + 10 + 3 + 5);
-      assert.equal(child.maxHp, Math.max(1, Math.floor(baseHp / 2)) + 10 + 3 + 5);
-      assert.equal(child.shield, 1); assert.ok(child.keywords.includes('眷属'));
+      assert.equal(child.atk, Math.floor(baseAtk / 2) + 10 + 3 + summonerStats[0]);
+      assert.equal(child.maxHp, Math.max(1, Math.floor(baseHp / 2)) + 10 + 3 + summonerStats[1]);
+      assert.equal(child.shield, 0); assert.ok(child.keywords.includes('眷属')&&child.keywords.includes('貫通'));
       assert.equal(h.state._summonCount[side], 1, '復活は召喚累計を増やさない');
     });
     await check(`${side}/指輪復活・根性・値を引き継ぐコピーへ二重加算しない`, () => {
@@ -255,7 +258,7 @@ async function run() {
     await check(`${side}/無色の召喚体へ無関係な指輪の色補正を付けない`, () => {
       const h = harness(side, [plain('source')], ['召喚師の指輪', '光の指輪']);
       const child = core.coreSummonUnit(h.state, side, { name: '無色の検査用', color: '', atk: 2, hp: 3 }, h.emit, 'item-source');
-      assert.equal(child.atk, 7); assert.equal(child.maxHp, 8); assert.equal(child.shield, 1);
+      assert.equal(child.atk, 2+summonerStats[0]); assert.equal(child.maxHp, 3+summonerStats[1]); assert.equal(child.shield, 0); assert.ok(child.keywords.includes('貫通'));
     });
   }
   await check('指輪つき即時召喚・復活のPvE／オンライン／JSON保存再生が一致', () => {

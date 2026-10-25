@@ -788,7 +788,7 @@ function goToReward(options){
     if(!_noNewRewards&&!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
     G._retryRewardCards=null;
     _rewCards.forEach(c=>{ if(c){ towerBoonBlessGeneratedCard(c); c._isOriginalReward=true; } });
-    if(!_isFacilityEntry&&!G._onlineMode&&!_noNewRewards&&!_peddler) _markRewardAppearancePending(_rewCards);
+    if(!_isFacilityEntry&&!_noNewRewards&&!_peddler) _markRewardAppearancePending(_rewCards);
     if(_saveCheckpoint&&!_isFacilityEntry&&!_noNewRewards) towerBoonGrantRewardRerolls();
     if(_peddler){
       // 商品は報酬ではない（1枚だけ取れる制限を掛けない）。交換は魔導店と共通。
@@ -889,11 +889,17 @@ const REWARD_REVEAL_SWEEP_MS=640; // 光の帯が流れ切るまで（CSSのア�
 let _rewardRevealToken=0;        // 画面を離れる・出し直す時に、走っている演出を無効にする
 let _rewardRerollReveal=null;    // DOMと演出の参照はセーブへ入れない
 function _rewardAppearanceAllowed(){
-  return !G._onlineMode&&!G._isShop&&!G._isPeddler&&!G._isForge&&!G._isItemShop&&!G._isLibrary
+  return !G._onlineMode&&_battleCardRewardAllowed();
+}
+function _battleCardRewardAllowed(){
+  return !G._isShop&&!G._isPeddler&&!G._isForge&&!G._isItemShop&&!G._isLibrary
     &&!G._isTavern&&!G._isFiveSaints&&!G._isRingExchange&&!G._isVillageMenu&&!G._isWaveAltar;
 }
 function _markRewardAppearancePending(cards){
-  if(_rewardAppearanceAllowed()) (cards||[]).forEach(c=>{if(c&&c._isOriginalReward)c._rewardAppearancePending=true;});
+  if(!_battleCardRewardAllowed()) return;
+  applyGoldenRingReward(cards);
+  if(!_rewardAppearanceAllowed()) return;
+  (cards||[]).forEach(c=>{if(c&&c._isOriginalReward)c._rewardAppearancePending=true;});
 }
 function _completeRewardAppearance(cards){
   if(G.phase!=='reward'||!_rewardAppearanceAllowed()||!(cards||[]).some(c=>c&&c._rewardAppearancePending)) return;

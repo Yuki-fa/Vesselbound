@@ -54,15 +54,15 @@ const SCENARIOS = [
   {
     name: 'スケルトンキング：指輪補正と反撃結界', seed: 100702, requires: ['summon', 'shield_lost'],
     shieldAtContact: '^A0-summon-', returningSummons: true,
-    summonStats: { name: 'スケルトン', atk: 22, hp: 19, shield: 1 },
-    // 召喚時の4/1に色+10・虹+3・召喚師+5、光の結界1。即時攻撃の反撃で割れる。
+    summonStats: { name: 'スケルトン', atk: 27, hp: 24, shield: 1 },
+    // 1026：色+10・虹+3・召喚師+10、光は貫通。結界は検査用の召喚元の本文で付与。
     rings: { p1: ['神速の指輪', '青い瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪'] },
-    p1: [['スケルトンキング', 'A0', { color: '青', hp: 100, maxHp: 100 }]],
+    p1: [['スケルトンキング', 'A0', { color: '青', hp: 100, maxHp: 100, desc: '攻撃：「青スケルトン」を召喚し、このキャラクターの前に攻撃させる。\n常時：このキャラクターが召喚した眷属は結界1を得る。' }]],
     p2: [['オーク', 'E0', { atk: 2, hp: 100, maxHp: 100, keywords: [], desc: '' }]],
   },
   {
     name: 'スケルトンキング：反撃復活と戻り', seed: 100703, requires: ['summon', 'revive'], returningSummons: true,
-    summonStats: { name: 'スケルトン', atk: 22, hp: 19, shield: 0 },
+    summonStats: { name: 'スケルトン', atk: 27, hp: 24, shield: 0 },
     // 反撃死→復活でも、接触から戻り終端までクローンは消えず、死亡・復活は後続で見せる。
     rings: { p1: ['神速の指輪', '青い瞳の指輪', '虹の瞳の指輪', '召喚師の指輪'] },
     p1: [['スケルトンキング', 'A0', { color: '青', hp: 150, maxHp: 150 }]],
@@ -70,7 +70,7 @@ const SCENARIOS = [
   },
   {
     name: 'ダイアウルフ：戦闘中の召喚と指輪', seed: 100704, requires: ['mana_threshold', 'summon'],
-    summonStats: { name: 'ウルフ', atk: 21, hp: 21, shield: 1 },
+    summonStats: { name: 'ウルフ', atk: 26, hp: 26, shield: 0 },
     // 開戦後の攻撃でマナを得て召喚する。開戦の指輪処理に頼って通過させない。
     rings: { p1: ['神速の指輪', '緑の瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪'] },
     p1: [['ダイアウルフ', 'A0', { color: '緑', hp: 50, maxHp: 50, manaOnAttack: 3 }]],
@@ -78,8 +78,8 @@ const SCENARIOS = [
   },
   {
     name: 'ケットシー：負傷召喚と指輪', seed: 100705, requires: ['summon'],
-    summonStats: { name: 'ナイトキャット', atk: 21, hp: 19, shield: 1 },
-    // 元の結界と光の指輪は重複せず、負傷経路でも色・虹・召喚師を受け取る。
+    summonStats: { name: 'ナイトキャット', atk: 26, hp: 24, shield: 1 },
+    // 元の結界は維持し、負傷経路でも色・虹・召喚師・光の貫通を受け取る。
     rings: { p1: ['神速の指輪', '黄の瞳の指輪', '虹の瞳の指輪', '召喚師の指輪', '光の指輪'] },
     p1: [['ケットシー', 'A0', { color: '黄', hp: 40, maxHp: 40 }]],
     p2: [['オーク', 'E0', { atk: 2, hp: 100, maxHp: 100, keywords: [], desc: '' }]],

@@ -1609,8 +1609,6 @@ async function loadGameData() {
         panel.mergedForm.keywords = _mergeUniqueKeywords(panel.mergedForm.keywords, ['復活']);
       }
     });
-    const strongRing = (RING_POOL || []).find(r => r && r.name === '強靭の指輪');
-    if (strongRing) strongRing.desc = '開戦：全ての味方は「負傷：全ての味方はHP+1を得る。」を得る。';
     // 召喚専用の体（報酬・ショップに出さない）。**シャドウはここに入れないこと。**
     // C032「シャドウ」はシート上の通常カードで、ここへ入れると効果文が消えて
     // 報酬にも出なくなる（実際にそうなっていた）。召喚専用はスケルトン側。

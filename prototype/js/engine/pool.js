@@ -375,7 +375,6 @@ function _panelColorBuffKey(color){
 
 const _REWARD_RARITY_WEIGHTS={1:54,2:22,3:14,4:8,5:2};
 const _NON_BATTLE_REWARD_RARITY_WEIGHTS={1:50,2:25,3:15,4:7,5:3};
-const _GOLDEN_RING_REWARD_RARITY_WEIGHTS={1:30,2:33,3:21,4:11,5:5};
 
 function _currentRewardMapNumber(){
   const mapNo=Number(G&&G._wave);
@@ -400,9 +399,6 @@ function _rewardRarityWeights(useGoldenRing,useMapProgress){
 }
 function _rewardRarityWeightsBase(useGoldenRing,useMapProgress){
   if(!useMapProgress) return _NON_BATTLE_REWARD_RARITY_WEIGHTS;
-  if(useGoldenRing&&typeof _hasRingNamed==='function'&&_hasRingNamed('黄金の指輪')){
-    return _GOLDEN_RING_REWARD_RARITY_WEIGHTS;
-  }
   if(useMapProgress){
     const mapOffset=Math.max(0,_currentRewardMapNumber()-1);
     return {
@@ -756,6 +752,25 @@ function applyRewardCharacterEffects(cards) {
     }
   }
   return cards;
+}
+// 戦闘報酬の新しい提示だけを数える。生成・再描画・復元では呼ばない。
+// 期限を迎えても強化できない枚数は、次の提示へそのまま持ち越す。
+function applyGoldenRingReward(cards) {
+  const original = (cards || []).filter(card => card && card._isOriginalReward);
+  if (!original.length || original.every(card => card._goldenRingViewed)) return;
+  original.forEach(card => { card._goldenRingViewed = true; });
+  const matches = _effectiveRings().map(ring => coreUnitEffectText(ring).match(
+    /^常時：新しい報酬を(\d+)回見るたびに、報酬に強化されたカードが(\d+)枚含まれる/)).filter(Boolean);
+  if (!matches.length) return;
+  const progress = G.goldenRingRewards || (G.goldenRingRewards = { views: 0, pending: 0 });
+  progress.views++;
+  for (const match of matches) if (progress.views % Number(match[1]) === 0) progress.pending += Number(match[2]);
+  for (let i = 0; i < cards.length && progress.pending > 0; i++) {
+    const card = cards[i];
+    if (!card || !card._isOriginalReward || !['キャラクター','エンチャント','強化'].includes(card.category)) continue;
+    const enhanced = enhancedPanelCopy(card);
+    if (enhanced) { cards[i] = enhanced; progress.pending--; }
+  }
 }
 // 本文から色・加算値を読む。1枚の出現＝1波、同じ効果を持つ魔導板の全カードが対象。
 function applyRewardAppearanceEffects(cards) {

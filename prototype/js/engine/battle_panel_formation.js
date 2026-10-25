@@ -147,7 +147,7 @@ function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
       if(damage!=null) enh.permanentEffectCards.push({effectIndex,cardId:String(panel.id),boardSlot:entry.idx,damage});
     }
     // 2026-10-12: 合体の表示名を共通コアの効果識別子へ正規化する。
-    if(coreEffectKey(panel.name)==='団結') enh.uniteGroups.push(String(entry.idx));
+    if(/このキャラクターが受けたダメージ(?:の半分)?は、このエンチャントが接続している全ての味方に分散される/.test(String(panel.desc||''))) enh.uniteGroups.push(String(entry.idx));
     // 強化カード名は、効果文に名前が書かれていないトリガ効果の識別子になる。
     // 例：「逆上」「執念の炎」「恩寵」など。合体枚数もスケールへ反映する。
     if(panel.name && String(panel.category || '') !== 'キャラクター') {
@@ -1196,6 +1196,7 @@ async function _finishNewPanelBattleStartEffects(){
   // コアは開戦効果を一度に解決するため、据え置かないと「死の体感」＋「闇の炎」のように
   // 開戦でダメージが連鎖する盤面で、最初の数値が出た時点で最終HPまで下がって見え、
   // 倒れた敵が演出より先に消えたり、古い値で描き直されたりしていた（利用者報告：ボス戦）。
+  ['p1','p2'].forEach(side=>(state.units[side]||[]).forEach(unit=>coreApplyPassiveHpRings(state,unit,side)));
   const _openingShownBefore=[...(G.allies||[]),...(G.enemies||[])].filter(Boolean)
     .map(u=>[u,Number(u.atk)||0,Number(u.hp)||0,Number(u.maxHp)||Number(u.hp)||1,Number(u.shield)||0,Number(u.weaken)||0]);
   const releaseForms=presentHoldForms(_openingShownBefore.map(([u])=>u));

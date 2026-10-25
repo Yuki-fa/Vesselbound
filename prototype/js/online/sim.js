@@ -28,6 +28,7 @@ function simulateOnlineBattle(setup) {
     runEffects: setup && setup.runEffects,
     itemFreeSlots: setup && setup.itemFreeSlots,
     resources: (setup && setup.resources) || {},
+    blood: setup && setup.blood,
     rings: (setup && setup.rings) || {},
     items: (setup && setup.items) || {},
     summonDefs: (setup && setup.summonDefs) || [],

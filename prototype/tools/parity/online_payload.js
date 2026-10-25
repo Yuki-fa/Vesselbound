@@ -48,6 +48,8 @@ for (const m of buildFn.matchAll(/([A-Za-z_][\w$]*)\s*:/g)) sentFields.add(m[1])
 
 // 送らなくてよいもの。**理由を必ず書くこと。**
 const ALLOW_MISSING = {
+  _paladinRingApplied: 'コアが戦闘内で作る常時HP倍率の適用印。開戦前の編成には持たせず、戦闘のsnapshotに保存する',
+  _keywordEffectsDisabled: '武器破壊の攻撃中だけコアが持つ状態。攻撃終了時に必ず取り除く',
   _copyFrame: '2026-10-20：コピー（ツインデビル等）の枠を決める見た目だけの印。戦闘中にコアがコピーを作る時に付け、編成の入力には無い（両陣営ともコアが同じく付ける）',
   _runLevelsApplied: '2026-10-18利用者指定：PvEランレベルの二重適用防止。オンラインは全レベル1で、この印を生成・送信しない（送受信形式を維持）',
   side: '陣営は sides.p1 / sides.p2 の位置で決まる',

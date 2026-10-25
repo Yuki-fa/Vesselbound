@@ -438,7 +438,7 @@ function audit() {
     const st = core.createBattleState({
       sides: { p1: { units: [battleUnit('A', 'p1', 0, 3, kws)] }, p2: { units: p2units } },
       resources: { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } },
-      rings: { p1: [{ name: '神速の指輪' }], p2: [] },   // 先攻を固定して1手番だけ見る
+      rings: { p1: [{ name: '神速の指輪', desc: sheetData.sheetRows('ring').find(r => r['No.'] === 'R031')['効果'] }], p2: [] },   // 現行本文で先攻を固定して1手番だけ見る
     });
     const evs = [];
     core.runBattleCore(st, createSeededRng(5), { onEvent: e => evs.push(e), turnLimit: 1 });

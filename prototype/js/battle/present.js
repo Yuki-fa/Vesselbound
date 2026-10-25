@@ -1588,7 +1588,7 @@ const PRESENT_ACTION_BANNER_ENCHANT_BY_REASON = {
   evil_eye: 'E018', march_song: 'E068', summon_song_buff: 'E068', glory_song: 'E069', revenge_song: 'E070',
 };
 const PRESENT_ACTION_BANNER_RING_BY_REASON = {
-  paladin_ring: 'R019', speed_ring: 'R031', ring_injury_hp: 'R015', magic_ring: 'R013',
+  pain_ring: 'R012', paladin_ring: 'R019', speed_ring: 'R031', ring_injury_hp: 'R015', magic_ring: 'R013',
   seal_breaker_ring: 'R035', lucky_ring: 'R024', patience_ring: 'R040', revival_ring: 'R018',
   light_ring: 'R022',
   summoner_ring: 'R034', rainbow_ring: 'R032',

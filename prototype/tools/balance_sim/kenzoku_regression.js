@@ -149,12 +149,13 @@ function runCoreChecks() {
         card('ナーガ', 'naga', {}, merged), plain('initial-reviver', { atk: 12, hp: 20, maxHp: 20, keywords: ['復活'] })],
       { rings: { [side]: [ring('光の指輪'), ring('召喚師の指輪')] } });
       const naga = buffSpec('ナーガ', merged), phantom = buffSpec('ファントム', merged), eidolonBuff = buffSpec('エイドロン', merged);
-      const ringStats = ringBuff(), shield = Number(ring('光の指輪').desc.match(/結界(\d+)/)[1]);
+      const ringStats = ringBuff(), shield = 0 /* 2026-10-26：光は結界付与から貫通へ改訂 */;
       const summonExpected = (n, buff = { atk: 0, hp: 0 }) => [10 + ringStats[0] + naga.atk * naga.scale * n + buff.atk,
         20 + ringStats[1] + naga.hp * naga.scale * n + buff.hp, shield];
       const specimen = { name: '検査用の召喚体', atk: 10, hp: 20, maxHp: 20, keywords: ['復活'] };
       const live = core.coreSummonUnit(h.state, side, specimen, h.emit);
       const revived = core.coreSummonUnit(h.state, side, specimen, h.emit);
+      assert.ok(core.coreUnitHasKeyword(live, '貫通'));
       assert.deepEqual([live.atk, live.hp, live.shield], summonExpected(2), '後続の召喚時に既存の眷属にもナーガの修正が乗る');
       assert.deepEqual([revived.atk, revived.hp], summonExpected(2).slice(0, 2), 'ナーガの召喚累計');
       const initial = h.state.units[side].find(u => u.id === 'initial-reviver');
@@ -263,9 +264,10 @@ function runCoreChecks() {
       Math.max(1, Math.floor(child._baseMaxHp / 2)) + 2 + ringBuff()[1]];
     internal.coreSilenceUnit(child); child.hp = 0;
     assert.equal(core.coreTryRevive(child, h.state, h.emit), 'revival_ring');
-    assert.deepEqual([child.atk, child.hp, child.shield], [...expected, 1], '指輪復活は本体の半分＋常時修正1回／光の結界');
+    assert.deepEqual([child.atk, child.hp, child.shield], [...expected, 0], '指輪復活は本体の半分＋常時修正1回／光は結界を付けない');
     assert.equal(isKenzoku(child), true, '復活の指輪で眷属が消える');
     internal.coreUnsilenceUnit(child);
+    assert.ok(core.coreUnitHasKeyword(child,'貫通'));
     assert.equal(isKenzoku(child), true, '沈黙解除で眷属が消える');
     const before = child.atk;
     internal.coreAddSummonBuff(h.state, 'p1', 1, 2, h.emit);
@@ -286,8 +288,8 @@ function runCoreChecks() {
     child.hp = 0;
     assert.equal(core.coreTryRevive(child, h.state, h.emit), 'revival_ring');
     const spec = buffSpec('ナーガ', merged);
-    assert.deepEqual([child.atk, child.hp, child.shield], [base[0] + spec.atk + ringBuff()[0], base[1] + spec.hp + ringBuff()[1], 1],
-      '指輪復活の半減後にナーガ・召喚師を1回ずつ適用し、光の結界も戻す');
+    assert.deepEqual([child.atk, child.hp, child.shield], [base[0] + spec.atk + ringBuff()[0], base[1] + spec.hp + ringBuff()[1], 0],
+      '指輪復活の半減後にナーガ・召喚師を1回ずつ適用し、光の貫通も維持する');
     assert.equal(isKenzoku(child), true);
     const initial = h.state.units.p1.find(unit => unit.id === 'initial-ring-revival');
     initial.hp = 0;
@@ -458,7 +460,7 @@ async function runPveLegacyChecks() {
     const child = await _spawnAdhocAllyUnit('青スケルトン', 1, 1, side === 'p2');
     assert.ok(child && isKenzoku(child), `${side}: 旧召喚入口で眷属が欠落`);
     assert.deepEqual([child.atk, child.hp, child.shield], side === 'p1'
-      ? [base.atk+1+ringBuff()[0],base.hp+2+buffSpec('ナーガ',false).hp+ringBuff()[1],1]
+      ? [base.atk+1+ringBuff()[0],base.hp+2+buffSpec('ナーガ',false).hp+ringBuff()[1],0]
       : [base.atk+2,base.hp+buffSpec('ナーガ',false).hp,0], '旧入口で共通の眷属強化が不一致');
   }
   // 魔導板に同名カードがある分岐も、実際の生成・配置入口を通す。
@@ -466,7 +468,7 @@ async function runPveLegacyChecks() {
   global.kenzokuCheckBoard = { boardCards: Array.from({ length: 25 }, (_, i) => i === 1 ? { ...panel } : null) };
   const owned = await _spawnAdhocAllyUnit('青スケルトン', 1, 1, false);
   assert.ok(owned && isKenzoku(owned), '所持カード由来の旧召喚で眷属が欠落');
-  assert.deepEqual([owned.atk, owned.hp, owned.shield], [base.atk+1+ringBuff()[0],base.hp+2+2*buffSpec('ナーガ',false).hp+ringBuff()[1],1]);
+  assert.deepEqual([owned.atk, owned.hp, owned.shield], [base.atk+1+ringBuff()[0],base.hp+2+2*buffSpec('ナーガ',false).hp+ringBuff()[1],0]);
   const afterLegacy = _createPveCoreState();
   assert.deepEqual(afterLegacy._summonCount, { p1: 4, p2: 4 }, '旧入口の召喚累計が通常手番へ渡らない');
   assert.deepEqual(afterLegacy._summonBuff, state._summonBuff);

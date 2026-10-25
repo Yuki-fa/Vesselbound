@@ -35,7 +35,7 @@ const SaveRun=(()=>{
         _debugMode / _onlineMode 等）。再開時に前回のUI状態が復活してしまう。
      ══════════════════════════════════════════════════════════ */
   const fields={
-    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons','runLevels','gameSummonBuff','defeatedEnemies','runEffects','runEffectRerollsApplied','activationFormationSeq','ascensionLifeBonus'],
+    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','goldenRingRewards','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons','runLevels','gameSummonBuff','defeatedEnemies','runEffects','runEffectRerollsApplied','activationFormationSeq','ascensionLifeBonus'],
     progress:['floor','_wave','_waveStage','_debugStoryCycle','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_waveEnemySnapshotAtEnd','_waveEnemySnapshotBlood','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','_waveBosses','_arenaActive','_arenaRound','_arenaWins','runStats'],
     choices:['_shopRerollSeq','panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_blessingFlameUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards','_fiveSaints','_peddlerStock'],
     place:['_isPeddler','_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
@@ -303,6 +303,14 @@ const SaveRun=(()=>{
     const s=copy(save.state);
     initState();
     for(const group of Object.keys(fields)) Object.assign(G,s[group]);
+    // 指輪の旧セーブも現行シートの説明と計算を使う。「元に戻す」の控えも更新する。
+    const refreshRings = list => (list || []).map(ring => {
+      if (!ring) return ring;
+      const definition = RING_POOL.find(def => def.id === ring.id || (ring.no && def.no === ring.no) || def.name === ring.name);
+      return definition ? { ...ring, desc: definition.desc, ringEffectKey: definition.ringEffectKey } : ring;
+    });
+    G.rings = refreshRings(G.rings);
+    for (const snapshot of [G._rewardStartSnapshot, G._ringPhaseStartSnapshot]) if (snapshot && snapshot.rings) snapshot.rings = refreshRings(snapshot.rings);
     G.runLevels=runLevelNormalizeState(G.runLevels);
     G.defeatedEnemies=coreDefeatedEnemyFields(G.defeatedEnemies).defeatedEnemies;
     for(const name of setFields) G[name]=new Set(s.sets[name]);
