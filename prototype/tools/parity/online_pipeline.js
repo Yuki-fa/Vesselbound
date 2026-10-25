@@ -95,7 +95,7 @@ const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); 
       const out=simulateOnlineBattle({
         seed:12345,
         // スケルトンキングは攻撃時に召喚する＝戦闘中の召喚。
-        // 光の指輪「常時：味方の眷属は結界1を得る」はここでのみ効く
+        // 光の指輪「常時：味方の眷属は貫通を得る」（2026-10-26 改訂。旧：結界1）はここでのみ効く
         // （開戦時の召喚には付かないのが正しい）。
         sides:{p1:{units:[lich,wolf,king]},p2:{units:[{id:'e',name:'敵',atk:1,hp:400,maxHp:400,color:'黒',keywords:[],desc:''}]}},
         resources:{p1:{mana:9,gold:0},p2:{mana:0,gold:0}},
@@ -119,8 +119,8 @@ const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail }); 
     check('オンラインでリッチが召喚に反応してシャドウを出さない',
       summons.filter(n => n === 'シャドウ').length === 0,
       `召喚=${summons.join('→') || '（なし）'}`);
-    check('オンラインで光の指輪が召喚体へ結界を付ける',
-      Number(sim.光の指輪の結界) >= 1, `結界イベント=${sim.光の指輪の結界}件`);
+    check('オンラインで光の指輪が召喚体へ本文のキーワード（貫通）を付ける',
+      Number(sim.光の指輪の結界) >= 1, `付与イベント=${sim.光の指輪の結界}件`);
 
     const errs = (await b.consoleErrors()).filter(e => !/404|Failed to load resource/.test(e));
     check('コンソールに例外が無い', errs.length === 0, errs[0] || 'なし');
