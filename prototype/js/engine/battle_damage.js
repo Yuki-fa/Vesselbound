@@ -440,7 +440,19 @@ function dealDmgToAlly(unit, dmg, _fieldIdx, src, _suppressCounter, _skipRedirec
 // 同期経路からはfire-and-forgetで呼ばれる。最後の味方が倒れた時、解決を待たずに
 // ゲームオーバーへ進むと闇の炎などの死亡効果が画面に出ないまま終わるため、
 // 解決中の件数を数えてhandleBattleDefeat()側で待てるようにする。
+// 2026-10-26：所持金を配分した敵（applyEnemyGoldPlan）を奪った場合、二重払いを避けるため、
+// 奪ったキャラが死んだ時点で倒した時と同じ額を得る（終戦まで生き残ったら終戦時。_payStolenEnemyGoldAtEnd）。
+function _payStolenEnemyGold(unit){
+  if(!unit||!unit._stolen||!unit._goldPlanned||unit._enemyGoldPaid) return 0;
+  unit._enemyGoldPaid=true;
+  const gold=_rollEnemyGold(unit);
+  return gold>0&&typeof onGoldGained==='function'?onGoldGained(gold):0;
+}
+function _payStolenEnemyGoldAtEnd(){
+  (G.allies||[]).forEach(u=>{ if(u&&u.hp>0) _payStolenEnemyGold(u); });
+}
 async function processAllyDeath(unit){
+  _payStolenEnemyGold(unit);
   G._pendingDeathEffects=(G._pendingDeathEffects||0)+1;
   try{ return await _processAllyDeathInner(unit); }
   finally{ G._pendingDeathEffects=Math.max(0,(G._pendingDeathEffects||0)-1); }

@@ -2459,10 +2459,20 @@ function _ensureWaveShopStock(){
   G._waveShopStock[waveKey]=clone(stock);
   return clone(stock);
 }
+// 道具屋のある最初の村（ステージ1の、出発の村の次の街＝1-5）か。
+// ステージ1の先頭の街は出発の村（リーゼ。G._wave=0 で扱い、道具屋は無い）なので数えない。
+function _isFirstWaveVillage(){
+  if(Number(G&&G._wave)!==1) return false;
+  const route=_waveRouteForWave(1)||[];
+  const first=route.findIndex((node,i)=>node==='city'&&i>0);
+  return first>=0&&Number(G._waveStage)===first+1;
+}
 function _drawItemShopStock(){
   // **店の在庫であることを明示する。** 在庫は店へ入る前に作られるので、
   // G._isItemShop などの画面フラグはまだ立っていない。
-  const stock=(typeof drawItems==='function'?drawItems(3,undefined,{forShop:true}):[]).filter(Boolean);
+  // 最初の村ではレアリティ1・2のアイテムだけを売る（2026-10-26 利用者指定。再抽選も同じ）。
+  const opts={forShop:true,maxRarity:_isFirstWaveVillage()?2:0};
+  const stock=(typeof drawItems==='function'?drawItems(3,undefined,opts):[]).filter(Boolean);
   stock.forEach(it=>{it._buyPrice=_shopBuyPriceWithRings(_itemShopBuyPrice(it));});
   while(stock.length<3) stock.push(null);
   return stock;

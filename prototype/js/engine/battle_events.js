@@ -372,19 +372,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // 同じ配列を共有しているため、盤面の入れ替えは済んでいる。
       // 見せ方は present_events.js が唯一の実装（オンラインと同じ）。
       _recordBattleTrace('unit_stolen',{side:e.side,unitId:e.unitId,toSide:e.toSide||null});
-      // 2026-10-25：所持金を配分した敵（applyEnemyGoldPlan）は、奪っても倒した時と同じ額を得る。
-      // 得ずに戦闘が終わると、区間の合計が配分より少なくなる。死亡後に奪った体は支払い済み。
-      const _stolenKey=`${e.side}:${e.unitId}`;
-      const _stolenUnit=e.side==='p2'?(findLiveUnit('p1',e.unitId,findUnit('p1',e.unitId))||findLiveUnit('p2',e.unitId,findUnit('p2',e.unitId))):null;
-      if(_stolenUnit&&_stolenUnit._goldPlanned&&!_stolenUnit._enemyGoldPaid&&!fledGoldPaid.has(_stolenKey)
-        &&typeof _rollEnemyGold==='function'&&typeof onGoldGained==='function'){
-        fledGoldPaid.add(_stolenKey);_stolenUnit._enemyGoldPaid=true;
-        const _stolenGold=G._savedBattleReplaying?(e.pveRewardGold||0):_rollEnemyGold(_stolenUnit);
-        const _gained=_stolenGold>0?onGoldGained(_stolenGold):0;
-        if(_gained>0&&state.resources&&state.resources.p1){
-          state.resources.p1.gold=Math.max(0,(Number(state.resources.p1.gold)||0)+_gained);
-        }
-      }
       await presentUnitStolenEvent(e,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id))
           ||findLiveUnit(side==='p1'?'p2':'p1',id,findUnit(side==='p1'?'p2':'p1',id)),

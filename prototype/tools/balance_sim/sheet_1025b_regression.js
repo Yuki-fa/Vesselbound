@@ -292,11 +292,12 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'item' }), { kind: 'destroy_item_gold', gold: Number(value.match(/(\d+)G/)[1]) });
       assert.equal(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'reward' }), null);
     });
-    test('C080', '2つの区域を選んで交換、本文の減少値と下限', value => {
-      const source = { ...card('C080', enhanced), power: 7, life: 11 }, target = card('C006'), rewardTarget = card('E001'), rng = createSeededRng(1), m = value.match(/-(\d+)\/-(\d+)/);
+    // 2026-10-26：本文が「対象の魔導板のカードと、対象の報酬のカードを入れ替える。」に変わり、能力値は下がらない。
+    test('C080', '2つの区域を選んで交換、能力値は変わらない', value => {
+      const source = { ...card('C080', enhanced), power: 7, life: 11 }, target = card('C006'), rewardTarget = card('E001'), rng = createSeededRng(1);
+      assert.match(value, /対象の魔導板のカードと、対象の報酬のカードを入れ替える/);
       assert.equal(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board' }), null);
-      assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board', rewardTarget }), { kind: 'exchange_reward', atk: -Number(m[1]), hp: -Number(m[2]) });
-      assert.deepEqual(coreActivateBoardCard({ ...source, power: 0, life: 1 }, target, PANEL_POOL, rng, { targetZone: 'board', rewardTarget }), { kind: 'exchange_reward', atk: 0, hp: 0 });
+      assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board', rewardTarget }), { kind: 'exchange_reward', atk: 0, hp: 0 });
     });
     test('C116', '強化後は報酬区域だけ、通常は魔導板も、吸収量は本文の倍率', value => {
       const source = card('C116', enhanced), target = { ...card('C006'), power: 7, life: 11 }, rng = createSeededRng(1), mul = Number((value.match(/の(\d+)倍/) || [])[1]) || 1;
@@ -352,7 +353,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
         const source = G.mainBoard[1], outgoing = G.mainBoard[self ? 1 : 3]; source.power = 9; source.life = 13; source._permBasePower = 9; source._permBaseLife = 13; source._placeKey = 'source-key'; outgoing._placeKey = self ? 'source-key' : 'out-key';
         _rewCards = [{ ...card('C008'), _placeKey: 'reward-key' }]; chargeBoardCardActivations(); cardActivationClick(1); assert.equal(cardActivationRewardTargetable(_rewCards[0]), false); handleCardActivationTarget(self ? 1 : 3); assert.equal(cardActivationRewardTargetable(_rewCards[0]), true); handleCardActivationRewardTarget(0);
         assert.equal(G.mainBoard[self ? 1 : 3]._placeKey, 'reward-key'); assert.equal(_rewCards[0]._placeKey, self ? 'source-key' : 'out-key');
-        const holder = self ? _rewCards[0] : G.mainBoard[1], m = source.desc.match(/-(\d+)\/-(\d+)/); assert.deepEqual([holder.power, holder.life], [9 - Number(m[1]), 13 - Number(m[2])]); assert.deepEqual([holder._permBasePower, holder._permBaseLife], [holder.power, holder.life]); assert.equal(holder._activationReady, undefined); assert.equal(_pendingCardActivation, null);
+        const holder = self ? _rewCards[0] : G.mainBoard[1]; assert.deepEqual([holder.power, holder.life], [9, 13]); assert.deepEqual([holder._permBasePower, holder._permBaseLife], [holder.power, holder.life]); assert.equal(holder._activationReady, undefined); assert.equal(_pendingCardActivation, null);
       }
       initState(); G.phase = 'reward'; G.mainBoard.fill(null); const knight = G.mainBoard[1] = card('C116', true); G.mainBoard[3] = card('C006'); _rewCards = [card('C006')]; chargeBoardCardActivations(); cardActivationClick(1); handleCardActivationTarget(3); assert.ok(G.mainBoard[3]); assert.ok(knight._activationReady); handleCardActivationRewardTarget(0); assert.equal(_rewCards.length, 0); assert.equal(knight._activationReady, undefined);
     } finally { Object.assign(globalThis, old); _pendingCardActivation = null; _rewCards = []; }

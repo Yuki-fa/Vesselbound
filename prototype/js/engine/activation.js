@@ -3,6 +3,8 @@
 // 戦闘の後に手に入れたカードには印が無いので、次の戦闘が終わるまで使えない。使える画面は編成画面・魔導店・行商。
 // 起動できるカードは枠を緑に光らせ、右上に「起動可」のラベル（還魂のボタンと同じ形）を出す。発動はカードのクリック。
 let _pendingCardActivation = null;
+// チェンジリング（入れ替えの起動）の本文。2026-10-26 に「対象の魔導板のカードと、対象の報酬のカードを入れ替える。」へ変更（旧本文も受ける）。
+const CARD_ACTIVATION_EXCHANGE_RE = /対象の魔導板のカードと、(?:対象の)?報酬のカード/;
 const ACTIVATION_COLOR_FADE_MS = 400;
 const HELLKNIGHT_SLICE_MS = 260;
 const HELLKNIGHT_SLICE_FADE_MS = 500;
@@ -31,6 +33,39 @@ function cancelCardActivation() {
   _pendingCardActivation = null;
   if (typeof renderHandEditor === 'function') renderHandEditor();
   if (typeof renderRewCards === 'function') renderRewCards();
+  if (typeof _syncRewardProductionItems === 'function') _syncRewardProductionItems();
+}
+// ── 対象選び中の暗転（2026-10-26 利用者指定）────────────────────────────
+// カードを選ぶ起動では選べるカード以外を、アイテムを選ぶ起動（マモン）ではアイテム枠以外を暗くする。
+function _cardActivationTargetsItem() {
+  const pending = _pendingCardActivation;
+  return !!pending && /対象のアイテム/.test(coreUnitTriggerText(pending.card, '起動'));
+}
+function cardActivationBoardTargetable(card, index) {
+  const pending = _pendingCardActivation;
+  if (!pending || !card || _cardActivationTargetsItem()) return false;
+  const text = coreUnitTriggerText(pending.card, '起動');
+  if (CARD_ACTIVATION_EXCHANGE_RE.test(text)) {
+    return /キャラクター|エンチャント|強化/.test(card.category || '') && !(typeof _cardIsEngraved === 'function' && _cardIsEngraved(card));
+  }
+  // 判定だけなので乱数は進めない（変身先の抽選は候補の有無だけ見る）。
+  const probe = { pick: list => list[0], int: lo => lo, next: () => 0 };
+  return !!coreActivateBoardCard(pending.card, card, PANEL_POOL, probe, { targetZone: 'board' });
+}
+// 魔導板のカードを暗くするか。起動元のカードは押すと取り消せるので暗くしない。
+function cardActivationBoardDimmed(card, index) {
+  const pending = _pendingCardActivation;
+  if (!pending || !card) return false;
+  if (card === pending.card && index === pending.index) return false;
+  return !cardActivationBoardTargetable(card, index);
+}
+function cardActivationRewardDimmed(card) {
+  return !!_pendingCardActivation && !!card && !cardActivationRewardTargetable(card);
+}
+// アイテム枠を暗くするか。アイテムを選ぶ起動では、アイテムの入った枠だけ明るくする。
+function cardActivationItemSlotDimmed(item) {
+  if (!_pendingCardActivation) return false;
+  return !(_cardActivationTargetsItem() && item);
 }
 function wireCardActivation(element, card, index) {
   if (!cardActivationCanUse(card)) return;
@@ -46,15 +81,16 @@ function wireCardActivation(element, card, index) {
 // 戻り値 true：起動の操作として受け取った（他のクリック処理へ渡さない）。
 function cardActivationClick(index) {
   if (_pendingCardActivation) {
-    if (_pendingCardActivation.index === index && !/対象の魔導板のカードと、報酬のカード/.test(coreUnitTriggerText(_pendingCardActivation.card, '起動'))) { cancelCardActivation(); return true; }
+    if (_pendingCardActivation.index === index && !CARD_ACTIVATION_EXCHANGE_RE.test(coreUnitTriggerText(_pendingCardActivation.card, '起動'))) { cancelCardActivation(); return true; }
     return handleCardActivationTarget(index);
   }
   if (G._pendingItemUse || G._pendingPanelPlacement) return false;
   const card = _mainBoardCards()[index];
   if (!cardActivationCanUse(card)) return false;
   _pendingCardActivation = { card, index, key: cardActivationVisitKey() };
-  // 報酬枠のカードも対象の印を付け直す（破壊の起動）。
+  // 報酬枠のカードも対象の印を付け直す（破壊の起動）。アイテム枠も暗転を付け直す。
   renderHandEditor(); renderRewCards();
+  if (typeof _syncRewardProductionItems === 'function') _syncRewardProductionItems();
   return true;
 }
 function handleCardActivationTarget(index) {
@@ -64,7 +100,7 @@ function handleCardActivationTarget(index) {
   const cards = _mainBoardCards(), source = pending.card, target = cards[index];
   if (cards[pending.index] !== source) { cancelCardActivation(); return true; }
   if (!target) return true;
-  if (/対象の魔導板のカードと、報酬のカード/.test(coreUnitTriggerText(source, '起動'))) {
+  if (CARD_ACTIVATION_EXCHANGE_RE.test(coreUnitTriggerText(source, '起動'))) {
     if (typeof _cardIsEngraved === 'function' && _cardIsEngraved(target)) return true;
     pending.targetIndex = index; pending.targetCard = target;
     renderHandEditor(); renderRewCards();
@@ -106,7 +142,7 @@ function cardActivationRewardTargetable(card) {
   if (!pending || !card) return false;
   if (card._npcCard || card._npcDeployOnly || card._questOfferCard || card._questTransportId || card._shopSalePending) return false;
   const text = coreUnitTriggerText(pending.card, '起動');
-  if (/対象の魔導板のカードと、報酬のカード/.test(text)) {
+  if (CARD_ACTIVATION_EXCHANGE_RE.test(text)) {
     if (!Number.isInteger(pending.targetIndex) || !/キャラクター|エンチャント|強化/.test(card.category || '')) return false;
     const board = _getPartyBoardUnit(), cards = _mainBoardCards();
     if (cards[pending.targetIndex] !== pending.targetCard) return false;
@@ -146,7 +182,7 @@ function handleCardActivationRewardTarget(rewIdx) {
   if (!cardActivationRewardTargetable(target)) return true;
   const rewEl = typeof document !== 'undefined' ? document.querySelector(`#reward-offer-row [data-merge-rew-idx="${rewIdx}"]`) : null;
   const quest = typeof questRequiredEntryOnBoard === 'function' ? questRequiredEntryOnBoard() : null;
-  if (/対象の魔導板のカードと、報酬のカード/.test(coreUnitTriggerText(source, '起動'))) {
+  if (CARD_ACTIVATION_EXCHANGE_RE.test(coreUnitTriggerText(source, '起動'))) {
     const result = coreActivateBoardCard(source, pending.targetCard, PANEL_POOL, coreMathRng,
       { targetZone: 'board', rewardTarget: target });
     if (!result || result.kind !== 'exchange_reward') return true;
@@ -156,9 +192,13 @@ function handleCardActivationRewardTarget(rewIdx) {
     const incoming = _exchangeShopCardCopy(target), outgoing = pending.targetCard;
     cards[pending.targetIndex] = incoming;
     _rewCards[rewIdx] = _exchangeShopCardCopy(outgoing);
-    // 本人が交換された場合も、報酬欄へ移った同じ個体に永久の減少を残す。
+    // 戦闘報酬では、報酬欄へ移したカードも報酬の1枚として扱う（2026-10-26 利用者指定）。
+    // 印が無いと無料の1枚とは別に取り戻せ、入れ替えと合わせて所持枚数が増えていた。
+    // 先に取った報酬を戻せば、その1枚の代わりに取り戻せる。
+    if (!G._isShop && G._rewardOnePickMode) _rewCards[rewIdx]._isOriginalReward = true;
+    // 本人が交換された場合も、報酬欄へ移った同じ個体に永久の減少を残す（旧本文のみ。新本文は能力値が変わらない）。
     const holder = outgoing === source ? _rewCards[rewIdx] : source;
-    persistBoardCharacterStats({ boardCards: [holder] }, 0, result.atk, result.hp);
+    if (result.atk || result.hp) persistBoardCharacterStats({ boardCards: [holder] }, 0, result.atk, result.hp);
     _syncUnitPanelEffectsAfterMove(_getPartyBoardUnit());
     if (typeof markCardAcquired === 'function') markCardAcquired(incoming);
     if (G._isShop && typeof _persistCurrentShopStock === 'function') _persistCurrentShopStock();

@@ -486,14 +486,14 @@ const SaveRun=(()=>{
     const setupIds=new Set(['p1','p2'].flatMap(side=>(initial.units[side]||[]).filter(Boolean).map(u=>u.id)));
     const emit=ev=>events.push(copy(ev));
     const rewardRng=createSeededRng(seed^0x47a21b),paid=new Set();
-    const frame=()=>{
+    const frame=(final=false)=>{
       let reward=0;
       // 撃破報酬は既存のPvE後始末と同じ入口で確定する。戦闘ルールはコアに置く。
       for(const ev of events.slice(from)){
-        // 2026-10-25：所持金を配分した敵は、奪っても倒した時と同じ額を得る（区間の合計を崩さない）。
-        if(ev.side==='p2'&&ev.type==='unit_stolen'&&!paid.has(ev.unitId)){
-          const unit=[...(state.units.p1||[]),...(state.units.p2||[])].find(u=>u&&u.id===ev.unitId);
-          if(unit&&unit._goldPlanned){ paid.add(ev.unitId);ev.pveRewardGold=_rollEnemyGold(unit,rewardRng);reward+=goldIncomeAmount(ev.pveRewardGold); }
+        // 2026-10-26：所持金を配分した敵を奪った場合は、奪ったキャラが死んだ時点で倒した時と同じ額を得る（二重払いを避ける）。
+        if(ev.side==='p1'&&ev.type==='death'&&!paid.has(ev.unitId)){
+          const unit=(state.units.p1||[]).find(u=>u&&u.id===ev.unitId);
+          if(unit&&unit._stolen&&unit._goldPlanned&&unit.hp<=0){ paid.add(ev.unitId);ev.pveRewardGold=_rollEnemyGold(unit,rewardRng);reward+=goldIncomeAmount(ev.pveRewardGold); }
           continue;
         }
         if(ev.side!=='p2'||!['death','fled'].includes(ev.type)||paid.has(ev.unitId)) continue;
@@ -501,6 +501,11 @@ const SaveRun=(()=>{
         if(!unit||unit.hp>0) continue;
         paid.add(ev.unitId);ev.pveRewardGold=_rollEnemyGold(unit,rewardRng);
         reward+=goldIncomeAmount(ev.pveRewardGold);
+      }
+      // 終戦まで生き残った奪取キャラは、終戦時に死亡扱いで得る（死亡演出は出さない。所持金は最後の状態で反映される）。
+      if(final) for(const unit of state.units.p1||[]){
+        if(!unit||!unit._stolen||!unit._goldPlanned||unit.hp<=0||paid.has(unit.id)) continue;
+        paid.add(unit.id);reward+=goldIncomeAmount(_rollEnemyGold(unit,rewardRng));
       }
       frames.push({from,to:events.length,state:snapshotCore(state,setupIds)});from=events.length;
       state.resources.p1.gold+=reward;
@@ -512,7 +517,7 @@ const SaveRun=(()=>{
     while(!runner.result&&state.turn<BATTLE_CORE_TURN_LIMIT){
       const stop=runner.step({deferCompact:true});frame();runner.compact();if(stop) break;
     }
-    const result=runner.finish();frame();
+    const result=runner.finish();frame(true);
     // **setup にカード・敵・アイテムの定義一覧（summonDefs／itemDefs、約200KB）を保存しない。**
     // 戦闘の計算にだけ使い、読み込み（installSetup）では使わない。
     const {summonDefs,itemDefs,...setup}=initial;
@@ -653,6 +658,7 @@ const SaveRun=(()=>{
     if(side==='p1'){
       G.battleCounters.deaths++;
       if(G.runStats) G.runStats.allyDeaths++;
+      if(event.pveRewardGold>0) onGoldGained(event.pveRewardGold);
     }else{
       G._enemyDeathsThisBattle=(G._enemyDeathsThisBattle||0)+1;
       if(G.runStats) G.runStats.enemyKills++;

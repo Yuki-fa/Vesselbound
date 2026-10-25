@@ -2597,6 +2597,7 @@ function onBattleStart(){
 
 async function _applyCoreBattleEndEffectsLive(){
   if(typeof SaveRun!=='undefined'&&SaveRun.applyEnd({units:{p1:G.allies,p2:G.enemies}})) return;
+  if(typeof _payStolenEnemyGoldAtEnd==='function') _payStolenEnemyGoldAtEnd();
   _recordBattleTrace('battle_end_dispatch_start',{phase:G.phase,gold:Number(G.gold)||0,mana:Number(_ensureMana())||0});
   const state={
     units:{p1:G.allies||[],p2:G.enemies||[]},

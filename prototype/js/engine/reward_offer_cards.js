@@ -240,6 +240,8 @@ function _mkRewDiv(card, onBuy, rewIdx){
   if(rewIdx!=null&&typeof cardActivationRewardTargetable==='function'&&cardActivationRewardTargetable(card)){
     div.classList.add('card-activation-target');
     div.onclick=e=>{ e.stopPropagation(); handleCardActivationRewardTarget(rewIdx); };
+  }else if(rewIdx!=null&&typeof cardActivationRewardDimmed==='function'&&cardActivationRewardDimmed(card)){
+    div.classList.add('activation-target-disabled');
   }
   _appendLibraryLoanBadge(div);
   if(rewIdx!=null){

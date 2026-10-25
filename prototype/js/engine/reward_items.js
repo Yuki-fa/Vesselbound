@@ -22,6 +22,7 @@ function _syncRewardProductionItems(){
     if(path) slot.style.setProperty('--item-art',`url("${path}")`);
     else slot.style.removeProperty('--item-art');
     slot._rewardItem=item;
+    slot.classList.toggle('activation-target-disabled',typeof cardActivationItemSlotDimmed==='function'&&cardActivationItemSlotDimmed(item));
     slot.classList.remove('rarity-1','rarity-2','rarity-3','rarity-4','rarity-5');
     const preview=item?[item.name,_previewRarityLine(item),item.desc||''].filter(Boolean).join('\n'):'';
     if(preview){

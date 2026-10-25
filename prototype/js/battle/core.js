@@ -490,6 +490,11 @@ function coreActivateBoardCard(source, target, definitions, rng, context = {}) {
   const itemGold = text.match(/対象のアイテムを破壊し、(\d+)Gを得る/);
   if (itemGold) return context.targetZone === 'item' && (target.category === 'アイテム' || target.type === 'consumable' || target.kind === 'item')
     ? { kind: 'destroy_item_gold', gold: Number(itemGold[1]) } : null;
+  // チェンジリング：2026-10-26 から「対象の魔導板のカードと、対象の報酬のカードを入れ替える。」（能力値は下がらない）。
+  if (/対象の魔導板のカードと、対象の報酬のカードを入れ替える/.test(text)) return context.targetZone === 'board'
+    && /^(?:キャラクター|エンチャント|強化)$/.test(target.category || '')
+    && context.rewardTarget && /^(?:キャラクター|エンチャント|強化)$/.test(context.rewardTarget.category || '')
+    ? { kind: 'exchange_reward', atk: 0, hp: 0 } : null;
   const exchange = text.match(/対象の魔導板のカードと、報酬のカードを入れ替えた後、このキャラクターは-(\d+)\/-(\d+)を得る/);
   if (exchange) return context.targetZone === 'board' && /^(?:キャラクター|エンチャント|強化)$/.test(target.category || '')
     && context.rewardTarget && /^(?:キャラクター|エンチャント|強化)$/.test(context.rewardTarget.category || '')
