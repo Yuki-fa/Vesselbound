@@ -17,7 +17,7 @@ const sheet = require('../balance_sim/sheet_data');
 const scripts = ['assets.js', 'js/engine/constants.js', 'js/data/floors.js', 'js/data/events.js',
   'js/data/local_xlsx_data.js', 'js/data/loader.js', 'js/data/units.js', 'js/engine/state.js',
   'js/engine/pool.js', 'js/battle/core.js', 'js/battle/formation.js', 'js/online/protocol.js', 'js/battle/present.js',
-  'js/battle/present_events.js', 'js/engine/battle.js','js/engine/battle_damage.js','js/engine/battle_panel_formation.js','js/engine/battle_intro.js', 'js/engine/battle_debug.js', 'js/engine/battle_events.js', 'js/engine/render.js','js/engine/render_death_effects.js','js/engine/render_card_display.js','js/engine/render_attack_motion.js','js/engine/render_tooltip_helpers.js', 'js/engine/blessing_flame.js', 'js/engine/map.js','js/engine/quest.js','js/engine/quest_event_flow.js', 'js/engine/run_levels.js',
+  'js/battle/present_events.js', 'js/engine/battle.js','js/engine/battle_damage.js','js/engine/battle_panel_formation.js','js/engine/battle_intro.js', 'js/engine/battle_debug.js', 'js/engine/battle_events.js', 'js/engine/render.js','js/engine/render_death_effects.js','js/engine/render_card_display.js','js/engine/render_attack_motion.js','js/engine/render_tooltip_helpers.js', 'js/engine/blessing_flame.js', 'js/engine/map.js','js/engine/map_facility_dialogue.js','js/engine/quest.js','js/engine/quest_event_flow.js', 'js/engine/run_levels.js',
   'js/engine/action_banner.js', 'js/engine/reward.js','js/engine/reward_offer_cards.js','js/engine/reward_board_editor.js', 'js/engine/reward_drag.js', 'js/engine/reward_debug.js', 'js/engine/reward_items.js',
   ...RUNTIME_SCRIPTS, 'js/engine/battle_fx.js'];
 global.setTimeout = () => 0;
