@@ -5,7 +5,7 @@ const {validatedBundle}=require('../vfx_export');
 const {harness,traceQuality}=require('./vfx_data_regression');
 const ROOT=path.resolve(__dirname,'../..');
 const read=file=>{
-  const files={"js/engine/render.js":["js/engine/render.js","js/engine/render_card_display.js","js/engine/render_attack_motion.js","js/engine/render_tooltip_helpers.js"]};
+  const files={"js/engine/render.js":["js/engine/render.js","js/engine/render_death_effects.js","js/engine/render_card_display.js","js/engine/render_attack_motion.js","js/engine/render_tooltip_helpers.js"]};
   return (files[file]||[file]).map(rel=>fs.readFileSync(path.join(ROOT,rel),'utf8')).join('\n');
 };
 const manifest=JSON.parse(read('tools/vfx_capture/webp_manifest.json'));
