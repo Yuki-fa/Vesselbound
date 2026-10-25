@@ -854,4 +854,3 @@ function playArassusAttackMotion(attacker,target,isEnemySide,onStop){
     returnDuration:420,
   });
 }
-

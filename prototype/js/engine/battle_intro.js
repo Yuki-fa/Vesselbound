@@ -1186,4 +1186,3 @@ function _resetStartingBattleAllies(carryBattle){
   }
 
 }
-

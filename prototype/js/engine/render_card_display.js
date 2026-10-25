@@ -791,4 +791,3 @@ function mkCardEl(card,_idx,_ctx){
   div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}<div class="card-art"></div>`;
   return div;
 }
-

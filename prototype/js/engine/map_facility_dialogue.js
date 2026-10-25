@@ -383,4 +383,3 @@ function _hideFacilityGreetingScene(){
   G._facilityGreetingKey=null;
   document.body.classList.remove('facility-greeting-active');
 }
-

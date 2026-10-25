@@ -604,49 +604,6 @@ function _applyCoreKeywordOnHitPve(attacker, target, damageDone, targetPreHp, sk
 
 // ── 敵へのダメージ処理 ──────────────────────────
 
-async function dealDmgToEnemy(e,dmg,eIdx,srcUnit){
-  if(!e||e.hp<=0||_isSealed(e)) return;
-  if(dmg>0){
-    const redirected=_redirectToBodyguard(G.enemies, e, 'bad');
-    if(redirected!==e){
-      e=redirected;
-      eIdx=G.enemies.indexOf(e);
-    }
-  }
-  // 結界・強靭の判定はコアが持つ。
-  // ※この経路だけは従来から弱体を加算していないため、skipWeaken でその挙動を保つ。
-  //   （旧ダメージ経路側は弱体を加算する。仕様として揃えるかは要判断）
-  const _resE=coreResolveIncomingDamage(e,dmg,{skipWeaken:true});
-  if(_resE.blocked&&_resE.reason==='shield'){
-    if(_resE.consumesShield) e.shield=Math.max(0,(e.shield||0)-1);
-    if(typeof playSfx==='function') playSfx(getKeywordEffectSfxKey('結界'),{group:'combat'});
-    onEnemyShieldLost(e);
-    return;
-  }
-  const actualDmgToEnemy=_resE.amount;
-  const _preHpEnemy=e.hp;
-  e._lastDamageSource=srcUnit||e._lastDamageSource||null;
-  e._preDeathSnapshot=_battleUnitSnapshot(e,_preHpEnemy);
-  e.hp=Math.max(0,e.hp-actualDmgToEnemy);
-  if(typeof updateUnitDamageUi==='function') updateUnitDamageUi(e,'enemy');
-  if(actualDmgToEnemy>0&&typeof playHitVfx==='function') playHitVfx('enemy',e,actualDmgToEnemy);
-  if(e.instadead&&dmg>0) e.hp=0;
-  if(dmg>0){
-    G.battleCounters.damage=(G.battleCounters.damage||0)+1;
-    // 生命吸収等は対象を倒した場合も発動するため、e.hp>0では絞り込まない。
-    // 呪詛（対象側キーワードで攻撃者を即死させる）の判定のため、srcUnit自身の
-    // キーワード有無に関わらず呼び出す。
-    if(srcUnit){
-      _applyCoreKeywordOnHitPve(srcUnit,e,actualDmgToEnemy,_preHpEnemy);
-    }
-  }
-  if(e.hp<=0){
-    _delayDeathCompact(850);
-    // 死亡効果による敵召喚が完了するまで、全滅判定より先に待つ。
-    await processEnemyDeath(e,eIdx);
-  }
-}
-
 async function processEnemyDeath(e,eIdx){
   G._pendingDeathEffects=(G._pendingDeathEffects||0)+1;
   try{ return await _processEnemyDeathInner(e,eIdx); }
@@ -687,4 +644,3 @@ async function _processEnemyDeathInner(e,eIdx){
   if(!G._resolvingDamageBatchDeaths) compactBattleUnitsAfterDeath();
   updateHUD();
 }
-

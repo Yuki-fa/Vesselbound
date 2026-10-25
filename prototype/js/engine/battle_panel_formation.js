@@ -1280,4 +1280,3 @@ async function _finishNewPanelBattleStartEffects(){
   await _resolveSeals();
   _recomputeDynamicPanelStats();
 }
-

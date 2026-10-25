@@ -777,14 +777,6 @@ function _hasRingNamed(name){
 function _ringCount(name){
   return _effectiveRings().filter(r=>r&&r.name===name).length;
 }
-// 加護X：敵から与えられる状態異常をX回無効化する。
-// 加護の指輪装備時は、従来どおり味方全員を無制限に保護する。
-function _isAilmentImmune(unit){
-  // 指輪による無条件保護だけがG依存。加護Xの残り回数の消費はコアが持つ。
-  if((G.allies||[]).includes(unit)&&_hasRingNamed('加護の指輪')) return true;
-  return coreConsumeWardCharge(unit);
-}
-
 function _tryNecromancerRingRevive(){
   // コア駆動の戦闘では復活（指輪・キーワード）は coreTryRevive() が解決する。
   // ここで別の復活を足すと、コアが知らない蘇生が起きて盤面が食い違う。
@@ -2350,25 +2342,6 @@ function _unitHasEffectName(unit, name){
 
 
 function _attackDamageValue(unit){ return coreAttackDamage(unit); }
-
-function _battleUnitSnapshot(unit, hpOverride){
-  if(!unit) return null;
-  return {
-    name:unit.name,
-    atk:Math.max(0,Number(unit.atk)||0),
-    baseAtk:Math.max(0,Number(unit.baseAtk??unit.atk)||0),
-    hp:Math.max(0,Number(hpOverride??unit.hp)||0),
-    maxHp:Math.max(1,Number(unit.maxHp??unit.hp)||1),
-    color:unit.color||'',
-    race:unit.race||'',
-    desc:unit.desc||'',
-    keywords:[...(unit.keywords||[])],
-    art:unit.art||'',
-    artCode:unit.artCode||'',
-    imageNo:unit.imageNo||'',
-    no:unit.no||''
-  };
-}
 
 // 攻撃モーション中に画面で動いている複製カードの位置。
 // **効果の演出（VFX）はここを発生源にする。** 攻撃で少し動いた地点から

@@ -537,4 +537,3 @@ function _discardBoardCardForRingOffer(idx,card){
   renderRewCards();
   renderMoveSlotsInEnemy();
 }
-

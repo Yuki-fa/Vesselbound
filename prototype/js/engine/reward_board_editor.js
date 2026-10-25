@@ -1103,4 +1103,3 @@ function discardHeCard(arrName, idx){
   }
   renderHandEditor();
 }
-
