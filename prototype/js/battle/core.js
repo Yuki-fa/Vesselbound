@@ -476,6 +476,9 @@ function coreAscensionSpec(card) {
   const text=coreUnitTriggerText(card,'常時'),result={};
   const life=text.match(/この(?:カード|キャラクター)を還魂すると、最大ライフが(\d+)増える。?[（(](\d+)以上にはならない/);
   if(life) { result.life=Number(life[1]); result.lifeCap=Number(life[2])-1; }
+  // 精霊の魂（2026-10-26）：「このカードを還魂すると、ライフがN回復する。」
+  const heal=text.match(/この(?:カード|キャラクター)を還魂すると、ライフが(\d+)回復する/);
+  if(heal) result.heal=Number(heal[1]);
   const gold=text.match(/この(?:カード|キャラクター)を還魂すると、(\d+)Gを獲得する/);
   if(gold) result.gold=Number(gold[1]);
   const item=text.match(/この(?:カード|キャラクター)を還魂すると、ランダムなアイテムを(\d+)つ獲得する/);
