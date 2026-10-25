@@ -18,7 +18,7 @@ const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 const core = read('js/battle/core.js');
 const board = read('js/online/board.js');
-const battle = [read('js/engine/battle.js'), read('js/engine/battle_panel_formation.js'), read('js/engine/battle_intro.js'), read('js/engine/battle_events.js')].join('\n');
+const battle = [read('js/engine/battle.js'), read('js/engine/battle_damage.js'), read('js/engine/battle_panel_formation.js'), read('js/engine/battle_intro.js'), read('js/engine/battle_events.js')].join('\n');
 const protocol = read('js/online/protocol.js');
 
 const emitted = [...new Set([...core.matchAll(/emit\(\{\s*type:\s*'([a-z_]+)'/g)].map(m => m[1]))].sort();

@@ -127,6 +127,7 @@ function runStatChangeDeathOfflineOnlineScenario() {
 function main() {
   const pveBattle = [
     '../../js/engine/battle.js',
+    '../../js/engine/battle_damage.js',
     '../../js/engine/battle_panel_formation.js',
     '../../js/engine/battle_intro.js',
     '../../js/engine/battle_events.js',
