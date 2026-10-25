@@ -129,7 +129,7 @@ function motionHarness() {
     G: { phase: 'battle', allies: [], enemies: [] }, _vfxClipLayer: () => body,
   };
   ctx.window = ctx; vm.createContext(ctx);
-  for (const f of ['js/battle/present.js', ...require('../vfx_export').RUNTIME_SCRIPTS, 'js/engine/battle_fx.js', 'js/engine/render.js','js/engine/render_attack_motion.js','js/engine/render_tooltip_helpers.js', 'js/battle/present_events.js'])
+  for (const f of ['js/battle/present.js', ...require('../vfx_export').RUNTIME_SCRIPTS, 'js/engine/battle_fx.js', 'js/engine/render.js','js/engine/render_card_display.js','js/engine/render_attack_motion.js','js/engine/render_tooltip_helpers.js', 'js/battle/present_events.js'])
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
   Object.assign(ctx, { _gameScale: () => 1, _getAttackTargetRect: e => e.getBoundingClientRect(),
     getCurrentUnitSlot: (_side, u) => slots.get(u.id), _syncEffectFlashWithVfx() {}, renderAll() {},
