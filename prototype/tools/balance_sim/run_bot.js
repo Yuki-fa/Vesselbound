@@ -389,7 +389,7 @@ async function main(args=process.argv.slice(2)) {
   } finally {fs.closeSync(fd);}
   const elapsedMs=wall.now()-start;
   const files=['js/engine/main.js','js/engine/map.js','js/engine/pool.js','js/engine/enemy.js','js/engine/reward.js','js/engine/reward_drag.js','js/engine/reward_debug.js',
-    'js/engine/reward_items.js','js/engine/render.js','js/engine/battle.js','js/engine/battle_debug.js','js/engine/tower_boon.js','js/engine/run_levels.js','js/engine/peddler.js','js/battle/core.js','js/battle/formation.js','js/save/run_save.js','js/data/local_xlsx_data.js'];
+    'js/engine/reward_items.js','js/engine/render.js','js/engine/render_tooltip_helpers.js','js/engine/battle.js','js/engine/battle_debug.js','js/engine/tower_boon.js','js/engine/run_levels.js','js/engine/peddler.js','js/battle/core.js','js/battle/formation.js','js/save/run_save.js','js/data/local_xlsx_data.js'];
   const meta={schemaVersion:SCHEMA_VERSION,botVersion:11,trial:{panelMerge:PANEL_MERGE_TRIAL.enabled,exchangeItemSale:false},policyCounts:counts,policyElapsedMs:policyElapsed,lookahead:{...lookahead.DEFAULTS},planner:planner.weights(opts.plannerStage,opts.plannerWeightsFile?JSON.parse(fs.readFileSync(opts.plannerWeightsFile,'utf8')).weights:undefined),horizon:horizon.LIMITS,options:{...opts,overrideFile:opts.overrideFile?path.basename(opts.overrideFile):null},
     runLevels:{config:clone(RUN_LEVEL_CONFIG),settings:boons.SETTINGS,limits:boons.LIMITS,shopRerollCost:SHOP_REROLL_COST},
     completed,elapsedMs,msPerRun:elapsedMs/completed,policies:Object.fromEntries(names.map(n=>[n,policies[n].description])),

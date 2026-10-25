@@ -162,7 +162,7 @@ async function placements(snapshot,form){
   },{state:snapshot,seed:1});
 }
 function sourceHashes(){
-  const files=['js/battle/core.js','js/battle/formation.js','js/engine/battle.js','js/engine/battle_debug.js','js/engine/enemy.js','js/engine/main.js','js/engine/pool.js','js/engine/reward.js','js/engine/reward_drag.js','js/engine/reward_debug.js','js/engine/map.js','js/engine/tower_boon.js','js/engine/run_levels.js','js/save/run_save.js','js/data/loader.js','js/data/local_xlsx_data.js'];
+  const files=['js/battle/core.js','js/battle/formation.js','js/engine/battle.js','js/engine/render.js','js/engine/render_tooltip_helpers.js','js/engine/battle_debug.js','js/engine/enemy.js','js/engine/main.js','js/engine/pool.js','js/engine/reward.js','js/engine/reward_drag.js','js/engine/reward_debug.js','js/engine/map.js','js/engine/tower_boon.js','js/engine/run_levels.js','js/save/run_save.js','js/data/loader.js','js/data/local_xlsx_data.js'];
   return Object.fromEntries(files.map(f=>[f,sha(source(f))]));
 }
 function toolHashes(){return Object.fromEntries(['fixed_engine.js','fixed_compare.js','fixed_worker.js','fixed_pool.js','fixed_boards.js'].map(f=>[f,sha(fs.readFileSync(path.join(__dirname,f),'utf8'))]));}
