@@ -1534,6 +1534,68 @@ function coreIsAlive(u) { return !!u && u.hp > 0; }
 // 行動できるユニット（封印中は行動しない）。判定は coreCanAct が唯一の実装。
 function coreLivingUnits(units) { return (units || []).filter(coreCanAct); }
 
+// ラン／対戦を跨いで使う撃破候補。戦闘中の体や能力修正・報酬額は保持しない。
+// 定義表がある体はそこから引くので、同種を別の階層・能力値で倒しても1候補になる。
+function coreDefeatedEnemyDefinition(unit, definitions) {
+  const original = unit && unit._silenceStash ? { ...unit, ...unit._silenceStash } : unit;
+  const defs = Array.isArray(definitions) ? definitions : [];
+  const name = value => String(value || '').replace(/^[赤青緑黄紫黒]/, '');
+  let source = defs.find(def => def && original && original.no && String(def.no || '') === String(original.no))
+    || defs.find(def => def && original && name(def.name) === name(original.name)
+      && String(def.color || '') === String(original.color || '')) || original;
+  if (!source || !source.name) return null;
+  if (source !== original && (original._merged || original._tripleMerged) && source.mergedForm) {
+    source = { ...source };
+    for (const [key, value] of Object.entries(source.mergedForm)) {
+      if (value == null) delete source[key]; else source[key] = value;
+    }
+  }
+  const result = {};
+  for (const key of ['no', 'name', 'art', 'artCode', 'imageNo', 'color', 'race', 'desc', 'sfxType', 'fxCode']) {
+    result[key] = String(source[key] || '');
+  }
+  // 復活／根性などは定義上の並びにも意味があるので、並べ替えない。
+  result.keywords = [...new Set((source.keywords || []).map(String).filter(key => key !== 'ボス' && key !== 'エリート'))];
+  // 本文から取り込まれた固有効果の入力も残す。魔導板・戦闘中の付与や状態異常は持ち込まない。
+  for (const key of ['manaOnAttack', 'manaOnInjury', 'manaOnDeath', 'goldOnBattleEnd', 'goldOnDeath',
+    'randomItemCost', 'manaCost', 'weakenOnHit']) result[key] = Math.max(0, Number(source[key]) || 0);
+  result.randomItemOnBattleEnd = !!source.randomItemOnBattleEnd;
+  result.manaRepeat = !!source.manaRepeat;
+  result.manaThresholdDesc = String(source.manaThresholdDesc || source._manaThresholdDesc || '');
+  result.manaThresholdNo = String(source.manaThresholdNo || source._manaThresholdNo || '');
+  for (const key of ['manaOrder', 'manaThresholdOrder']) {
+    const value = source[key] ?? source['_' + key];
+    if (value != null && Number.isFinite(Number(value))) result[key] = Number(value);
+  }
+  return result;
+}
+function coreDefeatedEnemyFields(history) {
+  const defeatedEnemies = { p1: [], p2: [] };
+  for (const side of BATTLE_CORE_SIDES) {
+    const seen = new Set();
+    for (const entry of history && history[side] || []) {
+      const definition = coreDefeatedEnemyDefinition(entry);
+      if (!definition) continue;
+      const key = JSON.stringify(definition);
+      if (!seen.has(key)) { seen.add(key); defeatedEnemies[side].push(definition); }
+    }
+  }
+  return { defeatedEnemies };
+}
+function coreRecordDefeatedEnemy(unit, state) {
+  if (!unit || unit._fled || unit._isObject || unit._isSoul || !BATTLE_CORE_SIDES.includes(unit.side)) return;
+  // 定義表が無い最小入力でも、復活の消費後を別種にしない。変身した体は別の定義。
+  const prior = (state.deadUnits || []).find(dead => dead.id === unit.id && dead.no === unit.no
+    && dead.name === unit.name && dead.desc === unit.desc);
+  const definition = coreDefeatedEnemyDefinition(prior || unit, state.summonDefs);
+  if (!definition) return;
+  if (!state.defeatedEnemies) Object.assign(state, coreDefeatedEnemyFields());
+  const side = unit.side === 'p1' ? 'p2' : 'p1';
+  const list = state.defeatedEnemies[side] || (state.defeatedEnemies[side] = []);
+  const key = JSON.stringify(definition);
+  if (!list.some(entry => JSON.stringify(entry) === key)) list.push(definition);
+}
+
 // 外へ出すユニット情報。演出側・保存側はこの形だけを見る。
 function coreUnitSnapshot(unit) {
   // 沈黙中の体も、外へは元の効果で出す（coreSilenceUnit）。
@@ -1620,6 +1682,7 @@ function coreUnitSnapshot(unit) {
 
 // 入力の複製・参照共有は受け口が決め、戦闘の足場はここだけで初期化する。
 function coreInitializeBattleState(state) {
+  if (!state.defeatedEnemies) Object.assign(state, coreDefeatedEnemyFields());
   BATTLE_CORE_SIDES.forEach(side => (state.units[side] || []).filter(Boolean).forEach(unit => {
     Object.assign(unit, coreApplyUnitRunLevels(unit, state.runLevels && state.runLevels[side]));
     // 結界の値を持たない体（保存された死亡体など）へ shield:0 を書き足さない。
@@ -1651,6 +1714,7 @@ function createBattleState(setup) {
   const frame = coreInitializeBattleState({ units });
   return {
     units,
+    ...coreDefeatedEnemyFields(setup && setup.defeatedEnemies),
     ...coreGameSummonBuffFields(setup && setup.gameSummonBuff),
     ...coreRunEffectFields(setup && setup.runEffects),
     ...(setup && setup.itemFreeSlots ? { itemFreeSlots: { ...setup.itemFreeSlots } } : {}),
@@ -2761,7 +2825,7 @@ function coreEnemySummonStats(source) {
 
 // 召喚の基礎値・眷属倍率。表示もここを呼び、ラン中の累積補正はこの後に掛ける。
 function coreSummonBaseStats(source, sourceUnit, side, spec, summonBoon) {
-  if (side === 'p2' && sourceUnit && !sourceUnit.boon && !summonBoon && !(spec && spec._revivedFromDead)) {
+  if (side === 'p2' && sourceUnit && !sourceUnit.boon && !summonBoon && !(spec && (spec._revivedFromDead || spec._fixedSummonStats))) {
     const enemyStats = coreEnemySummonStats(sourceUnit);
     source = { ...source, atk: enemyStats.atk, hp: enemyStats.hp, maxHp: enemyStats.hp };
   }
@@ -3001,7 +3065,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect, rng, ap
   const sourceUnit = [...(state.units.p1 || []), ...(state.units.p2 || [])].find(x => x && x.id === sourceId);
   const wanted = String(spec && spec.name || '').replace(/[“”＂]/g, '"');
   const defs = Array.isArray(state.summonDefs) ? state.summonDefs : [];
-  const def = defs.find(x => {
+  const def = !(spec && spec._fixedSummonStats) && defs.find(x => {
     if (!x) return false;
     const name = String(x.name || '').replace(/[“”＂]/g, '"');
     return name === wanted || `${x.color || ''}${name}` === wanted;
@@ -3040,6 +3104,7 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect, rng, ap
     name: String(source.name || '').replace(/^[赤青緑黄紫黒]/, ''), atk: Number(source.atk) || 0, hp: Number(source.hp) || 1, maxHp: Number(source.maxHp) || 1,
     color: source.color || '', lane: source.lane || 'front', race: source.race || '', keywords: source.keywords || [],
     no: source.no || source.artCode || '', art: source.art || '', sfxType: source.sfxType || source.attackSfx || '',
+    ...(spec && spec._fixedSummonStats ? { imageNo: source.imageNo || source.artCode || source.no } : {}),
     desc: source.desc || '', effectData: source.effectData, _panelSummoned: true,
     ...(source.boon ? { boon: { ...source.boon } } : {}),
     ...(source._runLevelsApplied ? { _runLevelsApplied: { ...source._runLevelsApplied } } : {}),
@@ -4964,6 +5029,8 @@ function coreTriggerManaOnInjury(unit, state, emit, rng, applyHit) {
 function coreTriggerDeath(unit, state, emit, rng, applyHit) {
   if (!unit || unit._fled || unit._coreDeathTriggered) return;
   unit._coreDeathTriggered = true;
+  // 血・死亡効果でマナ召喚が誘発する前に、今回倒れた敵も候補へ入れる。
+  coreRecordDefeatedEnemy(unit, state);
   state.blood = state.blood || { p1: 0, p2: 0 };
   coreGainBlood(state, unit.side, 1, null, emit, rng, applyHit);
   // 血の指輪：常時：キャラクターが死亡するたび、追加で血を得る。
@@ -6319,12 +6386,30 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
         };
         // 2026-10-12: 本文の反復は閾値1回ごとに効果全体を再実行する。
         const aimedForThreshold = new Set();
+        // エキドナの改訂本文。数は本文、反復は外側の共通マナ効果ループが処理する。
+        const defeatedSummonPattern = /^このゲーム中に倒したことがあるランダムな敵(?:(\d+)体)?を、?このキャラクターと同じATKとHPにして(?:(\d+)体)?(?:(\d+)回)?召喚する/;
+        const defeatedSummonNumbers = coreEffectNumbers({ desc: text }, null, defeatedSummonPattern, null);
+        // 召喚の観測で本人が強化されても、同じ発動・本文反復では発動時点の値を使う。
+        const defeatedSummonStats = defeatedSummonNumbers ? { atk: unit.atk, hp: unit.hp } : null;
         for (let textRun = 0; textRun < coreTextRepeatCount(text) * repeatCount; textRun++) {
         if (unit._fled) break;
         const rewardGrowth = { ...unit, desc: 'マナ：' + text, effectText: '', effect: '', _adjacentPanelEffectTexts: [], effectData: {} };
         // 外側が本文の反復を処理しているので、この1回分だけ渡す。
         rewardGrowth.desc = rewardGrowth.desc.replace(/(?:これ|この判定)を(?:(\d+)回|もう一度)繰り返す[。.]?\s*$/, '');
         coreApplyRewardGrowth(rewardGrowth, 'マナ', state, emit, rng, applyHit);
+        if (defeatedSummonNumbers) {
+          const numbers = defeatedSummonNumbers;
+          const count = Math.max(1, numbers[0] || numbers[1] || 1) * Math.max(1, numbers[2] || 1);
+          const { atk, hp } = defeatedSummonStats;
+          for (let n = 0; n < count; n++) {
+            const candidates = state.defeatedEnemies && state.defeatedEnemies[side] || [];
+            if (!candidates.length) break;
+            const definition = rng.pick(candidates);
+            coreSummonUnit(state, side, { ...definition, atk, hp, maxHp: hp,
+              boss: false, elite: false, _useEnemyVisualFrame: true, _fixedSummonStats: true,
+              placement: 'rightEdge' }, emit, unit.id, false, rng, applyHit);
+          }
+        }
         const summonShock = text.match(/^このゲーム中、味方の眷属は衝撃(\d+)を得る/);
         if (summonShock) coreAddSummonShock(state, side, Number(summonShock[1]), unit, emit);
         const injuryGrant = text.match(/^ランダムな味方に「(負傷：[^」]+)」を付与する/);
@@ -7306,6 +7391,7 @@ if (typeof window !== 'undefined') {
   window.coreUnitKeywords = coreUnitKeywords;
   window.coreUnitEffectText = coreUnitEffectText;
   window.coreGameSummonBuffFields = coreGameSummonBuffFields;
+  window.coreDefeatedEnemyFields = coreDefeatedEnemyFields;
   window.coreApplyDeathSummonGrantEvent = coreApplyDeathSummonGrantEvent;
   window.coreApplyInjuryGrantEvent = coreApplyInjuryGrantEvent;
   window.coreUnitTriggerText = coreUnitTriggerText;
@@ -7395,6 +7481,7 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     BATTLE_CORE_TURN_LIMIT, coreInitializeBattleState, createBattleState, runBattleCore, coreBattleStep, coreCheckUndyingRing,
+    coreDefeatedEnemyFields,
     coreLaneAttackCandidates, corePickAttacker, coreExtraAttackTotal,
     battleCoreFinalState, coreUnitSnapshot, createCoreUnit,
     coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced, coreGameSummonBuffFields, coreSummonBuffEventValues, coreApplyDeathSummonGrantEvent, coreApplyInjuryGrantEvent,
