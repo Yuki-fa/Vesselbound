@@ -31,6 +31,7 @@ function _syncCoreLifeToG(state){
 }
 function _syncCoreResourcesToG(state){
   if(!state) return;
+  if(state.defeatedEnemies) G.defeatedEnemies=coreDefeatedEnemyFields(state.defeatedEnemies).defeatedEnemies;
   if(state.runEffects&&state.runEffects.p1) applyCoreRunEffectEvent({type:'run_effect',side:'p1',effects:state.runEffects.p1});
   if(state.gameSummonBuff&&state.gameSummonBuff.p1) G.gameSummonBuff={...state.gameSummonBuff.p1};
   // **所持金だけは再生中に書き戻さない。** コアは1手番ぶんを先に解決するので、
@@ -883,6 +884,8 @@ function _releaseRepeatCount(unit,isEnemySide){
 function _pveCoreStageFields(){
   return {
     ...runLevelCoreFields(),
+    // 薄いstateを作り直す開戦・死亡・召喚の入口でも、同じランの撃破記録を共有する。
+    defeatedEnemies:G.defeatedEnemies||(G.defeatedEnemies=coreDefeatedEnemyFields().defeatedEnemies),
     ...coreGameSummonBuffFields({p1:G.gameSummonBuff}),
     ...coreRunEffectFields({p1:G.runEffects||{}}),
     itemFreeSlots:{p1:(G.spellSlots||[]).filter(x=>!x).length,p2:4},

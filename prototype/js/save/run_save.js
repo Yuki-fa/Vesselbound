@@ -35,7 +35,7 @@ const SaveRun=(()=>{
         _debugMode / _onlineMode 等）。再開時に前回のUI状態が復活してしまう。
      ══════════════════════════════════════════════════════════ */
   const fields={
-    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons','runLevels','gameSummonBuff','runEffects','runEffectRerollsApplied','activationFormationSeq','ascensionLifeBonus'],
+    player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons','runLevels','gameSummonBuff','defeatedEnemies','runEffects','runEffectRerollsApplied','activationFormationSeq','ascensionLifeBonus'],
     progress:['floor','_wave','_waveStage','_debugStoryCycle','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_waveEnemySnapshotAtEnd','_waveEnemySnapshotBlood','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','_waveBosses','_arenaActive','_arenaRound','_arenaWins','runStats'],
     choices:['_shopRerollSeq','panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_blessingFlameUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards','_fiveSaints','_peddlerStock'],
     place:['_isPeddler','_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
@@ -304,6 +304,7 @@ const SaveRun=(()=>{
     initState();
     for(const group of Object.keys(fields)) Object.assign(G,s[group]);
     G.runLevels=runLevelNormalizeState(G.runLevels);
+    G.defeatedEnemies=coreDefeatedEnemyFields(G.defeatedEnemies).defeatedEnemies;
     for(const name of setFields) G[name]=new Set(s.sets[name]);
     G._runId=save.runId;G._runSeed=s.rng.seed;G._runRngState=s.rng.state;
     G.questProgress=(s.questProgress&&typeof s.questProgress==='object'&&!Array.isArray(s.questProgress))?s.questProgress:{};
@@ -473,15 +474,20 @@ const SaveRun=(()=>{
       });
     }
     return copy({units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0,
+      ...coreDefeatedEnemyFields(state.defeatedEnemies),
       _stormRingFireCount:Math.max(0,Number(state._stormRingFireCount)||0),...coreGameSummonBuffFields(state.gameSummonBuff),...coreRunEffectFields(state.runEffects),...(state.itemFreeSlots?{itemFreeSlots:state.itemFreeSlots}:{})});
   }
   function computeBattle(initial,seed,options){
     const state=copy(initial);
+    // 保存用setupでは省いている定義表を、再計算時に同じデータ源から補う。
+    // 撃破記録も、戦闘中の写しではなく初回計算と同じ定義で作る。
+    if(!Array.isArray(state.summonDefs)) state.summonDefs=[
+      ...(typeof PANEL_POOL!=='undefined'?PANEL_POOL:[]),...(typeof ENEMY_POOL!=='undefined'?ENEMY_POOL:[])];
     state.turn=0;state._coreStateToken=`saved-${seed}`;
     state.lane={p1:{lane:'front',attacked:new Set()},p2:{lane:'front',attacked:new Set()}};
     state.deadUnits=[];
     const events=[],frames=[];
-    let from=0;
+    let from=0,lastDefeatedEnemies=null;
     // 開始時から居る体のID（手番ごとの状態から boardCards を省く対象）。
     const setupIds=new Set(['p1','p2'].flatMap(side=>(initial.units[side]||[]).filter(Boolean).map(u=>u.id)));
     const emit=ev=>events.push(copy(ev));
@@ -507,7 +513,11 @@ const SaveRun=(()=>{
         if(!unit||!unit._stolen||!unit._goldPlanned||unit.hp<=0||paid.has(unit.id)) continue;
         paid.add(unit.id);reward+=goldIncomeAmount(_rollEnemyGold(unit,rewardRng));
       }
-      frames.push({from,to:events.length,state:snapshotCore(state,setupIds)});from=events.length;
+      const snap=snapshotCore(state,setupIds),historyKey=JSON.stringify(snap.defeatedEnemies);
+      // ラン全体の定義一覧を毎手番へ重複保存しない。初回・変更時・終戦だけ記録する。
+      if(!final&&historyKey===lastDefeatedEnemies) delete snap.defeatedEnemies;
+      lastDefeatedEnemies=historyKey;
+      frames.push({from,to:events.length,state:snap});from=events.length;
       state.resources.p1.gold+=reward;
     };
     const opts=options||{};
@@ -530,6 +540,7 @@ const SaveRun=(()=>{
     G._stormRingFireCount=Math.max(0,Number(s._stormRingFireCount)||0);
     G.runEffects=s.runEffects&&s.runEffects.p1?copy(s.runEffects.p1):{};
     G.gameSummonBuff=s.gameSummonBuff&&s.gameSummonBuff.p1?{...s.gameSummonBuff.p1}:{atk:0,hp:0};
+    G.defeatedEnemies=coreDefeatedEnemyFields(s.defeatedEnemies).defeatedEnemies;
     G._waveLife=s.life.p1;G.life=s.life.p1;
     const arenaBossRound=G._arenaActive&&((typeof arenaRoundKind==='function'
       ?arenaRoundKind(Number(G._arenaRound)||1)==='boss'
@@ -544,6 +555,7 @@ const SaveRun=(()=>{
       const state=_createPveCoreState();_stampCoreSideSlots(state);
       // プールは純データ。runner等の実行状態はsetupへ持ち込まない。
       const initial=copy({units:state.units,summonDefs:state.summonDefs,itemDefs:state.itemDefs,rings:state.rings,items:state.items,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,mapIndex:state.mapIndex,maxUnits:state.maxUnits,frontSlots:state.frontSlots,openingSides:state.openingSides,
+        ...coreDefeatedEnemyFields(state.defeatedEnemies),
         _stormRingFireCount:state._stormRingFireCount,...(state.runLevels?{runLevels:state.runLevels}:{}),...coreGameSummonBuffFields(state.gameSummonBuff),...coreRunEffectFields(state.runEffects),...(state.itemFreeSlots?{itemFreeSlots:state.itemFreeSlots}:{})});
       const seed=Math.floor(random()*4294967296);
       const arenaBattle=!!G._arenaActive;
@@ -582,6 +594,7 @@ const SaveRun=(()=>{
       state.units[side].splice(0,state.units[side].length,...next);
     }
     for(const key of ['resources','life','maxLife','blood','turn']) state[key]=snap[key];
+    if(snap.defeatedEnemies) Object.assign(state,coreDefeatedEnemyFields(snap.defeatedEnemies));
     // 古い保存には無い。新しい保存は発動済み回数を各手番からGまで戻す。
     if(snap._stormRingFireCount!=null) state._stormRingFireCount=snap._stormRingFireCount;
     if(snap.runEffects) state.runEffects=snap.runEffects; else delete state.runEffects;
