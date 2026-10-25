@@ -288,6 +288,8 @@ const ONLINE_VERSUS_GOLD = 100;
         rng,
         selfId,
         roster,                 // 4人揃った時の最終的な並び（サーバーが決める）
+        // p1/p2は対戦ごとの位置。記録の所有者は対戦全体を通して参加者IDで固定する。
+        defeatedEnemiesByPlayer: new Map(roster.map(player => [player.id, []])),
         players: [],            // 現在までに参加した人（マッチング演出用）
         matching: true,
         // クライアント要求をサーバー側のマッチ状態として保持し、締め切り判定に使う。
@@ -361,6 +363,8 @@ const ONLINE_VERSUS_GOLD = 100;
       const rng = createSeededRng(battleSeed);
       // 相手がCPU戦でゲームオーバーになっていた場合、その編成・ライフ1で戦う（仕様）。
       const opponent = _makeOpponentFormation(rng, m.stage);
+      const selfP = m.players.find(p => p.self);
+      const foeP = m.players.find(p => p.id === m.nextOpponentId) || m.players.find(p => !p.self && p.alive);
       const sim = simulateOnlineBattle({
         seed: battleSeed,
         mapIndex: Math.max(1, Number(selfFormation && selfFormation.mapIndex) || Number(m.stage) || 1),
@@ -368,6 +372,11 @@ const ONLINE_VERSUS_GOLD = 100;
         sides: {
           p1: { units: (selfFormation && selfFormation.units) || [] },
           p2: opponent,
+        },
+        // クライアントの編成payloadでは上書きさせず、サーバーの参加者別記録を渡す。
+        defeatedEnemies: {
+          p1: m.defeatedEnemiesByPlayer.get(m.selfId) || [],
+          p2: foeP && m.defeatedEnemiesByPlayer.get(foeP.id) || [],
         },
         resources: selfFormation && selfFormation.resources,
         runEffects: {p1:selfFormation&&selfFormation.runEffects&&selfFormation.runEffects.p1,p2:opponent&&opponent.runEffects&&(opponent.runEffects.p2||opponent.runEffects.p1)},
@@ -395,9 +404,10 @@ const ONLINE_VERSUS_GOLD = 100;
         ],
         itemDefs: typeof ITEM_POOL !== 'undefined' && Array.isArray(ITEM_POOL) ? ITEM_POOL : [],
       });
+      const history = coreDefeatedEnemyFields(sim.defeatedEnemies).defeatedEnemies;
+      m.defeatedEnemiesByPlayer.set(m.selfId, history.p1);
+      if (foeP) m.defeatedEnemiesByPlayer.set(foeP.id, history.p2);
       // ライフの増減もサーバーが決める。引き分けは双方ライフを失わない。
-      const selfP = m.players.find(p => p.self);
-      const foeP = m.players.find(p => p.id === m.nextOpponentId) || m.players.find(p => !p.self && p.alive);
       const lose = p => { if (!p) return; p.life = Math.max(0, p.life - 1); if (p.life <= 0) p.alive = false; };
       if (sim.outcome === ONLINE_OUTCOME_P1) lose(foeP);
       else if (sim.outcome === ONLINE_OUTCOME_P2) lose(selfP);
@@ -421,6 +431,7 @@ const ONLINE_VERSUS_GOLD = 100;
         outcome: sim.outcome,      // ← 表示はこれをそのまま使う
         endReason: sim.endReason,
         finalState: sim.finalState,
+        ...coreDefeatedEnemyFields(sim.defeatedEnemies),
         // 演出用。戦闘コアはルールに要る値しか持たないので、絵・説明はここで添える。
         formations: { p1: { units: (selfFormation && selfFormation.units) || [] }, p2: opponent },
         goldReward: ONLINE_VERSUS_GOLD,

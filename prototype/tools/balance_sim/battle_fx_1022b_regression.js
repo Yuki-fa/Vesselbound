@@ -156,9 +156,9 @@ async function observeMorph(play) {
     G.rings = [h.card('R023', 'ring')]; G.mana = 0; G._stormRingFireCount = 0;
     await _finishNewPanelBattleStartEffects();
     assert.equal(G._stormRingFireCount, 2, '開戦コアからGへ戻す');
-    assert.equal(G.enemies[0].hp, 800);
+    assert.equal(G.enemies[0].hp, 900);
     await _checkRingManaThresholdEffects();
-    assert.equal(G.enemies[0].hp, 800, '同じ20マナで追加のダメージを与えない');
+    assert.equal(G.enemies[0].hp, 900, '同じ20マナで追加のダメージを与えない');
     assert.equal(h.calls.filter(c => c.name === 'storm-ring').length, 2);
   });
 

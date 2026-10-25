@@ -18,7 +18,11 @@ async function initialize(){
   const text=source('js/save/run_save.js'),start=text.indexOf('  function snapshotCore('),end=text.indexOf('  function installSetup(',start);
   if(start<0||end<0)throw new Error('本体computeBattleの境界が変わった');
   let code=text.slice(start,end);
-  const frame='frames.push({from,to:events.length,state:snapshotCore(state,setupIds)});from=events.length;';
+  const frame=`const snap=snapshotCore(state,setupIds),historyKey=JSON.stringify(snap.defeatedEnemies);
+      // ラン全体の定義一覧を毎手番へ重複保存しない。初回・変更時・終戦だけ記録する。
+      if(!final&&historyKey===lastDefeatedEnemies) delete snap.defeatedEnemies;
+      lastDefeatedEnemies=historyKey;
+      frames.push({from,to:events.length,state:snap});from=events.length;`;
   if(code.split(frame).length!==2||code.split('const state=copy(initial);').length!==2)throw new Error('本体computeBattleの高速化箇所が変わった');
   code=code.replace(frame,'from=events.length;').replace('const state=copy(initial);',
     'const {summonDefs:_fixedSummonDefs,itemDefs:_fixedItemDefs,..._fixedRest}=initial;const state=copy(_fixedRest);state.summonDefs=_fixedSummonDefs;state.itemDefs=_fixedItemDefs;');

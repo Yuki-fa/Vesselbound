@@ -788,7 +788,7 @@ function goToReward(options){
     if(!_noNewRewards&&!G._isTavern&&!G._isFiveSaints&&typeof questMixBattleRewards==='function') _rewCards=questMixBattleRewards(_rewCards);
     G._retryRewardCards=null;
     _rewCards.forEach(c=>{ if(c){ towerBoonBlessGeneratedCard(c); c._isOriginalReward=true; } });
-    if(!_isFacilityEntry&&!G._onlineMode&&!_noNewRewards&&!_peddler) _markRewardAppearancePending(_rewCards);
+    if(!_isFacilityEntry&&!_noNewRewards&&!_peddler) _markRewardAppearancePending(_rewCards);
     if(_saveCheckpoint&&!_isFacilityEntry&&!_noNewRewards) towerBoonGrantRewardRerolls();
     if(_peddler){
       // 商品は報酬ではない（1枚だけ取れる制限を掛けない）。交換は魔導店と共通。
@@ -889,11 +889,17 @@ const REWARD_REVEAL_SWEEP_MS=640; // 光の帯が流れ切るまで（CSSのア�
 let _rewardRevealToken=0;        // 画面を離れる・出し直す時に、走っている演出を無効にする
 let _rewardRerollReveal=null;    // DOMと演出の参照はセーブへ入れない
 function _rewardAppearanceAllowed(){
-  return !G._onlineMode&&!G._isShop&&!G._isPeddler&&!G._isForge&&!G._isItemShop&&!G._isLibrary
+  return !G._onlineMode&&_battleCardRewardAllowed();
+}
+function _battleCardRewardAllowed(){
+  return !G._isShop&&!G._isPeddler&&!G._isForge&&!G._isItemShop&&!G._isLibrary
     &&!G._isTavern&&!G._isFiveSaints&&!G._isRingExchange&&!G._isVillageMenu&&!G._isWaveAltar;
 }
 function _markRewardAppearancePending(cards){
-  if(_rewardAppearanceAllowed()) (cards||[]).forEach(c=>{if(c&&c._isOriginalReward)c._rewardAppearancePending=true;});
+  if(!_battleCardRewardAllowed()) return;
+  applyGoldenRingReward(cards);
+  if(!_rewardAppearanceAllowed()) return;
+  (cards||[]).forEach(c=>{if(c&&c._isOriginalReward)c._rewardAppearancePending=true;});
 }
 function _completeRewardAppearance(cards){
   if(G.phase!=='reward'||!_rewardAppearanceAllowed()||!(cards||[]).some(c=>c&&c._rewardAppearancePending)) return;
@@ -2872,28 +2878,31 @@ function moveBoardCardToUnit(boardIdx, srcUnitIdx, destUnitIdx){
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────
 // onDone は受け取り後または「戻る」を押したときに呼ばれるコールバック
 
-// 精霊の魂（還魂すると最大ライフが増える）：還魂した瞬間に最大ライフと今のライフを増やす（2026-10-26 利用者指定）。
-// 増えた分は捧げたカードの控え（entry.lifeGain）に残し、回収・「元に戻す」で同じだけ戻す。
+// 精霊の魂：還魂した瞬間にライフを回復する（通常「ライフが1回復」）、または最大ライフと今のライフを増やす（強化「最大ライフが2増える」）。
+// 2026-10-26 利用者指定。変わった分は捧げたカードの控え（entry.lifeGain＝最大ライフ、entry.healGain＝回復）に残し、
+// 回収・「元に戻す」で同じだけ戻す。
 function applyAscensionLifeOnSacrifice(entry){
   if(!entry||!entry.card||typeof coreAscensionSpec!=='function') return 0;
   const spec=coreAscensionSpec(entry.card);
-  if(!spec.life){ entry.lifeGain=0; return 0; }
-  const gain=Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax()));
+  const gain=spec.life?Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax())):0;
   entry.lifeGain=gain;
   if(gain>0){
     G.ascensionLifeBonus=(Number(G.ascensionLifeBonus)||0)+gain;
     _shiftCurrentLife(gain);
   }
+  entry.healGain=spec.heal?_shiftCurrentLife(spec.heal):0;
   return gain;
 }
 function revertAscensionLifeOnReclaim(entry){
   const gain=Math.max(0,Number(entry&&entry.lifeGain)||0);
+  const heal=Math.max(0,Number(entry&&entry.healGain)||0);
+  if(heal){ _shiftCurrentLife(-heal); entry.healGain=0; }
   if(!gain) return;
   G.ascensionLifeBonus=Math.max(0,(Number(G.ascensionLifeBonus)||0)-gain);
   _shiftCurrentLife(-gain);
   entry.lifeGain=0;
 }
-// 戦闘外の今のライフ（G._waveLife。無ければ G.life）を増減する。最大ライフを超えず、1を下回らない。
+// 戦闘外の今のライフ（G._waveLife。無ければ G.life）を増減する。最大ライフを超えず、1を下回らない。実際に変わった量を返す。
 function _shiftCurrentLife(delta){
   const max=typeof waveLifeMax==='function'?waveLifeMax():3;
   const cur=G._waveLife!=null?Number(G._waveLife)||0:(G.life==null?max:Number(G.life)||0);
@@ -2901,6 +2910,7 @@ function _shiftCurrentLife(delta){
   if(G._waveLife!=null) G._waveLife=next;
   G.life=next;
   if(typeof updateHUD==='function') updateHUD();
+  return Math.abs(next-cur);
 }
 // 還魂の仮置き・回収では発動せず、指輪を取得して供物が確定した時だけ解決する（最大ライフだけは還魂した瞬間。上）。
 function applyAscensionCardEffects(entries){

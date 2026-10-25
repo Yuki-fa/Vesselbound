@@ -23,10 +23,12 @@ function simulateOnlineBattle(setup) {
   const rng = createSeededRng(seed);
   const state = createBattleState({
     sides: (setup && setup.sides) || {},
+    defeatedEnemies: setup && setup.defeatedEnemies,
     gameSummonBuff: setup && setup.gameSummonBuff,
     runEffects: setup && setup.runEffects,
     itemFreeSlots: setup && setup.itemFreeSlots,
     resources: (setup && setup.resources) || {},
+    blood: setup && setup.blood,
     rings: (setup && setup.rings) || {},
     items: (setup && setup.items) || {},
     summonDefs: (setup && setup.summonDefs) || [],
@@ -50,6 +52,8 @@ function simulateOnlineBattle(setup) {
     endReason: result.endReason,
     turns: result.turns,
     finalState: battleCoreFinalState(state),
+    // 戦闘結果とは別に、サーバーが次の対戦へ持ち越す陣営別の撃破記録。
+    defeatedEnemies: JSON.parse(JSON.stringify(state.defeatedEnemies)),
   };
 }
 

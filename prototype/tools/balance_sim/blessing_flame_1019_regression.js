@@ -136,9 +136,10 @@ function simulate(units){
   check('強化不可：空欄・強化後の無いエンチャント・依頼/NPC・木箱・強化済みを暗くし、選択しない。エンチャントは強化できる',()=>{
     const raw=card('C008');
     assert.equal(blessingFlameCardEligible(card('E002')),true,'エンチャントも強化できる（2026-10-20）');
+    assert.equal(blessingFlameCardEligible(card('E010')),true,'魔導回路は強化効果が空欄でも強化できる（強化すると本文が消える。2026-10-26）');
     const enchant=enhancedPanelCopy(card('E001'));assert.ok(enchant&&enchant._tripleMerged&&enchant.desc!==card('E001').desc);
     const cases=[null,{...raw,_mergedSource:{desc:'',keywords:''}},
-      {...raw,mergedForm:null},card('E010'),{...raw,_npcCard:true},{...raw,_npcDeployOnly:true},
+      {...raw,mergedForm:null},{...raw,_npcCard:true},{...raw,_npcDeployOnly:true},
       {...raw,_questOfferCard:true},{...raw,_questTransportId:'Q005'},{...raw,no:'BC001'},
       card('E102'),enhancedPanelCopy(raw),{...raw,_merged:true}];
     for(const invalid of cases){

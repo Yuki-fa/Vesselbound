@@ -7,6 +7,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 const sheet = require('./sheet_data');
+// 1026に本文との不一致を直した効果は専用の新しい回帰検査で検証する。
+const revised1026 = new Set('E011 E020 E022 E047 E055 E060 E062'.split(' '));
 require('./load');
 const copy = value => JSON.parse(JSON.stringify(value));
 const rows = new Map();
@@ -394,7 +396,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
     const source = execFileSync('git', ['show', '62fe8751c3cefbe67c844ce70490a1ef52d0b8c4:prototype/js/battle/core.js'], { encoding: 'utf8', maxBuffer: 2e6 });
     const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox); const baseline = sandbox.module.exports;
     const current = require('../../js/battle/core'); let compared = 0;
-    for (const no of [...rows.keys()].filter(no => /^[CE]\d+$/.test(no) && !required.includes(no) && PANEL_POOL.some(c => c.no === no))) for (const enhanced of [false, true]) {
+    for (const no of [...rows.keys()].filter(no => /^[CE]\d+$/.test(no) && !required.includes(no) && !revised1026.has(no) && PANEL_POOL.some(c => c.no === no))) for (const enhanced of [false, true]) {
       const input = { sides: { p1: { units: [unit(no, enhanced), plain('ally', { color: '青' })] }, p2: { units: [plain('foe'), plain('foe2')] } }, summonDefs: PANEL_POOL, resources: { p1: { mana: 8, gold: 800 } } };
       const run = api => { const state = api.createBattleState(copy(input)), events = [], rng = createSeededRng(251025); api.runBattleCore(state, rng, { turnLimit: 5, onEvent: e => events.push(e) }); return copy({ events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() }); };
       assert.deepEqual(run(current), run(baseline), `${no}/${enhanced}`); compared++;

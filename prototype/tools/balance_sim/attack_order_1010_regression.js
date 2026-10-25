@@ -63,13 +63,13 @@ assert.deepEqual(effectHits(mana).map(e => e.amount), [5, 5]);
 
 // 嵐はダメージ分類内の最後。攻撃で増えたマナに対して本人の全体4→嵐50。
 const storm = run(actor('アラッサス', ['衝撃波'], { manaOnAttack: 10 }),
-  { rings: { p1: [{ name: '嵐の指輪' }], p2: [] } });
+  { rings: { p1: [{ name: '嵐の指輪', desc: require('./sheet_data').sheetRows('ring').find(r=>r['No.']==='R023')['効果'] }], p2: [] } });
 assert.deepEqual(storm.events.filter(e => e.type === 'damage' && e.damageKind !== 'combat').map(e => e.amount), [5, 51]);
 
 // 自傷から派生した負傷マナも次の手番へ遅らせない。炎の矢2回→嵐をこの一撃で解決。
 const injuryMana = run(actor('アラッサス', ['懺悔'], { manaOnInjury: 5,
   manaCost: 5, manaRepeat: true, _manaThresholdDesc: 'ランダムな敵に4ダメージを与える。' }),
-  { rings: { p1: [{ name: '嵐の指輪' }], p2: [] } });
+  { rings: { p1: [{ name: '嵐の指輪', desc: require('./sheet_data').sheetRows('ring').find(r=>r['No.']==='R023')['効果'] }], p2: [] } });
 assert.deepEqual(injuryMana.events.filter(e => e.type === 'damage' && e.damageKind !== 'combat').map(e => e.amount), [1, 1, 4, 4, 4, 50]);
 assert.equal(injuryMana.events.filter(e => e.type === 'mana_threshold').length, 2);
 

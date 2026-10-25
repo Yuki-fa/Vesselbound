@@ -6,20 +6,21 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const core = require('../../js/battle/core');
+const stormRing = require('./sheet_data').sheetRows('ring').find(r=>r['No.']==='R023');
 const { createSeededRng } = require('../../js/online/protocol');
 let failed = 0;
 const check = (name, fn) => { try { fn(); console.log('OK ' + name); } catch (e) { failed++; console.error('NG ' + name + '\n' + e.stack); } };
 const foe = (id, hp = 30) => ({ id, name: id, atk: 1, hp, maxHp: hp, keywords: [] });
 function stormState(mana, foes) {
   const state = core.createBattleState({ sides: { p1: { units: [{ id: 'a', name: '味方', atk: 1, hp: 50, maxHp: 50, keywords: [] }] },
-    p2: { units: foes } }, rings: { p1: [{ name: '嵐の指輪' }], p2: [] } });
+    p2: { units: foes } }, rings: { p1: [{ name: stormRing['名前'], desc: stormRing['効果'] }], p2: [] } });
   state.resources.p1.mana = mana;
   const events = [], emit = e => events.push(e), rng = createSeededRng(7);
   const hit = (s, t, n, c, ss, st, o) => core.coreResolveHit(state, s, t, n, c, rng, emit, { skipSourceEffects: !!ss, skipTough: !!st, ...(o || {}) });
   return { state, events, run: () => core.coreApplyRingManaEffects(state, rng, emit, hit) };
 }
 check('嵐の指輪：1回目で敵が全滅したら、残りの到達分は発動済みにして捨てる', () => {
-  const x = stormState(20, [foe('f0', 50)]);   // 20マナ×5＝100ダメージで1回目に全滅
+  const x = stormState(20, [foe('f0', 50)]);   // 改訂本文の50ダメージで1回目に全滅
   x.run();
   assert.equal(x.events.filter(e => e.type === 'ring_effect').length, 1, JSON.stringify(x.events.map(e => e.type)));
   assert.equal(x.state._stormRingFireCount, 2);
