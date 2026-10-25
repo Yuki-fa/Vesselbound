@@ -18,6 +18,8 @@ const horizon=require('./planner_horizon');
 const SCHEMA_VERSION=1;
 const MAX_ACTIONS=300;
 let api,loaded;
+// 2026-10-25：敵の撃破・逃走で入る所持金だけの累計（指輪の倍率・ノーム等の効果は含めない）。先読み中は数えない。
+let enemyGoldTotal=0;
 function rng(seed) {let t=seed>>>0;return ()=>{t=(t+0x6D2B79F5)>>>0;let x=Math.imul(t^(t>>>15),t|1);x^=x+Math.imul(x^(x>>>7),x|61);return ((x^(x>>>14))>>>0)/4294967296;};}
 function cardInfo(c) {
   if(!c) return null;
@@ -35,6 +37,8 @@ async function initialize() {
     try {console.log=()=>{};console.table=()=>{};await loadGameData();}
     finally {console.log=log;console.table=table;}
     api=install();loaded=overrides.snapshot();
+    const rollEnemyGold=global._rollEnemyGold;
+    global._rollEnemyGold=(...args)=>{const gold=rollEnemyGold(...args);if(!G._botProbe)enemyGoldTotal+=Math.max(0,Number(gold)||0);return gold;};
     lookahead.configure({ring:api.takeRing});
   }
   return api;
@@ -57,7 +61,7 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
   if(policy==='planner')planner.configure(plannerStage,plannerWeights);
   Math.random=rng(seed);Date.now=()=>1700000000000+(seed>>>0);
   api.seed=seed>>>0;api.cycle=storyCycle;api.pending=null;api.battle=null;
-  api.resetRun();lookahead.resetStats();horizon.reset();
+  api.resetRun();lookahead.resetStats();horizon.reset();enemyGoldTotal=0;
   const row={schemaVersion:SCHEMA_VERSION,seed:seed>>>0,policy,storyCycle,towerBoonMode:towerBoon,clear:false,status:'running',
     route:[],battles:[],offers:[],acquisitions:[],actions:[],trajectory:[],finalBoard:[],rings:[],items:[],combos:[]};
   if(policy==='planner'){row.plannerStage=plannerStage;row.plannerWeights={...planner.LIMITS};}
@@ -159,7 +163,8 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
   async function facilityTurn() {
     const tower=!!G._isWaveAltar;
     const facs=villageFacilityList();
-    row.route.push({wave:G._wave,stage:G._waveStage,type:tower?'altar':'city'});
+    // 2026-10-25：街・塔の到達時の所持金も残す（到達時の収入の集計用）。
+    row.route.push({wave:G._wave,stage:G._waveStage,type:tower?'altar':'city',gold:G.gold,enemyGoldTotal});
     const arrivalGold=G.gold;
     if(tower)await api.arrival.tower();else await api.arrival.town();
     await api.drain();
@@ -263,7 +268,7 @@ async function simulateRun({seed=1,policy='greedy',storyCycle=1,override={change
         if(!result||!battleStart) throw new Error('戦闘コアの結果がない');
         const types={},reasons={};for(const e of result.events){types[e.type]=(types[e.type]||0)+1;if(e.reason)reasons[e.reason]=(reasons[e.reason]||0)+1;}
         const battle={...battleStart,index:row.battles.length,outcome:result.outcome,endReason:result.endReason,
-          turns:result.finalState.turn,coreLifeAfter:_currentBattleLife(),lifeAfter:_currentBattleLife(),goldAfter:G.gold,manaAfter:G.mana,eventCounts:types,
+          turns:result.finalState.turn,coreLifeAfter:_currentBattleLife(),lifeAfter:_currentBattleLife(),goldAfter:G.gold,enemyGoldTotal,manaAfter:G.mana,eventCounts:types,
           remainingEnemies:result.finalState.units.p2.filter(e=>e&&e.hp>0).map(enemyInfo),effectReasons:reasons};
         row.battles.push(battle);
         row.route.push({wave:battle.wave,stage:battle.stage,type:battle.type,retry:battle.retry});
