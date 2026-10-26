@@ -73,7 +73,7 @@ const splitNames=value=>String(value||'').split(/[、,／\/]/).map(v=>v.trim()).
     initState();G.phase='reward';G.mainBoard[1]=makePanel('ノーム');G.mainBoard[3]=makePanel('ノーム');
     assert.equal(_mergedPanelCard(G.mainBoard[1],G.mainBoard[3]),null);
     assert.equal(_rewardMergeCandidate(0,makePanel('ノーム')),false);
-    assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll'}),false);
+    assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll'}),true,'絆の巻物はポート追加へ改訂');
     assert.equal(panelMergeContentAvailable({name:'魔鏡'}),false);
   });
 

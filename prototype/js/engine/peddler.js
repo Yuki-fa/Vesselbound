@@ -66,8 +66,10 @@ function _buildDefeatPeddlerStock(){
 }
 function _ensureDefeatPeddlerStock(){
   const old=G._peddlerStock;
-  if(Array.isArray(old)&&old.length===SHOP_EXCHANGE_TRIAL.stockCount
-    &&old.every(c=>c&&!_isSpellCard(c)&&!('_buyPrice' in c))) return clone(old);
+  if(Array.isArray(old)&&old.every(c=>c&&!_isSpellCard(c)&&!('_buyPrice' in c))){
+    G._peddlerStock=_resizeExchangeShopStock(clone(old),`exchange-peddler:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`);
+    return clone(G._peddlerStock);
+  }
   // 旧セーブの売買5枠は一度だけ移行。未購入の通常カードだけ抽選在庫へ返す。
   if(Array.isArray(old)) old.filter(c=>c&&!_isSpellCard(c)&&!c._shopSalePending&&!c._towerBoonBoss).forEach(returnPanelToSalePool);
   G._peddlerStock=_buildDefeatPeddlerStock();

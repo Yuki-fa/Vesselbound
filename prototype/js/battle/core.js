@@ -1415,6 +1415,7 @@ function createCoreUnit(raw, side, index) {
     art: String((raw && raw.art) || ''),
     imageNo: String((raw && (raw.imageNo || raw.artCode || raw.no)) || ''),
     keywords: coreNormalizeShieldKeywords(Array.isArray(raw && raw.keywords) ? raw.keywords.map(String) : []),
+    ...(raw && raw._skilledRingBonus ? { _skilledRingBonus: Number(raw._skilledRingBonus) } : {}),
     // 効果文もキーワード判定の入力になる（coreUnitKeywords が本文からも拾う）。
     desc: String((raw && raw.desc) || ''),
     ...(raw && raw.boon ? { boon: { ...raw.boon } } : {}),
@@ -1538,6 +1539,8 @@ const CORE_UNIT_EFFECT_STATE_FIELDS = [
 
 function coreCopyUnitEffectState(target, source, { resetMissing = false } = {}) {
   if (!target || !source) return target;
+  // 常時指輪で既に得た分をコピーへ二重に足さない。沈黙で効果を退避しても印は維持する。
+  if (source._skilledRingBonus) target._skilledRingBonus = Number(source._skilledRingBonus);
   CORE_UNIT_EFFECT_STATE_FIELDS.forEach(key => {
     let value = source[key];
     if (value === undefined && key === '_adjacentPanelEffectTexts') value = source.effectData && source.effectData.effectTexts;
@@ -1667,6 +1670,7 @@ function coreUnitSnapshot(unit) {
     ringInjuryHp: Math.max(0, Number(u.ringInjuryHp) || 0),
     ...(u.ringInjuryAtk ? { ringInjuryAtk: Number(u.ringInjuryAtk) } : {}),
     ...(u._paladinRingApplied ? { _paladinRingApplied: true } : {}),
+    ...(u._skilledRingBonus ? { _skilledRingBonus: u._skilledRingBonus } : {}),
     _rainbowRingBonus: Math.max(0, Number(u._rainbowRingBonus) || 0),
     ...(u._deployedAtZeroHp ? { _deployedAtZeroHp: true } : {}),
     ...(u.boon ? { boon: { ...u.boon } } : {}),
@@ -2691,6 +2695,29 @@ function coreRingCount(state, side, name) {
 function coreRingMatches(state, side, pattern) {
   return coreResolvedRings(state, side).map(ring => coreUnitEffectText(ring).match(pattern)).filter(Boolean);
 }
+function coreOpeningRingExtraTimes(unit, state) {
+  return coreRingMatches(state, unit.side, /^常時：味方の開戦効果は(\d+)回追加で発動する/)
+    .reduce((sum, match) => sum + Number(match[1]), 0);
+}
+// 老将軍の常時付与。本体・巻物の熟練と分けて記録し、コピー・復活では重ねず、奪取では陣営を合わせる。
+function coreApplyPassiveSkilledRings(state, unit, emit, rng, applyHit) {
+  if (!unit || unit._isObject || unit._isSoul) return;
+  const amount = coreRingMatches(state, unit.side, /^常時：全ての味方は熟練(\d+)を得る/)
+    .reduce((sum, match) => sum + Number(match[1]), 0);
+  const previous = Number(unit._skilledRingBonus) || 0;
+  if (amount === previous) return;
+  if (amount) unit._skilledRingBonus = amount;
+  else delete unit._skilledRingBonus;
+  const holder = unit._silenceStash || unit;
+  if (amount > previous && !unit._silenceStash) {
+    coreGrantOpeningKeyword(holder, '熟練' + (amount - previous), unit,
+      emit, state, rng, applyHit);
+  } else {
+    const total = Math.max(0, coreKeywordSum(holder, '熟練') + amount - previous);
+    holder.keywords = (holder.keywords || []).filter(k => !/^熟練\d+$/.test(k));
+    if (total) holder.keywords.push('熟練' + total);
+  }
+}
 // 常時のHP倍率。開戦イベントを出さず、同じ体・値を写したコピーへ二重に掛けない。
 function coreApplyPassiveHpRings(state, unit, side = unit && unit.side) {
   if (!unit || unit.hp <= 0 || unit._paladinRingApplied || unit._isObject || unit._isSoul) return;
@@ -2901,6 +2928,7 @@ function coreStealUnit(state, stolen, toSide, emit, sourceId, opts, rng, applyHi
   }
   Object.assign(stolen, coreApplyUnitRunLevels(stolen, state.runLevels && state.runLevels[toSide]));
   stolen.side = toSide;
+  coreApplyPassiveSkilledRings(state, stolen, () => {}, rng, applyHit);
   stolen.lane = 'front';
   stolen._stolen = true;
   // 味方になっても絵と枠は敵カードのまま（利用者指定：敵枠は必ず同じものにする）。
@@ -3088,6 +3116,7 @@ function coreApplyKenzokuBonuses(state, child, emit, sourceUnit, sourceId, { sta
 // rng/applyHitを渡さない試算では、ATK獲得による攻撃等の後続誘発は起こさない。
 function coreApplySummonStatEffects(state, child, spec, sourceUnit, sourceId, emit, rng, applyHit) {
   const side = child.side, list = state.units[side] || [];
+  coreApplyPassiveSkilledRings(state, child, emit, rng, applyHit);
   // 紫修正は盤面ぜんぶを作り直す（召喚された体にも、既にいる体にも同じ値が乗る）。
   child._voidWalkerBonus = child.color === '紫' ? corePurpleModifierBonus(state.units[side]) : 0;
   // 召喚時の共通受動効果。カード名ではなく、現在の戦闘状態に存在する効果を参照する。
@@ -3120,6 +3149,7 @@ function coreApplySummonStatEffects(state, child, spec, sourceUnit, sourceId, em
   } else {
     coreApplySummonEyeRings(state, child, emit, sourceUnit, sourceId, rng, applyHit);
   }
+  // 旧保存の戦闘アイテムだけの互換。現行I013（魔導板のポート追加）は次戦アイテムへ登録しない。
   const bondCount = activeItems.filter(item => String(item && item.itemEffectKey || item && item.key || '') === 'bond_scroll').length;
   if (bondCount && (!state._openingPhase || state._openingItemsApplied)) {
     addStats(child, bondCount * 5, bondCount * 5, 'bond_scroll_summon');
@@ -3279,7 +3309,9 @@ function coreSummonUnit(state, side, spec, emit, sourceId, sourceEffect, rng, ap
     const wild = coreEffectCount(child, '野生の力');
     if (wild) {
       const [wildMana] = coreEffectNumbers(child, '開戦', /^\s*開戦\s*[：:]\s*(\d+)マナを得る/, [1]);
-      if (wildMana > 0) coreGainResource(state, side, 'mana', wild * wildMana, child, emit, 'wild_power_summon', undefined, rng, applyHit);
+      if (wildMana > 0) for (let i = 0; i <= coreOpeningRingExtraTimes(child, state); i++) {
+        coreGainResource(state, side, 'mana', wild * wildMana, child, emit, 'wild_power_summon', undefined, rng, applyHit);
+      }
     }
   }
   coreInsertSummonedUnit(list, child, spec, frontSlots);
@@ -3387,8 +3419,10 @@ function coreTransformUnit(state, target, name, emit, overrides) {
   target.effectData = (def.effectData && typeof def.effectData === 'object') ? { ...def.effectData } : {};
   // 変身先のデータ駆動効果も同時に置換する。旧形態の効果を残さない。
   coreCopyUnitEffectState(target, def, { resetMissing: true });
+  delete target._skilledRingBonus;
   // 沈黙中に変身したら、沈黙は続けたまま変身後の効果を取り外し直す（戻す時に旧形態へ戻らないように）。
   if (target._silenceStash) { delete target._silenceStash; coreSilenceUnit(target); }
+  coreApplyPassiveSkilledRings(state, target, () => {});
   target.poison = 0; target.weaken = 0; target.shield = coreUnitShieldValue(target);
   emit({ type: 'transform', side: target.side, unitId: target.id, name: target.name,
     atk: target.atk, hp: target.hp, maxHp: target.maxHp, from: oldName, unit: coreUnitSnapshot(target) });
@@ -3404,7 +3438,7 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
     const allies = (state.units[side] || []).filter(Boolean);
     const foes = (state.units[side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
     const live = xs => xs.filter(x => x && x.hp > 0 && !coreIsSealed(x));
-    // 絆の巻物は封印解放より前の常時効果。オフライン旧経路と同じく、
+    // 旧保存の戦闘で使われていた絆の巻物は封印解放より前の常時効果。旧経路と同じく、
     // 生存している味方なら封印中でも適用する。
     if (key === 'bond_scroll') allies.filter(x => x && x.hp > 0).forEach(x => {
       x.atk += 5; x.maxHp += 5; x.hp += 5;
@@ -3437,6 +3471,10 @@ function coreApplyOpeningItems(state, rng, emit, applyHit) {
       emit({ type: 'keyword_effect', effect: 'keyword_gain', side: x.side, unitId: x.id, keyword: '根性', sourceId: item.id });
     });
     if (key === 'silence_scroll') live(foes).forEach(coreSilenceUnit);
+    if (key === 'dragon_scroll') {
+      const summon = String(item.desc || '').match(/次の戦闘開始時、「([^」]+)」を召喚する/);
+      if (summon) coreSummonUnit(state, side, { name: summon[1] }, emit, item.id, false, rng, applyHit);
+    }
     if (key === 'underworld_scroll') live(allies).filter(x => x.lane !== 'rear').forEach(x => {
       coreApplyDeathEffects(x, state, rng, emit, applyHit);
       coreApplyDeathObservers(x, state, rng, emit, applyHit);
@@ -4975,8 +5013,11 @@ function coreApplyReleaseEffects(unit, sacrificed, state, rng, emit, applyHit) {
       // 観測者の本文に従う対象追加だけを行い、再発火の因果は保つ。
       for (const target of coreRandomTargets(observer, rng, (state.units[unit.side] || []).filter(x => x && x !== observer && x.hp > 0 && !coreIsSealed(x)))) {
         const retriggerKey=`release:${observation}:${observer.id}:${repeat}`;
-        coreApplyOpeningEffects(target, state, rng,
-          ev=>emit({...ev,retriggerSourceId:observer.id,retriggerTargetId:target.id,retriggerKey}),applyHit,retriggerKey);
+        for (let i = 0; i <= coreOpeningRingExtraTimes(target, state); i++) {
+          const key = i ? `${retriggerKey}:ring:${i}` : retriggerKey;
+          coreApplyOpeningEffects(target, state, rng,
+            ev=>emit({...ev,retriggerSourceId:observer.id,retriggerTargetId:target.id,retriggerKey:key}),applyHit,key);
+        }
       }
     });
     coreTriggerEffectEntries(observer, '常時', /味方が解放された時、このキャラクターは\+X\/\+Xと結界(\d*)を得る。Xは血(?:の(\d+)倍)?に等しい/).forEach(m => {
@@ -7319,6 +7360,8 @@ function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
   ['p1', 'p2'].forEach(side => (units[side] || []).forEach(unit => coreApplyPassiveHpRings(state, unit)));
   // 開始時の盤面（封印されたまま）を先に見せてから、解放を演出として流す。
   emit({ type: 'battle_start', sides: { p1: (units.p1 || []).filter(Boolean).map(coreUnitSnapshot), p2: (units.p2 || []).filter(Boolean).map(coreUnitSnapshot) } });
+  ['p1', 'p2'].forEach(side => (units[side] || []).filter(Boolean)
+    .forEach(unit => coreApplyPassiveSkilledRings(state, unit, emit, rng, applyHit)));
   coreInitSealStates(coreOpeningUnits(state), u => (u.side === 'p1' ? u.slot : 100 + u.slot));
   resolveSeals();
   state._openingPhase = true;
@@ -7332,6 +7375,7 @@ function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
       // 増えたかどうかで出し分けると PvE とオンラインのイベント列がずれる。
       if (shield > 0) { u.shield = 1; emit({ type: 'shield_set', side: u.side, unitId: u.id, amount: 1 }); }
       const repeats = 1 + coreExtraTriggerTimes(u, '開戦', coreEffectCount(u, '恩寵'))
+        + coreOpeningRingExtraTimes(u, state)
         + Math.max(0, Number(u._effectRepeatBonus) || 0);
       for (let i = 0; i < repeats && u.hp > 0 && !coreIsSealed(u); i++) {
         // 同一state内の再入防止用インデックスを反復ごとに変える。

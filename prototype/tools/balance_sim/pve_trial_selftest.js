@@ -55,22 +55,22 @@ async function testPveTrial(api,check=(name,fn)=>{fn();console.log('OK '+name);}
       });
     }finally{document.querySelectorAll=query;document.createElement=create;_dragSrc=null;}
   }
-  fresh();check('合体停止：3枚・魔鏡・2枚レシピ・絆の巻物を停止し、既存カードと所持アイテムを壊さない',()=>{
+  fresh();check('合体停止：3枚・魔鏡・2枚レシピは停止し、改訂した絆の巻物はポート追加に使える',()=>{
     assert.equal(PANEL_MERGE_TRIAL.enabled,false);
     G.mainBoard[0]=makePanel('ノーム');G.mainBoard[2]=makePanel('ノーム');const before=clone(G.mainBoard);
     assert.equal(_tryTripleMergeOnBoard(_getPartyBoardUnit(),2),null);assert.deepEqual(G.mainBoard,before);
     assert.equal(_rewardMergeCandidate(0,makePanel('ノーム')),false);assert.equal(_mergedPanelCard(G.mainBoard[0],G.mainBoard[1]),null);
     G.mainBoard[2]=makePanel('魔鏡');const mirrorBoard=clone(G.mainBoard);assert.equal(_tryTripleMergeOnBoard(_getPartyBoardUnit(),2),null);assert.deepEqual(G.mainBoard,mirrorBoard);
-    const scroll=makeItem('絆の巻物');G.spellSlots[0]=scroll;assert.equal(_canUseItemNow(scroll),false);assert.equal(_useImmediateItem(0,scroll),false);assert.equal(G.spellSlots[0],scroll);assert.ok(!G._pendingItemUse);
+    const scroll=makeItem('絆の巻物');G.spellSlots[0]=scroll;assert.equal(_canUseItemNow(scroll),true);assert.equal(_useImmediateItem(0,scroll),true);assert.equal(G.spellSlots[0],scroll);assert.ok(G._pendingItemUse);_cancelPendingItemUse(true);
     G.mainBoard[0]={...makePanel('ノーム'),_tripleMerged:true,_merged:true,power:81,life:99};const merged=clone(G.mainBoard[0]);
     SaveRun.restoreRunState(SaveRun.buildRunSave('reward'));assert.deepEqual(G.mainBoard[0],merged);
-    assert.match(makePanel('魔鏡').desc,/還魂/);assert.equal(_canUseItemNow(scroll),false);
-    for(let i=0;i<30;i++){assert.ok(drawRewards().every(c=>c&&c._implemented!==false));assert.ok(!drawItems(3).some(c=>c.itemEffectKey==='bond_scroll'));}
+    assert.match(makePanel('魔鏡').desc,/還魂/);assert.equal(_canUseItemNow(scroll),true);
+    for(let i=0;i<30;i++){assert.ok(drawRewards().every(c=>c&&c._implemented!==false));assert.ok(drawItems(3).every(c=>!c._noItemEffectImpl));}
   });
   fresh();check('合体の旧スイッチとオンライン経路を無視し、関連品も新規利用させない',()=>{
     PANEL_MERGE_TRIAL.enabled=true;G.mainBoard[0]=makePanel('ノーム');G.mainBoard[2]=makePanel('ノーム');
     assert.equal(panelMergeEnabled(),false);assert.equal(_tryTripleMergeOnBoard(_getPartyBoardUnit(),2),null);
-    assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll',name:'絆の巻物'}),false);
+    assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll',name:'絆の巻物'}),true);
     G._onlineMode=true;assert.equal(panelMergeEnabled(),false);assert.equal(panelMergeContentAvailable(makePanel('魔鏡')),false);
     PANEL_MERGE_TRIAL.enabled=false;G._onlineMode=false;
     G._isShop=true;G.spellSlots[0]=makeItem(ITEM_POOL[0].id);const gold=G.gold;
@@ -101,8 +101,8 @@ async function testPveTrial(api,check=(name,fn)=>{fn();console.log('OK '+name);}
     finish.slice(0,4).forEach(resolve=>resolve());await Promise.resolve();await Promise.resolve();
     check('再抽選：5枚すべてが裏返るまでは新しい表もVFXも開始しない',()=>{assert.deepEqual(events,Array(5).fill('down'));assert.equal(played,null);});
     finish[4]();await task;
-    check('再抽選：裏返し完了後に新しい5枚を描き、設定が無効なら全札を通常めくりにする',()=>{
-      assert.deepEqual(played,REWARD_RARITY_REVEAL_ENABLED?[1,4,1,1,1]:[1,1,1,1,1]);assert.equal(events.filter(e=>e==='face').length,5);assert.equal(events.at(-1),'up');assert.equal(_rewardRerollReveal,null);
+    check('再抽選：裏返し完了後に新しい5枚を描き、最高レア1枚だけ演出する（2026-10-26既存仕様）',()=>{
+      assert.deepEqual(played,[1,4,1,1,1]);assert.equal(events.filter(e=>e==='face').length,5);assert.equal(events.at(-1),'up');assert.equal(_rewardRerollReveal,null);
     });
   }finally{cardRevealTurnDown=turnDown;cardRevealPlaySequence=sequence;_rewardRerollFace=face;cardRevealReset=reset;_rewardRerollReveal=null;}
 }

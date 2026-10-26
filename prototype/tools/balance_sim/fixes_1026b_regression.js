@@ -148,7 +148,8 @@ async function unchangedMain() {
       assert.deepEqual(run(current, input, seed), run(baseline, input, seed), `${row['No.']}/${enhanced}/${side}/${seed}`); compared++;
     }
   }
-  for (const ring of RING_POOL.filter(r => r._implemented !== false)) {
+  // 1026の新実装3種はitems_1026_regressionで現行本文を検証する。
+  for (const ring of RING_POOL.filter(r => r._implemented !== false && !['R024','R030','R037'].includes(r.no))) {
     const input = { sides: { p1: { units: [plain('one'), plain('two')] }, p2: { units: [plain('foe'), plain('foe2')] } },
       rings: { p1: [ring] }, resources: { p1: { mana: 15, gold: 800 } }, summonDefs: PANEL_POOL };
     assert.deepEqual(run(current, input, 1026), run(baseline, input, 1026), ring.no); compared++;

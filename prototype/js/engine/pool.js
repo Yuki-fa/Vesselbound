@@ -9,8 +9,7 @@
 const PANEL_MERGE_TRIAL={enabled:false};
 function panelMergeEnabled(){ return false; }
 function panelMergeContentAvailable(card){
-  return panelMergeEnabled()||!(card&&(card.itemEffectKey==='bond_scroll'
-    ||typeof _isMagicMirrorPanel==='function'&&_isMagicMirrorPanel(card)));
+  return panelMergeEnabled()||!(card&&typeof _isMagicMirrorPanel==='function'&&_isMagicMirrorPanel(card));
 }
 
 // 購入価格
@@ -116,7 +115,17 @@ function extraPanelKeywords(card){
   const def=(typeof PANEL_POOL!=='undefined'&&PANEL_POOL.find(p=>(card.id&&p.id===card.id)||p.name===card.name))||null;
   const ownDef=def&&card.boon?coreApplyCardBoon(clone(def),card.boon,{effectsOnly:true}):def;
   const base=new Set(((ownDef&&ownDef.keywords)||[]).map(k=>String(k||'').trim()));
-  return card.keywords.map(k=>String(k||'').trim()).filter(k=>k&&!base.has(k));
+  let extra=card.keywords.map(k=>String(k||'').trim()).filter(k=>k&&!base.has(k));
+  // 巻物で数値をまとめた種類だけ、本来のキーワードとの差分を残す。
+  // 例：本来の毒牙3＋巻物3＝毒牙6を、強化後の毒牙6へ丸ごと足して12にしない。
+  for(const kind of Object.keys(card._itemKeywordBonuses||{})){
+    const matches=k=>/^(.*?)(\d+)$/.exec(String(k||''));
+    const sum=list=>(list||[]).reduce((n,k)=>{const m=matches(k);return n+(m&&m[1]===kind?Number(m[2]):0);},0);
+    extra=extra.filter(k=>{const m=matches(k);return !m||m[1]!==kind;});
+    const amount=Math.max(0,sum(card.keywords)-sum(ownDef&&ownDef.keywords));
+    if(amount) extra.push(kind+amount);
+  }
+  return extra;
 }
 
 // 祝福の炎と図鑑で共用する、シート由来の強化後の姿。
@@ -304,6 +313,12 @@ const ITEM_POOL=[
   {id:'item_golden_scroll',no:'010',name:'黄金の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'golden_scroll',art:'assets/art/items/I010.jpg',desc:'所持金を2倍にする。'},
   {id:'item_mana_scroll',no:'011',name:'魔力の巻物',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'mana_scroll',art:'assets/art/items/I011.jpg',desc:'対象のキャラクターが持つマナ効果の値を永久に1減らす。（但し、最低値は1）'},
   {id:'item_inspire_flag',no:'012',name:'鼓舞の旗',rarity:1,type:'consumable',kind:'item',category:'アイテム',itemEffectKey:'inspire_flag',art:'assets/art/items/I012.jpg',desc:'対象のキャラクターに根性を永久付与する。'},
+  // 名前・本文・出現条件はシートから読む。既存のシート由来IDを保ち、所持品の保存を維持する。
+  ...[
+    {no:'013',name:'絆の巻物',itemEffectKey:'bond_scroll'},
+    {no:'014',name:'召竜の巻物',itemEffectKey:'dragon_scroll'},
+  ].map(item=>({id:`item_sheet_I${item.no}`,rarity:1,type:'consumable',kind:'item',category:'アイテム',
+    art:`assets/art/items/I${item.no}.jpg`,desc:'',...item})),
 ];
 
 // レアリティ「X」のアイテム（毒牙・邪眼・衝撃の巻物）の X を決めて、レアリティと本文へ入れる（2026-10-22 利用者指定）。

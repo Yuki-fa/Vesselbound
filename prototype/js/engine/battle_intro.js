@@ -1063,16 +1063,16 @@ function _warmBattleHitSfx(){
   warmSfxVoices(keys);
 }
 
-function _prepareStartingBattleItems(carryBattle){
-  if(!carryBattle){
+// 次戦のアイテム一覧。オンラインの編成送信は写しだけを読み、開戦時だけ準備処理が消費する。
+function _pendingStartingBattleItems(){
     const pendingItems=[
       ...(Array.isArray(G.pendingBattleItems)?G.pendingBattleItems:[]),
       ...(Array.isArray(G.nextBattleItems)?G.nextBattleItems:[])
     ];
     const seenItemKeys=new Set();
-    G.activeBattleItems=pendingItems.map(c=>clone(c)).filter(c=>{
+    return pendingItems.map(c=>clone(c)).filter(c=>{
       if(!c) return false;
-      if(!['silence_scroll','meteor_scroll'].includes(String(c.itemEffectKey||''))) return false;
+      if(!['silence_scroll','meteor_scroll','sacrifice_doll','dragon_scroll'].includes(String(c.itemEffectKey||''))) return false;
       const key=String(c.itemEffectKey||'')==='meteor_scroll'
         ?'meteor_scroll'
         :(c._itemUseInstanceId||('__legacy__'+String(c.id||c.name||'')+'|'+String(c.itemEffectKey||'')));
@@ -1080,6 +1080,10 @@ function _prepareStartingBattleItems(carryBattle){
       seenItemKeys.add(key);
       return true;
     });
+}
+function _prepareStartingBattleItems(carryBattle){
+  if(!carryBattle){
+    G.activeBattleItems=_pendingStartingBattleItems();
     G.pendingBattleItems=[];
     G.nextBattleItems=[];
     (G.activeBattleItems||[]).forEach(c=>{ if(c){ delete c._firedThisBattle; delete c._manaFireCount; } });
