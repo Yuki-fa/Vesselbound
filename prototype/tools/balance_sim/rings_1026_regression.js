@@ -29,15 +29,14 @@ function opening(h){coreApplyOpeningRings(h.state,h.rng,h.emit,h.hit);}
     const restored=createCoreUnit(coreUnitSnapshot(h.u),side,0);assert.equal(restored.ringInjuryAtk,n);assert.equal(restored.ringInjuryHp,m);break;
    }
    case 'R019': {
-    assert.deepEqual(h.own.map(u=>[u.hp,u.maxHp]),[[100*n,100*n],[100*n,100*n]]);
-    opening(h);opening(h);assert.equal(h.u.hp,100*n);assert.ok(!h.events.some(e=>e.reason==='paladin_ring'));
+    // effects-1026c: 現行シートは常時ではなく開戦。初期値は据え置き、開戦時に1回掛かる。
+    assert.deepEqual(h.own.map(u=>[u.hp,u.maxHp]),[[100,100],[100,100]]);
+    opening(h);assert.equal(h.u.hp,100*n);assert.equal(h.events.filter(e=>e.reason==='paladin_ring').length,2);
     const child=coreSummonUnit(h.state,side,{name:'new',atk:2,hp:7,maxHp:11,_fixedSummonStats:true},h.emit,h.u.id,false,h.rng,h.hit);
-    assert.deepEqual([child.hp,child.maxHp],[7*n,11*n]);
-    const stolen=h.foes[0];assert.ok(coreStealUnit(h.state,stolen,side,h.emit,h.u.id,undefined,h.rng,h.hit));assert.equal(stolen.hp,100*n);
-    coreApplyPassiveHpRings(h.state,child);assert.equal(child.hp,7*n);
-    const snapshot=coreUnitSnapshot(child);assert.equal(snapshot._paladinRingApplied,true);const restored=createCoreUnit(snapshot,side,0);coreApplyPassiveHpRings(h.state,restored);assert.equal(restored.hp,child.hp);
-    const twin=coreSummonUnit(h.state,side,{...snapshot,name:'copy',_inheritsStats:true,_fixedSummonStats:true},h.emit,h.u.id,false,h.rng,h.hit);assert.equal(twin.hp,child.hp,'倍率を含むコピーの数値を再度倍にしない');
-    assert.ok(coreStealUnit(h.state,stolen,h.other,h.emit,h.u.id,undefined,h.rng,h.hit));assert.ok(coreStealUnit(h.state,stolen,side,h.emit,h.u.id,undefined,h.rng,h.hit));assert.equal(stolen.hp,100*n,'同じ体の再奪取でも1回だけ');break;
+    assert.deepEqual([child.hp,child.maxHp],[7,11]);
+    const stolen=h.foes[0];assert.ok(coreStealUnit(h.state,stolen,side,h.emit,h.u.id,undefined,h.rng,h.hit));assert.equal(stolen.hp,100);
+    coreApplyPassiveHpRings(h.state,child);assert.equal(child.hp,7);
+    break;
    }
    case 'R021': {
     for(const amount of [1,3,8]){

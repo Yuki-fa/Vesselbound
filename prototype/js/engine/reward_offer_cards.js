@@ -236,13 +236,6 @@ function _mkRewDiv(card, onBuy, rewIdx){
     // 売却待ちカードはクリックでも魔導板へ戻せるようにする（売却ボタン以外の領域）。
     if(typeof onBuy==='function') div.onclick=onBuy;
   }else if(canBuy&&!exchange&&(G._isShop||G._isTavern)) div.onclick=onBuy;
-  // 破壊の起動（ヘルナイト）を選んでいる間は、報酬枠のキャラクターも対象にできる（2026-10-23 利用者指定）。
-  if(rewIdx!=null&&typeof cardActivationRewardTargetable==='function'&&cardActivationRewardTargetable(card)){
-    div.classList.add('card-activation-target');
-    div.onclick=e=>{ e.stopPropagation(); handleCardActivationRewardTarget(rewIdx); };
-  }else if(rewIdx!=null&&typeof cardActivationRewardDimmed==='function'&&cardActivationRewardDimmed(card)){
-    div.classList.add('activation-target-disabled');
-  }
   _appendLibraryLoanBadge(div);
   if(rewIdx!=null){
     // 売却待ち（魔導板から販売枠へ戻した手持ちカード）は購入対象ではないので canBuy=false になるが、
@@ -278,6 +271,7 @@ function _mkRewDiv(card, onBuy, rewIdx){
   _ensureCardBackLayer(div);
   _ensureRewardCardLineLayer(div);
   _ensureRewardCardDimLayer(div);
+  if(rewIdx!=null) _wireTargetPickingCard(div,'reward',rewIdx,card);
   return div;
 }
 

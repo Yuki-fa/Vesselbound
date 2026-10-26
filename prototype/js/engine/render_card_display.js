@@ -168,9 +168,46 @@ function _enchantmentEffectsList(unit,slotIdx){
     // ここでアイコン化すると、data-preview経由でホバー表示する際に_formatPreviewHtmlの
     // タグ除去処理に巻き込まれて色情報が消えるため、生テキストのまま格納する
     // （アイコン化は各利用箇所の描画直前で行う）
-    if(text) results.push({panel:p,idx,text});
+    const definition=typeof PANEL_POOL!=='undefined'?PANEL_POOL.find(c=>c&&(p.no?c.no===p.no:c.id===p.id)):null;
+    const characterDesc=p.characterDesc??definition?.characterDesc;
+    if(text||String(characterDesc||'').trim()) results.push({panel:{...p,characterDesc},idx,text});
   });
   return results;
+}
+// 未出撃の魔導板プレビューも、実際に接続している本文・キーワードをコアへ渡す。
+function _unitEffectDescriptionContext(unit,slotIdx){
+  if(!unit) return {};
+  if(unit._ownedBoardPreview&&Array.isArray(unit.boardCards)){
+    const own=unit.boardCards[slotIdx||0]||unit;
+    const enh=_collectAdjacentEnhancements(unit,slotIdx||0);
+    return {...unit,keywords:[...(own.keywords||[]),...(enh.keywords||[])],
+      _adjacentPanelEffectTexts:enh.effectTexts||[],effectData:{...unit.effectData,effectTexts:enh.effectTexts||[]}};
+  }
+  return unit;
+}
+function _unitEffectDescription(unit,text,slotIdx){
+  return coreEffectDescriptionNumbers(_unitEffectDescriptionContext(unit,slotIdx),text);
+}
+function _enchantCharacterDescription(panel,unit,slotIdx){
+  const source=_unitEffectDescriptionContext(unit,slotIdx);
+  if(coreEffectDamagePowerBonus(panel)&&!coreHasEffectDamage(source)) return '';
+  let text=_stageEngravingDescription(panel,panel.characterDesc);
+  const raw=String(panel.desc||'');
+  const stats=raw.match(/常時[：:]このキャラクターは([+-]\d+)\/([+-]\d+)を得る/);
+  if(stats) text=text.replace(/[+-](?:X|\d+)\/[+-](?:X|\d+)/g,`${stats[1]}/${stats[2]}`);
+  const hp=raw.match(/常時[：:]このキャラクターはHP\+(\d+)を得る/);
+  if(hp) text=text.replace(/HP\+(?:X|\d+)/g,`HP+${hp[1]}`);
+  const damage=coreEffectDamagePowerBonus(panel);
+  if(damage) text=text.replace(/\+X/g,`+${damage}`);
+  if(coreFormationPassiveSpec(panel)){
+    let passive=unit._formationPassiveStatBonus;
+    if(!passive&&unit._ownedBoardPreview&&typeof buildBoardFormation==='function'){
+      const formed=buildBoardFormation(_getPartyBoardUnit(),{persistEternal:false});
+      passive=formed.entries.find(e=>e.slotIdx===slotIdx)?.unit._formationPassiveStatBonus;
+    }
+    if(passive) text=text.replace(/\+X\/\+X/g,`+${passive.atk}/+${passive.hp}`);
+  }
+  return text;
 }
 // 接続中の強化カード効果を「通常表示分」と「キャラクター用説明文（同名複数接続は×N・数値N倍）」に分けて
 // プレーンテキストの行配列として返す。HTML表示（_unitCombinedDescHtml）とツールチップ表示
@@ -179,22 +216,21 @@ function _groupedEnchantEffectTexts(unit,slotIdx){
   const list=_enchantmentEffectsList(unit,slotIdx);
   const isKeywordCount=e=>/キーワードの数の\d+倍に等しい/.test(String(e.panel&&e.panel.desc||''));
   const strategyPanels=list.filter(isKeywordCount);
-  const normal=list.filter(e=>(!(e.panel&&e.panel.characterDesc)||corePermanentDamageSpec(e.panel.desc))&&!isKeywordCount(e));
+  const normal=list.filter(e=>!(e.panel&&e.panel.characterDesc)&&!isKeywordCount(e));
   const normalMap=new Map();
   normal.forEach(e=>{
     // 以前の「マナの種」は“キャラクター自身の効果を複製する”仕様で、説明文もキャラの効果文へ
     // 差し替えていた。現行仕様は「このキャラクターのマナ効果は1回追加で発動する。」なので、
     // カード自身の説明文をそのまま出す（差し替えるとキャラの効果が二重表示になる）。
-    const text=e.text;
+    const text=_unitEffectDescription(unit,e.text,slotIdx);
     const identity=`${e.panel&&e.panel._tripleMerged?'merged':'base'}::${e.panel&&e.panel.name||''}::${text}`;
     if(!normalMap.has(identity)) normalMap.set(identity,{text,count:0});
     normalMap.get(identity).count++;
   });
   const charDescMap=new Map();
   list.filter(e=>e.panel&&e.panel.characterDesc&&!isKeywordCount(e)).forEach(e=>{
-    let text=_stageEngravingDescription(e.panel,e.panel.characterDesc);
-    const stats=String(e.panel.desc||'').match(/常時[：:]このキャラクターは([+-]\d+)\/([+-]\d+)を得る/);
-    if(stats) text=text.replace(/[+-]X\/[+-]X/g,`${stats[1]}/${stats[2]}`);
+    const text=_enchantCharacterDescription(e.panel,unit,slotIdx);
+    if(!text) return;
     const key=`${e.panel._tripleMerged?'merged':'base'}::${e.panel.name}::${text}`;
     if(!charDescMap.has(key)) charDescMap.set(key,{name:_cardUiName(e.panel),text,count:0});
     charDescMap.get(key).count++;
@@ -280,7 +316,7 @@ function _unitCombinedDescHtml(unit,baseDesc,slotIdx){
   const ringCharTexts=_ringCharacterDescriptionsForUnit(unit);
   const battleNormalTexts=normalTexts.map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
   const battleCharTexts=[...charTexts,...ringCharTexts].map(t=>_stripBattleParentheticalText(t)).filter(Boolean);
-  const shownBaseDesc=adjustMapText(baseDesc);
+  const shownBaseDesc=adjustMapText(_unitEffectDescription(unit,baseDesc,slotIdx));
   const kws=typeof _unitDisplayKeywords==='function'?_unitDisplayKeywords(unit,shownBaseDesc,slotIdx):[];
   const kwHtml=kws.length?`<div class="slot-desc-keywords"><strong>${kws.map(k=>typeof _escapePreviewHtml==='function'?_escapePreviewHtml(k):k).join(' / ')}</strong></div>`:'';
   const baseSafe=shownBaseDesc&&(typeof _escapePreviewHtml==='function'?_escapePreviewHtml(shownBaseDesc):shownBaseDesc);
@@ -447,7 +483,7 @@ function _unitPreviewText(unit, desc, slotIdx){
   const charTexts=rawCharTexts.map(adjustMapText);
   const characterTexts=[...charTexts,..._ringCharacterDescriptionsForUnit(unit)];
   const _stripIconsForMatch=s=>String(s||'').replace(/<img[^>]*alt="([^"]*)"[^>]*>/g,'$1').replace(/<[^>]*>/g,'');
-  const shownDesc=adjustMapText(desc);
+  const shownDesc=adjustMapText(_unitEffectDescription(unit,desc,slotIdx));
   const kws=_unitDisplayKeywords(unit,shownDesc,slotIdx);
   // 「キーワード：」というラベルは表示せず、キーワードそのものを太字で並べる
   // （_formatPreviewHtmlがこのマーカー行を検出してラベルなし・太字表示に変換する）

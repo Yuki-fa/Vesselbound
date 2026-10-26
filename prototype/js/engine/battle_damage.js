@@ -616,6 +616,14 @@ function _applyCoreKeywordOnHitPve(attacker, target, damageDone, targetPreHp, sk
 
 // ── 敵へのダメージ処理 ──────────────────────────
 
+// 通常撃破・即死は同じ配分額を一度だけ支払う。保存再生では確定済みの額を使う。
+function grantEnemyDefeatGold(unit, event) {
+  if (!unit || unit._enemyGoldPaid) return 0;
+  unit._enemyGoldPaid = true;
+  const gold = G._savedBattleReplaying ? Number(event && event.pveRewardGold) || 0 : _rollEnemyGold(unit);
+  if (gold > 0 && typeof onGoldGained === 'function') onGoldGained(gold);
+  return gold;
+}
 async function processEnemyDeath(e,eIdx){
   G._pendingDeathEffects=(G._pendingDeathEffects||0)+1;
   try{ return await _processEnemyDeathInner(e,eIdx); }
@@ -642,9 +650,7 @@ async function _processEnemyDeathInner(e,eIdx){
   // エリート判定：キーワードではなくインデックスで判定（ENEMY_POOLデータにエリートKWが混入しても誤発火しない）
   const _isActualElite=G._isEliteFight&&G._eliteIdx>=0&&eIdx===G._eliteIdx;
   if(_isActualElite) G._eliteKilled=true;
-  const gold=_rollEnemyGold(e);
-  e._enemyGoldPaid=true;
-  if(gold>0&&typeof onGoldGained==='function') onGoldGained(gold);
+  grantEnemyDefeatGold(e);
   _onEnemyDeathPanelSummons(e);
   // ナグルファル：敵死亡でも+2/+1
   _onAnyCharDeath(e);

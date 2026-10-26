@@ -496,6 +496,17 @@ function coreAscensionSpec(card) {
   return result;
 }
 
+// 対象選択の段数・種類も本文から決める。画面側はこの規則を共用する。
+function coreActivationPairSpec(source) {
+  const text = coreUnitTriggerText(source, '起動');
+  if (/このキャラクターと、対象のキャラクターのATKとHPを入れ替える/.test(text))
+    return { kind: 'swap_stats', self: true, characterOnly: true };
+  if (/対象のキャラクターと、対象の別のキャラクターのATKとHPを入れ替える/.test(text))
+    return { kind: 'swap_stats', self: false, characterOnly: true };
+  const swap = text.match(/対象の2枚の(キャラクター|カード)を入れ替える/);
+  return swap ? { kind: 'swap_cards', self: false, characterOnly: swap[1] === 'キャラクター' } : null;
+}
+
 // 非戦闘の起動。対象と本文だけで結果を決め、UI・セーブは呼び出し側へ返す。
 function coreActivateBoardCard(source, target, definitions, rng, context = {}) {
   if (!source || !target) return null;
@@ -503,16 +514,16 @@ function coreActivateBoardCard(source, target, definitions, rng, context = {}) {
   const itemGold = text.match(/対象のアイテムを破壊し、(\d+)Gを得る/);
   if (itemGold) return context.targetZone === 'item' && (target.category === 'アイテム' || target.type === 'consumable' || target.kind === 'item')
     ? { kind: 'destroy_item_gold', gold: Number(itemGold[1]) } : null;
-  // チェンジリング：2026-10-26 から「対象の魔導板のカードと、対象の報酬のカードを入れ替える。」（能力値は下がらない）。
-  if (/対象の魔導板のカードと、対象の報酬のカードを入れ替える/.test(text)) return context.targetZone === 'board'
-    && /^(?:キャラクター|エンチャント|強化)$/.test(target.category || '')
-    && context.rewardTarget && /^(?:キャラクター|エンチャント|強化)$/.test(context.rewardTarget.category || '')
-    ? { kind: 'exchange_reward', atk: 0, hp: 0 } : null;
-  const exchange = text.match(/対象の魔導板のカードと、報酬のカードを入れ替えた後、このキャラクターは-(\d+)\/-(\d+)を得る/);
-  if (exchange) return context.targetZone === 'board' && /^(?:キャラクター|エンチャント|強化)$/.test(target.category || '')
-    && context.rewardTarget && /^(?:キャラクター|エンチャント|強化)$/.test(context.rewardTarget.category || '')
-    ? { kind: 'exchange_reward', atk: Math.max(0, (Number(source.power ?? source.atk) || 0) - Number(exchange[1])) - (Number(source.power ?? source.atk) || 0),
-      hp: Math.max(1, (Number(source.life ?? source.hp) || 1) - Number(exchange[2])) - (Number(source.life ?? source.hp) || 1) } : null;
+  const pair = coreActivationPairSpec(source);
+  if (pair) {
+    const other = pair.self ? source : context.otherTarget;
+    const accepts = card => card && (pair.characterOnly ? card.category === 'キャラクター'
+      : /^(?:キャラクター|エンチャント|強化)$/.test(card.category || ''));
+    if (!accepts(target) || !accepts(other) || target === other) return null;
+    if (pair.kind === 'swap_cards') return { kind: pair.kind };
+    const stats = card => ({ power: Number(card.power ?? card.atk) || 0, life: Number(card.life ?? card.hp) || 0 });
+    return { kind: pair.kind, first: stats(other), second: stats(target) };
+  }
   if (/対象の(キャラクター|カード)を同じレアリティの別の(?:キャラクター|カード)に変身させる/.test(text)) {
     if (/対象のキャラクター/.test(text) && target.category !== 'キャラクター') return null;
     const choices = (definitions || []).filter(c => c && (/対象のカード/.test(text) ? /キャラクター|エンチャント|強化/.test(c.category) : c.category === 'キャラクター') && c._implemented !== false
@@ -2256,13 +2267,38 @@ function coreHitAll(state, rng, emit, applyHit, source, targets, amount, extraOp
     h.counter, rng, emit, applyHit, h.damageKind ? { ...h.opt, damageKind: h.damageKind } : h.opt));
 }
 
+function coreEffectDamagePowerBonus(unit) {
+  return coreTriggerEffectEntries(unit, '常時', /このキャラクターが与える効果ダメージの威力は\+(\d+)される/)
+    .reduce((sum, match) => sum + Number(match[1]), 0);
+}
+
+// 説明の数値も戦闘と同じ加算関数で求める。原文・効果入力は変更しない。
+function coreHasEffectDamage(unit) {
+  return /(?:[\dX]+ダメージを(?:[\dX]+回)?(?:与える|受ける)|同じダメージを与える)/.test(coreUnitEffectText(unit).replace(/「[^」]*」/g,''));
+}
+function coreEffectDescriptionNumbers(unit, text) {
+  const damageBonus = coreEffectDamagePowerBonus(unit);
+  const signed = value => { const n=coreStatBonus(unit,Number(value),unit); return (n>=0?'+':'')+n; };
+  return String(text||'').split(/(「[^」]*」)/).map((part,index)=>{
+    if(index%2) return part;
+    let out=part;
+    if(damageBonus) {
+      out=out.replace(/(\d+|X)(ダメージを(?:\d+回)?(?:与える|受ける))/g,(_m,value,tail)=>
+        (value==='X'?`(X+${damageBonus})`:Number(value)>0?Number(value)+damageBonus:0)+tail);
+      out=out.replace(/その毒の値と同じダメージを与える/g,`(その毒の値+${damageBonus})ダメージを与える`);
+    }
+    out=out.replace(/([+-]\d+)\s*\/\s*([+-]\d+)/g,(_m,atk,hp)=>`${signed(atk)}/${signed(hp)}`)
+      .replace(/((?:ATK|HP)(?:が|は)?)([+-]\d+)/g,(_m,label,value)=>label+signed(value));
+    return out;
+  }).join('');
+}
+
 function coreResolveHit(state, source, target, amount, counter, rng, emit, options) {
   if (!state || !target || target.hp <= 0 || !(amount > 0)) return { amount: 0, died: false };
   let opt = options || {};
   if (source && !opt.skipSourceEffects && !opt._effectPowerApplied
     && (opt.effect || (!counter && (!source._coreAttackContact || /_effect/.test(coreDamageKind(state)))))) {
-    const bonus = coreTriggerEffectEntries(source, '常時', /このキャラクターが与える効果ダメージの威力は\+(\d+)される/)
-      .reduce((sum, match) => sum + Number(match[1]), 0);
+    const bonus = coreEffectDamagePowerBonus(source);
     if (bonus) { amount += bonus; opt = { ...opt, _effectPowerApplied: true }; options = opt; }
   }
   const units = state.units || { p1: [], p2: [] };
@@ -3621,6 +3657,18 @@ function coreApplyOpeningRings(state, rng, emit, applyHit) {
     for (const unit of targets) coreTriggerAtkGainEffects(unit, Number(m[1]), state, rng, emit, applyHit);
     coreHitAll(state, rng, emit, applyHit, null, targets, Number(m[3]));
   }
+  for (const side of ['p1', 'p2']) for (const m of coreRingMatches(state, side,
+    /^開戦：全ての味方のHPを([\d.]+)倍にする/)) {
+    for (let i = 0; i <= coreOpeningRingExtraTimes({ side }, state); i++) {
+      const fxBatch = corePresentationBatch(state);
+      for (const unit of live(side)) {
+        const hp = unit.hp * (Number(m[1]) - 1), maxHp = unit.maxHp * (Number(m[1]) - 1);
+        unit.hp += hp; unit.maxHp += maxHp;
+        emit({ type: 'stat_change', side, unitId: unit.id, atk: 0, hp, maxHp,
+          reason: 'paladin_ring', fxBatch });
+      }
+    }
+  }
   ['p1', 'p2'].forEach(side => live(side).forEach(u => coreApplyOpeningRingsToUnitLate(state, u, emit)));
   for (const side of ['p1', 'p2']) for (const m of coreRingMatches(state, side,
     /^開戦：前衛左端の味方のATKを([\d.]+)倍にし、先攻になる/)) {
@@ -4321,7 +4369,7 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
   queueDamage((emit, allies, foes) => {
     const frontDamage = desc.match(/^攻撃：全ての前衛の味方に(\d+)ダメージ/);
     if (frontDamage) coreHitAll(state, rng, emit, applyHit, unit, allies.filter(x => x.hp > 0 && x.lane !== 'rear' && !coreIsSealed(x)), Number(frontDamage[1]));
-    const allDamage = desc.match(/^攻撃：全てのキャラクターに(\d+)ダメージを(?:(\d+)回)?与える。/);
+    const allDamage = desc.match(/^攻撃：(?:このキャラクター以外の)?全てのキャラクターに(\d+)ダメージを(?:(\d+)回)?与える。/);
     if (coreHasEffect(damageDefinition, 'サイレン') || allDamage) {
       const amount = Math.max(1, Number(allDamage && allDamage[1]) || 1);
       // 回数も本文から読む（合体後は2回）。
@@ -7619,6 +7667,10 @@ if (typeof window !== 'undefined') {
   window.coreAllyExtraTriggerTimes = coreAllyExtraTriggerTimes;
   window.coreRunEffectFields = coreRunEffectFields;
   window.coreActivateBoardCard = coreActivateBoardCard;
+  window.coreActivationPairSpec = coreActivationPairSpec;
+  window.coreEffectDamagePowerBonus = coreEffectDamagePowerBonus;
+  window.coreHasEffectDamage = coreHasEffectDamage;
+  window.coreEffectDescriptionNumbers = coreEffectDescriptionNumbers;
   window.coreAscensionSpec = coreAscensionSpec;
   window.coreApplyMapPanelOpeningEffects = coreApplyMapPanelOpeningEffects;
   window.coreApplyManaThresholdEffects = coreApplyManaThresholdEffects;
@@ -7678,7 +7730,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreKeywordHitAmounts,
     coreTriggerAtkGainEffects,
     coreUnitEffectNames, coreHasEffect, coreEffectCount, coreRingCount, coreRainbowRingBonusForUnits, coreApplyAttackEffects,
-    coreEffectNumbers, coreExtraTriggerTimes, coreAllyExtraTriggerTimes, coreRunEffectFields, coreActivateBoardCard, coreAscensionSpec,
+    coreEffectNumbers, coreExtraTriggerTimes, coreAllyExtraTriggerTimes, coreRunEffectFields, coreActivateBoardCard, coreActivationPairSpec, coreEffectDamagePowerBonus, coreHasEffectDamage, coreEffectDescriptionNumbers, coreAscensionSpec,
     corePermanentDamageSpec, corePermanentDamageValue, corePermanentDamageDescription,
     coreEnsurePermanentEffectCards, coreApplyPermanentDamageEvent,
     coreClearKenzoku,

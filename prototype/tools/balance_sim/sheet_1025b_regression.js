@@ -300,18 +300,19 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'item' }), { kind: 'destroy_item_gold', gold: Number(value.match(/(\d+)G/)[1]) });
       assert.equal(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'reward' }), null);
     });
-    // 2026-10-26：本文が「対象の魔導板のカードと、対象の報酬のカードを入れ替える。」に変わり、能力値は下がらない。
-    test('C080', '2つの区域を選んで交換、能力値は変わらない', value => {
-      const source = { ...card('C080', enhanced), power: 7, life: 11 }, target = card('C006'), rewardTarget = card('E001'), rng = createSeededRng(1);
-      assert.match(value, /対象の魔導板のカードと、対象の報酬のカードを入れ替える/);
-      assert.equal(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board' }), null);
-      assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board', rewardTarget }), { kind: 'exchange_reward', atk: 0, hp: 0 });
+    // effects-1026c: 通常はキャラクター2枚、強化はカード2枚。区域と順序は限定しない。
+    test('C080', '対象2枚を交換、通常はキャラ限定、能力値は変わらない', value => {
+      const source={...card('C080',enhanced),power:7,life:11},target=card('C006'),other=card(enhanced?'E001':'C007'),rng=createSeededRng(1);
+      assert.match(value,/対象の2枚の(?:キャラクター|カード)を入れ替える/);
+      assert.equal(coreActivateBoardCard(source,target,PANEL_POOL,rng),null);
+      assert.deepEqual(coreActivateBoardCard(source,target,PANEL_POOL,rng,{otherTarget:other}),{kind:'swap_cards'});
+      assert.deepEqual(coreActivateBoardCard(source,other,PANEL_POOL,rng,{targetZone:'reward',otherTarget:target}),{kind:'swap_cards'});
     });
-    test('C116', '強化後は報酬区域だけ、通常は魔導板も、吸収量は本文の倍率', value => {
+    test('C116', '通常も強化も対象区域・吸収量は現行本文どおり', value => {
       const source = card('C116', enhanced), target = { ...card('C006'), power: 7, life: 11 }, rng = createSeededRng(1), mul = Number((value.match(/の(\d+)倍/) || [])[1]) || 1;
       const expected = { kind: 'destroy', atk: 7 * mul, hp: 11 * mul };
       assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'reward' }), expected);
-      assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board' }), enhanced ? null : expected);
+      assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board' }), /対象の報酬の/.test(value) ? null : expected);
     });
   }
 
@@ -359,11 +360,15 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       for (const enhanced of [false, true]) for (const self of [false, true]) {
         initState(); G.phase = 'reward'; G.mainBoard.fill(null); G.mainBoard[1] = card('C080', enhanced); G.mainBoard[3] = card('C006');
         const source = G.mainBoard[1], outgoing = G.mainBoard[self ? 1 : 3]; source.power = 9; source.life = 13; source._permBasePower = 9; source._permBaseLife = 13; source._placeKey = 'source-key'; outgoing._placeKey = self ? 'source-key' : 'out-key';
-        _rewCards = [{ ...card('C008'), _placeKey: 'reward-key' }]; chargeBoardCardActivations(); cardActivationClick(1); assert.equal(cardActivationRewardTargetable(_rewCards[0]), false); handleCardActivationTarget(self ? 1 : 3); assert.equal(cardActivationRewardTargetable(_rewCards[0]), true); handleCardActivationRewardTarget(0);
+        _rewCards = [{ ...card('C008'), _placeKey: 'reward-key' }]; chargeBoardCardActivations(); cardActivationClick(1); assert.equal(cardActivationRewardTargetable(_rewCards[0]), true); handleCardActivationTarget(self ? 1 : 3); if (self) { assert.equal(_pendingCardActivation, null); assert.equal(source._activationReady, true); assert.equal(G.mainBoard[1], source); continue; } assert.equal(cardActivationRewardTargetable(_rewCards[0]), true); handleCardActivationRewardTarget(0);
         assert.equal(G.mainBoard[self ? 1 : 3]._placeKey, 'reward-key'); assert.equal(_rewCards[0]._placeKey, self ? 'source-key' : 'out-key');
         const holder = self ? _rewCards[0] : G.mainBoard[1]; assert.deepEqual([holder.power, holder.life], [9, 13]); assert.deepEqual([holder._permBasePower, holder._permBaseLife], [holder.power, holder.life]); assert.equal(holder._activationReady, undefined); assert.equal(_pendingCardActivation, null);
       }
-      initState(); G.phase = 'reward'; G.mainBoard.fill(null); const knight = G.mainBoard[1] = card('C116', true); G.mainBoard[3] = card('C006'); _rewCards = [card('C006')]; chargeBoardCardActivations(); cardActivationClick(1); handleCardActivationTarget(3); assert.ok(G.mainBoard[3]); assert.ok(knight._activationReady); handleCardActivationRewardTarget(0); assert.equal(_rewCards.length, 0); assert.equal(knight._activationReady, undefined);
+      // 強化ヘルナイトも現行本文では魔導板を対象にできる。
+      initState(); G.phase='reward'; G.mainBoard.fill(null); const knight=G.mainBoard[1]=card('C116',true);
+      G.mainBoard[3]=card('C006'); _rewCards=[card('C006')]; chargeBoardCardActivations();cardActivationClick(1);
+      handleCardActivationTarget(3);assert.equal(G.mainBoard[3],null);assert.equal(knight._activationReady,undefined);assert.equal(_rewCards.length,1);
+
     } finally { Object.assign(globalThis, old); _pendingCardActivation = null; _rewCards = []; }
   });
 
@@ -403,6 +408,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
     const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox); const baseline = sandbox.module.exports;
     const current = require('../../js/battle/core'); let compared = 0;
     for (const no of [...rows.keys()].filter(no => /^[CE]\d+$/.test(no) && !required.includes(no) && !revised1026.has(no) && PANEL_POOL.some(c => c.no === no))) for (const enhanced of [false, true]) {
+      if(no==='C016'&&enhanced) continue; // effects-1026c: 強化サイレンは2波
       const input = { sides: { p1: { units: [unit(no, enhanced), plain('ally', { color: '青' })] }, p2: { units: [plain('foe'), plain('foe2')] } }, summonDefs: PANEL_POOL, resources: { p1: { mana: 8, gold: 800 } } };
       const run = api => { const state = api.createBattleState(copy(input)), events = [], rng = createSeededRng(251025); api.runBattleCore(state, rng, { turnLimit: 5, onEvent: e => events.push(e) }); return copy({ events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() }); };
       assert.deepEqual(run(current), run(baseline), `${no}/${enhanced}`); compared++;

@@ -124,7 +124,7 @@ function element(tag) {
       assert.equal(coreKeywordSum(enhanced,kind),base+3);
     }
   });
-  await check('対象選択は既存の暗転クラス・説明・キャンセル・右クリック・Esc・外側クリック・ドラッグ抑止を共用', () => {
+  await check('対象選択は説明を置かず、右クリック・Escで解除、外側クリック・ドラッグは抑止', () => {
     const old = { body: document.body, root: document.documentElement, get: document.getElementById, create: document.createElement, add: document.addEventListener };
     const body = element('body'), root = element('html'), section = element('section'), handlers = {};
     document.body = body; document.documentElement = root; document.createElement = element;
@@ -134,14 +134,14 @@ function element(tag) {
     window._itemUseCancelBound = false;
     vm.runInThisContext(source.slice(source.indexOf('if(!window._itemUseCancelBound)'), source.indexOf('// ── 対象を選ぶアイテム')));
     try {
-      for (const no of ['I013','I015','I024']) for (const cancel of ['button','contextmenu','pointerdown','keydown','outside']) {
+      for (const no of ['I013','I015','I024']) for (const cancel of ['contextmenu','keydown']) {
         board(); const before = copy(G.mainBoard); use(no); assert.ok(body.classList.contains('item-use-picking'));
-        assert.ok(root.style.getPropertyValue('--item-use-desc')); assert.equal(_itemUseStep(G._pendingItemUse), 1);
-        if (no === 'I013') assert.doesNotMatch(_itemUsePromptText(G._pendingItemUse), /マージ|合体/);
+        assert.equal(root.style.getPropertyValue('--item-use-desc'), ''); assert.equal(section.querySelector('.item-use-cancel-btn'), null);
         let stopped = 0; const event = { button: 2, key: 'Escape', target: { closest: () => null }, preventDefault() { stopped++; }, stopImmediatePropagation() { stopped++; } };
         handlers.dragstart(event); assert.ok(G._pendingItemUse); assert.equal(stopped, 2);
-        if (cancel === 'button') section.querySelector('.item-use-cancel-btn').onclick();
-        else if (cancel === 'outside') handlers.pointerdown({ ...event, button: 0 }); else handlers[cancel](event);
+        handlers.pointerdown({ ...event, button: 0 }); assert.ok(G._pendingItemUse, '外側を押しても対象選択を維持');
+        handlers.pointerdown(event); assert.ok(G._pendingItemUse, '右クリックの解除はcontextmenuで一度だけ');
+        handlers[cancel](event);
         assert.equal(G._pendingItemUse, null); assert.ok(!body.classList.contains('item-use-picking')); assert.equal(root.style.getPropertyValue('--item-use-desc'), '');
         assert.deepEqual(G.mainBoard, before); assert.ok(G.spellSlots[0], 'キャンセルでは消費しない');
       }
@@ -174,7 +174,7 @@ function element(tag) {
     _prepareStartingBattleItems(false); assert.deepEqual(G.activeBattleItems, []);
   });
   await check('I002変身・I005巨大化・I008魂交換・I010黄金・I011見通し：既存効果が現行本文へ接続する', () => {
-    board(); G.mainBoard[3] = makePanel('ゴーレム'); const target = G.mainBoard[3]; use('I002'); handlePendingItemBoardTarget(2); handlePendingItemBoardTarget(3); assert.equal(G.mainBoard[2].id, target.id);
+    board(); G.mainBoard[3] = makePanel('ゴーレム'); const target = G.mainBoard[3]; use('I002'); handlePendingItemBoardTarget(2); assert.equal(G._pendingItemUse.firstIdx,undefined); handlePendingItemBoardTarget(1); handlePendingItemBoardTarget(3); assert.equal(G.mainBoard[1].id, target.id); assert.deepEqual([G.mainBoard[1].power,G.mainBoard[1].life],[5,20]);
     board(); select('I005'); assert.deepEqual([G.mainBoard[1].power,G.mainBoard[1].life], [8,30]);
     board(); G.mainBoard[3] = { ...makePanel('ゴーレム'), power: 7, life: 11 }; use('I008'); handlePendingItemBoardTarget(1); handlePendingItemBoardTarget(3); assert.deepEqual([G.mainBoard[1].power,G.mainBoard[1].life,G.mainBoard[3].power,G.mainBoard[3].life], [7,11,5,20]);
     board(); G.gold = 123; use('I010'); assert.equal(G.gold, 246);
@@ -312,13 +312,14 @@ function element(tag) {
       return copy({result,events,finalState:api.battleCoreFinalState(state),nextRandom:rng.next()}); };
     const base = own => ({sides:{p1:{units:[own,plain('ally')]},p2:{units:[plain('foe',{hp:5,maxHp:5}),plain('foe2')]}},resources:{p1:{mana:8,gold:800}},summonDefs:PANEL_POOL});
     for (const row of [...sheet.sheetRows('card'),...sheet.sheetRows('enchant')]) for (const enhanced of [false,true]) for (const seed of [1,1026]) {
+      if (row['No.']==='C016'&&enhanced) continue; // effects-1026c: 強化は本文どおり2波
       const def = PANEL_POOL.find(c=>c.no===row['No.']); if (!def) continue;
       const c = {...copy(def),desc:(enhanced?row['強化効果']:'')||row['効果']||''};
       const own = def.category==='キャラクター'?{..._makePanelSummonUnit(_panelSummonSpec(c),[]),id:'source',atk:10,hp:70,maxHp:70}
         :plain('source',{_adjacentPanelEffectTexts:[c.desc],boardCards:[c]});
       assert.deepEqual(run(current,base(own),seed),run(baseline,base(own),seed),`${row['No.']}/${enhanced}/${seed}`); compared++;
     }
-    for (const r of RING_POOL.filter(r=>!['R024','R030','R037'].includes(r.no))) {
+    for (const r of RING_POOL.filter(r=>!['R019','R024','R030','R037'].includes(r.no))) {
       const input={...base(plain('source')),rings:{p1:[r]}}; assert.deepEqual(run(current,input,1026),run(baseline,input,1026),r.no); compared++;
     }
     for (const d of ITEM_POOL.filter(d=>Number(d.no)<=12)) {

@@ -201,7 +201,6 @@ function mana(f, text, amount = 4) {
       assert.ok(html.includes('結界')); assert.doesNotMatch(html, /結界\s*(?:\d+|X)/);
     }
     assert.equal(_keywordDescLine('結界'), '結界：このキャラクターはダメージを一度だけ無効化する。');
-    assert.doesNotMatch(_itemUsePromptText({ key: 'shield_scroll', card: { name: '盾の巻物' } }), /結界\d/);
     G.phase = 'reward';
   });
   check('盾の巻物の永久付与も保存するキーワードを1つにまとめる', () => {

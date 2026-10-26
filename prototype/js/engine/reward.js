@@ -2038,7 +2038,7 @@ function renderRewCards(){
     const d=_mkRewDiv(card,()=>takeRewCard(i),i);
     if(pendingRewardIdx===i) d.classList.add('pending-placement');
     if(_rewardPickUsed&&card._isOriginalReward
-      &&!(typeof cardActivationRewardTargetable==='function'&&cardActivationRewardTargetable(card))){
+      &&!d.classList.contains('item-target-ok')){
       d.onclick=null;
       d.classList.add('reward-used-dim');
       d.classList.remove('reward-rarity-glow'); // 取得済みの報酬は光らせない

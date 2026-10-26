@@ -276,6 +276,7 @@ function coreEvents(events) { return events.map(event => { const { pveRewardGold
     const current = require('../../js/battle/core'); let compared = 0;
     const rows = [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')];
     for (const row of rows.filter(r => r['No.'] !== 'C004' && !revised1026.has(r['No.']))) for (const enhanced of [false, true]) {
+      if (row['No.'] === 'C016' && enhanced) continue; // effects-1026c: 強化は本文どおり2波
       const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
       const card = { ...copy(def), desc: (enhanced ? row['強化効果'] : '') || row['効果'] || '' };
       const own = def.category === 'キャラクター'

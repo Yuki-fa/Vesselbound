@@ -76,13 +76,14 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
   });
   check(`${side}/${enhanced}：起動3種の対象・量を本文から読む`,()=>{
    const target={...card('C006'),power:7,life:11},rng=createSeededRng(101);
-   const sylph=coreActivateBoardCard(card('C084',enhanced),target,PANEL_POOL,rng);
-   assert.ok(sylph);assert.equal(sylph.definition.rarity,target.rarity);assert.notEqual(sylph.definition.name,target.name);
+   const source=card('C084',enhanced),other=card('C007');
+   const sylph=coreActivateBoardCard(source,target,PANEL_POOL,rng,{otherTarget:other});
+   assert.equal(sylph.kind,'swap_stats');assert.deepEqual(sylph.first,{power:enhanced?other.power:source.power,life:enhanced?other.life:source.life});
    const incubus=card('C109',enhanced),result=coreActivateBoardCard(incubus,target,PANEL_POOL,rng),pair=incubus.desc.match(/\+(\d+)\/\+(\d+)/);
    assert.deepEqual([result.atk,result.hp],[Number(pair[1]),Number(pair[2])]);assert.ok(['赤','青','緑','黄','紫'].includes(result.color));
    const knight=card('C116',enhanced),mul=Number((knight.desc.match(/の(\d+)倍/)||[])[1])||1;
    assert.deepEqual(coreActivateBoardCard(knight,target,PANEL_POOL,rng,{targetZone:'reward'}),{kind:'destroy',atk:7*mul,hp:11*mul});
-   assert.equal(coreActivateBoardCard(knight,target,PANEL_POOL,rng,{targetZone:'board'})===null,enhanced);
+   assert.equal(coreActivateBoardCard(knight,target,PANEL_POOL,rng,{targetZone:'board'})===null,/対象の報酬の/.test(knight.desc));
    assert.equal(coreActivateBoardCard(knight,knight,PANEL_POOL,rng),null);
    assert.equal(coreActivateBoardCard(card('C084'),card('E001'),PANEL_POOL,rng),null,'通常のシルフはキャラクターだけを対象にする');
   });
@@ -128,7 +129,7 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    assert.ok(cardActivationCanUse(G.mainBoard[1]),'保存再開で印を保つ');
    G.mainBoard[1]._activationReady=false;const used=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(used);
    assert.equal(cardActivationCanUse(G.mainBoard[1]),false,'再開で使用を戻さない');
-   G._isShop=false;G._isForge=true;G.mainBoard[1]._activationReady=true;assert.equal(cardActivationCanUse(G.mainBoard[1]),false,'鍛冶屋では使えない');
+   G._isShop=false;G._isForge=true;G.mainBoard[1]._activationReady=true;assert.equal(cardActivationCanUse(G.mainBoard[1]),true,'effects-1026c: 鍛冶屋でも起動できる');
    G._isForge=false;G.phase='player';assert.equal(cardActivationCanUse(G.mainBoard[1]),false,'戦闘中は使えない');
    assert.match(fs.readFileSync('js/engine/battle.js','utf8'),/_libraryTestBattleMode&&typeof chargeBoardCardActivations==='function'\) chargeBoardCardActivations\(\)/,'戦闘ごとに印を立てる（試験戦闘を除く）');
   }finally{[renderHandEditor,renderRewCards,updateHUD]=renderers;_pendingCardActivation=null;}
@@ -195,7 +196,7 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    assert.equal(_rewCards[0],null,'店の品は空き枠にする');
    const sylph=G.mainBoard[2]=card('C109');_rewCards=[card('C006')];G._facilityCacheKey='town-sylph';
    _pendingCardActivation={card:sylph,index:2,key:cardActivationVisitKey()};
-   assert.equal(cardActivationRewardTargetable(_rewCards[0]),false,'破壊以外の起動は報酬枠を選ばない');
+   assert.equal(cardActivationRewardTargetable(_rewCards[0]),true,'対象のキャラクターを取る起動は報酬・商品も選べる');
   }finally{Object.assign(globalThis,old);G._isShop=false;_pendingCardActivation=null;_rewCards=[];}
  });
  check('終戦：接続エンチャント強化・回数保存・錬成の空き欄と支払い',()=>{
@@ -237,8 +238,10 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    assert.deepEqual([G.mainBoard[1].power,G.mainBoard[1].life],[11,14]);assert.equal(G.spellSlots[0],null);
    i=prepare('I008');_beginBoardItemUse(0,i);_handlePendingItemBoardTarget(1);assert.ok(G.spellSlots[0]);_handlePendingItemBoardTarget(3);
    assert.deepEqual([G.mainBoard[1].power,G.mainBoard[1].life,G.mainBoard[3].power,G.mainBoard[3].life],[13,17,7,9]);
-   i=prepare('I002');G.mainBoard[1]=card('E001');_beginBoardItemUse(0,i);_handlePendingItemBoardTarget(1);_handlePendingItemBoardTarget(3);
-   assert.equal(G.mainBoard[1].name,G.mainBoard[3].name);assert.equal(G.mainBoard[1].power,card('C007').power,'変身先の素の定義を使う');
+   // effects-1026c: 変身の両対象はキャラクターだけ。元のATK/HPを保持する。
+   i=prepare('I002');G.mainBoard[2]=card('E001');_beginBoardItemUse(0,i);_handlePendingItemBoardTarget(2);
+   assert.equal(G._pendingItemUse.firstIdx,undefined);_handlePendingItemBoardTarget(1);_handlePendingItemBoardTarget(3);
+   assert.equal(G.mainBoard[1].name,G.mainBoard[3].name);assert.deepEqual([G.mainBoard[1].power,G.mainBoard[1].life],[7,9]);
    i=prepare('I011');
    // 改名されたアイテムも、本文の処理はNo.で引いた現行シートのコピーで検査する。
    // ITEM_POOLの旧名との対応はloader側の別の責務（マスター・内蔵CSVは変更しない）。

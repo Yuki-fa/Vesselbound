@@ -446,6 +446,12 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // 即死の見せ方は present_events.js が唯一の実装（オンラインと同じ）。
       // 状態はコアが確定済みなので、ここは演出だけ。
       presentInstantDeathEvent(e,{ findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)) });
+      if(e.side==='p2') {
+        const unit=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
+        const before=Number(G.gold)||0;
+        if(unit&&unit.hp<=0) grantEnemyDefeatGold(unit,e);
+        if(state.resources&&state.resources.p1) state.resources.p1.gold+=(Number(G.gold)||0)-before;
+      }
       continue;
     }
     if(e.type==='keyword_effect'){

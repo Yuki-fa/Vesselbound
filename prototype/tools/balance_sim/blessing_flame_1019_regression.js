@@ -74,7 +74,7 @@ function simulate(units){
     const original=clone(G.mainBoard[1]),create=document.createElement;
     try{
       document.createElement=element;
-      const slot=element();blessingFlameWireCard(slot,G.mainBoard[1],1);
+      const slot=element();_wireHeCardControls(slot,G.mainBoard[1],'boardCards',1);
       slot.onclick({stopPropagation(){}});
       assert.deepEqual(G.mainBoard[1],original);
       const row=element(),section=element();blessingFlameRenderPreview(row,section);
@@ -151,7 +151,7 @@ function simulate(units){
     const keywordOnly=PANEL_POOL.find(p=>p.category==='キャラクター'&&p.mergedForm&&p._mergedSource&&!p._mergedSource.desc&&p._mergedSource.keywords);
     if(keywordOnly){assert.equal(blessingFlameCardEligible(keywordOnly),true);assert.ok(enhancedPanelCopy(keywordOnly));}
   });
-  check('施設内の入力：報酬取得・ドラッグ・右クリック・道具操作を止め、説明ホバーとオプションを維持',()=>{
+  check('施設内の入力：プレビュー取得を防ぎ、魔導板のドラッグ・道具操作・説明ホバーとオプションを維持',()=>{
     const event=(type,allowed)=>{
       let prevented=false,stopped=false;
       const target={closest:s=>s==='#scr-battle'?true:allowed&&s.includes(allowed)?true:null};
@@ -160,12 +160,13 @@ function simulate(units){
     };
     assert.deepEqual(event('click',''),[true,true]);
     assert.deepEqual(event('dragstart',''),[true,true]);
-    assert.deepEqual(event('dragstart','#hand-slots'),[true,true],'強化する前は魔導板の中でも動かせない');
+    assert.deepEqual(event('dragstart','#hand-slots'),[false,false],'effects-1026c: 祝福前から魔導板の中を動かせる');
     assert.deepEqual(event('contextmenu',''),[true,true]);
     assert.deepEqual(event('click','#reward-move-btns'),[false,false]);
     assert.deepEqual(event('click','#battle-options-btn'),[false,false]);
   });
   await checkAsync('退場：強化を確定。祭壇と同じく再入場でき、使用済みの炎では選べない。未実行の退場は使用済みにしない（2026-10-20）',async()=>{
+    blessingFlameSelect(3); // effects-1026c: 前節のドラッグ開始でプレビューを解除したため、選び直す。
     assert.equal(await blessingFlameExecute(),true);
     // 強化後は全てのカードを明るくする（強化できないカードも）。
     G.mainBoard[5]=card('E010');const dim=element();blessingFlameWireCard(dim,G.mainBoard[5],5);
@@ -247,7 +248,7 @@ function simulate(units){
       // 検査用の要素は innerHTML='' で子を消さないので、最後に描いた4つを見る。
       assert.deepEqual(buttons.children.slice(-4).map(b=>b.children[0].textContent),['祝福を離れる','元に戻す','実行','キャンセル']);
       const wired=element();_wireHeCardControls(wired,G.mainBoard[1],'boardCards',1);
-      assert.equal(wired.draggable,false);wired.onclick({stopPropagation(){}});
+      assert.notEqual(wired.draggable,false);wired.onclick({stopPropagation(){}});
       assert.equal(wired.classList.contains('blessing-flame-selected'),true);
     }finally{renderRewCards=render;document.getElementById=get;document.createElement=create;}
   });
