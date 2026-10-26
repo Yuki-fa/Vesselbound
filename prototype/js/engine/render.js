@@ -2001,6 +2001,9 @@ function updateUnitDamageUi(unit,side){
   if(fill) fill.style.width=`${rate*100}%`;
   const bar=slot.querySelector('.slot-life-bar');
   if(bar) bar.title=`${_lifeLabelText()} ${_hpVal}/${maxHp}`;
+  // 攻撃効果の停止中も、見えている複製をイベントごとに進める。
+  // 実枠だけを更新すると、本来の攻撃と最初の割り込みの共振がまとめて+2/+2に見える。
+  if(typeof battleMotionClone==='function') _syncMotionCloneStats(battleMotionClone(unit),slot);
 }
 // 戦闘中、ATK/HPを変化させる効果が発動するたびに呼び出し、両陣営の生存ユニット全員の
 // 外観の数値（ATK/HP）を即座に更新する（renderAll()のようなカード再構築は行わない軽量版）。
