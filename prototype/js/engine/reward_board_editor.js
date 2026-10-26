@@ -389,6 +389,7 @@ function _wireHeCardControls(div,card,arrName,i){
     // 対象外スロットは何も起こさない（アイテムを無駄に消費させない）。
     if(G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'&&!_isItemUseTargetSlot(i)) return;
     if(typeof handlePendingItemBoardTarget==='function'&&handlePendingItemBoardTarget(i)) return;
+    if(blessingFlameActive()&&blessingFlameSelect(i)) return;
     if(G._isForge&&typeof _isMapForgeBlockedSlot==='function'&&_isMapForgeBlockedSlot(i)) return;
     if(G._isForge&&typeof applyPendingMapForgePower==='function'&&applyPendingMapForgePower(i)) return;
     if(G._pendingPanelPlacement){ placePendingPanelToSelectedUnit(i); return; }

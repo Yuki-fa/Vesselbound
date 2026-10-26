@@ -86,6 +86,7 @@ function unchangedMain() {
     if (row['No.'] === 'C004' || REVISED_ENCHANTS.has(row['No.'])) continue;
     const def = PANEL_POOL.find(c=>c.no===row['No.']); if (!def) continue;
     for (const enhanced of [false,true]) {
+      if (row['No.'] === 'C016' && enhanced) continue; // effects-1026c: 本文どおり2波へ改訂
       const c = {...copy(def),desc:(enhanced?row['強化効果']:'')||row['効果']||''};
       const own = def.category === 'キャラクター' ? {..._makePanelSummonUnit(_panelSummonSpec(c),[]),id:'source',atk:10,hp:70,maxHp:70}
         : plain('source',{_adjacentPanelEffectTexts:[c.desc],boardCards:[c]});

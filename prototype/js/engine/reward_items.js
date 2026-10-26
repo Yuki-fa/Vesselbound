@@ -367,7 +367,7 @@ function _canUseItemNow(card){
   if(key==='keyword_scroll'||key==='bond_scroll') return chars.some(({idx})=>_isItemUseTargetSlot(idx,{key,card}));
   if(['shield_scroll','giant_scroll','inspire_flag'].includes(key)) return chars.length>0;
   if(key==='sacrifice_doll'||key==='mana_scroll') return true;
-  if(key==='transform_scroll') return chars.length>0&&_mainBoardCards().filter(Boolean).length>=2;
+  if(key==='transform_scroll') return chars.length>=2;
   // 永劫の巻物は2枚のキャラクターの戦闘力を交換する。
   if(key==='weakening_scroll') return chars.length>=2;
 
@@ -402,7 +402,7 @@ function _isItemUseTargetSlot(slotIdx,pending=G._pendingItemUse){
   const boardList=typeof _mainBoardCards==='function'?_mainBoardCards():[];
   const card=boardList[slotIdx];
   const key=pending.key;
-  if(key==='transform_scroll') return !Number.isInteger(pending.firstIdx) ? !!card : _isBoardCharacterCard(card)&&slotIdx!==pending.firstIdx;
+  if(key==='transform_scroll') return _isBoardCharacterCard(card)&&slotIdx!==pending.firstIdx;
   if(!_isBoardCharacterCard(card)) return false;
   // 付与系は**既に同じキーワードを持つキャラクターを対象にできない**（無駄になるため）。
   if(key==='inspire_flag'&&_cardHasKeyword(card,'根性')) return false;
@@ -412,7 +412,7 @@ function _isItemUseTargetSlot(slotIdx,pending=G._pendingItemUse){
     return !!keyword&&(/\d+$/.test(keyword)||!_cardHasKeyword(card,keyword));
   }
   if(key==='bond_scroll'){
-    return ['up','right','down','left'].some(direction=>!(card.directions||[]).includes(direction));
+    return (Number(card.directionCount)||0)<4 && ['up','right','down','left'].some(direction=>!(card.directions||[]).includes(direction));
   }
   if(key==='weakening_scroll') return slotIdx!==pending.firstIdx;
   return true;
@@ -558,6 +558,7 @@ function _beginBoardItemUse(idx,card){
   if(!card||card._implemented===false||card._noItemEffectImpl||!panelMergeContentAvailable(card)) return false;
   if(typeof _pendingCardActivation!=='undefined') _pendingCardActivation=null;
   const key=_itemEffectKey(card);
+  if(typeof blessingFlameCancel==='function') blessingFlameCancel();
   const boardListNow=typeof _mainBoardCards==='function'?_mainBoardCards():[];
   G._pendingItemUse={slotIdx:idx,key,card:clone(card),step:0,
     boardSnapshot:(boardListNow||[]).map(c=>c?clone(c):null)};
@@ -653,7 +654,7 @@ function handlePendingItemBoardTarget(slotIdx){
     questOnRequiredCardDestroyed(destroyedEntry||deferredEntry);
   }
   if(pending&&G._pendingItemUse===null){
-    const idx=slotIdx;
+    const idx=pending.key==='transform_scroll'?pending.firstIdx:slotIdx;
     const target=Number.isInteger(idx)?_mainBoardCards()[idx]:null;
     if(target) target._itemBuffed=true;
   }
@@ -714,11 +715,15 @@ function _handlePendingItemBoardTarget(slotIdx){
   // 旧セーブに対象選択が残っていても、改訂前の破壊・値減少は実行しない。
   if(key==='sacrifice_doll'||key==='mana_scroll'){_cancelPendingItemUse(true);return true;}
   if(key==='transform_scroll'){
-    if(!card) return true;
+    if(!_isItemUseTargetSlot(slotIdx,pending)) return true;
     if(!Number.isInteger(pending.firstIdx)){ pending.firstIdx=slotIdx; _syncItemUsePickingUi(); renderHandEditor(); return true; }
     if(!_isBoardCharacterCard(card)||slotIdx===pending.firstIdx) return true;
     const previous=boardList[pending.firstIdx];
+    if(!_isBoardCharacterCard(previous)) return true;
     const next=makePanel(card.id);
+    if(!next) return true;
+    next.power=previous.power; next.life=previous.life;
+    if(previous._battleEndCount) next._battleEndCount=previous._battleEndCount;
     if(previous&&previous._activationReady) next._activationReady=true;
     // 変身しても同じ枠のカードとして「配置を戻す」で追う（アイテムの使用は戻さない。2026-10-25）。
     if(previous&&previous._placeKey) next._placeKey=previous._placeKey;

@@ -31,6 +31,7 @@ async function unchanged() {
   const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox);
   const baseline = sandbox.module.exports, current = require('../../js/battle/core'); let compared = 0;
   for (const e of A.catalog().filter(e => e.implemented && !REVISED.has(e.no))) for (const f of e.forms) {
+    if(e.no==='C016'&&f.enhanced) continue; // effects-1026c: 本文どおり2波へ改訂
     const h = A.context(e, f, f.text), input = h.input;
     input.resources.p1.mana = input.resources.p2.mana = 8;
     // 実際のキーワードも持つ体で比較する。監査の一文隔離とは別の検査。

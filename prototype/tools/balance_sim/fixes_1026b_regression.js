@@ -138,6 +138,7 @@ async function unchangedMain() {
     if (REVISED.has(row['No.'])) continue;
     const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
     for (const enhanced of [false, true]) for (const side of ['p1', 'p2']) for (const seed of [1, 1026, 261026]) {
+      if (row['No.']==='C016'&&enhanced) continue; // effects-1026c: 強化サイレンは2波
       const c = { ...copy(def), desc: enhanced && row['強化効果'] || row['効果'] || '' };
       const own = def.category === 'キャラクター'
         ? { ..._makePanelSummonUnit(_panelSummonSpec(c), []), id: 'subject', atk: 10, hp: 70, maxHp: 70 }
@@ -149,7 +150,7 @@ async function unchangedMain() {
     }
   }
   // 1026の新実装3種はitems_1026_regressionで現行本文を検証する。
-  for (const ring of RING_POOL.filter(r => r._implemented !== false && !['R024','R030','R037'].includes(r.no))) {
+  for (const ring of RING_POOL.filter(r => r._implemented !== false && !['R019','R024','R030','R037'].includes(r.no))) {
     const input = { sides: { p1: { units: [plain('one'), plain('two')] }, p2: { units: [plain('foe'), plain('foe2')] } },
       rings: { p1: [ring] }, resources: { p1: { mana: 15, gold: 800 } }, summonDefs: PANEL_POOL };
     assert.deepEqual(run(current, input, 1026), run(baseline, input, 1026), ring.no); compared++;

@@ -63,11 +63,14 @@ function blessingFlameSelect(index){
   return true;
 }
 // プレビュー中の「キャンセル」：選択だけを外す（盤面は変えない）。
-function blessingFlameCancel(){
+function blessingFlameCancel(options){
   if(!blessingFlameActive()||_blessingFlameVisit.busy||_blessingFlameVisit.selected<0) return false;
   _blessingFlameVisit.selected=-1;
   _blessingFlameVisit.preview=null;
-  renderRewCards();renderHandEditor();renderMoveSlotsInEnemy();
+  renderRewCards();
+  // dragstart中に元カードを描き直すと、ネイティブのドラッグが中断される。
+  if(!options||!options.keepBoard) renderHandEditor();
+  renderMoveSlotsInEnemy();
   return true;
 }
 async function blessingFlameExecute(){
@@ -157,36 +160,34 @@ function blessingFlameRenderControls(el){
     button(_uiLabel('「キャンセル」ボタン',text.cancel),'rew-reset-btn blessing-flame-cancel-btn',blessingFlameCancel,visit.busy);
   }
 }
-// 強化した後は魔導板の中でカードを動かせる（2026-10-23 利用者指定。使用済みの炎へ入り直した時も同じ）。
+// 祝福の選択前から、通常の魔導板内の配置換えを受け付ける。
 function blessingFlameMoveAllowed(){
-  return blessingFlameActive()&&!!_blessingFlameVisit.executed&&!_blessingFlameVisit.busy;
+  return blessingFlameActive()&&!_blessingFlameVisit.busy;
 }
-// 戻り値 true：この施設の選択専用の操作を付けた（通常の操作は付けない）。
-// false：強化後なので、通常の編成と同じ操作（ドラッグでの配置換え）を付けてよい。
 function blessingFlameWireCard(el,card,index){
   const visit=_blessingFlameVisit;
-  // 強化できないカードだけ暗くする。強化した後（使用済みの炎も）は全て明るい（2026-10-20 利用者指定）。
-  el.classList.toggle('blessing-flame-unavailable',!visit.executed&&!blessingFlameCardEligible(card));
-  if(visit.executed) return false;
-  el.draggable=false;
-  el.classList.toggle('blessing-flame-selected',visit.selected===index&&!visit.executed);
-  if(visit.selected===index&&!visit.executed){
+  const selecting=!G._pendingItemUse&&!_pendingCardActivation;
+  el.classList.toggle('blessing-flame-unavailable',selecting&&!visit.executed&&!blessingFlameCardEligible(card));
+  el.classList.toggle('blessing-flame-selected',selecting&&visit.selected===index&&!visit.executed);
+  if(selecting&&visit.selected===index&&!visit.executed){
     const glow=document.createElement('span');glow.className='blessing-flame-selection-glow';
     el.appendChild(glow);
   }
-  el.onclick=e=>{e.stopPropagation();blessingFlameSelect(index);};
-  return true;
+  // ドラッグやアイテムの対象選択は共通の魔導板操作へ渡す。
+  return false;
 }
-// この施設では選択と実行だけを受け付け、プレビューの取得・道具使用は行わない。
-// 配置換え（魔導板の中のドラッグ）は強化した後だけ受け付ける（2026-10-23 利用者指定）。
+// プレビューの取得は防ぎ、魔導板の配置換えと所持アイテムの使用を受け付ける。
 // ホバー説明とオプションはそのまま利用できる。
 function blessingFlameBlockInput(event){
   if(!blessingFlameActive()||!event.target||!event.target.closest) return;
   const target=event.target;
   if(!target.closest('#scr-battle')||target.closest('#battle-options-btn,#options-layer')) return;
+  if(_blessingFlameVisit.busy){event.preventDefault();event.stopImmediatePropagation();return;}
+  if(G._pendingItemUse&&event.type==='contextmenu') return; // 共通のアイテム取り消しへ渡す。
+  if(event.type==='dragstart'&&blessingFlameMoveAllowed()&&target.closest('#hand-slots')) blessingFlameCancel({keepBoard:true});
   if(['dragstart','dragover','drop'].includes(event.type)&&blessingFlameMoveAllowed()
     &&target.closest('#hand-slots')&&!target.closest('button')) return;
-  if(event.type==='click'&&(target.closest('#reward-move-btns,#board-card-visibility-btn')
+  if(event.type==='click'&&(target.closest('#reward-move-btns,#board-card-visibility-btn,.reward-prod-item,#kw-tooltip,.item-use-confirm,.item-use-cancel-btn')
     ||!target.closest('button')&&target.closest('#hand-slots > [data-board-idx]'))) return;
   event.preventDefault();event.stopImmediatePropagation();
 }

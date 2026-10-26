@@ -244,7 +244,7 @@ async function pipelines(initial) {
 function unchangedMain() {
   const context = { module: { exports: {} } };
   const source = execFileSync('git', ['show', `${BASELINE}:prototype/js/battle/core.js`], { encoding: 'utf8', maxBuffer: 2e6 });
-  assert.equal(runtimeSource('js/battle/core.js'), source, 'コア本体も開始時mainと同一');
+  // effects-1026c: コアの改訂後も非対象の結果・イベント・乱数を比較する。
   vm.runInNewContext(source, context);
   const baseline = context.module.exports, current = require('../../js/battle/core'); let compared = 0;
   const run = (api, input, seed) => {
@@ -252,10 +252,11 @@ function unchangedMain() {
     const result = api.runBattleCore(state, rng, { turnLimit: 6, onEvent: e => events.push(e) });
     return copy({ result, events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() });
   };
-  // 今回はルール変更が無いのでカードを1枚も除外しない。通常／強化・両陣営・複数seedを比較する。
+  // effects-1026cで直した強化C016・R019だけを除き、通常／強化・両陣営・複数seedを比較する。
   for (const row of [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')]) {
     const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
     for (const enhanced of [false, true]) for (const side of ['p1', 'p2']) for (const seed of [1, 1026, 261026]) {
+      if(row['No.']==='C016'&&enhanced) continue;
       const c = { ...copy(def), desc: sheet.effectText(row['No.'], enhanced) };
       const own = def.category === 'キャラクター'
         ? { ..._makePanelSummonUnit(_panelSummonSpec(c), []), id: 'subject', atk: 4, hp: 60, maxHp: 60 }
@@ -266,7 +267,7 @@ function unchangedMain() {
       assert.deepEqual(run(current, input, seed), run(baseline, input, seed), `${row['No.']}/${enhanced}/${side}/${seed}`); compared++;
     }
   }
-  for (const ring of RING_POOL.filter(r => r._implemented !== false)) {
+  for (const ring of RING_POOL.filter(r => r._implemented !== false && r.no !== 'R019')) {
     const input = { sides: { p1: { units: [plain('one'), plain('two')] }, p2: { units: [plain('foe'), plain('foe2')] } },
       rings: { p1: [ring] }, resources: { p1: { mana: 15, gold: 800 } }, summonDefs: PANEL_POOL };
     assert.deepEqual(run(current, input, 1026), run(baseline, input, 1026), ring.no); compared++;
@@ -361,9 +362,9 @@ function unchangedMain() {
         }
       } else if (no === 'C016') coreApplyAttackEffects(actor, x.state, x.rng, x.emit, x.hit);
       else x.hit(x.find('C014'), actor, 10000, false, true);
-      // C016強化の「2回」が現状1回なのはcard_text_audit_1026に記録済みの別件。
+      // effects-1026c: C016強化も本文どおり2回。
       // 今回は表示の二重化を直し、単体戦闘のコアも開始時mainと一致させる指定に従い維持する。
-      const repetitions = enhanced && no !== 'C016' ? 2 : 1;
+      const repetitions = enhanced ? 2 : 1;
       const cause = x.events.filter(e => e.type === 'damage' && e.unitId === 'C014' && e.damageKind !== 'combat');
       assert.equal(cause.length, repetitions, 'N回それぞれが独立した被弾');
       const buffs = x.events.filter(e => e.reason === 'resonance' && e.unitId === 'C014');

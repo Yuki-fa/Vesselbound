@@ -101,8 +101,10 @@ async function flush(h, events) {
     assert.deepEqual([G.mainBoard[0]._permanentEffectDamage, G.mainBoard[2]._permanentEffectDamage], [6, 3]);
     assert.match(_rawSubstitutedDesc(G.mainBoard[0]), /全ての敵に6ダメージ/);
     assert.match(_rawSubstitutedDesc(G.mainBoard[2]), /全ての敵に3ダメージ/);
-    assert.ok(_unitPreviewText(h.source, '', 0).includes('全ての敵に6ダメージ'));
-    assert.ok(_unitPreviewText(h.source, '', 0).includes('全ての敵に3ダメージ'));
+    // effects-1026c: 接続キャラクターにはシートのキャラクター用説明文だけを表示する。
+    const preview=_unitPreviewText(h.source,'',0);
+    assert.ok(preview.includes('強化すると減少量はリセットされる。'));
+    assert.ok(!preview.includes('全ての敵に6ダメージ')&&!preview.includes('全ての敵に3ダメージ'));
     for (const event of values(events)) _persistPermanentEffectDamageOrWarn(_getPartyBoardUnit(), event);
     assert.deepEqual([G.mainBoard[0]._permanentEffectDamage, G.mainBoard[2]._permanentEffectDamage], [6, 3]);
     assert.equal(persistBoardEffectDamage(_getPartyBoardUnit(), { ...values(events)[0], boardSlot: 1 }), false);
@@ -158,7 +160,7 @@ async function flush(h, events) {
     });
     assert.equal(G.mainBoard[0]._permanentEffectDamage, 6);
     assert.equal(G.allies.find(Boolean)._permanentEffectCards[0].damage, 6);
-    assert.match(_unitPreviewText(G.allies.find(Boolean), '', 0), /全ての敵に6ダメージ/);
+    assert.match(_unitPreviewText(G.allies.find(Boolean),'',0),/強化すると減少量はリセットされる/);
   });
   await check('PvEの演出でコアの確定値を巻き戻さず、連戦の新編成でも現在値を使う', async () => {
     const h = harness(resetBoard()); const first = h.attack(); const second = h.attack();

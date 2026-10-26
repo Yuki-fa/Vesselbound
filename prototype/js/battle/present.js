@@ -2234,6 +2234,8 @@ function presentLabEffectEvents(events, index, code, ownerId) {
   for (let i = index + 1; i < list.length; i++) {
     const ev = list[i];
     if (!ev || ['turn_begin','battle_end','mana_threshold','effect_flash'].includes(ev.type)) break;
+    // 聖騎士の開戦1回ぶんをまとめ、軍神による次の波とは重ねない。
+    if (code === 'R019' && first.fxBatch != null && ev.fxBatch !== first.fxBatch) break;
     if (ringHits.has(ev) && ringHits.get(ev).name !== ringHits.get(first)?.name) break;
     if (ev.type === 'attack' && !(code === 'C098' && ev.controlled)) break;
     if (code === 'E028' && ev.type === first.type && ev.effectText !== first.effectText) break;

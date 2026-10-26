@@ -510,7 +510,7 @@ const SaveRun=(()=>{
           if(unit&&unit._stolen&&unit._goldPlanned&&unit.hp<=0){ paid.add(ev.unitId);ev.pveRewardGold=_rollEnemyGold(unit,rewardRng);reward+=goldIncomeAmount(ev.pveRewardGold); }
           continue;
         }
-        if(ev.side!=='p2'||!['death','fled'].includes(ev.type)||paid.has(ev.unitId)) continue;
+        if(ev.side!=='p2'||!['death','instant_death','fled'].includes(ev.type)||paid.has(ev.unitId)) continue;
         const unit=state.units.p2.find(u=>u&&u.id===ev.unitId);
         if(!unit||unit.hp>0) continue;
         paid.add(ev.unitId);ev.pveRewardGold=_rollEnemyGold(unit,rewardRng);
@@ -683,7 +683,7 @@ const SaveRun=(()=>{
     }else{
       G._enemyDeathsThisBattle=(G._enemyDeathsThisBattle||0)+1;
       if(G.runStats) G.runStats.enemyKills++;
-      if(event.pveRewardGold>0) onGoldGained(event.pveRewardGold);
+      grantEnemyDefeatGold(unit,event);
     }
     // HP・復活・死亡効果は保存済み。ここでは既存の死亡描画と統計だけを処理。
     if(typeof playSfx==='function') playSfx('death',{group:'combat'});
