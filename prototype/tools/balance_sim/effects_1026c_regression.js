@@ -25,7 +25,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   G.mainBoard[2]=card('E001');const donorBefore=copy(donor),scroll=G.spellSlots[0]=item('I002');
   assert.equal(_canUseItemNow(scroll),true);_useImmediateItem(0,scroll);assert.equal(_isItemUseTargetSlot(2),false);
   handlePendingItemBoardTarget(2);assert.equal(G._pendingItemUse.firstIdx,undefined);
-  handlePendingItemBoardTarget(1);assert.equal(_isItemUseTargetSlot(1),false);_cancelPendingItemUse();assert.ok(G.spellSlots[0]);
+  handlePendingItemBoardTarget(1);assert.equal(_isItemUseTargetSlot(1),true,'1枚目を押して選択だけ解除できる');_cancelPendingItemUse();assert.ok(G.spellSlots[0]);
   _useImmediateItem(0,G.spellSlots[0]);handlePendingItemBoardTarget(1);handlePendingItemBoardTarget(3);
   const next=G.mainBoard[1],definition=PANEL_POOL.find(c=>c.no==='C084');
   assert.deepEqual([next.power,next.life],[47,61]);for(const key of ['name','no','art','desc'])assert.equal(next[key],definition[key],key);
@@ -84,11 +84,10 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   }
   const source=ready('C080');G.mainBoard[3]=card('E001');_rewCards=[card('E002')];openActivation();
   assert.equal(cardActivationBoardTargetable(G.mainBoard[3],3),false);assert.equal(cardActivationRewardTargetable(_rewCards[0]),false);cancelCardActivation();
-  // 本人を選んで交換しても、報酬欄へ移った本人の使用印を消す。
-  ready('C080');_rewCards=[card('C006')];G._rewardOnePickMode=true;openActivation();handleCardActivationRewardTarget(0);handleCardActivationTarget(1);
-  assert.equal(_rewCards[0].no,'C080');assert.ok(!_rewCards[0]._activationReady);assert.ok(_rewCards[0]._isOriginalReward);
-  assert.equal(G.mainBoard[1].no,'C006');assert.equal(_pendingCardActivation,null);
-  _rewFreePickDone=true;const owned=G.mainBoard.filter(Boolean).length;takeRewCard(0,3);assert.equal(G.mainBoard.filter(Boolean).length,owned);assert.equal(_rewCards[0].no,'C080');
+  // 発生元の再クリックは、1枚目を選んだ後でも使用全体の取り消し。
+  const origin=ready('C080');_rewCards=[card('C006')];G._rewardOnePickMode=true;openActivation();handleCardActivationRewardTarget(0);handleCardActivationTarget(1);
+  assert.equal(G.mainBoard[1],origin);assert.ok(origin._activationReady);assert.equal(_rewCards[0].no,'C006');assert.equal(_pendingCardActivation,null);
+  _rewFreePickDone=true;_rewCards[0]._isOriginalReward=true;const owned=G.mainBoard.filter(Boolean).length;takeRewCard(0,3);assert.equal(G.mainBoard.filter(Boolean).length,owned);assert.equal(_rewCards[0].no,'C006');
  });
  await check('6 全起動：魔導店・行商人・道具屋・鍛冶屋で使用可。獲得直後・未充填・非編成中は不可',()=>{
   for(const def of PANEL_POOL.filter(c=>c.category==='キャラクター'&&coreUnitTriggerText(c,'起動'))){
@@ -110,7 +109,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   blessingFlameBlockInput({type:'contextmenu',target:{closest:s=>s==='#scr-battle'?{}:null},
    preventDefault(){assert.fail('共通のアイテム取り消しを妨げない');},stopImmediatePropagation(){}});
   const el=makeElement('div');el.draggable=true;_wireHeCardControls(el,G.mainBoard[1],'boardCards',1);
-  assert.equal(el.draggable,true);el.onclick({stopPropagation(){}});assert.equal(G.spellSlots[0],null);assert.equal(_blessingFlameVisit.selected,-1);
+  assert.equal(el.draggable,false,'アイテムの対象選び中は祝福の炎でもドラッグを止める');el.onclick({stopPropagation(){}});assert.equal(G.spellSlots[0],null);assert.equal(_blessingFlameVisit.selected,-1);
   assert.equal(blessingFlameSelect(1),true);assert.ok(_blessingFlameVisit.preview);assert.equal(blessingFlameMoveAllowed(),true);
   const render=renderHandEditor;let redrawn=0;renderHandEditor=()=>{redrawn++;};
   try{blessingFlameBlockInput({type:'dragstart',target:{closest:s=>s==='#scr-battle'||s==='#hand-slots'?{}:null},

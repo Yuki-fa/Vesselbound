@@ -124,7 +124,7 @@ function element(tag) {
       assert.equal(coreKeywordSum(enhanced,kind),base+3);
     }
   });
-  await check('対象選択は既存の暗転クラス・説明・キャンセル・右クリック・Esc・外側クリック・ドラッグ抑止を共用', () => {
+  await check('対象選択は説明を置かず、右クリック・Escで解除、外側クリック・ドラッグは抑止', () => {
     const old = { body: document.body, root: document.documentElement, get: document.getElementById, create: document.createElement, add: document.addEventListener };
     const body = element('body'), root = element('html'), section = element('section'), handlers = {};
     document.body = body; document.documentElement = root; document.createElement = element;
@@ -134,14 +134,14 @@ function element(tag) {
     window._itemUseCancelBound = false;
     vm.runInThisContext(source.slice(source.indexOf('if(!window._itemUseCancelBound)'), source.indexOf('// ── 対象を選ぶアイテム')));
     try {
-      for (const no of ['I013','I015','I024']) for (const cancel of ['button','contextmenu','pointerdown','keydown','outside']) {
+      for (const no of ['I013','I015','I024']) for (const cancel of ['contextmenu','keydown']) {
         board(); const before = copy(G.mainBoard); use(no); assert.ok(body.classList.contains('item-use-picking'));
-        assert.ok(root.style.getPropertyValue('--item-use-desc')); assert.equal(_itemUseStep(G._pendingItemUse), 1);
-        if (no === 'I013') assert.doesNotMatch(_itemUsePromptText(G._pendingItemUse), /マージ|合体/);
+        assert.equal(root.style.getPropertyValue('--item-use-desc'), ''); assert.equal(section.querySelector('.item-use-cancel-btn'), null);
         let stopped = 0; const event = { button: 2, key: 'Escape', target: { closest: () => null }, preventDefault() { stopped++; }, stopImmediatePropagation() { stopped++; } };
         handlers.dragstart(event); assert.ok(G._pendingItemUse); assert.equal(stopped, 2);
-        if (cancel === 'button') section.querySelector('.item-use-cancel-btn').onclick();
-        else if (cancel === 'outside') handlers.pointerdown({ ...event, button: 0 }); else handlers[cancel](event);
+        handlers.pointerdown({ ...event, button: 0 }); assert.ok(G._pendingItemUse, '外側を押しても対象選択を維持');
+        handlers.pointerdown(event); assert.ok(G._pendingItemUse, '右クリックの解除はcontextmenuで一度だけ');
+        handlers[cancel](event);
         assert.equal(G._pendingItemUse, null); assert.ok(!body.classList.contains('item-use-picking')); assert.equal(root.style.getPropertyValue('--item-use-desc'), '');
         assert.deepEqual(G.mainBoard, before); assert.ok(G.spellSlots[0], 'キャンセルでは消費しない');
       }

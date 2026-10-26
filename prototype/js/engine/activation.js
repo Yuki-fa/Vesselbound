@@ -26,22 +26,19 @@ function chargeBoardCardActivations() {
 }
 function cancelCardActivation() {
   _pendingCardActivation = null;
-  if (typeof renderHandEditor === 'function') renderHandEditor();
-  if (typeof renderRewCards === 'function') renderRewCards();
-  if (typeof _syncRewardProductionItems === 'function') _syncRewardProductionItems();
+  _refreshTargetPicking();
 }
 function _cardActivationTargetsItem() {
   return !!_pendingCardActivation && /対象のアイテム/.test(coreUnitTriggerText(_pendingCardActivation.card, '起動'));
 }
 function _activationLocation(zone, index) {
-  return { zone, index, card: (zone === 'board' ? _mainBoardCards() : _rewCards)[index] };
+  return _pickingLocation(zone, index);
 }
 function _activationLocationCurrent(at) {
-  return at && _activationLocation(at.zone, at.index).card === at.card;
+  return _pickingLocationCurrent(at);
 }
 function _activationRewardCardAllowed(card) {
-  return card && !card._npcCard && !card._npcDeployOnly && !card._questOfferCard
-    && !card._questTransportId && !card._shopSalePending;
+  return _pickingOfferCardAllowed(card);
 }
 // 入れ替え後の配置も通常のドラッグと同じ規則で検証する。対象の順番では制限を変えない。
 function _activationSwapAllowed(first, second) {
@@ -63,12 +60,14 @@ function _activationSwapAllowed(first, second) {
 function _cardActivationTargetable(at) {
   const pending = _pendingCardActivation, card = at && at.card;
   if (!pending || !card || _cardActivationTargetsItem()) return false;
+  if (card === pending.card) return false; // 発生元の再クリックは取り消し。
   if (at.zone === 'reward' && !_activationRewardCardAllowed(card)) return false;
   const pair = coreActivationPairSpec(pending.card);
   if (pair) {
     if (pair.characterOnly ? card.category !== 'キャラクター' : !/^(?:キャラクター|エンチャント|強化)$/.test(card.category || '')) return false;
     const first = pair.self ? { zone:'board', index:pending.index, card:pending.card } : pending.firstTarget;
-    if (first && (!_activationLocationCurrent(first) || first.card === card)) return false;
+    if (first && !_activationLocationCurrent(first)) return false;
+    if (first && first.card === card) return !pair.self; // 1枚目の再クリックを許す。
     if (pair.kind === 'swap_cards') {
       if (typeof _cardIsEngraved === 'function' && _cardIsEngraved(card)) return false;
       if (typeof questCardRemovalLocked === 'function' && questCardRemovalLocked(card)) return false;
@@ -77,7 +76,7 @@ function _cardActivationTargetable(at) {
     return true;
   }
   const text = coreUnitTriggerText(pending.card, '起動');
-  if (at.zone === 'reward' && !/対象の(?:報酬の)?キャラクターを破壊し/.test(text)) return false;
+  if (at.zone === 'reward' && !/対象の/.test(text)) return false;
   const probe = { pick:list=>list[0], int:lo=>lo, next:()=>0 };
   return !!coreActivateBoardCard(pending.card, card, PANEL_POOL, probe, { targetZone:at.zone });
 }
@@ -95,7 +94,7 @@ function cardActivationRewardDimmed(card) {
   return !!_pendingCardActivation && !!card && !cardActivationRewardTargetable(card);
 }
 function cardActivationItemSlotDimmed(item) {
-  return !!_pendingCardActivation && !(_cardActivationTargetsItem() && item);
+  return !!_pendingCardActivation && !!item && !_cardActivationTargetsItem();
 }
 function wireCardActivation(element, card, index) {
   if (!cardActivationCanUse(card)) return;
@@ -108,16 +107,15 @@ function wireCardActivation(element, card, index) {
 }
 function cardActivationClick(index) {
   if (_pendingCardActivation) {
-    const pair = coreActivationPairSpec(_pendingCardActivation.card);
-    if (_pendingCardActivation.index === index && (!pair || pair.self)) { cancelCardActivation(); return true; }
+    if (_pendingCardActivation.index === index) { cancelCardActivation(); return true; }
     return handleCardActivationTarget(index);
   }
   if (G._pendingItemUse || G._pendingPanelPlacement) return false;
   const card = _mainBoardCards()[index];
   if (!cardActivationCanUse(card)) return false;
   _pendingCardActivation = { card, index, key:cardActivationVisitKey() };
-  renderHandEditor(); renderRewCards();
-  if (typeof _syncRewardProductionItems === 'function') _syncRewardProductionItems();
+  if (typeof blessingFlameCancel === 'function') blessingFlameCancel();
+  _refreshTargetPicking();
   return true;
 }
 function _activationPendingValid(pending) {
@@ -125,18 +123,22 @@ function _activationPendingValid(pending) {
     && _mainBoardCards()[pending.index] === pending.card;
 }
 function _activationTargetElement(at) {
-  return at.zone === 'board' ? _activationSlotEl(at.index) : typeof document !== 'undefined'
-    ? document.querySelector(`#reward-offer-row [data-merge-rew-idx="${at.index}"]`) : null;
+  return _pickingTargetElement(at);
 }
 function _handleCardActivationAt(at) {
   const pending = _pendingCardActivation;
   if (!pending) return false;
   if (!_activationPendingValid(pending)) { cancelCardActivation(); return true; }
+  if (at.zone === 'board' && at.index === pending.index) { cancelCardActivation(); return true; }
+  if (pending.firstTarget && pending.firstTarget.card === at.card && _activationLocationCurrent(at)) {
+    delete pending.firstTarget; _refreshTargetPicking(); return true;
+  }
+  if (!_activationLocationCurrent(at)) return true;
   if (!_cardActivationTargetable(at)) return true;
   const source = pending.card, pair = coreActivationPairSpec(source), cards = _mainBoardCards();
   if (pair && !pair.self && !pending.firstTarget) {
     pending.firstTarget = at;
-    renderHandEditor(); renderRewCards(); return true;
+    _refreshTargetPicking(); return true;
   }
   const first = pair && (pair.self ? { zone:'board', index:pending.index, card:source } : pending.firstTarget);
   const run = () => coreActivateBoardCard(source, at.card, PANEL_POOL, coreMathRng,
@@ -170,8 +172,7 @@ function _handleCardActivationAt(at) {
   } else if (result.kind === 'transform') {
     const make = () => makePanel(result.definition.id);
     const next = typeof runWithKeyedRandom === 'function' ? runWithKeyedRandom(`activation-card:${pending.key}:${pending.index}:${at.index}`, make) : make();
-    for (const key of ['_activationReady','_battleEndCount','_placeKey']) if (at.card[key]) next[key] = at.card[key];
-    cards[at.index] = next;
+    _replacePickingCard(at, next);
   } else if (result.kind === 'buff_color') {
     at.card.power = (Number(at.card.power)||0) + result.atk;
     at.card.life = (Number(at.card.life)||0) + result.hp; at.card.color = result.color;
@@ -184,7 +185,7 @@ function _handleCardActivationAt(at) {
   if (G._isShop && typeof _persistCurrentShopStock === 'function') _persistCurrentShopStock();
   _finishCardActivation(pending, quest);
   _playActivationFx(source, result.kind === 'destroy' ? { rect:visual?.rect, visual, hold }
-    : { index:at.zone==='board'?at.index:pending.index, frame, cover, rewardRect, kind:result.kind, result }, pending.index);
+    : { index:at.index, zone:at.zone, frame, cover, rewardRect, kind:result.kind, result }, pending.index);
   return true;
 }
 function handleCardActivationTarget(index) { return _handleCardActivationAt(_activationLocation('board', index)); }
@@ -274,7 +275,7 @@ function _playActivationFx(source, at, sourceIndex) {
     if(G.phase==='reward')renderHandEditor();
   },HELLKNIGHT_GAIN_MS);
   const owner = _activationSlotEl(sourceIndex);
-  let from = Number.isInteger(at && at.index) ? _activationSlotEl(at.index) : null, anchor = null;
+  let from = Number.isInteger(at && at.index) ? _pickingTargetElement({zone:at.zone||'board',index:at.index}) : null, anchor = null;
   if(from&&at.frame){
     const old=at.frame;from.appendChild(old);
     const peak=names.includes(name)&&VbFx.impactMs?VbFx.impactMs(name,1):470;
@@ -314,23 +315,13 @@ function _playActivationFx(source, at, sourceIndex) {
 }
 function _finishCardActivation(pending, quest) {
   _pendingCardActivation = null;
-  renderHandEditor(); renderRewCards(); updateHUD();
+  _refreshTargetPicking(); updateHUD();
   if (quest && typeof questRequiredCardGone === 'function' && questRequiredCardGone(quest) && typeof questOnRequiredCardDestroyed === 'function') questOnRequiredCardDestroyed(quest);
   if (typeof _storeRewardStartSnapshot === 'function') _storeRewardStartSnapshot();
   // 回数と盤面を同じチェックポイントに確定し、再開による使い直しを防ぐ。
   if (typeof SaveRun !== 'undefined' && SaveRun.enabled()) SaveRun.checkpoint('reward');
 }
-if (typeof document !== 'undefined') document.addEventListener('keydown', e => { if (e.key === 'Escape' && _pendingCardActivation) cancelCardActivation(); });
-// 起動のカードを押した後は、右クリックでも取り消せる（2026-10-26 利用者指定）。他の右クリック処理へは渡さない。
-if (typeof document !== 'undefined') document.addEventListener('contextmenu', e => {
-  if (!_pendingCardActivation) return;
-  e.preventDefault(); e.stopImmediatePropagation(); cancelCardActivation();
-}, true);
-// 対象選び中は画面を暗くし、選べる区域（魔導板と報酬欄、アイテムを選ぶ起動では魔導板とアイテム枠）だけを前に出す。
-// アイテム使用中（body.item-use-picking）と同じ見せ方。描き直し（renderHandEditor）のたびに合わせる。
+// 取り消し操作とbodyの状態はアイテムと共用する。
 function syncCardActivationPicking() {
-  if (typeof document === 'undefined' || !document.body) return;
-  const on = !!_pendingCardActivation && G && G.phase === 'reward';
-  document.body.classList.toggle('activation-picking', on);
-  document.body.classList.toggle('activation-picking-item', on && _cardActivationTargetsItem());
+  _syncItemUsePickingUi();
 }

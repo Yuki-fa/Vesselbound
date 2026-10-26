@@ -196,7 +196,7 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    assert.equal(_rewCards[0],null,'店の品は空き枠にする');
    const sylph=G.mainBoard[2]=card('C109');_rewCards=[card('C006')];G._facilityCacheKey='town-sylph';
    _pendingCardActivation={card:sylph,index:2,key:cardActivationVisitKey()};
-   assert.equal(cardActivationRewardTargetable(_rewCards[0]),false,'破壊以外の起動は報酬枠を選ばない');
+   assert.equal(cardActivationRewardTargetable(_rewCards[0]),true,'対象のキャラクターを取る起動は報酬・商品も選べる');
   }finally{Object.assign(globalThis,old);G._isShop=false;_pendingCardActivation=null;_rewCards=[];}
  });
  check('終戦：接続エンチャント強化・回数保存・錬成の空き欄と支払い',()=>{

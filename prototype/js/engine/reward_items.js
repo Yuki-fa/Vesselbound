@@ -22,7 +22,11 @@ function _syncRewardProductionItems(){
     if(path) slot.style.setProperty('--item-art',`url("${path}")`);
     else slot.style.removeProperty('--item-art');
     slot._rewardItem=item;
-    slot.classList.toggle('activation-target-disabled',typeof cardActivationItemSlotDimmed==='function'&&cardActivationItemSlotDimmed(item));
+    const picking=_targetPickingActive();
+    const source=!!(G._pendingItemUse&&G._pendingItemUse.slotIdx===idx);
+    slot.classList.toggle('picking-source',source);
+    slot.classList.toggle('activation-target-disabled',!!item&&picking&&!source
+      &&!(typeof _cardActivationTargetsItem==='function'&&_cardActivationTargetsItem()));
     slot.classList.remove('rarity-1','rarity-2','rarity-3','rarity-4','rarity-5');
     const preview=item?[item.name,_previewRarityLine(item),item.desc||''].filter(Boolean).join('\n'):'';
     if(preview){
@@ -36,7 +40,7 @@ function _syncRewardProductionItems(){
       slot.removeAttribute('data-preview');
       slot.removeAttribute('data-keyword-preview');
     }
-    slot.draggable=!!item;
+    slot.draggable=!!item&&!picking;
     if(!slot._itemDragWired){
       slot._itemDragWired=true;
       slot.addEventListener('dragstart',e=>{
@@ -139,6 +143,7 @@ function _syncRewardProductionItems(){
       if (typeof handleCardActivationItemTarget === 'function' && handleCardActivationItemTarget(idx)) return;
       // 対象選択中に、選択中のアイテム自身を押したら中断する。
       if(G._pendingItemUse&&G._pendingItemUse.slotIdx===idx){ _cancelPendingItemUse(); return; }
+      if(_targetPickingActive()) return;
       if(slot._rewardItem) _openItemUseConfirm(idx,slot);
     };
   });
@@ -363,13 +368,11 @@ function _isInVillageScene(){
 function _canUseItemNow(card){
   if(!card||card._implemented===false||card._noItemEffectImpl||!panelMergeContentAvailable(card)) return false;
   const key=_itemEffectKey(card);
-  const chars=_boardCharacterSlots();
-  if(key==='keyword_scroll'||key==='bond_scroll') return chars.some(({idx})=>_isItemUseTargetSlot(idx,{key,card}));
-  if(['shield_scroll','giant_scroll','inspire_flag'].includes(key)) return chars.length>0;
+  if(['keyword_scroll','bond_scroll','shield_scroll','giant_scroll','inspire_flag','vision_scroll','transform_scroll','weakening_scroll'].includes(key)){
+    const targets=_pickingCardLocations().filter(at=>_isItemUseTarget(at,{key,card}));
+    return targets.length>=(['transform_scroll','weakening_scroll'].includes(key)?2:1);
+  }
   if(key==='sacrifice_doll'||key==='mana_scroll') return true;
-  if(key==='transform_scroll') return chars.length>=2;
-  // 永劫の巻物は2枚のキャラクターの戦闘力を交換する。
-  if(key==='weakening_scroll') return chars.length>=2;
 
   if(key==='meteor_scroll') return true;
   // ポータルの巻物は「直前の村へワープする」アイテムなので、街（村・その施設）にいる間は使えない。
@@ -378,7 +381,6 @@ function _canUseItemNow(card){
   // ずっと押せないままだった。
   if(key==='portal_scroll') return !_isInVillageScene()
     && !!(typeof _wavePreviousVillage==='function'&&_wavePreviousVillage());
-  if(key==='vision_scroll') return chars.length>0;
   return true;
 }
 // アイテム使用中、そのスロットが対象になり得るか。
@@ -397,12 +399,69 @@ function _itemGrantedKeyword(card){
   const match=/^対象のキャラクターに(.+?)を与える。?$/.exec(String(card&&card.desc||'').trim());
   return match?match[1].trim():'';
 }
-function _isItemUseTargetSlot(slotIdx,pending=G._pendingItemUse){
+// 魔導板・報酬・店の商品は同じ場所情報で扱う。カードの実体も覚え、描き直しで別の品を選ばない。
+function _pickingLocation(zone,index){
+  return {zone,index,card:(zone==='board'?_mainBoardCards():typeof _rewCards!=='undefined'?_rewCards:[])[index]};
+}
+function _pickingLocationCurrent(at){ return !!at&&_pickingLocation(at.zone,at.index).card===at.card; }
+function _pickingCardLocations(){
+  return ['board','reward'].flatMap(zone=>(zone==='board'?_mainBoardCards():typeof _rewCards!=='undefined'?_rewCards:[])
+    .map((card,index)=>({zone,index,card})).filter(at=>at.card));
+}
+function _pickingOfferCardAllowed(card){
+  return !!card&&!card._npcCard&&!card._npcDeployOnly&&!card._questOfferCard
+    &&!card._questTransportId&&!card._shopSalePending;
+}
+function _targetPickingActive(){
+  return !!(G&&(G._pendingItemUse||(typeof _pendingCardActivation!=='undefined'&&_pendingCardActivation)));
+}
+function _pickingTargetElement(at){
+  if(typeof document==='undefined'||!at) return null;
+  return at.zone==='board'?(typeof getBoardSlotElement==='function'?getBoardSlotElement(at.index)
+    :document.querySelector(`#hand-slots [data-board-idx="${at.index}"]`))
+    :document.querySelector(`#reward-offer-row [data-merge-rew-idx="${at.index}"]`);
+}
+function _replacePickingCard(at,next){
+  // 品の値段・無料取得の印や配置の同一性は、変身前の場所から引き継ぐ。
+  for(const key of ['_activationReady','_battleEndCount','_placeKey','_buyPrice','_shopBuy','_isOriginalReward',
+    '_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId','_temporaryRewardAreaCard','_itemBuffed',
+    '_rewardGrowthApplied','_goldenRingViewed']){
+    if(Object.prototype.hasOwnProperty.call(at.card,key)) next[key]=at.card[key];
+    else delete next[key];
+  }
+  (at.zone==='board'?_mainBoardCards():_rewCards)[at.index]=next;
+  return {...at,card:next};
+}
+// 描画する場所によらず、発生元・1枚目・対象外の印とクリックを1か所で決める。
+function _wireTargetPickingCard(element,zone,index,card){
+  if(!_targetPickingActive()) return false;
+  const at={zone,index,card}, item=G._pendingItemUse;
+  const activation=typeof _pendingCardActivation!=='undefined'?_pendingCardActivation:null;
+  const source=!!(activation&&zone==='board'&&activation.index===index&&activation.card===card);
+  const first=(item||activation)?.firstTarget;
+  const selected=!!(first&&first.zone===zone&&first.index===index&&first.card===card);
+  const allowed=source||selected||(item?_isItemUseTarget(at):_cardActivationTargetable(at));
+  element.classList.toggle('picking-source',source);
+  element.classList.toggle('picking-first',selected);
+  element.classList.toggle('item-target-ok',allowed);
+  element.classList.toggle('item-target-disabled',!allowed);
+  element.classList.toggle('card-activation-target',!!activation&&allowed&&!source);
+  element.draggable=false;
+  element.onclick=e=>{
+    e.stopPropagation();
+    if(!allowed) return;
+    if(item) _handlePendingItemAt(at);
+    else if(source) cancelCardActivation();
+    else _handleCardActivationAt(at);
+  };
+  return true;
+}
+function _isItemUseTarget(at,pending=G._pendingItemUse){
   if(!pending) return true;
-  const boardList=typeof _mainBoardCards==='function'?_mainBoardCards():[];
-  const card=boardList[slotIdx];
+  const card=at&&at.card;
+  if(!card||at.zone==='reward'&&(!/対象の/.test(pending.card?.desc||'')||!_pickingOfferCardAllowed(card))) return false;
+  if(pending.firstTarget&&!_pickingLocationCurrent(pending.firstTarget)) return false;
   const key=pending.key;
-  if(key==='transform_scroll') return _isBoardCharacterCard(card)&&slotIdx!==pending.firstIdx;
   if(!_isBoardCharacterCard(card)) return false;
   // 付与系は**既に同じキーワードを持つキャラクターを対象にできない**（無駄になるため）。
   if(key==='inspire_flag'&&_cardHasKeyword(card,'根性')) return false;
@@ -414,157 +473,95 @@ function _isItemUseTargetSlot(slotIdx,pending=G._pendingItemUse){
   if(key==='bond_scroll'){
     return (Number(card.directionCount)||0)<4 && ['up','right','down','left'].some(direction=>!(card.directions||[]).includes(direction));
   }
-  if(key==='weakening_scroll') return slotIdx!==pending.firstIdx;
   return true;
 }
+function _isItemUseTargetSlot(slotIdx,pending=G._pendingItemUse){
+  return _isItemUseTarget(_pickingLocation('board',slotIdx),pending);
+}
 
-// アイテムの対象選択を中断し、開始時のスナップショットへ戻してから解除する。
+function _refreshTargetPicking(){
+  _syncItemUsePickingUi();
+  if(typeof renderHandEditor==='function') renderHandEditor();
+  if(typeof renderRewCards==='function') renderRewCards();
+  if(typeof _syncRewardProductionItems==='function') _syncRewardProductionItems();
+}
+// 1枚目では効果を適用しないので、キャンセル時にカードの実体を置き直す必要はない。
 function _cancelPendingItemUse(silent){
   const pending=G._pendingItemUse;
   if(!pending) return false;
-  if(Array.isArray(pending.boardSnapshot)){
-    const boardList=typeof _mainBoardCards==='function'?_mainBoardCards():null;
-    if(boardList) pending.boardSnapshot.forEach((c,i)=>{ boardList[i]=c?clone(c):null; });
-  }
-  G._pendingItemUse=null; _syncItemUsePickingUi();
-  if(typeof renderHandEditor==='function') renderHandEditor();
+  G._pendingItemUse=null; _refreshTargetPicking();
   if(typeof updateHUD==='function') updateHUD();
   return true;
+}
+function _cancelTargetPicking(){
+  if(G&&G._pendingItemUse) _cancelPendingItemUse();
+  else if(typeof cancelCardActivation==='function') cancelCardActivation();
 }
 
 // 右クリック／Escでも対象選択を中断できるようにする（1度だけ登録）。
 if(!window._itemUseCancelBound){
   window._itemUseCancelBound=true;
   document.addEventListener('contextmenu',e=>{
-    if(!G||!G._pendingItemUse) return;
+    if(!_targetPickingActive()) return;
     e.preventDefault();
     // **ここで他の右クリック処理へ渡さない。** 渡すと reward.js 側の
     // 「カード非表示」の切り替えまで走ってしまう（対象選択中は切り替えさせない）。
     e.stopImmediatePropagation();
-    _cancelPendingItemUse();
+    _cancelTargetPicking();
   },true);
   document.addEventListener('pointerdown',e=>{
-    if(!G||!G._pendingItemUse) return;
-    // contextmenuの発火前の右ボタンでも即時解除する。
+    if(!_targetPickingActive()) return;
+    // 解除はcontextmenuで1回だけ行う。先に解除すると通常の右クリックへ漏れてカードが隠れる。
     if(e.button===2){
       e.preventDefault();
       e.stopImmediatePropagation();
-      _cancelPendingItemUse();
       return;
     }
     if(e.button!==0) return;
-    // 有効な対象カードと明示的なキャンセルボタン以外を
-    // 左クリックした場合も、対象選択を残さない。
-    if(e.target&&e.target.closest&&e.target.closest('#hand-slots.board-slots > .card,.item-use-cancel-btn')) return;
-    _cancelPendingItemUse();
+    if(e.target&&e.target.closest&&e.target.closest('.item-target-ok,.picking-source,.picking-first,#kw-tooltip,#keyword-tooltip')) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+  },true);
+  document.addEventListener('click',e=>{
+    if(!_targetPickingActive()||e.target?.closest?.('.item-target-ok,.picking-source,.picking-first,#kw-tooltip,#keyword-tooltip')) return;
+    e.preventDefault(); e.stopImmediatePropagation();
   },true);
   document.addEventListener('keydown',e=>{
-    if(e.key!=='Escape'||!G||!G._pendingItemUse) return;
+    if(e.key!=='Escape'||!_targetPickingActive()) return;
     e.preventDefault();
-    _cancelPendingItemUse();
+    e.stopImmediatePropagation();
+    _cancelTargetPicking();
   },true);
   // **対象選択中はドラッグを一切させない。**
   // カードを掴んだまま対象を選ぶと、移動と使用が同時に走って盤面が壊れる。
   // dragstart は各カードへ個別に登録されているため、documentのキャプチャで
   // 手前から止める（stopImmediatePropagationで後続の登録にも渡さない）。
   document.addEventListener('dragstart',e=>{
-    if(!G||!G._pendingItemUse) return;
+    if(!_targetPickingActive()) return;
     e.preventDefault();
     e.stopImmediatePropagation();
   },true);
 }
 
-// ── 対象を選ぶアイテムの使用中の表示 ───────────────────────────
-// **指示文はテキストメッセージシートが唯一の出どころ**（「「◯◯」使用時」）。
-// 2段階選ぶアイテム（変身・魂交換）は「使用時1」「使用時2」を使う。
-// 予備の文字列はシートを読めない時のためだけに持つ。
-const _ITEM_USE_PROMPT_FALLBACK={
-  bond_scroll:['ポートを追加するキャラクターを選んでください。'],
-  shield_scroll:['結界1を付与するキャラクターを選んでください。'],
-  giant_scroll:['ATKとHPを増幅するキャラクターを選んでください。'],
-  transform_scroll:['変身させるカードを選んでください。','変身先のキャラクターを選んでください。'],
-  weakening_scroll:['戦闘力を入れ替える1枚目のキャラクターを選んでください。','戦闘力を入れ替える2枚目のキャラクターを選んでください。'],
-  inspire_flag:['根性を付与するキャラクターを選んでください。'],
-  vision_scroll:['復活を付与するキャラクターを選んでください。'],
-  keyword_scroll:['キーワードを与えるキャラクターを選んでください。'],
-};
-// いま何段階目か（1始まり）。1段階だけのアイテムは常に1。
-function _itemUseStep(pending){
-  if(!pending) return 1;
-  if(['transform_scroll','weakening_scroll'].includes(pending.key)) return (pending.firstIdx==null)?1:2;
-  return 1;
-}
-function _itemUsePromptText(pending){
-  if(!pending) return '';
-  const name=String(pending.card&&pending.card.name||'').trim();
-  const step=_itemUseStep(pending);
-  const list=_ITEM_USE_PROMPT_FALLBACK[pending.key]||[];
-  const fallback=list[step-1]||list[0]||'対象を選んでください。';
-  if(typeof textMessage!=='function') return _shieldDisplayText(fallback);
-  // 2段階のものは「使用時1」「使用時2」、1段階のものは「使用時」。
-  const keys=(list.length>1)?[`「${name}」使用時${step}`,`「${name}」使用時`]:[`「${name}」使用時`];
-  for(const k of keys){ const v=textMessage(k,'').trim(); if(v) return _shieldDisplayText(v); }
-  return _shieldDisplayText(fallback);
-}
-// CSSの content へ入れる文字列リテラル。引用符とバックスラッシュを閉じないようにする。
-function _cssStringLiteral(text){
-  return `"${String(text||'').replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`;
-}
-// 対象選択中の画面（暗転・報酬枠の見出しと説明文・キャンセルボタン）を今の状態へ合わせる。
-// **開始・段階の進行・終了のすべてでここを呼ぶこと**（呼び忘れると暗転や説明が残る）。
+// ── 対象を選ぶアイテム・起動の共通表示 ───────────────────────────
 function _syncItemUsePickingUi(){
-  if(typeof document==='undefined') return;
-  const body=document.body;
-  if(!body) return;
-  const pending=G&&G._pendingItemUse;
-  const sec=document.getElementById('reward-offer-section');
-  const root=document.documentElement;
-  const on=!!pending;
-  // **対象選択の間は「カード非表示」を解除する。** 非表示のままだと対象が見えないうえ、
-  // 非表示用のCSS（body.right-card-peek）が結合アイコン（.panel-unite-link）を
-  // display:none にするため、盤面のつながりが分からなくなる。
-  // **解除したままにする**（キャンセルしてもカード表示のまま。利用者指定）。
-  if(on&&body.classList.contains('right-card-peek')){
+  if(typeof document==='undefined'||!document.body) return;
+  const body=document.body, item=!!(G&&G._pendingItemUse);
+  const activation=!!(G&&G.phase==='reward'&&typeof _pendingCardActivation!=='undefined'&&_pendingCardActivation);
+  body.classList.toggle('item-use-picking',item);
+  body.classList.toggle('activation-picking',activation);
+  body.classList.toggle('activation-picking-item',activation&&_cardActivationTargetsItem());
+  // 対象が見える状態に戻し、キャンセル後も表示を維持する。
+  if((item||activation)&&body.classList.contains('right-card-peek')){
     body.classList.remove('right-card-peek');
     if(typeof _syncBoardCardVisibilityToggle==='function') _syncBoardCardVisibilityToggle();
-    if(typeof renderHandEditor==='function') renderHandEditor();
-  }
-  body.classList.toggle('item-use-picking',on);
-  const oldBtn=sec&&sec.querySelector('.item-use-cancel-btn');
-  if(!on){
-    root.style.removeProperty('--item-use-title');
-    root.style.removeProperty('--item-use-desc');
-    if(oldBtn) oldBtn.remove();
-    return;
-  }
-  root.style.setProperty('--item-use-title',_cssStringLiteral(String(pending.card&&pending.card.name||'')));
-  root.style.setProperty('--item-use-desc',_cssStringLiteral(_itemUsePromptText(pending)));
-  if(!sec) return;
-  if(!oldBtn){
-    // 「元に戻す」と同じ見た目・同じ効果音の扱い（CSSは .rew-reset-btn のルールを共用する）。
-    const btn=document.createElement('button');
-    btn.type='button';
-    btn.className='btn rew-reset-btn item-use-cancel-btn';
-    btn.dataset.sfxSilent='1';
-    btn.innerHTML=`<span class="rew-btn-label">${_uiLabel('「キャンセル」ボタン','キャンセル')}</span>`;
-    btn.onclick=()=>{
-      if(typeof playSfx==='function') playSfx('return',{group:'ui'});
-      _cancelPendingItemUse();
-    };
-    sec.appendChild(btn);
   }
 }
 function _beginBoardItemUse(idx,card){
   if(!card||card._implemented===false||card._noItemEffectImpl||!panelMergeContentAvailable(card)) return false;
   if(typeof _pendingCardActivation!=='undefined') _pendingCardActivation=null;
-  const key=_itemEffectKey(card);
   if(typeof blessingFlameCancel==='function') blessingFlameCancel();
-  const boardListNow=typeof _mainBoardCards==='function'?_mainBoardCards():[];
-  G._pendingItemUse={slotIdx:idx,key,card:clone(card),step:0,
-    boardSnapshot:(boardListNow||[]).map(c=>c?clone(c):null)};
-  _syncItemUsePickingUi();
-  // 対象外カードの暗転を反映するため描き直す。
-  if(typeof renderHandEditor==='function') renderHandEditor();
+  G._pendingItemUse={slotIdx:idx,key:_itemEffectKey(card),card:clone(card)};
+  _refreshTargetPicking();
 }
 function _useImmediateItem(idx,card){
   const key=_itemEffectKey(card);
@@ -636,40 +633,30 @@ function _useImmediateItem(idx,card){
   _closeItemUseConfirm();
   return true;
 }
-// 魔導板のカードを対象にするアイテムの使用。使い終わって対象が盤面に残っていれば、
-// そのカードに _itemBuffed（アイテムで永久強化された）を付ける。酒場の依頼カードの特殊拒否に使う（quest.js）。
 function handlePendingItemBoardTarget(slotIdx){
-  const pending=G._pendingItemUse;
-  // クエストの必須カード（ファラ）をアイテムで破壊したかを見るため、使う前に持ち主を覚えておく。
-  const questEntry=typeof questRequiredEntryOnBoard==='function'?questRequiredEntryOnBoard():null;
-  // 生贄人形の1段目で壊した時は、2段目（封印を減らす）を終えるまで会話へ進まない（pending に覚えておく）。
-  const deferredEntry=pending&&pending._questDestroyedEntry||null;
-  const handled=_handlePendingItemBoardTarget(slotIdx);
-  const destroyedEntry=questEntry&&typeof questRequiredCardGone==='function'&&questRequiredCardGone(questEntry)?questEntry:null;
-  if(destroyedEntry&&G._pendingItemUse){
-    // 2段目の前に取り消すと、盤面は使う前へ戻り（_cancelPendingItemUse の boardSnapshot）、何も起きない。
-    G._pendingItemUse._questDestroyedEntry=destroyedEntry;
-  }else if((destroyedEntry||deferredEntry)&&!G._pendingItemUse&&typeof questOnRequiredCardDestroyed==='function'){
-    // アイテムを使い終えてから会話へ（2026-09-25 利用者指定）。演出の終わりは quest.js 側が待つ。
-    questOnRequiredCardDestroyed(destroyedEntry||deferredEntry);
-  }
-  if(pending&&G._pendingItemUse===null){
-    const idx=pending.key==='transform_scroll'?pending.firstIdx:slotIdx;
-    const target=Number.isInteger(idx)?_mainBoardCards()[idx]:null;
-    if(target) target._itemBuffed=true;
-  }
-  return handled;
+  return _handlePendingItemAt(_pickingLocation('board',slotIdx));
+}
+function handlePendingItemRewardTarget(index){
+  return _handlePendingItemAt(_pickingLocation('reward',index));
+}
+// 完了時に変更した品を確定する。無料取得の印・価格・在庫位置には触れない。
+function _finishPendingItemUse(pending,targets,vfxAt){
+  targets.forEach(at=>{if(_pickingLocationCurrent(at)) at.card._itemBuffed=true;});
+  if(targets.some(at=>at.zone==='reward')&&typeof _persistCurrentShopStock==='function') _persistCurrentShopStock();
+  G._pendingItemUse=null; _syncItemUsePickingUi();
+  _consumeItemSlot(pending.slotIdx);
+  if(vfxAt) _playItemUseVfx(pending.key,vfxAt.index,vfxAt.zone);
+  return true;
 }
 // 巻物などを魔導板のキャラクターに使った時の演出（2026-10-17 新規。見た目は js/vfx/defs/additions_1017.js）。
 // 効果の適用・保存には関わらない。素材が無い時・描画できない時は何もしない。
 // 2026-10-18 利用者指定：盾の巻物と幻視の巻物の演出を入れ替える（盾＝光輪と光の柱、幻視＝結晶片の結界）。
 // 対応表は present.js の PRESENT_ITEM_USE_FX（アイテムの番号で引く。LABも同じ表を読む）。
-function _playItemUseVfx(key,slotIdx){
+function _playItemUseVfx(key,slotIdx,zone='board'){
   const def=typeof ITEM_POOL!=='undefined'?ITEM_POOL.find(i=>i.itemEffectKey===key):null;
   const name=def&&typeof PRESENT_ITEM_USE_FX!=='undefined'?PRESENT_ITEM_USE_FX['I'+def.no]:'';
   if(!name||typeof VbFx==='undefined'||!VbFx.effects.some(d=>d.name===name)) return;
-  const el=typeof getBoardSlotElement==='function'?getBoardSlotElement(slotIdx)
-    :document.querySelector(`#hand-slots [data-board-idx="${slotIdx}"]`);
+  const el=_pickingTargetElement({zone,index:slotIdx});
   if(!el||!el.isConnected) return;
   if(typeof _vfxClipLayer==='function') VbFx.settings.layer=_vfxClipLayer;
   VbFx.play(name,{source:el,targets:[el],speed:1,seed:53,dir:1}).catch(()=>{});
@@ -706,64 +693,64 @@ function _playItemSlotVfx(no,rect){
   if(sfxKey!=='itemScroll'&&typeof _playSfxAtVfxCue==='function'&&VbFx.impactMs) _playSfxAtVfxCue(sfxKey,VbFx.impactMs(name,1),{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
   else if(typeof playSfx==='function') playSfx('itemScroll',{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
 }
-function _handlePendingItemBoardTarget(slotIdx){
+function _handlePendingItemBoardTarget(slotIdx){ return handlePendingItemBoardTarget(slotIdx); }
+function _handlePendingItemAt(at){
   const pending=G._pendingItemUse;
-  if(!pending||!Number.isInteger(slotIdx)) return false;
-  const boardList=_mainBoardCards();
-  const card=boardList[slotIdx];
+  const quest=pending&&typeof questRequiredEntryOnBoard==='function'?questRequiredEntryOnBoard():null;
+  const handled=_applyPendingItemAt(at);
+  // 変身で必須カードが失われる場合も、従来のクエストの出口へ返す。
+  if(pending&&!G._pendingItemUse&&quest&&typeof questRequiredCardGone==='function'&&questRequiredCardGone(quest)
+    &&typeof questOnRequiredCardDestroyed==='function') questOnRequiredCardDestroyed(quest);
+  return handled;
+}
+function _applyPendingItemAt(at){
+  const pending=G._pendingItemUse;
+  if(!pending) return false;
   const key=pending.key;
   // 旧セーブに対象選択が残っていても、改訂前の破壊・値減少は実行しない。
   if(key==='sacrifice_doll'||key==='mana_scroll'){_cancelPendingItemUse(true);return true;}
+  if(!_pickingLocationCurrent(at)||!_isItemUseTarget(at,pending)) return true;
+  const card=at.card, pair=['transform_scroll','weakening_scroll'].includes(key);
+  if(pair){
+    if(pending.firstTarget?.card===card){
+      delete pending.firstTarget; delete pending.firstIdx; _refreshTargetPicking(); return true;
+    }
+    if(!pending.firstTarget){
+      pending.firstTarget=at;
+      if(at.zone==='board') pending.firstIdx=at.index;
+      _refreshTargetPicking(); return true;
+    }
+  }
+  const first=pending.firstTarget;
   if(key==='transform_scroll'){
-    if(!_isItemUseTargetSlot(slotIdx,pending)) return true;
-    if(!Number.isInteger(pending.firstIdx)){ pending.firstIdx=slotIdx; _syncItemUsePickingUi(); renderHandEditor(); return true; }
-    if(!_isBoardCharacterCard(card)||slotIdx===pending.firstIdx) return true;
-    const previous=boardList[pending.firstIdx];
-    if(!_isBoardCharacterCard(previous)) return true;
-    const next=makePanel(card.id);
+    const previous=first.card, next=makePanel(card.id);
     if(!next) return true;
     next.power=previous.power; next.life=previous.life;
-    if(previous._battleEndCount) next._battleEndCount=previous._battleEndCount;
-    if(previous&&previous._activationReady) next._activationReady=true;
-    // 変身しても同じ枠のカードとして「配置を戻す」で追う（アイテムの使用は戻さない。2026-10-25）。
-    if(previous&&previous._placeKey) next._placeKey=previous._placeKey;
-    boardList[pending.firstIdx]=next;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,pending.firstIdx); return true;
+    const replaced=_replacePickingCard(first,next);
+    return _finishPendingItemUse(pending,[replaced],replaced);
   }
-  if(!_isBoardCharacterCard(card)){ return true; }
-  // 「対象のキャラクターに〇〇を与える。」の巻物（二段攻撃・毒牙X…）。本文のキーワードをそのまま与える（2026-10-22）。
+  if(key==='weakening_scroll'){
+    [first.card.power,card.power]=[card.power,first.card.power];
+    [first.card.life,card.life]=[card.life,first.card.life];
+    return _finishPendingItemUse(pending,[first,at]);
+  }
   if(key==='keyword_scroll'){
     const keyword=_itemGrantedKeyword(pending.card);
-    if(!_isItemUseTargetSlot(slotIdx)) return true;
     card.keywords=_mergeCardKeywordsForBond([], [...(card.keywords||[]),keyword]);
     const counted=/^(.*?)(\d+)$/.exec(keyword);
     if(counted) card._itemKeywordBonuses={...(card._itemKeywordBonuses||{}),
       [counted[1]]:(Number(card._itemKeywordBonuses&&card._itemKeywordBonuses[counted[1]])||0)+Number(counted[2])};
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
-  }
-  if(key==='shield_scroll'){
-    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
-    card.keywords=[...card.keywords.filter(k=>!coreShieldValueFromKeyword(k)),'結界'];
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
-  }
-  if(key==='giant_scroll'){
+  }else if(key==='shield_scroll'){
+    card.keywords=[...(card.keywords||[]).filter(k=>!coreShieldValueFromKeyword(k)),'結界'];
+  }else if(key==='giant_scroll'){
     const match=String(pending.card.desc||'').match(/ATKとHPを([0-9.]+)倍/);
     if(!match) return true;
     card.power=Math.ceil((Number(card.power)||0)*Number(match[1])); card.life=Math.ceil((Number(card.life)||0)*Number(match[1]));
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
-  }
-  if(key==='inspire_flag'){
+  }else if(key==='inspire_flag'||key==='vision_scroll'){
+    const keyword=key==='inspire_flag'?'根性':'復活';
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
-    if(!card.keywords.includes('根性')) card.keywords.push('根性');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
-  }
-  if(key==='vision_scroll'){
-    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
-    if(!card.keywords.includes('復活')) card.keywords.push('復活');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
-  }
-  if(key==='bond_scroll'){
-    if(!_isItemUseTargetSlot(slotIdx)) return true;
+    if(!card.keywords.includes(keyword)) card.keywords.push(keyword);
+  }else if(key==='bond_scroll'){
     const available=['up','right','down','left'].filter(direction=>!(card.directions||[]).includes(direction));
     const count=String(pending.card&&pending.card.desc||'').match(/ポートを(\d+)つ追加/);
     if(!count) return true;
@@ -773,16 +760,8 @@ function _handlePendingItemBoardTarget(slotIdx){
       card.directions.push(available.splice(index,1)[0]);
     }
     card.directionCount=card.directions.length;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
-  }
-  if(key==='weakening_scroll'){
-    if(!Number.isInteger(pending.firstIdx)){ pending.firstIdx=slotIdx; _syncItemUsePickingUi(); renderHandEditor(); return true; }
-    const first=boardList[pending.firstIdx];
-    if(!first||first===card) return true;
-    [first.power,card.power]=[card.power,first.power]; [first.life,card.life]=[card.life,first.life];
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); return true;
-  }
-  return false;
+  }else return false;
+  return _finishPendingItemUse(pending,[at],at);
 }
 function _openItemUseConfirm(idx,anchor){
   const slots=_ensureItemSlots();

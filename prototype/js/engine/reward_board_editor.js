@@ -374,21 +374,12 @@ function _wireHeCardDiscard(div,card,arr,arrName,i,_ringOfferDiscardable){
 
 function _wireHeCardControls(div,card,arrName,i){
   if(arrName==='boardCards'&&typeof wireCardActivation==='function') wireCardActivation(div,card,i);
-  // 起動の対象選び中は、選べないカードをアイテム使用中と同じ見た目で暗くして押せなくする（2026-10-26）。
-  if(arrName==='boardCards'&&typeof cardActivationBoardDimmed==='function'&&cardActivationBoardDimmed(card,i)) div.classList.add('item-target-disabled');
+  if(arrName==='boardCards'&&_wireTargetPickingCard(div,'board',i,card)) return;
   if(arrName==='boardCards'&&blessingFlameActive()&&blessingFlameWireCard(div,card,i)) return;
-  // アイテム使用中は、対象になり得ないカードを暗くして選択不能にする。
-  if(arrName==='boardCards'&&G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'){
-    if(_isItemUseTargetSlot(i)) div.classList.add('item-target-ok');
-    else div.classList.add('item-target-disabled');
-  }
   if(arrName==='boardCards') div.onclick=e=>{
     e.stopPropagation();
     // 起動（対象選び中の対象・起動できるカードのクリックで開始）。2026-10-23 からボタンではなくカードのクリック。
     if(typeof cardActivationClick==='function'&&cardActivationClick(i)) return;
-    // 対象外スロットは何も起こさない（アイテムを無駄に消費させない）。
-    if(G._pendingItemUse&&typeof _isItemUseTargetSlot==='function'&&!_isItemUseTargetSlot(i)) return;
-    if(typeof handlePendingItemBoardTarget==='function'&&handlePendingItemBoardTarget(i)) return;
     if(blessingFlameActive()&&blessingFlameSelect(i)) return;
     if(G._isForge&&typeof _isMapForgeBlockedSlot==='function'&&_isMapForgeBlockedSlot(i)) return;
     if(G._isForge&&typeof applyPendingMapForgePower==='function'&&applyPendingMapForgePower(i)) return;
