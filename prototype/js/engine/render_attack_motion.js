@@ -8,8 +8,25 @@
 // fromEl … 見た目の元にするスロット要素／fr … 置きたい位置と大きさ（ビューポート座標）
 // 攻撃モーションの複製カードのATK/HP表示を、別の要素（今の表示を持つ複製・スロット）へ揃える。
 function _syncMotionCloneStats(clone, latest){
-  const from=latest&&latest.querySelector('.slot-stats'),to=clone&&clone.querySelector('.slot-stats');
-  if(from&&to&&from.innerHTML!==to.innerHTML) to.innerHTML=from.innerHTML;
+  if(!clone||!latest) return;
+  const atk=latest.querySelector('.slot-stats .a'),hp=latest.querySelector('.slot-stats .h');
+  if(atk&&hp){
+    // innerHTMLを写すと、game-scaleの外へ補正した複製の座標・文字サイズまで実枠の値へ戻る。
+    const keepSize=Number(hp.textContent)<=0;
+    _setUnitStatText(clone.querySelector('.slot-stats .a'),atk.textContent,hp.textContent,keepSize);
+    const shownHp=clone.querySelector('.slot-stats .h');
+    _setUnitStatText(shownHp,hp.textContent,atk.textContent,keepSize);
+    if(shownHp) shownHp.classList.toggle('hp-damaged',hp.classList.contains('hp-damaged'));
+  }
+  const fill=latest.querySelector('.slot-life-fill'),shownFill=clone.querySelector('.slot-life-fill');
+  if(fill&&shownFill) shownFill.style.width=fill.style.width;
+  const bar=latest.querySelector('.slot-life-bar'),shownBar=clone.querySelector('.slot-life-bar');
+  if(bar&&shownBar) shownBar.title=bar.title;
+}
+// 停止中・割り込み中も、いま画面に出ている1枚だけを共通の数値更新へ渡す。
+function battleMotionClone(unit){
+  const owner=unit&&_attackMotionOwners.get(String(unit.id));
+  return owner&&owner.clone.isConnected?owner.clone:null;
 }
 function _buildMotionCardClone(fromEl, fr){
   const clone=fromEl.cloneNode(true);
