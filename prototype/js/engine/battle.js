@@ -2724,10 +2724,23 @@ async function onBattleEnd(){
   // 終戦のstat_changeは計算・永続化済み。PvE／保存再生も共通presenterでVFXだけを出す。
   // ゴールドの既存演出をイベント順へ挟み、終戦効果の順序・資源を変えない。
   const endGold=new Map(goldEffectUnits.map(x=>[x.event,x]));
+  const endFind=(side,id)=>((side==='p2'?G.enemies:G.allies)||[]).find(u=>u&&u.id===id)||null;
   await presentLabCommittedEvents(endEvents,{
-    findUnit:(side,id)=>((side==='p2'?G.enemies:G.allies)||[]).find(u=>u&&u.id===id)||null,
+    findUnit:endFind,
     units:side=>side==='p2'?G.enemies||[]:G.allies||[],
   },async event=>{
+    // 終戦効果の演出は全て省かない（2026-10-26 利用者指定「ユミルなど」）。ラン効果（リロール・接続エンチャントの強化・報酬の強化）は
+    // 戦闘中と同じ presentRunEffectEvent で出す（以前は終戦では出していなかった。効果の適用は終戦の処理で済んでいる）。
+    if(event&&event.type==='run_effect'&&typeof presentRunEffectEvent==='function'){await presentRunEffectEvent(event,{findUnit:endFind});return;}
+    // 固有の演出の無い終戦の能力変化は、常時・終戦のバフ演出（S009）で出す。
+    if(event&&event.type==='stat_change'&&(Number(event.atk)||Number(event.hp))
+      &&!(typeof presentLabEventHandled==='function'&&presentLabEventHandled(event))&&typeof _playCardEffectVfx==='function'){
+      const unit=endFind(event.side,event.unitId);
+      if(unit){const ms=typeof PRESENT_CARD_EFFECT_VFX_MS==='number'?PRESENT_CARD_EFFECT_VFX_MS:700;
+        if(typeof _playCardEffectSfxAtCue==='function')_playCardEffectSfxAtCue('S009',ms);
+        await _playCardEffectVfx('S009',[unit],{gateMs:0,hitDuration:ms});}
+      return;
+    }
     const gold=endGold.get(event);if(!gold)return;
     const {unit:a,amount}=gold;
     await presentGoldGainEvent(event||{type:'gold_gain',side:'p1',unitId:a.id,unit:a,amount}, {

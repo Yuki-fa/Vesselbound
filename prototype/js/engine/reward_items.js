@@ -663,17 +663,25 @@ function handlePendingItemBoardTarget(slotIdx){
 // 効果の適用・保存には関わらない。素材が無い時・描画できない時は何もしない。
 // 2026-10-18 利用者指定：盾の巻物と幻視の巻物の演出を入れ替える（盾＝光輪と光の柱、幻視＝結晶片の結界）。
 // 対応表は present.js の PRESENT_ITEM_USE_FX（アイテムの番号で引く。LABも同じ表を読む）。
-function _playItemUseVfx(key,slotIdx){
-  const def=typeof ITEM_POOL!=='undefined'?ITEM_POOL.find(i=>i.itemEffectKey===key):null;
-  const name=def&&typeof PRESENT_ITEM_USE_FX!=='undefined'?PRESENT_ITEM_USE_FX['I'+def.no]:'';
+// itemCard：使ったアイテム（番号で演出を引く。キーワードの巻物は同じ itemEffectKey が9種あり、key だけでは毒牙の巻物になっていた。2026-10-26）。
+// options.revealDirs：演出が終わってから出す魔導板のポート（絆の巻物。演出の後にフェードで出す。2026-10-26 利用者指定）。
+function _playItemUseVfx(key,slotIdx,itemCard,options){
+  const def=itemCard&&itemCard.no!=null?itemCard:typeof ITEM_POOL!=='undefined'?ITEM_POOL.find(i=>i.itemEffectKey===key):null;
+  const name=def&&typeof PRESENT_ITEM_USE_FX!=='undefined'?PRESENT_ITEM_USE_FX['I'+String(def.no).padStart(3,'0')]:'';
   if(!name||typeof VbFx==='undefined'||!VbFx.effects.some(d=>d.name===name)) return;
   const el=typeof getBoardSlotElement==='function'?getBoardSlotElement(slotIdx)
     :document.querySelector(`#hand-slots [data-board-idx="${slotIdx}"]`);
   if(!el||!el.isConnected) return;
   if(typeof _vfxClipLayer==='function') VbFx.settings.layer=_vfxClipLayer;
-  VbFx.play(name,{source:el,targets:[el],speed:1,seed:53,dir:1}).catch(()=>{});
+  const ports=((options&&options.revealDirs)||[]).map(d=>el.querySelector('.panel-dir-'+d)).filter(Boolean);
+  ports.forEach(port=>{port.style.opacity='0';});
+  VbFx.play(name,{source:el,targets:[el],speed:1,seed:53,dir:1}).catch(()=>{}).finally(()=>{
+    // 新しいポートは演出の後に0.4秒で出す（その間に描き直されていれば、新しい要素はそのまま見えている）。
+    ports.forEach(port=>{if(!port.isConnected)return;const a=port.animate?.([{opacity:0},{opacity:1}],{duration:400,easing:'ease-out'});
+      if(a)a.finished.catch(()=>{}).finally(()=>{port.style.opacity='';});else port.style.opacity='';});
+  });
   // SEは巻物ごと（2026-10-26 利用者指定「アイテムにもSEを」。以前は5種で共通）。山場を演出の山場へ合わせる。無い巻物は共通音。
-  const sfxKey=typeof presentItemUseSfxKey==='function'?presentItemUseSfxKey('I'+def.no):'itemScroll';
+  const sfxKey=typeof presentItemUseSfxKey==='function'?presentItemUseSfxKey('I'+String(def.no).padStart(3,'0')):'itemScroll';
   if(sfxKey!=='itemScroll'&&typeof _playSfxAtVfxCue==='function'&&VbFx.impactMs) _playSfxAtVfxCue(sfxKey,VbFx.impactMs(name,1),{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
   else if(typeof playSfx==='function') playSfx('itemScroll',{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
 }
@@ -723,7 +731,7 @@ function _handlePendingItemBoardTarget(slotIdx){
     // 変身しても同じ枠のカードとして「配置を戻す」で追う（アイテムの使用は戻さない。2026-10-25）。
     if(previous&&previous._placeKey) next._placeKey=previous._placeKey;
     boardList[pending.firstIdx]=next;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,pending.firstIdx); return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,pending.firstIdx,pending.card); return true;
   }
   if(!_isBoardCharacterCard(card)){ return true; }
   // 「対象のキャラクターに〇〇を与える。」の巻物（二段攻撃・毒牙X…）。本文のキーワードをそのまま与える（2026-10-22）。
@@ -734,28 +742,28 @@ function _handlePendingItemBoardTarget(slotIdx){
     const counted=/^(.*?)(\d+)$/.exec(keyword);
     if(counted) card._itemKeywordBonuses={...(card._itemKeywordBonuses||{}),
       [counted[1]]:(Number(card._itemKeywordBonuses&&card._itemKeywordBonuses[counted[1]])||0)+Number(counted[2])};
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx,pending.card); return true;
   }
   if(key==='shield_scroll'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
     card.keywords=[...card.keywords.filter(k=>!coreShieldValueFromKeyword(k)),'結界'];
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx,pending.card); return true;
   }
   if(key==='giant_scroll'){
     const match=String(pending.card.desc||'').match(/ATKとHPを([0-9.]+)倍/);
     if(!match) return true;
     card.power=Math.ceil((Number(card.power)||0)*Number(match[1])); card.life=Math.ceil((Number(card.life)||0)*Number(match[1]));
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx,pending.card); return true;
   }
   if(key==='inspire_flag'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
     if(!card.keywords.includes('根性')) card.keywords.push('根性');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx,pending.card); return true;
   }
   if(key==='vision_scroll'){
     card.keywords=Array.isArray(card.keywords)?card.keywords:[];
     if(!card.keywords.includes('復活')) card.keywords.push('復活');
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx,pending.card); return true;
   }
   if(key==='bond_scroll'){
     if(!_isItemUseTargetSlot(slotIdx)) return true;
@@ -763,19 +771,22 @@ function _handlePendingItemBoardTarget(slotIdx){
     const count=String(pending.card&&pending.card.desc||'').match(/ポートを(\d+)つ追加/);
     if(!count) return true;
     card.directions=Array.isArray(card.directions)?card.directions.slice():[];
+    const added=[];
     for(let i=0;i<Number(count[1])&&available.length;i++){
       const index=Math.floor(rand()*available.length);
-      card.directions.push(available.splice(index,1)[0]);
+      added.push(available.splice(index,1)[0]);card.directions.push(added[added.length-1]);
     }
     card.directionCount=card.directions.length;
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx,pending.card,{revealDirs:added}); return true;
   }
   if(key==='weakening_scroll'){
     if(!Number.isInteger(pending.firstIdx)){ pending.firstIdx=slotIdx; _syncItemUsePickingUi(); renderHandEditor(); return true; }
     const first=boardList[pending.firstIdx];
     if(!first||first===card) return true;
     [first.power,card.power]=[card.power,first.power]; [first.life,card.life]=[card.life,first.life];
-    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); return true;
+    // 魂交換の巻物：入れ替えた2枚の両方に演出を出す（2026-10-26 利用者指摘「VFXが出ません」：呼んでいなかった）。
+    G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx);
+    _playItemUseVfx(key,pending.firstIdx,pending.card); _playItemUseVfx(key,slotIdx,pending.card); return true;
   }
   return false;
 }

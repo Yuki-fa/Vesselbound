@@ -18,8 +18,8 @@ const cases=[
   {no:'C047',fx:'S009',targets:1,fire:summon},
   {no:'C070',fx:'S009',targets:1,fire:x=>coreEmitAilment(x.state,x.emit,{type:'keyword_effect',side:x.find('foe0').side,unitId:'foe0',sourceId:'owner',effect:'poison',amount:1})},
   // 2026-10-26 利用者指定：永久バフは成長（レプラコーン）に統一。
-  {no:'E005',fx:'leprechaun',targets:1,fire:x=>{const dead=x.find('foe0');dead.hp=0;dead._lastDamageSource=x.find('owner');coreApplyDeathEffects(dead,x.state,x.rng,x.emit,x.hit);}},
-  {no:'C092',fx:'leprechaun',targets:1,support:'C104',fire:x=>coreApplyAttackEffects(x.find('support'),x.state,x.rng,x.emit,x.hit)},
+  {no:'E005',fx:'leprechaun-quick',targets:1,fire:x=>{const dead=x.find('foe0');dead.hp=0;dead._lastDamageSource=x.find('owner');coreApplyDeathEffects(dead,x.state,x.rng,x.emit,x.hit);}},
+  {no:'C092',fx:'leprechaun-quick',targets:1,support:'C104',fire:x=>coreApplyAttackEffects(x.find('support'),x.state,x.rng,x.emit,x.hit)},
   {no:'E027',fx:'keyword:即死',targets:1,fire:x=>{x.rng.next=()=>0;x.hit(x.find('owner'),x.find('foe0'),1);}},
   {no:'E028',fx:'leprechaun',targets:1,fire:x=>coreTriggerBattleEnd(x.state,x.emit,x.rng,x.hit)},
   // 現行コアが実体を出さない4種も、将来の実体イベントで選ぶ割り当てを契約として検査する。
@@ -33,7 +33,7 @@ const cases=[
   // 2026-10-26 LAB の4回目の指摘で割り当て：コアの実体イベントで選ぶ。
   {no:'C007',fx:'weaken-wave',targets:2,fire:x=>coreApplyInjuryEffects(x.find('owner'),1,x.state,x.rng,x.emit,x.hit,x.find('foe0'))},
   {no:'C103',fx:'weaken-wave',targets:2,fire:x=>{x.find('owner').hp=0;coreApplyDeathEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit);}},
-  {no:'C121',fx:'leprechaun',targets:1,contract:true,fire:x=>x.emit({type:'stat_change',side:x.find('owner').side,unitId:'owner',sourceId:'owner',atk:1,hp:2,reason:'ally_release_permanent_buff'})},
+  {no:'C121',fx:'leprechaun-quick',targets:1,contract:true,fire:x=>x.emit({type:'stat_change',side:x.find('owner').side,unitId:'owner',sourceId:'owner',atk:1,hp:2,reason:'ally_release_permanent_buff'})},
 
   {no:'E016',fx:'dragonnet',targets:1,contract:true,fire:x=>{
     x.emit({type:'transform',side:x.find('owner').side,unitId:'owner',sourceId:'owner',from:'owner',unit:h.clone(x.find('owner'))});
@@ -84,12 +84,13 @@ async function play(x,mode){
       coreApplyAttackEffects(x.find('old'),x.state,x.rng,x.emit,x.hit);assert.equal(x.events.filter(e=>e.reason==='ally_attack_permanent_buff').length,0,'攻撃効果なしでは観測しない');
       x.find('old').desc='攻撃：血を得る。';coreApplyAttackEffects(x.find('old'),x.state,x.rng,x.emit,x.hit);await play(x,mode);
       // 2026-10-26 利用者指定：永久バフは成長（レプラコーン）に統一。
-      const effects=h.calls.filter(v=>v.name==='leprechaun');assert.equal(effects.length,1);assert.equal(effects[0].options.targets.length,1);
+      // 2026-10-26 6回目：戦闘中の永久強化は簡易版（leprechaun-quick）。
+      const effects=h.calls.filter(v=>v.name==='leprechaun-quick');assert.equal(effects.length,1);assert.equal(effects[0].options.targets.length,1);
     }
   });
   await check('シャナが複数いても、同じ味方の攻撃効果への各永久強化を落とさない',async()=>{
     for(const mode of ['pve','online','saved']){const x=h.setup({sides:{p1:{units:[h.unit('owner','C092'),h.unit('second','C092')]},p2:{units:[h.unit('foe0')]}}});
-      x.find('owner').desc+='\n攻撃：血を得る。';coreApplyAttackEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit);await play(x,mode);assert.equal(h.calls.filter(v=>v.name==='leprechaun').length,2);
+      x.find('owner').desc+='\n攻撃：血を得る。';coreApplyAttackEffects(x.find('owner'),x.state,x.rng,x.emit,x.hit);await play(x,mode);assert.equal(h.calls.filter(v=>v.name==='leprechaun-quick').length,2);
     }
   });
   await check('ラミアの毒がハイドラを誘発しても、全体へのscyllaは1回',async()=>{
@@ -150,7 +151,7 @@ async function play(x,mode){
     assert.equal(PRESENT_ACTIVATION_FX.C084,'dragonnet');assert.equal(PRESENT_ITEM_USE_FX.I002,'activation-transform');
     assert.equal(presentActivationFx('C116',['activation-devour']),'activation-devour');
     assert.equal(presentActivationFx('C116',['activation-devour','hellknight-slash']),'hellknight-slash');
-    for(const [no,fx]of [['C020','aura-buff'],['C047','aura-buff'],['C070','aura-buff'],['E005','leprechaun'],['E023','aura-buff'],['E044','attack-buff']])assert.equal(presentLabFx(no)[0],fx,'LABと共通の表');
+    for(const [no,fx]of [['C020','aura-buff'],['C047','aura-buff'],['C070','aura-buff'],['E005','leprechaun-quick'],['E023','aura-buff'],['E044','attack-buff']])assert.equal(presentLabFx(no)[0],fx,'LABと共通の表');
   });
   await check('作業前のコアと全キャラクターの戦闘結果・数値・乱数進行が同じ',()=>{
     const context={module:{exports:{}}};vm.createContext(context);
