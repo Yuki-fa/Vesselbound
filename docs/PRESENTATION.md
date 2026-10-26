@@ -894,3 +894,14 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
   - 咬竜グレイプニル EN043：割り込み攻撃のイベントに reactionSourceId を付けた（core.js。ミノタウロスと同じ形で演出がつなぐ）。
   - マモン C003 の起動：金貨はアイテムの枠ではなくマモン自身から出す（activation.js `handleCardActivationItemTarget`）。
   - 一括の洗い出し：tools/balance_sim/fixed_fx_sweep_1026.js（PRESENT_LAB_FX の各カードで戦闘を回し、PvE は1手ずつ・オンラインは全イベントで、FIX 済みの演出と音を数える。報告用で検査ではない）。
+- 2026-10-26 LAB の指摘の反映（5回目）
+  - FIX：01 hellknight-slash SE6（C116）・06 revival-ring SE1（R018）。09 アラストルは高音を 0.38〜0.72秒で 900Hz 以下へ移した。
+  - 同じ効果が同じタイミングで続けて処理される時（複数の野生の力の開戦など）は同時に出す（present_events.js `_presentLabSameEffectPlan`。マナ到達の波と同じ manaPlans でまとめる）。
+  - シルフの起動（変身）：変身前の見た目を控えて演出の山場まで重ね、山場で消す（activation.js。以前は VFX の前に見た目が変わっていた）。
+  - アークデーモン C124＝thunder-strike（旧サンダーバードの落雷。音はアークデーモン）。キマイラ C054＝chimera-blessing（新作。コアの reason 'chimera' で出す契約）。
+  - 強靭の指輪：本文変更（開戦で全ての味方に「負傷：全ての味方は+1/+1」）に合わせ、紋を外し琥珀に（additions_1017.js）。
+  - 巻物：対象に与える巻物は鼓舞の旗の色違い12種（scroll-guts-*）、魂交換＝keyword-grant-first、巨大化＝scroll-revive（SE 候補1・2を選び直し）、
+    黄金の巻物＝gold-gain、静寂・隕石・生贄人形・召竜＝scroll-sealed-reverse（魂交換の逆再生・紫紺）、ポータル＝portal-vortex（全画面）。
+    対象を選ばない巻物は使った瞬間にアイテムの枠から、ポータルは画面全体から出す（reward_items.js `_useImmediateItemWithFx`・`_playItemSlotVfx`、present.js `PRESENT_ITEM_SLOT_FX`・`PRESENT_ITEM_SCREEN_FX`）。
+    キーワードの付与の色違いは毒牙（アムピスバエナ）と先制（魂交換）以外を外した。定義JSONは 1,099,902 バイト（上限 1.1MB まで残り約100）。
+  - adopt_se.py：台帳の書き直しで消す古い行は「同じ番号・同じ演出」だけ（番号の振り直し前の旧 banshee・旧 familiar の行を残す）。

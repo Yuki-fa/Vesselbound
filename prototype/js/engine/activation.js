@@ -114,6 +114,8 @@ function handleCardActivationTarget(index) {
   // 消す前の実際の見た目を控える。結果の適用・チェックポイントは従来の順番のまま。
   const visual = result.kind === 'destroy' ? _activationCaptureVisual(_activationSlotEl(index)) : null;
   const frame = result.kind === 'buff_color' ? _activationCaptureFrame(_activationSlotEl(index)) : null;
+  // 変身（シルフ等）は変身前の見た目を控え、演出の山場まで重ねて残す（2026-10-26 利用者指摘「VFXの前にキャラの見た目が変化している」）。
+  const cover = result.kind === 'transform' ? _activationCaptureVisual(_activationSlotEl(index)) : null;
   const hold = result.kind === 'destroy' ? _activationHoldStats(source,pending.index) : null;
   if (result.kind === 'transform') {
     const make = () => makePanel(result.definition.id);
@@ -132,7 +134,7 @@ function handleCardActivationTarget(index) {
     source.power = (Number(source.power)||0) + result.atk; source.life = (Number(source.life)||0) + result.hp;
   }
   _finishCardActivation(pending, quest);
-  _playActivationFx(source, result.kind === 'destroy' ? { rect: visual?.rect, visual, hold } : { index, frame }, pending.index);
+  _playActivationFx(source, result.kind === 'destroy' ? { rect: visual?.rect, visual, hold } : { index, frame, cover }, pending.index);
   return true;
 }
 // 破壊の起動（ヘルナイト）は報酬枠のキャラクターも対象にできる（2026-10-23 利用者指定）。
@@ -290,6 +292,14 @@ function _playActivationFx(source, at, sourceIndex) {
   let from = Number.isInteger(at && at.index) ? _activationSlotEl(at.index) : null, anchor = null;
   if(from&&at.frame){
     const old=at.frame;from.appendChild(old);
+    const peak=names.includes(name)&&VbFx.impactMs?VbFx.impactMs(name,1):470;
+    setTimeout(()=>{
+      const fade=old.animate?.([{opacity:1},{opacity:0}],{duration:ACTIVATION_COLOR_FADE_MS,easing:'ease-in-out',fill:'forwards'});
+      if(fade)fade.finished.catch(()=>{}).finally(()=>old.remove());else old.remove();
+    },peak);
+  }
+  if(from&&at.cover){
+    const old=at.cover.node;old.style.setProperty('z-index','92','important');from.appendChild(old);
     const peak=names.includes(name)&&VbFx.impactMs?VbFx.impactMs(name,1):470;
     setTimeout(()=>{
       const fade=old.animate?.([{opacity:1},{opacity:0}],{duration:ACTIVATION_COLOR_FADE_MS,easing:'ease-in-out',fill:'forwards'});

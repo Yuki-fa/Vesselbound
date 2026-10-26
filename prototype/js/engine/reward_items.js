@@ -681,6 +681,34 @@ function _playItemUseVfx(key,slotIdx){
   if(sfxKey!=='itemScroll'&&typeof _playSfxAtVfxCue==='function'&&VbFx.impactMs) _playSfxAtVfxCue(sfxKey,VbFx.impactMs(name,1),{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
   else if(typeof playSfx==='function') playSfx('itemScroll',{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
 }
+// 対象を選ばないアイテム（黄金の巻物・次の戦闘で効く巻物）は使った瞬間にアイテムの枠から、ポータルは画面全体に演出を出す（2026-10-26 利用者指定）。
+// 対象を選ぶアイテムは、対象を選んだ時に _playItemUseVfx が出す。
+function _useImmediateItemWithFx(idx,card){
+  const def=typeof ITEM_POOL!=='undefined'?ITEM_POOL.find(i=>i.itemEffectKey===_itemEffectKey(card)):null;
+  const no=def&&def.no!=null?'I'+String(def.no).padStart(3,'0'):'';
+  const slot=document.querySelectorAll('.reward-prod-item .reward-prod-slots i')[idx];
+  const rect=slot&&slot.getBoundingClientRect();
+  const used=_useImmediateItem(idx,card);
+  if(used&&!G._pendingItemUse) _playItemSlotVfx(no,rect);
+  return used;
+}
+function _playItemSlotVfx(no,rect){
+  const screenFx=typeof PRESENT_ITEM_SCREEN_FX!=='undefined'&&PRESENT_ITEM_SCREEN_FX.has(no);
+  if(!screenFx&&!(typeof PRESENT_ITEM_SLOT_FX!=='undefined'&&PRESENT_ITEM_SLOT_FX.has(no))) return;
+  const name=typeof PRESENT_ITEM_USE_FX!=='undefined'?PRESENT_ITEM_USE_FX[no]:'';
+  if(!name||typeof VbFx==='undefined'||!VbFx.effects.some(d=>d.name===name)) return;
+  const r=screenFx?{left:0,top:0,width:window.innerWidth,height:window.innerHeight}:rect;
+  if(!r||!(r.width>0)) return;
+  // 使ったアイテムは枠から消えているので、元の位置（ポータルは画面全体）に見えない目印を置いて発生元にする。
+  const anchor=document.createElement('div');
+  Object.assign(anchor.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',pointerEvents:'none',opacity:'0'});
+  document.body.appendChild(anchor);
+  if(!screenFx&&typeof _vfxClipLayer==='function') VbFx.settings.layer=_vfxClipLayer;
+  VbFx.play(name,{source:anchor,targets:[anchor],speed:1,seed:53,dir:1}).catch(()=>{}).finally(()=>anchor.remove());
+  const sfxKey=typeof presentItemUseSfxKey==='function'?presentItemUseSfxKey(no):'itemScroll';
+  if(sfxKey!=='itemScroll'&&typeof _playSfxAtVfxCue==='function'&&VbFx.impactMs) _playSfxAtVfxCue(sfxKey,VbFx.impactMs(name,1),{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
+  else if(typeof playSfx==='function') playSfx('itemScroll',{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
+}
 function _handlePendingItemBoardTarget(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending||!Number.isInteger(slotIdx)) return false;
@@ -816,7 +844,7 @@ function _openItemUseConfirm(idx,anchor){
     &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   const useUnavailable=!_canUseItemNow(card);
   _openRewardActionTooltip(anchor,card.name||'アイテム',card.desc||'',[
-    {label:_uiLabel('「使う」ボタン','使う'),disabled:useUnavailable,onClick:()=>_useImmediateItem(idx,card)},
+    {label:_uiLabel('「使う」ボタン','使う'),disabled:useUnavailable,onClick:()=>_useImmediateItemWithFx(idx,card)},
     {label:_uiLabel('「捨てる」ボタン','捨てる'),onClick:()=>{
       const current=_ensureItemSlots()[idx];
       if(current) _ensureItemSlots()[idx]=null;

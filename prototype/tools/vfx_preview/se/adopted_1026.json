@@ -81,7 +81,7 @@
     "note": "演出の終わりでフェードしない（PRESENT_LAB_SOUND_NO_FADE）",
     "labWired": true,
     "duration": 1.95,
-    "sha256": "bab37cdb475879e410067a25dfe49b562f2b4ac46530ea15bd59884b02df2d84"
+    "sha256": "a530bf32a41f6a8ef8d64497156291bb8c1fb849e21b2f31fbf61b19da930957"
   },
   "EN045": {
     "code": "EN045",
@@ -180,5 +180,33 @@
     "labWired": false,
     "duration": 1.95,
     "sha256": "760bc41eae4c5958c88c3f3baf5a4e460c38d7f82731b922112cdd42e968c8ef"
+  },
+  "C116": {
+    "code": "C116",
+    "effect": "hellknight-slash",
+    "candidate": "hellknight-slash-6",
+    "file": "assets/sfx/C116.wav",
+    "source": "DSGNImpt-DS_WHOOSH HIT-Ruthless Air Strike_RTSB_COL-01.wav + hellknight-slash-1.wav",
+    "sourcePath": "tools/vfx_preview/se_tools_1025.py",
+    "peak": 0.87,
+    "gainDb": null,
+    "note": null,
+    "labWired": false,
+    "duration": 2.35,
+    "sha256": "5ce9a4760b3e86057832e2834b956147e115220fbca407f2515e5ee802e7151b"
+  },
+  "R018": {
+    "code": "R018",
+    "effect": "revival-ring",
+    "candidate": "revival-ring-1",
+    "file": "assets/sfx/R018.wav",
+    "source": "SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-02.wav",
+    "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-02.wav",
+    "peak": 0.45,
+    "gainDb": null,
+    "note": null,
+    "labWired": false,
+    "duration": 1.572021,
+    "sha256": "14d1b4cfb9b1de96e7b4a26b61d27320de0fe2c707c89ce850927f2401885ed6"
   }
 }

@@ -281,6 +281,39 @@ function _presentLabPlan(ev, events, index, api, context) {
   _presentLabClaimHitReactions(plan,events);
   return plan;
 }
+// 同じ効果が同じタイミングで続けて処理される時（複数の野生の力の開戦など）は、発動元ごとに順に出さず同時に出す（2026-10-26 利用者指定）。
+// マナ到達の波と同じ形（manaPlans）でまとめる。別の効果・攻撃・手番の区切りが来たらそこまで。同じ発動元の繰り返しはまとめない。
+function _presentLabSameEffectPlan(plan, ev, events, index, api, context) {
+  if (ev.type === 'mana_threshold' || plan.manaPlans || !plan.owner) return plan;
+  const plans = [plan], owners = new Set([plan.owner.id]);
+  for (let i = index + 1; i < events.length; i++) {
+    const next = events[i];
+    if (!next || ['attack','turn_begin','battle_end','death','summon','mana_threshold'].includes(next.type)) break;
+    if (next.type === 'effect_flash' || next.type === 'log' || _presentLabClaims.has(next)) continue;
+    const source = _presentLabSource(next), code = source && String(source.card.no || source.card.artCode || '');
+    if (code !== plan.code) break;
+    if (owners.has(next.sourceId || next.unitId)) continue;
+    const peer = _presentLabPlan(next,events,i,api,context);
+    if (!peer) break;
+    if (!peer.owner || peer.code !== plan.code || owners.has(peer.owner.id)) {
+      // まとめない計画は取り消す（その発動は、イベントの順が来た時に通常どおり作り直す）。
+      for (const member of peer.members) if (_presentLabClaims.get(member) === peer) _presentLabClaims.delete(member);
+      for (const reaction of peer.hitReactions || []) if (_presentLabClaims.get(reaction) === peer) _presentLabClaims.delete(reaction);
+      break;
+    }
+    owners.add(peer.owner.id); plans.push(peer);
+  }
+  if (plans.length < 2) return plan;
+  // 音は発動ごとに鳴らす（同時に出すだけで、各対象の音の回数は今までと同じ）。
+  const group = { ...plan, manaPlans: plans, sameEffect: true, started: false, done: null, gains: [], impact: new Map(),
+    members: plans.flatMap(p => p.members), targets: [...new Set(plans.flatMap(p => p.targets))] };
+  for (const peer of plans) {
+    for (const member of peer.members) _presentLabClaims.set(member,group);
+    for (const reaction of peer.hitReactions || []) _presentLabClaims.set(reaction,group);
+  }
+  group.hitReactions = new Set(plans.flatMap(p => [...p.hitReactions || []])); group.hitGains = [];
+  return group;
+}
 // 同じマナ到達で発動した固有VFXも、発動元ごとの尺を直列に足さない。
 // 発動元と対象は各planに保持し、全員を同時に開始してから1組として完了を待つ。
 function _presentLabManaWavePlan(plan, ev, events, index, api, context) {
@@ -331,7 +364,7 @@ function _presentLabStart(plan, options) {
   if (plan.manaPlans) {
     plan.eventImpact = new WeakMap();
     plan.manaPlans.forEach((peer,i) => {
-      _presentLabStart(peer,{repeat:plan.repeat,silent:i>0});
+      _presentLabStart(peer,{repeat:plan.repeat,silent:i>0&&!plan.sameEffect});
       for (const ev of peer.members) {
         const impact = peer.eventImpact?.get(ev) || peer.impact.get(String(ev.unitId));
         if (impact) plan.eventImpact.set(ev,impact);
@@ -459,6 +492,7 @@ async function presentLabBeginEvent(ev, events, index, api) {
   let plan = _presentLabPlan(ev,events,index,api,context);
   if (!plan) return;
   plan = _presentLabManaWavePlan(plan,ev,events,index,api,context);
+  plan = _presentLabSameEffectPlan(plan,ev,events,index,api,context);
   // 割り込んだ別効果の前でマナVFXを閉じる。repeatの発動記録は保持する。
   if(ev.type!=='mana_threshold'&&typeof api.finishEffect==='function')await api.finishEffect();
   if(plan.contactEvent){const pending=_presentLabContacts.get(plan.contactEvent)||[];pending.push(plan);_presentLabContacts.set(plan.contactEvent,pending);return;}

@@ -314,6 +314,10 @@ async function extraChecks() {
       assert.equal(presentLabFx(cells[1]),null,'旧効果の割り当てを外す '+cells[1]);assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
     }
     if(!renumbered)cells[1]=moved[cells[1]]||cells[1];
+    // 2026-10-26：アークデーモン C124 は旧サンダーバードの落雷（thunder-strike）へ（旧定義 arch-demon は残す）。
+    if(cells[1]==='C124'&&cells[2]==='arch-demon'){
+      assert.equal(presentLabFx('C124')[0],'thunder-strike');assert.ok(VbFx.effects.some(d=>d.name==='arch-demon'),'定義は残す arch-demon');continue;
+    }
     // 2026-10-18：LAB演出の対応表に無い既存の入口（効果番号の音・キーワードの音）は、登録とファイルの存在だけ確かめる。
     if(!presentLabFx(cells[1])&&Assets.sfx[cells[1]]){assert.ok(fs.existsSync(path.join(ROOT,Assets.sfx[cells[1]])),'採用SEのファイル '+cells[1]);continue;}
     const spec=presentLabFx(cells[1]);assert.ok(spec,'採用SEの登録 '+cells[1]);assert.equal(spec[0],cells[2]);assert.equal(spec[1],Number(cells[5]));assert.ok(fs.existsSync(path.join(ROOT,Assets.sfx[cells[1]])),'採用SEのファイル '+cells[1]);}

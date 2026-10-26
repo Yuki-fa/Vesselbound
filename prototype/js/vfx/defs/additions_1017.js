@@ -14674,10 +14674,10 @@ VbFxDefs.register({
     },
     {
       "name": "toughness-ring",
-      "label": "強靭の指輪 · R015",
+      "label": "強靭の指輪 · R015（2026-10-26 本文変更：開戦で全ての味方に「負傷：全ての味方は+1/+1」を付与。紋は出さない）",
       "ms": 1100,
-      "color": "#5ae08a",
-      "light": "#e8fff0",
+      "color": "#e0af5a",
+      "light": "#fff7e8",
       "playback": {
         "maxMs": 6000,
         "speedMin": 0.4,
@@ -14699,7 +14699,7 @@ VbFxDefs.register({
           "geometry": "superellipse",
           "radius": 1,
           "pad": 0.04,
-          "color": "#5ae08a",
+          "color": "#e0af5a",
           "width": 3,
           "widthSpace": "pixel",
           "noise": 0.02,
@@ -14740,7 +14740,7 @@ VbFxDefs.register({
           "geometry": "superellipse",
           "radius": 1,
           "pad": 0.06,
-          "color": "#e8fff0",
+          "color": "#fff7e8",
           "width": 3,
           "widthSpace": "pixel",
           "noise": 0.02,
@@ -14777,65 +14777,8 @@ VbFxDefs.register({
         {
           "anchor": "each-target",
           "basis": "unit",
-          "type": "shape",
-          "shape": "petal-seal",
-          "color": "#5ae08a",
-          "light": "#e8fff0",
-          "shadow": "#0a4a2a",
-          "offset": [
-            0,
-            -0.42
-          ],
-          "time": [
-            0.1,
-            0.85
-          ],
-          "curves": {
-            "alpha": {
-              "keys": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  0.2,
-                  1
-                ],
-                [
-                  0.75,
-                  0.9
-                ],
-                [
-                  1,
-                  0
-                ]
-              ],
-              "interpolation": "smooth"
-            },
-            "radius": {
-              "keys": [
-                [
-                  0,
-                  0.05
-                ],
-                [
-                  0.3,
-                  0.15
-                ],
-                [
-                  1,
-                  0.12
-                ]
-              ],
-              "interpolation": "ease-out"
-            }
-          }
-        },
-        {
-          "anchor": "each-target",
-          "basis": "unit",
           "type": "glow",
-          "color": "#e8fff0",
+          "color": "#fff7e8",
           "texture": "glow",
           "blend": "add",
           "offset": [
@@ -14902,7 +14845,7 @@ VbFxDefs.register({
           "size": 0.07,
           "sizeSize": 0.05,
           "sizePhase": -0.05,
-          "color": "#5ae08a",
+          "color": "#e0af5a",
           "time": [
             0.12,
             1
@@ -14934,13 +14877,13 @@ VbFxDefs.register({
           "materials": [
             {
               "texture": "plasma",
-              "color": "#5ae08a",
+              "color": "#e0af5a",
               "blend": "add",
               "rotationScale": 1
             },
             {
               "texture": "glow",
-              "color": "#e8fff0",
+              "color": "#fff7e8",
               "radiusScale": 0.5,
               "blend": "add"
             }

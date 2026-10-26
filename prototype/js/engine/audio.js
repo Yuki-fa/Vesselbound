@@ -147,6 +147,7 @@ const SFX_SETTINGS={
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    R018: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 revival-ring 候補1）
     I008: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-mana 候補3・アイテムの使用の音）
     I012: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-guts 候補3・アイテムの使用の音）
     I005: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-giant 候補3・アイテムの使用の音）
@@ -156,7 +157,7 @@ const SFX_SETTINGS={
     C114: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 reward-blessing 候補1・C114.wav は旧 familiar の音なので別名）
     C062: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 ymir-aura 候補2）
     C034: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 banshee-miasma 候補3・C034.wav は旧 banshee の音なので別名）
-    C116: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 hellknight-slash 候補4）
+    C116: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 hellknight-slash 候補6）
     C109: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 activation-empower 候補2）
     C080: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 activation-transform 候補3）
     EN013: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-25 echo-bolt 候補3）

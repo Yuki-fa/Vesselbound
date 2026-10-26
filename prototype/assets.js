@@ -324,6 +324,7 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    R018: 'assets/sfx/R018.wav', // LAB採用（2026-10-26 revival-ring 候補1）
     I008: 'assets/sfx/I008.wav', // LAB採用（2026-10-26 scroll-mana 候補3・アイテムの使用の音）
     I012: 'assets/sfx/I012.wav', // LAB採用（2026-10-26 scroll-guts 候補3・アイテムの使用の音）
     I005: 'assets/sfx/I005.wav', // LAB採用（2026-10-26 scroll-giant 候補3・アイテムの使用の音）
@@ -333,7 +334,7 @@ const Assets = {
     C114: 'assets/sfx/C114_blessing.wav', // LAB採用（2026-10-26 reward-blessing 候補1・C114.wav は旧 familiar の音なので別名）
     C062: 'assets/sfx/C062.wav', // LAB採用（2026-10-26 ymir-aura 候補2）
     C034: 'assets/sfx/C034_miasma.wav', // LAB採用（2026-10-26 banshee-miasma 候補3・C034.wav は旧 banshee の音なので別名）
-    C116: 'assets/sfx/C116.wav', // LAB採用（2026-10-25 hellknight-slash 候補4）
+    C116: 'assets/sfx/C116.wav', // LAB採用（2026-10-26 hellknight-slash 候補6）
     C109: 'assets/sfx/C109.wav', // LAB採用（2026-10-25 activation-empower 候補2）
     C080: 'assets/sfx/C080.wav', // LAB採用（2026-10-25 activation-transform 候補3）
     EN013: 'assets/sfx/EN013.wav', // LAB採用（2026-10-25 echo-bolt 候補3）

@@ -105,7 +105,6 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | EN013 | echo-bolt | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC ELECTRIC Cast Medium-03.wav | 1.786458秒 | 0.45 |
 | C080 | activation-transform | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WATER Cast Medium-04.wav | 1.95秒 | 0.45 |
 | C109 | activation-empower | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium Energy-04.wav | 1.95秒 | 0.45 |
-| C116 | hellknight-slash | tools/vfx_preview/se_tools_1025.py | 2.35秒 | 0.85 |
 
 ## 2026-10-26 正式採用（利用者がLABで選択）
 
@@ -126,6 +125,8 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | I012 | scroll-guts | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03.wav | 1.95秒 | 0.45 |
 | I008 | scroll-mana | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 03-03.wav | 1.95秒 | 0.45 |
 | C114 | reward-blessing | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ascend 08.wav | 1.95秒 | 0.45 |
+| C116 | hellknight-slash | tools/vfx_preview/se_tools_1025.py | 2.35秒 | 0.87 |
+| R018 | revival-ring | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-02.wav | 1.572021秒 | 0.45 |
 
 ## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 

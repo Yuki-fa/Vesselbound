@@ -45,6 +45,8 @@ var VbFxLabFixed = {
   'erinyes-flame':'2026-10-25','kele-blood-nova':'2026-10-25','speed-ring':'2026-10-25','frost-retaliate':'2026-10-25',
   'echo-bolt':'2026-10-25','activation-transform':'2026-10-25','activation-empower':'2026-10-25','activation-devour':'2026-10-25',
   // 2026-10-26 FIX（LAB 02 SE2・04 SE2・05 SE1・11 SE3・12 SE2・13 SE3）
+  // 2026-10-26 5回目：FIX（01 SE6・06 SE1）
+  'hellknight-slash':'2026-10-26','revival-ring':'2026-10-26',
   'ymir-aura':'2026-10-26','grimalkin-pillar':'2026-10-26','reward-blessing':'2026-10-26','banshee-miasma':'2026-10-26','atlas-burden':'2026-10-26','thunderbird-charge':'2026-10-26',
 };
 
@@ -55,7 +57,6 @@ var VbFxLabPending = {
   C067:'mana-buff（ウォーグのバフに出ていなかった）', C070:'aura-buff（敵が状態異常を得るたびHP+）', C047:'aura-buff（眷属が召喚されるたび）',
   C012:'injury-buff＋S006の音（音が鳴っていなかった）',
   R035:'aura-buff＋S009の音（味方が結界を失うたび全ての味方+1/+1。2026-10-25 音が鳴らなかった）',
-  
   // 新しく作った演出（additions_1023.js）
   C084:'activation-transform（新作。起動の変身）',
   // 2026-10-25 利用者指定の割り当て（流用）
@@ -64,14 +65,11 @@ var VbFxLabPending = {
   E016:'dragonnet（ドラゴネットと同じ変身）', C040:'aura-buff（報酬に青キャラクターが出た時）',
   // 2026-10-25 新しく作った演出（additions_1025.js）
   
-  
   // 2026-10-25 新しいキャラクター25枚（新作6種はSE候補を仮に採用。流用・汎用は既存の演出）
-  
   C026:'scylla（流用）', C051:'scylla（流用）', C027:'dark-fire（流用）',
   C053:'melusine（流用）', C077:'eidolon（流用。旧シャナの本文）', C003:'gold-gain（起動）',
   // 2026-10-26 LAB の4回目の指摘（FIX：02 SE2・04 SE2・05 SE1・11 SE3・12 SE2・13 SE3・エイトヴォルム）。以下は確認待ち。
-  C116:'hellknight-slash（候補4を採用中。2026-10-26 魔力を帯びた強く鋭い音の候補5〜7に差し替え）', R018:'revival-ring（2026-10-26 SE1・2を白魔法の音で選び直し）',
-  C001:'alastor-brand（2026-10-26 演出の終わりで音をフェードしない・高音をゆっくり低い響きへ移す）',
+  
   K013:'stealth-veil（FIX）＋stealth-state（光学迷彩。2026-10-26 数字は暗くしない）', K014:'guard-stance（FIX）＋guard-state（灰色の重さ。2026-10-26 数字は暗くしない）',
   C004:'dark-fire（2026-10-26 利用者指定：闇の炎の全体の波。E006 の音）', E006:'dark-fireball（2026-10-26 新作：単体へ飛ぶ黒い火球。音は仮に旧 dark-fire）',
   E015:'poison-spit（2026-10-26 新作：飛んでいく毒液。単体に飛ばす毒の共通。音は仮に毒牙）',
@@ -81,15 +79,21 @@ var VbFxLabPending = {
   E037:'penance-ring（2026-10-26 懺悔＝苦行の指輪と同じ）', E055:'atlas-burden（2026-10-26 団結＝アトラスと同じ分散）',
   E060:'shield-break（2026-10-26 武器破壊。コアに実体が無いので実体が出た時に出す）', R029:'map-duplicate（2026-10-26 呼応の指輪＝複製。コアに実体が無い）',
   EN045:'all-ring（2026-10-26 グンダの全体ダメージ。SE は候補4。コアに実体が無い）', EN043:'minotaur（2026-10-26 負傷で直ちに割り込み攻撃＝ミノタウロスと同じ）',
-  I008:'scroll-mana（2026-10-26 永劫の巻物）', I013:'map-resonance（2026-10-26 絆の巻物）',
-  I015:'keyword-grant-fang', I016:'keyword-grant-evil-eye', I017:'keyword-grant-impact', I018:'keyword-grant-double', I019:'keyword-grant-stealth',
-  I020:'keyword-grant-first', I021:'keyword-grant-tri', I022:'keyword-grant-drain', I023:'keyword-grant-pierce',
+  I013:'map-resonance（2026-10-26 絆の巻物）',
+  
   C117:'wendigo（FIX。2026-10-26 音の途中から鳴らす時の立ち上げを 420ms に）', M003:'map-life＋魔導板の変化（2026-10-26 LAB に魔導板の変化を足した）', M005:'map-duplicate＋魔導板の変化（2026-10-26）',
+  // 2026-10-26 LAB の5回目の指摘。以下は確認待ち。
+  C001:'alastor-brand（2026-10-26 高音を 0.38〜0.72秒で低い響きへ移した）', C124:'thunder-strike（2026-10-26 旧サンダーバードの落雷。音はアークデーモン）',
+  C054:'chimera-blessing（2026-10-26 新作。SE 3候補。コアの実装待ち）', R015:'toughness-ring（2026-10-26 本文変更に合わせ紋を外し琥珀に）',
+  I003:'scroll-guts-shield', I004:'scroll-guts-regen', I024:'scroll-guts-veteran', I015:'scroll-guts-fang', I016:'scroll-guts-evil-eye', I017:'scroll-guts-impact',
+  I018:'scroll-guts-double', I019:'scroll-guts-stealth', I020:'scroll-guts-first', I021:'scroll-guts-tri', I022:'scroll-guts-drain', I023:'scroll-guts-pierce',
+  I008:'keyword-grant-first（魂交換の巻物）', I005:'scroll-revive（巨大化の巻物。SE 候補1・2を選び直し）', I010:'gold-gain（黄金の巻物。アイテムの枠から）',
+  I001:'scroll-sealed-reverse', I006:'scroll-sealed-reverse', I007:'scroll-sealed-reverse', I014:'scroll-sealed-reverse', I009:'portal-vortex（全画面）',
 };
 var VbFxLabStarNotes = {
   E029:'開戦で死亡効果を発動する（発動した死亡効果の演出が出る）',
   M002:'値の補正（置いた時点で封印の値が変わる）', M004:'値の補正（置いた時点でマナ効果の値が変わる）',
-  I009:'街へワープする（戦闘外）', I011:'再抽選の回数（盤面の対象が無い）',
+  I011:'再抽選の回数（盤面の対象が無い）',
   R036:'血の数が増えるだけ（画面上の発生場所が無い。血のカウンターに出る）',
 };
 // 起動の演出（魔導板で対象に使った時）。本体は present.js PRESENT_ACTIVATION_FX。

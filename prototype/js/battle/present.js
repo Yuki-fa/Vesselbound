@@ -2016,6 +2016,8 @@ const PRESENT_LAB_FX = {
   E018:['atk-down',.44,'target',getKeywordAssetKey('邪眼')], E037:['penance-ring',.45,'self','R012'],
   E055:['atlas-burden',0.324083,'friends','C005'], E060:['shield-break',0.318812,'target','shield_break'],
   R029:['map-duplicate',.45,'self','map:duplicate'], EN045:['all-ring',0.45,'foes'],
+  // 2026-10-26 新作：キマイラ（開戦：ランダムな味方は+2/+2。味方の色の数だけ繰り返す）。音は候補を選ぶまで常時の強化の音。
+  C054:['chimera-blessing',.45,'target','S009'],
   C026:['scylla',.45,'foes','C071'], C051:['scylla',.45,'foes','C071'], C027:['dark-fire',.5,'foes','E006'],
   C053:['melusine',.9,'foe','C089'], C077:['eidolon',.218375,'kenzoku','C044'],
   // 2026-10-26 利用者指定：闇の炎は単体へ飛ぶ黒い火球（全体の黒い炎の波はエキドナ・ドラウグルへ）。音は旧 dark-fire の E006 を仮に使う。
@@ -2064,7 +2066,8 @@ const PRESENT_LAB_FX = {
   C009:['satyr',0.625708,'self'],E083:['hecatoncheir',0.655729,'self'],E043:['zombie',0.263917,'self'],
   C075:['behemoth',0.48,'self'],E031:['sylph',0.284083,'self'],C091:['nymph',0.736167,'colors'],
   C107:['fiend',0.833771,'foe'],C039:['phantom',0.218375,'kenzoku'],C044:['eidolon',0.218375,'kenzoku'],
-  C124:['arch-demon',0.774937,'purple'],C108:['gremlin',0.341896,'foes'],C120:['lilith',0.384333,'sequence'],
+  // 2026-10-26 利用者指定：アークデーモンは旧サンダーバードの落雷（thunder-strike）。音はアークデーモンのまま。
+  C124:['thunder-strike',0.774937,'purple'],C108:['gremlin',0.341896,'foes'],C120:['lilith',0.384333,'sequence'],
   C122:['overlord',0.48,'self'],C014:['minotaur',0.2575,'reaction'],
   // 2026-10-26 利用者指摘「咬竜“グレイプニル”など、個別VFXを再生できません」：負傷で直ちに割り込み攻撃する体はミノタウロスと同じ演出・同じ音。
   EN043:['minotaur',0.2575,'reaction','C014'],E056:['sleep-sheep',0.45,'self'],
@@ -2078,15 +2081,24 @@ const PRESENT_LAB_FX = {
 // 2026-10-22 シート改訂：魔力の巻物（I011）は「再抽選が3回可能になる」になり、キャラクターに使わないので外した。
 // 2026-10-23：「対象のキャラクターに〇〇を与える。」の巻物（I015〜I023）＝キーワードの付与の演出（利用者の確認待ち）。
 // 2026-10-26 利用者指定：キーワードの巻物はキーワードごとの色違い、永劫の巻物＝渦を巻く魔力、絆の巻物＝重なる金の波紋。
-const PRESENT_ITEM_USE_FX = { I003:'scroll-revive', I004:'scroll-shield', I005:'scroll-giant', I012:'scroll-guts',
-  I015:'keyword-grant-fang', I016:'keyword-grant-evil-eye', I017:'keyword-grant-impact', I018:'keyword-grant-double', I019:'keyword-grant-stealth',
-  I020:'keyword-grant-first', I021:'keyword-grant-tri', I022:'keyword-grant-drain', I023:'keyword-grant-pierce',
-  I008:'scroll-mana', I013:'map-resonance',
+const PRESENT_ITEM_USE_FX = {
+  // 2026-10-26 利用者指定（5回目）：対象に与える巻物は鼓舞の旗（FIX）の色違い、魂交換＝先制の色のキーワード付与、巨大化＝旧・盾の巻物の演出、
+  // 黄金の巻物＝ノームの金貨（アイテムの枠から）、次の戦闘で効く巻物＝魂交換の逆再生の色違い、ポータル＝画面を呑む渦（フルスクリーン）。
+  I003:'scroll-guts-shield', I004:'scroll-guts-regen', I012:'scroll-guts', I024:'scroll-guts-veteran',
+  I015:'scroll-guts-fang', I016:'scroll-guts-evil-eye', I017:'scroll-guts-impact', I018:'scroll-guts-double', I019:'scroll-guts-stealth',
+  I020:'scroll-guts-first', I021:'scroll-guts-tri', I022:'scroll-guts-drain', I023:'scroll-guts-pierce',
+  I008:'keyword-grant-first', I005:'scroll-revive', I010:'gold-gain', I013:'map-resonance',
+  I001:'scroll-sealed-reverse', I006:'scroll-sealed-reverse', I007:'scroll-sealed-reverse', I014:'scroll-sealed-reverse',
+  I009:'portal-vortex',
   // 変身の巻物＝起動の変身と同じ演出（additions_1023.js）。
   I002:'activation-transform' };
 // アイテムの使用の音（2026-10-26 利用者指定「アイテムにもSEを」）：その巻物の番号の音（LAB採用）、無ければ同じ演出の音、それも無ければ巻物の共通音。
-const PRESENT_ITEM_USE_SFX = { I002:'C080', I013:'map:resonance',
-  I015:'EN044', I016:'EN044', I017:'EN044', I018:'EN044', I019:'EN044', I020:'EN044', I021:'EN044', I022:'EN044', I023:'EN044' };
+const PRESENT_ITEM_USE_SFX = { I002:'C080', I013:'map:resonance', I010:'S003',
+  // 鼓舞の旗の色違いは鼓舞の旗の音。
+  I003:'I012', I004:'I012', I024:'I012', I015:'I012', I016:'I012', I017:'I012', I018:'I012', I019:'I012', I020:'I012', I021:'I012', I022:'I012', I023:'I012' };
+// アイテムの枠から出す演出（対象を選ばない巻物）。ポータルは画面全体から出す（reward_items.js _playItemSlotVfx）。
+const PRESENT_ITEM_SLOT_FX = new Set(['I001','I006','I007','I010','I014']);
+const PRESENT_ITEM_SCREEN_FX = new Set(['I009']);
 function presentItemUseSfxKey(no) {
   const code = String(no || ''), sfx = typeof Assets !== 'undefined' && Assets.sfx || {};
   return sfx[code] ? code : sfx[PRESENT_ITEM_USE_SFX[code]] ? PRESENT_ITEM_USE_SFX[code] : 'itemScroll';
@@ -2131,6 +2143,7 @@ function presentAssignedLabEventMatches(code, ev) {
   if (code === 'E060') return ev.type === 'keyword_effect' && ev.effect === 'keyword_nullify';
   if (code === 'R029') return ev.type === 'summon' && ev.reason === 'release_copy';
   if (code === 'EN045') return ev.type === 'damage' && ev.reason === 'ally_attack_all_damage';
+  if (code === 'C054') return ev.type === 'stat_change' && ev.reason === 'chimera';   // コアの実装待ち（reason 'chimera' で出す契約）
   if (code === 'C105') return ev.type === 'damage' && ev.reason === 'blood_multiple_damage';
   if (code === 'C053') return ev.type === 'damage' && ev.reason === 'attack_poison_damage';
   if (code === 'E028') return ev.type === 'stat_change' && ev.reason === 'battle_end_permanent_buff'
@@ -2251,7 +2264,7 @@ const PRESENT_SFX_PEAK_SEC = {
   C115: .130, appearance: .029 /* 開戦の砂煙の着地音（実測） */, S005: .511, S006: 0.45, S007: .397, S009: 0.45,
   [getKeywordAssetKey('毒牙')]: 0.45, [getKeywordAssetKey('毒')]: .968, [getKeywordAssetKey('マナ効果')]: 0.45,
   // 2026-10-25 LAB採用：グリマルキン（終戦）と起動（チェンジリング・インキュバス・ヘルナイト）。
-  C095: 0.45, C095_1: 0.256979, C080: 0.45, C109: 0.45, C116: 0.85, C062: 0.45, C114: 0.45, // 2026-10-26 C095 は候補2・C062・C114 を採用
+  C095: 0.45, C095_1: 0.256979, C080: 0.45, C109: 0.45, C116: 0.87, C062: 0.45, C114: 0.45, R018: 0.45, // 2026-10-26 C095 は候補2・C062・C114 を採用
   // 2026-10-26：起動・アイテムの使用で共有する音（presentActivationSfxKey・presentItemUseSfxKey）。
   C064: .58, EN044: .45, 'map:resonance': 0.072292, I003: 0.45, I004: 0.45, I005: 0.45, I008: 0.45, I012: 0.45,
 };

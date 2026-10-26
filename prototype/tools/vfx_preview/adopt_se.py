@@ -148,8 +148,9 @@ def save(date):
     if title in text:  # 同じ日の節は台帳から作り直す
         i = text.index(title); j = text.index('\n## ', i + 1) + 1
         text = text[:i] + text[j:]
-    for r in rows:  # 同じ番号の古い行（仮・以前の採用）は消し、最新の採用だけを正とする
-        text = re.sub(r'^\| ' + re.escape(r['code']) + r' \|.*\n', '', text, flags=re.M)
+    for r in rows:  # 同じ番号・同じ演出の古い行（仮・以前の採用）は消し、最新の採用だけを正とする
+        # 番号の振り直し前の行（同じ番号で別の演出：旧 banshee・旧 familiar 等）は履歴として残す（2026-10-26）。
+        text = re.sub(r'^\| ' + re.escape(r['code']) + r' \| ' + re.escape(r['effect']) + r' \|.*\n', '', text, flags=re.M)
     body = (title + '\n\n台帳 ' + path.name + '。ゲームの assets/sfx に配置済み。\n\n| 番号 | 演出 | 元の素材 | 長さ | peak |\n|---|---|---|---|---|\n'
             + '\n'.join(f"| {r['code']} | {r['effect']} | {r['sourcePath'].split('効果音/')[-1]} | {r['duration']}秒 | {r['peak']} |" for r in rows) + '\n\n')
     i = text.index('## 2026-10-18 正式採用')
