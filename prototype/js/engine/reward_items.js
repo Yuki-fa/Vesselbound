@@ -640,28 +640,38 @@ function handlePendingItemRewardTarget(index){
   return _handlePendingItemAt(_pickingLocation('reward',index));
 }
 // 完了時に変更した品を確定する。無料取得の印・価格・在庫位置には触れない。
-function _finishPendingItemUse(pending,targets,vfxAt){
+function _finishPendingItemUse(pending,targets,vfxAt=targets,options){
   targets.forEach(at=>{if(_pickingLocationCurrent(at)) at.card._itemBuffed=true;});
   if(targets.some(at=>at.zone==='reward')&&typeof _persistCurrentShopStock==='function') _persistCurrentShopStock();
   G._pendingItemUse=null; _syncItemUsePickingUi();
   _consumeItemSlot(pending.slotIdx);
-  if(vfxAt) _playItemUseVfx(pending.key,vfxAt.index,vfxAt.zone);
+  const vfxTargets=Array.isArray(vfxAt)?vfxAt:[vfxAt];
+  vfxTargets.forEach(at=>{if(at) _playItemUseVfx(pending.key,at.index,pending.card,{...options,zone:at.zone});});
   return true;
 }
 // 巻物などを魔導板のキャラクターに使った時の演出（2026-10-17 新規。見た目は js/vfx/defs/additions_1017.js）。
 // 効果の適用・保存には関わらない。素材が無い時・描画できない時は何もしない。
 // 2026-10-18 利用者指定：盾の巻物と幻視の巻物の演出を入れ替える（盾＝光輪と光の柱、幻視＝結晶片の結界）。
 // 対応表は present.js の PRESENT_ITEM_USE_FX（アイテムの番号で引く。LABも同じ表を読む）。
-function _playItemUseVfx(key,slotIdx,zone='board'){
-  const def=typeof ITEM_POOL!=='undefined'?ITEM_POOL.find(i=>i.itemEffectKey===key):null;
-  const name=def&&typeof PRESENT_ITEM_USE_FX!=='undefined'?PRESENT_ITEM_USE_FX['I'+def.no]:'';
+// itemCard：使ったアイテム（番号で演出を引く。キーワードの巻物は同じ itemEffectKey が9種あり、key だけでは毒牙の巻物になっていた。2026-10-26）。
+// options.revealDirs：演出が終わってから出す魔導板のポート（絆の巻物。演出の後にフェードで出す。2026-10-26 利用者指定）。
+// options.zone：対象の場所（board／reward。店の商品もreward）。
+function _playItemUseVfx(key,slotIdx,itemCard,options){
+  const def=itemCard&&itemCard.no!=null?itemCard:typeof ITEM_POOL!=='undefined'?ITEM_POOL.find(i=>i.itemEffectKey===key):null;
+  const name=def&&typeof PRESENT_ITEM_USE_FX!=='undefined'?PRESENT_ITEM_USE_FX['I'+String(def.no).padStart(3,'0')]:'';
   if(!name||typeof VbFx==='undefined'||!VbFx.effects.some(d=>d.name===name)) return;
-  const el=_pickingTargetElement({zone,index:slotIdx});
+  const el=_pickingTargetElement({zone:options&&options.zone||'board',index:slotIdx});
   if(!el||!el.isConnected) return;
   if(typeof _vfxClipLayer==='function') VbFx.settings.layer=_vfxClipLayer;
-  VbFx.play(name,{source:el,targets:[el],speed:1,seed:53,dir:1}).catch(()=>{});
+  const ports=((options&&options.revealDirs)||[]).map(d=>el.querySelector('.panel-dir-'+d)).filter(Boolean);
+  ports.forEach(port=>{port.style.opacity='0';});
+  VbFx.play(name,{source:el,targets:[el],speed:1,seed:53,dir:1}).catch(()=>{}).finally(()=>{
+    // 新しいポートは演出の後に0.4秒で出す（その間に描き直されていれば、新しい要素はそのまま見えている）。
+    ports.forEach(port=>{if(!port.isConnected)return;const a=port.animate?.([{opacity:0},{opacity:1}],{duration:400,easing:'ease-out'});
+      if(a)a.finished.catch(()=>{}).finally(()=>{port.style.opacity='';});else port.style.opacity='';});
+  });
   // SEは巻物ごと（2026-10-26 利用者指定「アイテムにもSEを」。以前は5種で共通）。山場を演出の山場へ合わせる。無い巻物は共通音。
-  const sfxKey=typeof presentItemUseSfxKey==='function'?presentItemUseSfxKey('I'+def.no):'itemScroll';
+  const sfxKey=typeof presentItemUseSfxKey==='function'?presentItemUseSfxKey('I'+String(def.no).padStart(3,'0')):'itemScroll';
   if(sfxKey!=='itemScroll'&&typeof _playSfxAtVfxCue==='function'&&VbFx.impactMs) _playSfxAtVfxCue(sfxKey,VbFx.impactMs(name,1),{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
   else if(typeof playSfx==='function') playSfx('itemScroll',{group:'magic',guardKey:`item-use:${name}`,guardMs:120,maxPlayMs:0});
 }
@@ -732,8 +742,10 @@ function _applyPendingItemAt(at){
   if(key==='weakening_scroll'){
     [first.card.power,card.power]=[card.power,first.card.power];
     [first.card.life,card.life]=[card.life,first.card.life];
+    // 魂交換は、魔導板・報酬・商品をまたいでも入れ替えた2枚の両方に演出を出す。
     return _finishPendingItemUse(pending,[first,at]);
   }
+  const vfxOptions={};
   if(key==='keyword_scroll'){
     const keyword=_itemGrantedKeyword(pending.card);
     card.keywords=_mergeCardKeywordsForBond([], [...(card.keywords||[]),keyword]);
@@ -755,13 +767,15 @@ function _applyPendingItemAt(at){
     const count=String(pending.card&&pending.card.desc||'').match(/ポートを(\d+)つ追加/);
     if(!count) return true;
     card.directions=Array.isArray(card.directions)?card.directions.slice():[];
+    const added=[];
     for(let i=0;i<Number(count[1])&&available.length;i++){
       const index=Math.floor(rand()*available.length);
-      card.directions.push(available.splice(index,1)[0]);
+      added.push(available.splice(index,1)[0]);card.directions.push(added[added.length-1]);
     }
     card.directionCount=card.directions.length;
+    vfxOptions.revealDirs=added;
   }else return false;
-  return _finishPendingItemUse(pending,[at],at);
+  return _finishPendingItemUse(pending,[at],at,vfxOptions);
 }
 function _openItemUseConfirm(idx,anchor){
   const slots=_ensureItemSlots();

@@ -6,10 +6,12 @@ const {makeElement}=require('./stub');
 const handlers={};
 document.addEventListener=(type,fn)=>{(handlers[type]||=[]).push(fn);};
 require('./load');
+const targetItemVfx=_playItemUseVfx;
 let passed=0,failed=0;
 async function check(name,fn){try{await fn();passed++;console.log('OK '+name);}catch(e){failed++;console.error('NG '+name+'\n'+e.stack);}}
 function element(tag='div'){
   const el=makeElement(tag),classes=new Set(),props=new Map(),attrs=new Map();
+  el.getClientRects=()=>[];
   Object.defineProperty(el,'className',{get:()=>[...classes].join(' '),set:s=>{classes.clear();String(s).split(/\s+/).filter(Boolean).forEach(c=>classes.add(c));}});
   el.classList={add:(...cs)=>cs.forEach(c=>classes.add(c)),remove:(...cs)=>cs.forEach(c=>classes.delete(c)),contains:c=>classes.has(c),
     toggle:(c,on=!classes.has(c))=>{on?classes.add(c):classes.delete(c);return on;}};
@@ -52,12 +54,29 @@ function saveBoard(){
   const permanent=list=>JSON.parse(JSON.stringify(list,(key,value)=>key.startsWith('_rewardReturn')?undefined:value));
   const before=permanent(G.mainBoard);SaveRun.restoreRunState(clone(SaveRun.buildRunSave('reward')));assert.deepEqual(permanent(G.mainBoard),before);
 }
+// 使用・消費・描き直し・対象DOMの解決は本番を通し、VFXの再生入口だけを記録する。
+async function withItemVfx(fn){
+  const old={play:VbFx.play,use:_playItemUseVfx,sfx:presentItemUseSfxKey,sound:playSfx};
+  const calls=[],inputs=[],sfxCodes=[];
+  VbFx.play=(name,options)=>{calls.push({name,...options});return Promise.resolve();};
+  _playItemUseVfx=(...args)=>{
+    inputs.push(args);
+    const host=_pickingTargetElement({zone:args[3]?.zone||'board',index:args[1]});if(host)host.isConnected=true;
+    return targetItemVfx(...args);
+  };
+  presentItemUseSfxKey=no=>{sfxCodes.push(no);return 'itemScroll';};playSfx=()=>{};
+  try{await fn({calls,inputs,sfxCodes});}
+  finally{VbFx.play=old.play;_playItemUseVfx=old.use;presentItemUseSfxKey=old.sfx;playSfx=old.sound;}
+}
 (async()=>{
   console.table=()=>{};await loadGameData();
   document.createElement=element;document.body=element('body');document.documentElement=element('html');
   document.getElementById=id=>id==='reward-offer-section'?section:id==='reward-offer-row'?row:null;
   document.querySelectorAll=selector=>selector==='.reward-prod-item .reward-prod-slots i'?itemSlots:[];
-  document.querySelector=selector=>{const m=selector.match(/data-merge-rew-idx="(\d+)"/);return m?offered(Number(m[1])):null;};
+  document.querySelector=selector=>{
+    const reward=selector.match(/data-merge-rew-idx="(\d+)"/),board=selector.match(/data-board-idx="(\d+)"/);
+    return reward?offered(Number(reward[1])):board?boardNodes[Number(board[1])]:null;
+  };
   applyCardVisual=()=>{};global.getComputedStyle=el=>el.style;
   renderHandEditor=drawBoard;renderFieldEditor=renderMoveSlotsInEnemy=updateHUD=_storeRewardStartSnapshot=_syncRewardProductionUi=_playActivationFx=_playItemUseVfx=()=>{};
   await check('共通の暗転・発光停止は対象選びのCSSに閉じ、報酬説明・取消ボタン・報酬の非表示を廃止',()=>{
@@ -177,5 +196,60 @@ function saveBoard(){
       use('I002');click(boardNodes[3]);assert.equal(notified,0);click(boardNodes[8]);assert.equal(notified,1);
     }finally{Object.assign(globalThis,old);}
   });
+  const targetKeys=['keyword_scroll','shield_scroll','giant_scroll','inspire_flag','vision_scroll','bond_scroll','transform_scroll','weakening_scroll'];
+  for(const zone of ['board','reward','shop'])await check(zone+'：対象を選ぶ全アイテムが使用番号のVFX・SEを描き直し後の対象上へ出す',()=>withItemVfx(async({calls,inputs,sfxCodes})=>{
+    for(const def of ITEM_POOL.filter(c=>targetKeys.includes(_itemEffectKey(c)))){
+      fresh();G._isShop=zone==='shop';calls.length=inputs.length=sfxCodes.length=0;
+      const first=card('C006'),second=card('C007');first.keywords=[];first.directions=['up'];first.directionCount=1;
+      if(zone==='board'){G.mainBoard[3]=first;G.mainBoard[8]=second;}else _rewCards=[first,second];
+      const no='I'+String(def.no).padStart(3,'0');use(no);const pending=G._pendingItemUse;
+      click(zone==='board'?boardNodes[3]:offered(0));
+      if(['transform_scroll','weakening_scroll'].includes(pending.key)){
+        assert.equal(calls.length,0,no+' の1枚目では演出しない');assert.ok(G.spellSlots[0]);
+        click(zone==='board'?boardNodes[8]:offered(1));
+      }
+      assert.equal(G._pendingItemUse,null,no);assert.equal(G.spellSlots[0],null,no);
+      const expected=[zone==='board'?boardNodes[3]:offered(0)];
+      if(pending.key==='weakening_scroll')expected.push(zone==='board'?boardNodes[8]:offered(1));
+      assert.equal(calls.length,expected.length,no);assert.equal(inputs.length,expected.length,no);
+      calls.forEach((call,i)=>{
+        assert.equal(call.name,PRESENT_ITEM_USE_FX[no],no);assert.equal(call.source,expected[i],no);assert.deepEqual(call.targets,[expected[i]],no);
+        assert.equal(inputs[i][2],pending.card,no+' は使ったアイテムを渡す');assert.equal(inputs[i][3].zone,zone==='board'?'board':'reward',no);
+      });
+      assert.deepEqual(sfxCodes,expected.map(()=>no),no);
+      if(pending.key==='bond_scroll')assert.deepEqual(inputs[0][3].revealDirs,first.directions.filter(d=>d!=='up'));
+      await new Promise(resolve=>setImmediate(resolve));
+    }
+  }));
+  for(const no of ['I002','I008'])for(const shop of [false,true])for(const firstBoard of [false,true])await check(no+'：魔導板と'+(shop?'商品':'報酬')+'をまたぐ2枚選択・演出（1枚目='+ (firstBoard?'魔導板':'報酬欄')+'）',()=>withItemVfx(async({calls,inputs})=>{
+    fresh();G._isShop=shop;
+    const first=card('C006',true),second=card('C007',true);Object.assign(first,{power:31,life:47});Object.assign(second,{power:13,life:19});
+    G.mainBoard[0]=firstBoard?first:second;_rewCards=[firstBoard?second:first];
+    const donorBefore=clone(second);use(no);const pending=G._pendingItemUse;
+    click(firstBoard?boardNodes[0]:offered(0));assert.equal(calls.length,0);click(firstBoard?offered(0):boardNodes[0]);
+    const changed=firstBoard?G.mainBoard[0]:_rewCards[0],firstNode=firstBoard?boardNodes[0]:offered(0),secondNode=firstBoard?offered(0):boardNodes[0];
+    assert.equal(G._pendingItemUse,null);assert.equal(G.spellSlots[0],null);
+    assert.deepEqual(calls.map(c=>c.source),no==='I008'?[firstNode,secondNode]:[firstNode]);
+    inputs.forEach(args=>assert.equal(args[2],pending.card));
+    if(no==='I002'){
+      assert.equal(changed.id,second.id);assert.deepEqual([changed.power,changed.life],[31,47]);assert.deepEqual(second,donorBefore);
+      assert.deepEqual(changed.keywords,PANEL_POOL.find(c=>c.id===second.id).keywords);
+      for(const key of ['_merged','_tripleMerged','_mergedFormApplied'])assert.ok(!changed[key],key);
+    }else assert.deepEqual([first.power,first.life,second.power,second.life],[13,19,31,47]);
+    await new Promise(resolve=>setImmediate(resolve));
+  }));
+  for(const zone of ['board','reward'])await check(zone+'：絆の追加ポートだけをVFX終了まで隠し、終了後400msでフェード表示',()=>withItemVfx(async()=>{
+    fresh();const scroll=item('I013');G.mainBoard[3]=card('C006');_rewCards=[card('C007')];drawBoard();renderRewCards();
+    const host=zone==='board'?boardNodes[3]:offered(0),existing=element('span'),added=element('span');
+    existing.className='panel-dir-up';added.className='panel-dir-right';added.isConnected=true;host.appendChild(existing);host.appendChild(added);
+    let endVfx,endFade;const fades=[];
+    VbFx.play=()=>new Promise(resolve=>{endVfx=resolve;});
+    added.animate=(frames,options)=>{fades.push({frames,options});return {finished:new Promise(resolve=>{endFade=resolve;})};};
+    _playItemUseVfx('bond_scroll',zone==='board'?3:0,scroll,{zone,revealDirs:['right']});
+    assert.equal(added.style.opacity,'0');assert.notEqual(existing.style.opacity,'0');assert.equal(fades.length,0);
+    endVfx();await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(fades,[{frames:[{opacity:0},{opacity:1}],options:{duration:400,easing:'ease-out'}}]);
+    assert.equal(added.style.opacity,'0');endFade();await new Promise(resolve=>setImmediate(resolve));assert.equal(added.style.opacity,'');
+  }));
   console.log(`picking_1026: ${passed} passed, ${failed} failed`);if(failed)process.exitCode=1;
 })().catch(e=>{console.error(e.stack);process.exitCode=1;});

@@ -905,3 +905,9 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
     対象を選ばない巻物は使った瞬間にアイテムの枠から、ポータルは画面全体から出す（reward_items.js `_useImmediateItemWithFx`・`_playItemSlotVfx`、present.js `PRESENT_ITEM_SLOT_FX`・`PRESENT_ITEM_SCREEN_FX`）。
     キーワードの付与の色違いは毒牙（アムピスバエナ）と先制（魂交換）以外を外した。定義JSONは 1,099,902 バイト（上限 1.1MB まで残り約100）。
   - adopt_se.py：台帳の書き直しで消す古い行は「同じ番号・同じ演出」だけ（番号の振り直し前の旧 banshee・旧 familiar の行を残す）。
+- 2026-10-26 LAB の指摘の反映（6回目）
+  - 戦闘中の永久強化（シャナ・ナイトメア・執念の炎）はテンポ重視の簡易版 leprechaun-quick（成長の金の光と輪・吸い込む粒・明るさだけを0.7秒。音は成長の音を頭から）。終戦の永久強化（成長・レプラコーン）は元の leprechaun。
+  - 終戦効果の演出は省かない：終戦のラン効果（ユミルのリロール・グリマルキン・報酬の強化）を presentRunEffectEvent で出し、固有の演出の無い終戦の能力変化は S009 のバフ演出で出す（battle.js `onBattleEnd`）。
+  - 魂交換の巻物：入れ替えた2枚の両方に演出を出す（呼んでいなかった）。キーワードの巻物は使ったアイテムの番号で演出を引く（以前は同じ itemEffectKey の最初＝毒牙の巻物の色になっていた）。
+  - 絆の巻物：追加したポートを演出の間は隠し、演出の後に0.4秒のフェードで出す（reward_items.js `_playItemUseVfx` の options.revealDirs）。
+  - アムピスバエナ C028＝鼓舞の旗の毒牙の色違い（容量のため keyword-grant-fang を外した）。定義JSONは 1,098,825 バイト。

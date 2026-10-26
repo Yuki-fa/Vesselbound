@@ -2013,9 +2013,10 @@ const PRESENT_LAB_FX = {
   // 2026-10-25 利用者指摘：毒緑と紫の波は毒と弱体を与えるバンシー（死亡）の演出（旧 echidna-wave を改名）。エキドナは全体ダメージの衝撃波（仮。E071 の音）。
   C034:['banshee-miasma',0.45,'foes'],
   // 2026-10-26 LAB の4回目の指摘：未割り当ての効果へ割り当て。永久バフは成長（レプラコーン）に統一。第4要素は共有する音の番号。
-  C092:['leprechaun',.9,'self','C088'], C121:['leprechaun',.9,'self','C088'], E005:['leprechaun',.9,'self','C088'],
+  // 2026-10-26 6回目：戦闘中の永久強化はテンポ重視の簡易版（成長の味のまま短く）。音は成長の音を頭から（終戦の永久強化は元の leprechaun）。
+  C092:['leprechaun-quick',.2,'self','C088'], C121:['leprechaun-quick',.2,'self','C088'], E005:['leprechaun-quick',.2,'self','C088'],
   C007:['weaken-wave',.2,'foes',getKeywordAssetKey('弱体')], C103:['weaken-wave',.2,'foes',getKeywordAssetKey('弱体')],
-  C028:['keyword-grant-fang',.45,'friends','EN044'], E013:['magic-ring-mana',.45,'self','R013'],
+  C028:['scroll-guts-fang',.45,'friends','I012'], E013:['magic-ring-mana',.45,'self','R013'],
   E018:['atk-down',.44,'target',getKeywordAssetKey('邪眼')], E037:['penance-ring',.45,'self','R012'],
   E055:['atlas-burden',0.324083,'friends','C005'], E060:['shield-break',0.318812,'target','shield_break'],
   R029:['map-duplicate',.45,'self','map:duplicate'], EN045:['all-ring',0.45,'foes'],
