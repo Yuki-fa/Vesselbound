@@ -211,6 +211,51 @@ function _makeDeathWaveFilter(seed){
   return {id,filter:f,disp:d,turb:t};
 }
 
+// ── 即死：薄れながら四散する（2026-10-27 利用者指定「即死したキャラはフェードで四散」）──────────
+// カードを格子の破片（複製を clip-path で切り抜いたもの）に分け、中心から外へ回りながら飛ばし、薄くして消す。
+const DEATH_SCATTER_MS=900;
+function playCardScatterAway(slotNode,rect,sourceSize){
+  try{
+    if(!slotNode||!rect||!(rect.width>0&&rect.height>0)) return;
+    const parent=typeof _vfxHostParent==='function'?_vfxHostParent():document.body;
+    const host=document.createElement('div');
+    host.className='death-scatter-clone';
+    Object.assign(host.style,{position:'fixed',zIndex:'10019',pointerEvents:'none',overflow:'visible',
+      left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px'});
+    const sourceW=Math.max(1,Number(sourceSize&&sourceSize.width)||rect.width),sourceH=Math.max(1,Number(sourceSize&&sourceSize.height)||rect.height);
+    const makeCard=()=>{
+      const card=slotNode.cloneNode(true);card.removeAttribute('id');card.style.cssText='';
+      for(const [k,v] of Object.entries({position:'absolute',left:'0',top:'0',width:sourceW+'px','min-width':sourceW+'px','max-width':sourceW+'px',
+        height:sourceH+'px','min-height':sourceH+'px','max-height':sourceH+'px','aspect-ratio':'auto','transform-origin':'0 0',
+        transform:'scale('+(rect.width/sourceW)+','+(rect.height/sourceH)+')',border:'0','box-shadow':'none',outline:'0',transition:'none',animation:'none'}))
+        card.style.setProperty(k,v,'important');
+      return card;
+    };
+    const cols=4,rows=6,pieces=[];
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+      const piece=document.createElement('div');
+      Object.assign(piece.style,{position:'absolute',inset:'0',willChange:'transform,opacity',
+        clipPath:`inset(${(r/rows*100).toFixed(2)}% ${(100-(c+1)/cols*100).toFixed(2)}% ${(100-(r+1)/rows*100).toFixed(2)}% ${(c/cols*100).toFixed(2)}%)`});
+      piece.appendChild(makeCard());host.appendChild(piece);
+      const dx=((c+.5)/cols-.5),dy=((r+.5)/rows-.5),dist=Math.hypot(dx,dy)||.1,jit=Math.random()*.5+.75;
+      pieces.push({piece,tx:dx/dist*rect.width*.55*jit+dx*rect.width*.3,ty:dy/dist*rect.height*.32*jit+dy*rect.height*.2-rect.height*.06,
+        rot:(Math.random()-.5)*70,delay:dist*160+Math.random()*60});
+    }
+    parent.appendChild(host);
+    let done=0;
+    const cleanup=()=>{if(host.isConnected)host.remove();};
+    pieces.forEach(({piece,tx,ty,rot,delay})=>{
+      const a=piece.animate?.([
+        {transform:'translate(0,0) rotate(0deg) scale(1)',opacity:1,filter:'brightness(1)'},
+        {transform:`translate(${tx*.25}px,${ty*.25}px) rotate(${rot*.25}deg) scale(.98)`,opacity:.85,filter:'brightness(1.35)',offset:.25},
+        {transform:`translate(${tx}px,${ty}px) rotate(${rot}deg) scale(.8)`,opacity:0,filter:'brightness(.9)'}],
+        {duration:DEATH_SCATTER_MS-delay*.5,delay,easing:'cubic-bezier(.2,.6,.3,1)',fill:'forwards'});
+      if(a)a.finished.catch(()=>{}).finally(()=>{if(++done>=pieces.length)cleanup();});
+    });
+    window.setTimeout(cleanup,DEATH_SCATTER_MS+800);
+  }catch(e){ console.error('[playCardScatterAway]',e); }
+}
+
 // slotNode は再描画前に控えた複製、rect はそのときの画面上の位置。
 function playCardWaveAway(slotNode,rect,sourceSize){
   try{

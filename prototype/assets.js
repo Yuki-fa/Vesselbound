@@ -132,7 +132,7 @@ const Assets = {
       'C115': 'vfx:C115:steal-mark', // 奪う（対象の上で再生してから移動する）
       // 2026-10-12: 実戦はPRESENT_LAB_FXの発動単位で再生する新規定義。
       'C009': 'vfx:C009:satyr',
-      'E083': 'vfx:E083:hecatoncheir', // 2026-10-22 シート改訂で C020 から移った
+      'E027': 'vfx:E027:hecatoncheir', // 2026-10-22 シート改訂で C020 から移った（2026-10-27 E083 から E027 へ）
       'E043': 'vfx:E043:zombie', // 2026-10-22 シート改訂で C021 から移った
       'C075': 'vfx:C075:behemoth',
       'E031': 'vfx:E031:sylph', // 2026-10-22 シート改訂で C064 から移った
@@ -365,7 +365,7 @@ const Assets = {
     E067: 'assets/sfx/E067.wav', // 援護射撃（LABの命中に合わせる）
     // 2026-10-12: 21キャラのSEは候補1を仮配置（利用者未選択）。
     C009: 'assets/sfx/C009.wav',
-    E083: 'assets/sfx/E083.wav', // 2026-10-22 シート改訂で C020 から移った
+    E027: 'assets/sfx/E083.wav', // 2026-10-22 シート改訂で C020 から移った（2026-10-27 番号だけ E027 へ。音の素材名は据え置き）
     E043: 'assets/sfx/E043.wav', // 2026-10-22 シート改訂で C021 から移った
     C075: 'assets/sfx/C075.wav', // LAB採用（2026-10-20 behemoth 候補1）
     E031: 'assets/sfx/E031.wav', // 2026-10-22 シート改訂で C064 から移った
@@ -621,7 +621,7 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   return String(fallbackPrefix||'C').toUpperCase()+String(n).padStart(3,'0');
 }
 
-const CARD_ART_VERSION='art1024';
+const CARD_ART_VERSION='art1027'; // 2026-10-27 エンチャント・キャラクターの絵の差し替え
 function getCharacterNoArtPath(card){
   if(!card||typeof card!=='object') return '';
   const raw=_assetCodeRaw(card);

@@ -17,8 +17,10 @@ async function baselineChecks(){
   // 2026-10-18：閃光の図形 flare を柔らかく描き直し、立体的な結晶 crystal-gem を足した。それ以外の図形は不変。
   {const shapesOf=src=>{const o=JSON.parse(src.slice(src.indexOf('VbFxDefs.register(')+18,src.lastIndexOf(');'))).shapes;delete o.flare;delete o['crystal-gem'];return o;};
     assert.deepEqual(shapesOf(read('js/vfx/defs/webp_geometry.js')),shapesOf(sourceLoader('js/vfx/defs/webp_geometry.js')),'既存の全定義を保持: js/vfx/defs/webp_geometry.js（flare・crystal-gemを除く）');}
-  {const keep=src=>literalDefinition(src,'effects').effects.filter(d=>!REDRAWN.has(d.name));
-    assert.deepEqual(keep(read('js/vfx/defs/effects.js')),keep(sourceLoader('js/vfx/defs/effects.js')),'既存の全定義を保持: js/vfx/defs/effects.js（描き直した2種を除く）');}
+  // 2026-10-27：色だけ違う定義（lich・bandersnatch・baron）は色違いの記録へ置き換えた。展開した姿で比べる（見た目は不変）。
+  {const expandedNow=new Map(require('../vfx_export').loadDefinitions().definitions().map(d=>[d.name,JSON.parse(JSON.stringify(d))]));
+    const keep=(src,now)=>literalDefinition(src,'effects').effects.map(d=>now&&d.variantOf?expandedNow.get(d.name):d).filter(d=>!REDRAWN.has(d.name));
+    assert.deepEqual(keep(read('js/vfx/defs/effects.js'),true),keep(sourceLoader('js/vfx/defs/effects.js')),'既存の全定義を保持: js/vfx/defs/effects.js（描き直した2種を除く）');}
   const before=harness(false,null,{sourceLoader,excludeScripts:['js/vfx/defs/characters_1012.js','js/vfx/defs/additions_1017.js','js/vfx/defs/additions_1023.js','js/vfx/defs/additions_1025.js']}),after=harness(false);
   assert.equal(before.fx.effects.length,82);
   // 描画命令の完全一致は元の50種（effects.js）だけ。置換32種（webp.js）は2026-10-14から作り直している。
@@ -219,12 +221,14 @@ function audioChecks(){
   for(const [now,was]of Object.entries(RENAMED_1022))for(const code of [now,was])addedByUser.add('prototype/assets/sfx/'+code+'.wav');
   // 2026-10-24：カード番号の振り直し（card_renumber_history.json）で付け替えただけのファイルは変更に数えない。
   // 前の版の名前を今の番号へ読み替えた先、または今の名前を前の版の番号へ戻した先と中身が同じなら付け替え。採用SEの許可も読み替え先で引く。
+  // 2026-10-27：利用者が差し替えたカードの絵（assets/art の jpg）は変更を許す。
+  const userArt=f=>/^prototype\/assets\/art\/.+\.jpg$/.test(f);
   const renumber=require('./card_renumber');
   const blob=(ref,f)=>{try{return execFileSync('git',['rev-parse',ref+':'+f],{cwd:path.join(ROOT,'..'),encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();}catch(e){return '';}};
   const nowBlob=f=>fs.existsSync(path.join(ROOT,'..',f))?execFileSync('git',['hash-object',path.join(ROOT,'..',f)],{encoding:'utf8'}).trim():'';
   const renamedOnly=f=>{const was=renumber.unrelabelPath(f),now=renumber.relabelPath(f);
     return addedByUser.has(now)||addedByUser.has(was)||(was!==f&&!!nowBlob(f)&&blob(BASELINE,was)===nowBlob(f))||(now!==f&&!!blob(BASELINE,f)&&blob(BASELINE,f)===nowBlob(now));};
-  assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!removable(f)&&!addedByUser.has(f)&&!renamedOnly(f)).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
+  assert.deepEqual(execFileSync('git',['diff','--name-only',BASELINE,'--','assets/'],{cwd:ROOT,encoding:'utf8'}).trim().split('\n').filter(Boolean).filter(f=>!removable(f)&&!addedByUser.has(f)&&!renamedOnly(f)&&!userArt(f)).filter(f=>!/assets\/sfx\/(C0\d\d|C\d\d\d)\.wav$/.test(f)||!picks[Object.keys(picks).find(n=>f.endsWith(picks[n].code+'.wav'))]),[],'既存assetsの変更なし');
   console.log('OK SE63候補: 既存登録保持・元素材重複なし・ボイス名除外・48kHz/PCM16・最長1.95秒・-1dBFS・peak・末尾フェード・仮コピー21');
 }
 (async()=>{audioChecks();if(!process.env.VB_ONLY||process.env.VB_ONLY==='new')await newDataChecks();if(!process.env.VB_ONLY||process.env.VB_ONLY==='baseline')await baselineChecks();})().catch(e=>{console.error(e.stack);process.exitCode=1;});

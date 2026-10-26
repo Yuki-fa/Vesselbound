@@ -244,7 +244,12 @@ async function pipelines(initial) {
 function unchangedMain() {
   const context = { module: { exports: {} } };
   const source = execFileSync('git', ['show', `${BASELINE}:prototype/js/battle/core.js`], { encoding: 'utf8', maxBuffer: 2e6 });
-  assert.equal(runtimeSource('js/battle/core.js'), source, 'コア本体も開始時mainと同一');
+  // 2026-10-27：団結（E055）の表示用の出力（分散する時の常時の発光・damage.redirectedFrom）だけは足した。その行を除いて比べる。
+  const withoutUniteDisplay = src => src.split('\n')
+    .filter(l => !/group\.flash && \[\.\.\.allocations|分散されたダメージには元の体を付ける|表示の受け口（2026-10-27）|^\s*flash: \(\) => coreEmitPassiveFlash\(emit, target\) \};$/.test(l)).join('\n')
+    .replace(', ...(member !== group.target ? { redirectedFrom: group.target.id } : {}) });', ' });')
+    .replace("...(extra || {}) }),\n", "...(extra || {}) }) };\n");
+  assert.equal(withoutUniteDisplay(runtimeSource('js/battle/core.js')), source, 'コア本体も開始時mainと同一（団結の表示用の出力を除く）');
   vm.runInNewContext(source, context);
   const baseline = context.module.exports, current = require('../../js/battle/core'); let compared = 0;
   const run = (api, input, seed) => {

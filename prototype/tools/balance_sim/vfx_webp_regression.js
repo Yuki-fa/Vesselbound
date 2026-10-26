@@ -10,7 +10,7 @@ const read=file=>{
 };
 const manifest=JSON.parse(read('tools/vfx_capture/webp_manifest.json'));
 async function run(){
-  const {bundle}=validatedBundle(),effects=bundle.effects.filter(d=>manifest.effects.some(ref=>ref.name===d.name)),names=effects.map(d=>d.name);
+  const {expanded:bundle}=validatedBundle(),effects=bundle.effects.filter(d=>manifest.effects.some(ref=>ref.name===d.name)),names=effects.map(d=>d.name);
   // 第1段の50種は effects.js の定義そのもの（素材番号の無い効果は2026-10-17の新規制作でも増えるので数で見ない）。
   const {literalDefinition}=require('../vfx_export');
   const firstStage=new Set(literalDefinition(read('js/vfx/defs/effects.js'),'effects').effects.map(d=>d.name));

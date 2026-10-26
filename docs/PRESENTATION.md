@@ -911,3 +911,21 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
   - 魂交換の巻物：入れ替えた2枚の両方に演出を出す（呼んでいなかった）。キーワードの巻物は使ったアイテムの番号で演出を引く（以前は同じ itemEffectKey の最初＝毒牙の巻物の色になっていた）。
   - 絆の巻物：追加したポートを演出の間は隠し、演出の後に0.4秒のフェードで出す（reward_items.js `_playItemUseVfx` の options.revealDirs）。
   - アムピスバエナ C028＝鼓舞の旗の毒牙の色違い（容量のため keyword-grant-fang を外した）。定義JSONは 1,098,825 バイト。
+- 2026-10-27 LAB の指摘の反映（7回目）
+  - 差し替えた絵が出なかった：絵の URL の `?v=`（assets.js `CARD_ART_VERSION`）が固定値のままで、ブラウザが古い絵を使っていた。art1027 へ上げた（絵を差し替えたら必ず上げる）。
+    アイテムの絵は pool.js の旧番号のパスで版の印も無かったので、シートの番号の絵（assets/art/items/I###.jpg）に版の印を付けて引く（js/data/loader.js）。
+  - 即死したキャラクターは、カードを 4×6 の破片に分けてフェードしながら四散させる（render_death_effects.js `playCardScatterAway`。present_events.js の即死の受け口が `_deathByInstant` の印を付け、render.js `_playUnitDeathCardFx` が焼失の代わりに出す）。
+  - 変化 E016：終戦の変身の霧の山場で、変化後の姿（変身先の味方のカードの写し）を本人の枠にフェードで重ねて見せる（present_events.js `_presentTransformResultCover`）。
+  - 終戦の効果は早送りしない：終戦の効果（trigger 終戦／battle_end、reason の battle_end）に来たら、決着後の加速もオプションの倍速も外して等倍で見せる（present.js `presentBattleEndPhase`、battle.js `getBattlePresentationSpeedScale`・`G._battleEndPresenting`）。
+  - 団結 E055：コアの常時の発光（分散した時だけ）と、分散したダメージの `redirectedFrom` を出し（表示用の出力だけ）、アトラスと同じ atlas-burden を出す。
+  - 大盾 E062：防いだ反撃のイベントを待たず、攻撃がぶつかった瞬間（接触の受け口）に出す（present_events.js `presentLabBeginEvent` で攻撃の接触へ予約）。
+  - 渇望 E056：自分が死んだ相打ちでも、コアが `blood_set`（sourceId＝持ち主、victimId、gained）を出せば同じ演出が出る（コアの変更は Codex の effects-1027）。
+  - シート改訂（cd10e80）に合わせて番号を付け替え：即死の演出 E027→E004（黒い波動）、マナの種 hecatoncheir E083→E027（音の素材は assets/sfx/E083.wav のまま）。
+  - SE の選び直し：VFX21 rage-shards の候補1・3、VFX119 lich の候補2・3を差し替え、FIX から外した（lab_fixed.js）。
+  - 色違いの記録（js/vfx/schema.js。利用者指定（C））：層を持たない `{name,label,variantOf,recolor?:{hue,sat?,light?},palette?,sourceCode?,color?,light?}` を定義の一覧に置くと、
+    読み込み時に元の演出の層・color・light の色を置き換えて展開する（`VbFxDefs.definitions()`。ゲーム・LAB・vfx_export の検査は展開後の一覧を使う）。
+    recolor は生成器（Python 3.9 colorsys）と同じ計算（定義の全1372色×17組で一致を確認）。palette は手で選んだ色違いの置き換え表。
+    既存の色違い25件を記録へ置き換えた（鼓舞の旗の色違い12・先制のキーワード付与・弱体の波・lich・bandersnatch・baron・board-enchant・指輪の目4色）。展開した姿は置き換え前と完全に同一。
+    定義JSONは 1,098,825 → 997,257 バイト（色違い3種を足した後。展開すると 1,110,133 バイト相当）。上限の検査は 1.1MB のまま。
+  - 次の戦闘で効く巻物：隕石＝scroll-sealed-meteor（橙）・生贄人形＝scroll-sealed-doll（紅）・召竜＝scroll-sealed-dragon（緑）。静寂の巻物（scroll-sealed-reverse）の色違いの記録で、使う時の音も静寂の巻物にそろえた（present.js `PRESENT_ITEM_NEXT_BATTLE`）。
+  - 見通しの巻物 I011：旧・魔力の巻物の演出 scroll-mana をアイテムの枠から出す。

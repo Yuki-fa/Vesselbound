@@ -5,7 +5,7 @@ var VbFxLabFixed = {
   'atk-down':'2026-10-12','bandersnatch':'2026-10-12','banshee':'2026-10-06','bone-chariot':'2026-10-12','carbuncle':'2026-10-12',
   'cockatrice':'2026-10-12','cover-fire':'2026-10-06','cyclops':'2026-10-12','dark-fire':'2026-10-18','demon-soul':'2026-10-06',
   'dragonnet':'2026-10-12','dullahan':'2026-10-12','elemental':'2026-10-12','frost-sprite':'2026-10-12','great-shield':'2026-10-06',
-  'imp':'2026-10-12','jackalope':'2026-10-12','leprechaun':'2026-10-12','lich':'2026-10-06','melusine':'2026-10-12','meteor-scroll':'2026-10-12',
+  'imp':'2026-10-12','jackalope':'2026-10-12','leprechaun':'2026-10-12','melusine':'2026-10-12','meteor-scroll':'2026-10-12',
   'nightmare':'2026-10-12','pegasus':'2026-10-12','pixie':'2026-10-12','resentment':'2026-10-06','revive-gain':'2026-10-06',
   'revive-summon':'2026-10-06','shield-gain':'2026-10-06','titan':'2026-10-12','vrykolakas':'2026-10-12','weaken':'2026-10-12',
   'wendigo':'2026-10-12','worm':'2026-10-12','wraith':'2026-10-12','wyvern':'2026-10-12',
@@ -21,7 +21,7 @@ var VbFxLabFixed = {
   'poison-tick':'2026-10-20','attack-buff':'2026-10-20','death-buff':'2026-10-20','contact-burst':'2026-10-20','battle-summon':'2026-10-20',
   'abyss':'2026-10-20',
   // 2026-10-21 FIX（02・03・05・06・08・22・27・32・33・46・50・54・57・66・67・69・71・74・75・76・96・124・134〜138、SEを決めた19・23・26・51・55・65・103・130・132、速度2.5倍の62、ゲーム側の出し方を直す129・131）
-  'rage-shards':'2026-10-21','storm-ring':'2026-10-21','scroll-revive':'2026-10-21','scroll-giant':'2026-10-21','scroll-guts':'2026-10-21',
+  'storm-ring':'2026-10-21','scroll-revive':'2026-10-21','scroll-giant':'2026-10-21','scroll-guts':'2026-10-21',
   'fate-sever':'2026-10-21','suffering-brand':'2026-10-21','map-resonance':'2026-10-21','map-duplicate':'2026-10-21','arch-demon':'2026-10-21',
   'minotaur':'2026-10-21','spriggan':'2026-10-21','hit-burst':'2026-10-21','fire-arrow':'2026-10-21','fire-arrow-impact':'2026-10-21',
   'fang-poison':'2026-10-21','tri-streak':'2026-10-21','shield-contact':'2026-10-21','seal-release':'2026-10-21',
@@ -54,6 +54,8 @@ var VbFxLabFixed = {
  * VbFxLabPending：今回新しく割り当てた（流用・新作）もの。利用者が LAB で見て FIX と言うまで☆のまま（★にする時はここから外す）。
  * VbFxLabStarNotes：戦闘中に演出を出さないもの（－）の理由。 */
 var VbFxLabPending = {
+  // 2026-10-27 LAB の7回目の指摘：SE を選び直し中（FIX から外した）。
+  E032:'rage-shards（VFX21。SE を選び直し中：候補1・3を差し替え）', C050:'lich（VFX119。SE を選び直し中：候補2・3を差し替え）',
   C067:'mana-buff（ウォーグのバフに出ていなかった）', C070:'aura-buff（敵が状態異常を得るたびHP+）', C047:'aura-buff（眷属が召喚されるたび）',
   C012:'injury-buff＋S006の音（音が鳴っていなかった）',
   R035:'aura-buff＋S009の音（味方が結界を失うたび全ての味方+1/+1。2026-10-25 音が鳴らなかった）',
@@ -61,7 +63,7 @@ var VbFxLabPending = {
   C084:'activation-transform（新作。起動の変身）',
   // 2026-10-25 利用者指定の割り当て（流用）
   C011:'scylla（スキュラと同じ）', C020:'aura-buff（常時バフ）', E023:'aura-buff（常時バフ）',
-  E027:'即死の演出（即死が起きた時）', E028:'leprechaun（レプラコーンと同じ。そのカード自身の永久バフ）', E044:'attack-buff（攻撃バフ）',
+  E004:'即死の演出（即死が起きた時。2026-10-27 シート改訂で E027 から移った）', E027:'hecatoncheir（2026-10-27 シート改訂で E083 から移った。マナの種）', E028:'leprechaun（レプラコーンと同じ。そのカード自身の永久バフ）', E044:'attack-buff（攻撃バフ）',
   E016:'dragonnet（ドラゴネットと同じ変身）', C040:'aura-buff（報酬に青キャラクターが出た時）',
   // 2026-10-25 新しく作った演出（additions_1025.js）
   
@@ -88,12 +90,12 @@ var VbFxLabPending = {
   I003:'scroll-guts-shield', I004:'scroll-guts-regen', I024:'scroll-guts-veteran', I015:'scroll-guts-fang', I016:'scroll-guts-evil-eye', I017:'scroll-guts-impact',
   I018:'scroll-guts-double', I019:'scroll-guts-stealth', I020:'scroll-guts-first', I021:'scroll-guts-tri', I022:'scroll-guts-drain', I023:'scroll-guts-pierce',
   I008:'keyword-grant-first（魂交換の巻物）', I005:'scroll-revive（巨大化の巻物。SE 候補1・2を選び直し）', I010:'gold-gain（黄金の巻物。アイテムの枠から）',
-  I001:'scroll-sealed-reverse', I006:'scroll-sealed-reverse', I007:'scroll-sealed-reverse', I014:'scroll-sealed-reverse', I009:'portal-vortex（全画面）',
+  I001:'scroll-sealed-reverse（静寂の巻物）', I006:'scroll-sealed-meteor（2026-10-27 静寂の巻物の色違い・同じ音）', I007:'scroll-sealed-doll（同）', I014:'scroll-sealed-dragon（同）', I009:'portal-vortex（全画面）',
+  I011:'scroll-mana（2026-10-27 見通しの巻物。旧・魔力の巻物の演出をアイテムの枠から）',
 };
 var VbFxLabStarNotes = {
   E029:'開戦で死亡効果を発動する（発動した死亡効果の演出が出る）',
   M002:'値の補正（置いた時点で封印の値が変わる）', M004:'値の補正（置いた時点でマナ効果の値が変わる）',
-  I011:'再抽選の回数（盤面の対象が無い）',
   R036:'血の数が増えるだけ（画面上の発生場所が無い。血のカウンターに出る）',
 };
 // 起動の演出（魔導板で対象に使った時）。本体は present.js PRESENT_ACTIVATION_FX。

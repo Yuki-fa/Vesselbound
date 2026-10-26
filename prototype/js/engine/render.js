@@ -586,14 +586,18 @@ function playUnitDeathBurn(unit,side){
 // **カードの消え方を選ぶのはここだけ。**
 //   ダメージで倒れた            → 焼失（playCardBurnAway）
 //   ダメージ以外でHPが0になった → 青い波打ち＋WASTED（playCardWaveAway）
+//   即死                        → 薄れながら四散（playCardScatterAway）
 // 印（_deathByStatDrain）は death.statChange を受けた共通の presentDeathBatch() が立てる。
 // 死亡イベントだけを消失演出の入口にするため、戦闘修正の表示と二重には再生されない。
 function _playUnitDeathCardFx(unit,node,rect,sourceSize){
   // 旧スロットの写しには、停止前に複製された毒などの局所キャンバスが含まれることがある。
   node.querySelectorAll('[data-vb-fx-local]').forEach(el=>el.remove());
-  const drained=!!(unit&&unit._deathByStatDrain);
-  if(unit) delete unit._deathByStatDrain;
-  if(drained){
+  const drained=!!(unit&&unit._deathByStatDrain),instant=!!(unit&&unit._deathByInstant);
+  if(unit){ delete unit._deathByStatDrain; delete unit._deathByInstant; }
+  // 即死は薄れながら四散する（2026-10-27 利用者指定）。印は present_events.js presentInstantDeathEvent が立てる。
+  if(instant&&typeof playCardScatterAway==='function'){
+    playCardScatterAway(node,rect,sourceSize);
+  }else if(drained){
     playCardWaveAway(node,rect,sourceSize);
     // ATKが0で場を去る時の「FLED」と対になる表示。
     if(typeof playWastedLabel==='function') playWastedLabel(rect);

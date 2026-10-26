@@ -195,7 +195,7 @@ const SFX_SETTINGS={
     E067: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
     // 2026-10-12: ボイスを除く仮SE（候補1）。短い固有音も通常の音量管理を通す。
     C009: {group:'magic',volume:.70,maxPlayMs:0},
-    E083: {group:'magic',volume:.70,maxPlayMs:0},
+    E027: {group:'magic',volume:.70,maxPlayMs:0},
     E043: {group:'magic',volume:.70,maxPlayMs:0},
     C075: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-20 behemoth 候補1）
     E031: {group:'magic',volume:.70,maxPlayMs:0},

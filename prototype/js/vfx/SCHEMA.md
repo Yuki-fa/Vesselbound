@@ -263,6 +263,7 @@ JSONは102定義・39図形・12部品型、公開API/LABは103項目。
 | 追加フィールド | 意味・範囲 | Unityでの対応 |
 |---|---|---|
 | effect.variants | 最大16件の `name/label/sourceCode/value`。同じ層への参照と入力値（1〜128）だけ。公開APIへ派生名を追加する。JSONでは層を複製しない | ScriptableObjectのテンプレート参照とパラメータ値 |
+| 色違いの記録（effects の要素） | `{name,label,variantOf,recolor?:{hue,sat?,light?},palette?:{"#元":"#先"},sourceCode?,color?,light?}`。層を持たず、読み込み時に `variantOf`（層を持つ定義）を写して `layers`・`color`・`light` の #RRGGBB を置き換える。recolor＝色相を hue（度）に、彩度×sat・明度×light（明度0.92以上はそのまま。Python 3.9 colorsys の HLS と round の偶数丸めと同じ計算）。palette＝色ごとの置き換え（recolor の後）。sourceCode:null は元の番号を外し、color/light は最後に上書き。`VbFxDefs.definitions()` が展開済みの一覧を返す（2026-10-27） | 取り込み時に展開して通常の定義（ScriptableObject）として作る |
 | layer.targetSpread | 0〜1の全尺に対する対象間の時差。対象添字を対象数−1で割って開始時刻へ加える | 対象ごとのPlayable開始オフセット |
 | layer.cycles | 1〜128の有限脈動。層寿命内の時計を回数ぶん折り返す。未指定は従来の時計 | 定めた回数のAnimationCurve/Playable反復 |
 | layer.colorFrom:anchor | APIが矩形へ渡す `color:#RRGGBB` を使用。ゲームの色名の判定はレンダラーの外に置く | Actor入力のMaterialPropertyBlock色 |

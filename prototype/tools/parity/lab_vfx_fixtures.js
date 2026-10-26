@@ -2,7 +2,7 @@
 function vbLabVfxFixture(no) {
   const def=[...PANEL_POOL,...ITEM_POOL].find(d=>d.no===no||d.artCode===no||no.startsWith('I')&&'I'+String(d.no).padStart(3,'0')===no);
   if(!def) {
-    // E082/E083は内蔵シートに行がない。ゲーム用データは足さず、割り当て済み演出の接続を旧本文で検査する。
+    // E082/E083は内蔵シートに行がない（E083 のマナの種は 2026-10-27 に E027 へ移った）。ゲーム用データは足さず、割り当て済み演出の接続を旧本文で検査する。
     const text={E083:'負傷：10%の確率で1マナを得る。',E082:'死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。'}[no];
     if(!text) throw new Error('カードの定義 '+no);
     return createBattleState({sides:{p1:{units:[{id:'source',name:'演出検査素体',atk:12,hp:30,maxHp:100,color:'赤',keywords:[],boardCards:[{no,name:no,category:'エンチャント',desc:text,art:'assets/art/enchantments/E043.jpg'}],_adjacentPanelEffectTexts:[text]},...['赤','青','緑','黄','紫'].map((color,i)=>({id:'ally'+i,name:'味方'+i,color,atk:4,hp:70,maxHp:100,keywords:[],desc:''}))]},p2:{units:[{id:'foe0',name:'敵',atk:4,hp:100,maxHp:100,keywords:[],desc:''}]}},blood:{p1:20,p2:20}});
@@ -75,7 +75,7 @@ function vbLabVfxResetBattle() {
 function vbLabVfxStartPve(code,state,trigger) {
   const before=new Set([...state.units.p1,...state.units.p2].filter(Boolean));
   const held=[...before].map(u=>[u,u.atk,u.hp,u.maxHp,u.shield||0,u.weaken||0]);
-  const events=[],rng=createSeededRng(code==='E083'?7:53),emit=e=>events.push(e);
+  const events=[],rng=createSeededRng(code==='E027'?7:53),emit=e=>events.push(e);
   const hit=(a,b,amount,counter,ss,st,opt)=>coreResolveHit(state,a,b,amount,counter,rng,emit,{skipSourceEffects:!!ss,skipTough:!!st,...(opt||{})});
   const source=state.units.p1[0];source._sealed=false;source._currentAttackTarget=state.units.p2[0];
   presentBeginPlayback();
@@ -111,7 +111,7 @@ var vbWebpVfxCases=[
 vbLabVfxTriggers.redirect=(s,_u,_rng,_emit,hit)=>hit(s.units.p2[0],s.units.p1[1],6,false,false,false);
 
 // 2026-10-12: 個別のコア呼び出しだけでなく、攻撃は命中フックまで通す。
-var vbLabVfx1012Cases={C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attackContact',C091:'opening',C124:'release',C039:'death',C044:'injury',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'kill',C119:'releaseObserver'};
+var vbLabVfx1012Cases={C009:'mana',E027:'injury',E043:'death',C075:'release',E031:'attackContact',C091:'opening',C124:'release',C039:'death',C044:'injury',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'kill',C119:'releaseObserver'};
 vbLabVfxTriggers.attackContact=(s,_u,rng,emit)=>{s._coreFirstSide='p1';createBattleRunner(s,rng,emit,{skipOpening:true}).step({deferCompact:true});};
 vbLabVfxTriggers.kill=(s,u,_rng,_emit,hit)=>{s.units.p2[0].hp=1;hit(u,s.units.p2[0],2);};
 vbLabVfxTriggers.releaseObserver=(s,_u,rng,emit,hit)=>coreApplyReleaseEffects(s.units.p1[1],[],s,rng,emit,hit);

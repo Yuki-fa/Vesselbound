@@ -289,7 +289,8 @@ async function extraChecks() {
   global.getBattlePresentationSpeedScale=originalSpeed;
   for(const name of ['shield-state','poison-state','weaken-state','guts-state','revive-state']) assert.equal(VbFx.duration(name,1.5),VbFx.duration(name,4.5),name+'の周期は速度に依存しない');
   const adopted=fs.readFileSync(path.join(ROOT,'tools/vfx_preview/se/ADOPTED.md'),'utf8');
-  const moved={C025:'E083',C031:'E043',C084:'E031',C057:'E056',C109:'E024',C121:'E082',C049:'C050',C024:'E042',C107:'C124',C124:'C107'};
+  // 2026-10-27：C025→E083 のマナの種は、さらに E027 へ移った。
+  const moved={C025:'E027',C031:'E043',C084:'E031',C057:'E056',C109:'E024',C121:'E082',C049:'C050',C024:'E042',C107:'C124',C124:'C107'};
   // 2026-10-25：10-22 の番号の振り直しより後の節（新番号で書いた行）には旧→新の読み替えをしない。
   let renumbered=false;
   for(const line of adopted.split('\n')){const section=line.match(/^## (\d{4}-\d{2}-\d{2})/);if(section)renumbered=section[1]>='2026-10-22';
@@ -568,7 +569,7 @@ async function new1012Checks(){
     assert.ok(!calls.some(c=>c.name===presentLabFx(no)[0]),no+' 発光だけでは固有演出を出さない');
   }
   const negatives={
-    C009:s=>s.resources.p1.mana=0,E083:s=>{},C075:s=>s.resources.p1.mana=0,
+    C009:s=>s.resources.p1.mana=0,E027:s=>{},C075:s=>s.resources.p1.mana=0,
     C107:s=>s.units.p1[0].boardCards=[],C124:s=>s.units.p1[0].boardCards=[],
     C120:s=>s.units.p1[0].atk=4,C014:s=>{},C071:s=>s.resources.p1.mana=0,C086:s=>s.resources.p1.mana=0,C099:s=>s.resources.p1.mana=0,
     E024:s=>{},C119:s=>s.units.p1.slice(1).forEach((u,i)=>{s.units.p1[i+1]={id:u.id,name:'素体',side:'p1',color:u.color,atk:4,hp:70,maxHp:100,desc:'',keywords:[]};}),
@@ -686,7 +687,7 @@ function new1012CoreBaselineChecks(){
     }
     for(const api of [global,ctx]){
       const state=api.createBattleState({sides:{p1:{units:clone(initial.units.p1)},p2:{units:clone(initial.units.p2)}},resources:clone(initial.resources),blood:clone(initial.blood),summonDefs:[...PANEL_POOL,...ENEMY_POOL]});
-      const events=[],emit=e=>events.push(e),rng=api.createSeededRng(no==='E083'?7:53),u=state.units.p1[0];u._sealed=false;u._currentAttackTarget=state.units.p2[0];
+      const events=[],emit=e=>events.push(e),rng=api.createSeededRng(no==='E027'?7:53),u=state.units.p1[0];u._sealed=false;u._currentAttackTarget=state.units.p2[0];
       const hit=(a,b,n,c,ss,st,opt)=>api.coreResolveHit(state,a,b,n,c,rng,emit,{skipSourceEffects:!!ss,skipTough:!!st,...opt});
       if(trigger==='mana')api.coreApplyManaThresholdEffects(state,rng,emit,hit);
       else if(trigger==='opening')api.coreApplyOpeningEffects(u,state,rng,emit,hit);

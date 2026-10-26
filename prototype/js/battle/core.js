@@ -2201,11 +2201,13 @@ function coreFlushUniteBatch(state) {
         const extra = coreUniteRemainderMembers(members, base, group.total % members.length, group.rng);
         extra.forEach(x => allocations.set(x, allocations.get(x) + 1));
       }
+      if (group.flash && [...allocations.keys()].some(member => member !== group.target && allocations.get(member) > 0)) group.flash();
       allocations.forEach((amount, member) => {
         amount += group.direct && group.direct.get(member) || 0;
         if (!(amount > 0)) return;
+        // 分散されたダメージには元の体を付ける（damage.redirectedFrom。アトラスと同じ表示の受け口）。
         const result = group.applyHit(group.source, member, amount, group.counter, true, true,
-          { deferTriggers: !!group.deferTriggers, collect: group.collect });
+          { deferTriggers: !!group.deferTriggers, collect: group.collect, ...(member !== group.target ? { redirectedFrom: group.target.id } : {}) });
         group.applied += result.amount || 0;
         group.died = group.died || !!result.died;
       });
@@ -2290,7 +2292,9 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
           group = { target, source, counter: !!counter, total: 0, received: [], results: [], direct: new Map(),
             rng, deferTriggers: !!opt.deferTriggers, collect: opt.collect, applied: 0, died: false,
             applyHit: (s, t, a, c, ss, st, extra) => coreResolveHit(state, s, t, a, c, rng, emit, {
-              skipSourceEffects: !!ss, skipTough: !!st, ...(spread ? { skipWeaken: true } : {}), ...(extra || {}) }) };
+              skipSourceEffects: !!ss, skipTough: !!st, ...(spread ? { skipWeaken: true } : {}), ...(extra || {}) }),
+            // 表示の受け口（2026-10-27）：分散する時に団結を持つ体の常時の発光を出す（アトラスと同じ。演出が割り振りの先を引く）。
+            flash: () => coreEmitPassiveFlash(emit, target) };
           batch.groups.set(key, group);
         }
         const incoming = resolved ? resolved.amount : Math.max(0, Number(amount) - coreToughValue(target));

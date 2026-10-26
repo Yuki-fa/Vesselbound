@@ -357,16 +357,87 @@ var VbFxDefs = (function () {
       if (!n || n % count) fail(at, 'SVG座標の個数が不正');
     }
   }
+  // ── 色違いの記録（2026-10-27 利用者指定。容量を減らすため、層を複製せず「元の演出＋色相」だけを書く）──
+  // {name,label,variantOf,recolor?:{hue,sat?,light?},palette?:{"#元":"#先"},sourceCode?,color?,light?}。読み込み時に元の演出の層・color・light の
+  // #RRGGBB をすべて色相 hue（度。元の色相は捨てる）・彩度×sat・明度×light（明度0.92以上はそのまま）へ置き換えて展開する。
+  // 計算は生成器（Python 3.9 colorsys・round の偶数丸め）と同じ。palette は色ごとの置き換え表（手で選んだ色違い。recolor の後に当てる）。
+  // どちらも無ければ同じ層の写し。sourceCode:null は元の番号を外す。color/light は最後に上書き。
+  var VARIANT_ONE_THIRD = 1.0 / 3.0, VARIANT_ONE_SIXTH = 1.0 / 6.0, VARIANT_TWO_THIRD = 2.0 / 3.0;
+  function pyRound(x) { var r = Math.round(x); if (Math.abs(x - Math.trunc(x)) === 0.5 && r % 2) r -= 1; return r; }
+  function hlsPart(m1, m2, hue) {
+    hue = hue % 1.0; if (hue < 0) hue += 1.0;
+    if (hue < VARIANT_ONE_SIXTH) return m1 + (m2 - m1) * hue * 6.0;
+    if (hue < 0.5) return m2;
+    if (hue < VARIANT_TWO_THIRD) return m1 + (m2 - m1) * (VARIANT_TWO_THIRD - hue) * 6.0;
+    return m1;
+  }
+  function recolorHex(hex, rc) {
+    var r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+    var maxc = Math.max(r, g, b), minc = Math.min(r, g, b), l = (minc + maxc) / 2.0, s = 0.0;
+    if (minc !== maxc) s = l <= 0.5 ? (maxc - minc) / (maxc + minc) : (maxc - minc) / (2.0 - maxc - minc);
+    var sat = rc.sat == null ? 1 : rc.sat, light = rc.light == null ? 1 : rc.light, h = rc.hue / 360;
+    s = Math.max(0, Math.min(1, s * sat)); l = Math.max(0, Math.min(1, l < .92 ? l * light : l));
+    var out;
+    if (s === 0.0) out = [l, l, l];
+    else { var m2 = l <= 0.5 ? l * (1.0 + s) : l + s - (l * s), m1 = 2.0 * l - m2;
+      out = [hlsPart(m1, m2, h + VARIANT_ONE_THIRD), hlsPart(m1, m2, h), hlsPart(m1, m2, h - VARIANT_ONE_THIRD)]; }
+    return '#' + out.map(function (v) { var n = pyRound(v * 255); return (n < 16 ? '0' : '') + n.toString(16); }).join('');
+  }
+  function recolorValue(v, fn) {
+    if (Array.isArray(v)) return v.map(function (x) { return recolorValue(x, fn); });
+    if (v && typeof v === 'object') { var o = {}; Object.keys(v).forEach(function (k) { o[k] = recolorValue(v[k], fn); }); return o; }
+    if (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)) return fn(v);
+    return v;
+  }
+  function variantBase(d) {
+    for (var i = 0; i < effects.length; i++) if (effects[i].name === d.variantOf && !effects[i].variantOf) return effects[i];
+    return null;
+  }
+  function expand(d) {
+    if (!d || !d.variantOf) return d;
+    var base = variantBase(d); if (!base) fail(d.name, '色違いの元の演出が無い: ' + d.variantOf);
+    var out = JSON.parse(JSON.stringify(base)); delete out.variants;
+    out.name = d.name; out.label = d.label;
+    var fns = [];
+    if (d.recolor) fns.push(function (hex) { return recolorHex(hex, d.recolor); });
+    if (d.palette) fns.push(function (hex) { var to = d.palette[hex.toLowerCase()]; return to == null ? hex : to; });
+    fns.forEach(function (fn) { ['layers', 'color', 'light'].forEach(function (k) { out[k] = recolorValue(out[k], fn); }); });
+    if ('sourceCode' in d) { if (d.sourceCode == null) delete out.sourceCode; else out.sourceCode = d.sourceCode; }
+    if (d.color != null) out.color = d.color;
+    if (d.light != null) out.light = d.light;
+    return out;
+  }
+  function variantRecord(d, at) {
+    keys(d, ['name', 'label', 'variantOf', 'recolor', 'palette', 'sourceCode', 'color', 'light'], at, ['name', 'label', 'variantOf']);
+    id(d.name, at); label(d.label, at); id(d.variantOf, at + '.variantOf');
+    if (d.recolor != null) {
+      keys(d.recolor, ['hue', 'sat', 'light'], at + '.recolor', ['hue']);
+      number(d.recolor.hue, at + '.recolor.hue', 0, 360);
+      if (d.recolor.sat != null) number(d.recolor.sat, at + '.recolor.sat', 0, 4);
+      if (d.recolor.light != null) number(d.recolor.light, at + '.recolor.light', 0, 4);
+    }
+    if (d.palette != null) {
+      object(d.palette, at + '.palette');
+      Object.keys(d.palette).forEach(function (k) { if (!/^#[0-9a-f]{6}$/.test(k)) fail(at + '.palette', '置き換え元は小文字の#rrggbb'); color(d.palette[k], at + '.palette.' + k); });
+    }
+    if (d.color != null) color(d.color, at); if (d.light != null) color(d.light, at);
+    if (d.sourceCode !== undefined && d.sourceCode !== null && typeof d.sourceCode !== 'string') fail(at + '.sourceCode', '元素材の番号が不正');
+    // 展開した姿を、通常の定義と同じ規則で検査する。
+    effect(expand(d), at + '（' + d.variantOf + ' の色違い）');
+  }
+  // 色違いを展開した、実行時に使う定義の一覧（元の並び順のまま）。
+  function definitions() { return effects.map(expand); }
   function validate() {
     Object.keys(shapes).forEach(function (key) { id(key, 'shapes'); shape(shapes[key], 'shapes.' + key); });
     var names = new Set(), labels = new Set();
     effects.forEach(function (d, i) {
-      effect(d, 'effects[' + i + ']');
+      if (d && d.variantOf) variantRecord(d, 'effects[' + i + ']'); else effect(d, 'effects[' + i + ']');
       if (names.has(d.name) || labels.has(d.label) || labels.has(d.name) || names.has(d.label)) fail(d.name, '名前が重複');
       names.add(d.name); labels.add(d.label);
       (d.variants||[]).forEach(function(v){if(names.has(v.name)||labels.has(v.label)||labels.has(v.name)||names.has(v.label))fail(v.name,'名前が重複');names.add(v.name);labels.add(v.label);});
     });
-    return { effects: effects.length, shapes: Object.keys(shapes).length, layers: effects.reduce(function (sum, d) { return sum + d.layers.length; }, 0), types: Object.keys(types).length };
+    return { effects: effects.length, shapes: Object.keys(shapes).length, layers: effects.reduce(function (sum, d) { return sum + (d.layers ? d.layers.length : 0); }, 0), types: Object.keys(types).length,
+      variants: effects.filter(function (d) { return d.variantOf; }).length };
   }
   function register(bundle) {
     keys(bundle, ['schemaVersion', 'shapes', 'effects'], 'bundle', ['schemaVersion']);
@@ -378,6 +449,6 @@ var VbFxDefs = (function () {
       validate();
     } catch (err) { effects.length = oldLength; Object.keys(shapes).forEach(function (key) { delete shapes[key]; }); Object.assign(shapes, oldShapes); throw err; }
   }
-  return { register: register, validate: validate, layer: layer, curve: curve, fields: fields, types: Object.keys(types), textures: textures, sprites: sprites,
+  return { register: register, validate: validate, expand: expand, definitions: definitions, recolorHex: recolorHex, layer: layer, curve: curve, fields: fields, types: Object.keys(types), textures: textures, sprites: sprites,
     effects: effects, shapes: shapes, bundle: function () { return { schemaVersion: 2, shapes: shapes, effects: effects }; } };
 })();

@@ -1337,8 +1337,14 @@ async function loadGameData() {
             _addedSheetItems.push(added);
           }
         }
+        // 絵はシートの番号の名前（assets/art/items/I###.jpg）で引く。利用者は番号の振り直しに合わせて絵の名前を付け替えるので、
+        // コード側の一覧（pool.js）の旧番号のパスのままだと別の絵・無い絵になる。版の印はカードの絵と同じ（assets.js CARD_ART_VERSION。2026-10-27）。
+        const sheetArtDigits=(no.match(/\d+/)||[])[0];
+        const sheetArt=sheetArtDigits?`assets/art/items/I${String(parseInt(sheetArtDigits,10)).padStart(3,'0')}.jpg`
+          +(typeof CARD_ART_VERSION!=='undefined'?`?v=${CARD_ART_VERSION}`:''):'';
         matched.forEach(item=>{
             if(name) item.name=name;
+            if(sheetArt) item.art=sheetArt;
             if(Object.prototype.hasOwnProperty.call(row,'グレード')) item.grade=Math.max(1,Number(row['グレード'])||1);
             if(Object.prototype.hasOwnProperty.call(row,'実装')) item._implemented=_truthySheet(row['実装']);
             if(Object.prototype.hasOwnProperty.call(row,'ショップ')) {

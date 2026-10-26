@@ -2521,27 +2521,21 @@
     },
     "rage-shards-1": {
       "id": "rage-shards-1",
-      "filename": "SORCERY - DESIGNED - MAGIC FIRE Cast Small-01.wav",
-      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC FIRE Cast Small-01.wav",
+      "filename": "Production Element Title Transition Burst 08.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Burst 08.wav",
       "url": "vfx_preview/se/rage-shards-1.wav",
       "duration": 1.95,
-      "originalDuration": 6.25,
+      "originalDuration": 3.114937,
       "start": 0.0,
       "trimmed": true,
-      "peak": 0.151292,
+      "peak": 0.039354,
       "tailFadeMs": 400,
       "peakDbfs": -1,
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "逆上：傷から怒りの赤い破片が飛んで刺さる（小さな炎の魔法・炎をまとって飛ぶ風切り・火のはぜる音）（2026-10-17 利用者指定：中盤以降の高音（2.5kHz以上）を0.45〜1.1秒でなだらかに消した）",
-      "sha256": "515541cd3651b1b51404f62cfea3b48823ef1ca22323877f5483a2a177c6661b",
-      "highFade": {
-        "aboveHz": 2500,
-        "fromSec": 0.45,
-        "toSec": 1.1,
-        "curve": "cos2"
-      }
+      "reason": "逆上：炎の欠片が弾ける（2026-10-27 利用者指摘で選び直し）",
+      "sha256": "a1b94f8cd4fef33ae7fad31d882a7638c5d08d9f66930ddecd9c023afdfcd246"
     },
     "rage-shards-2": {
       "id": "rage-shards-2",
@@ -2567,12 +2561,12 @@
     },
     "rage-shards-3": {
       "id": "rage-shards-3",
-      "filename": "Fire Fireplace Pops Crackle 01.wav",
-      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/火・炎・爆発/Fire Fireplace Pops Crackle 01.wav",
+      "filename": "Production Element Title Transition Whoosh Fire 09.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 09.wav",
       "url": "vfx_preview/se/rage-shards-3.wav",
       "duration": 1.95,
-      "originalDuration": 90.104167,
-      "start": 18.1725,
+      "originalDuration": 5.446688,
+      "start": 0.758917,
       "trimmed": true,
       "peak": 0.45,
       "tailFadeMs": 400,
@@ -2580,8 +2574,8 @@
       "peakMode": "envelope20ms",
       "adopted": false,
       "provisional": false,
-      "reason": "逆上：傷から怒りの赤い破片が飛んで刺さる（小さな炎の魔法・炎をまとって飛ぶ風切り・火のはぜる音）",
-      "sha256": "56052707bff7136dcd938e91b27bcdd2eeb67e52a4e8d69d1c0a9dcf4684ff80"
+      "reason": "逆上：燃える欠片が飛ぶ（2026-10-27 利用者指摘で選び直し）",
+      "sha256": "d5aa42776e14db99731433342b34f7bf0d8fbf4971397845fb46ff001d158557"
     },
     "storm-ring-1": {
       "id": "storm-ring-1",
@@ -6699,6 +6693,42 @@
       "provisional": false,
       "reason": "キマイラ：澄んだ強化の響き（2026-10-26 利用者指定）",
       "sha256": "c886f5c0e3229f8d9fe55ce4b475e00a860929d94a96db16b7e164de803cfa6f"
+    },
+    "lich-2": {
+      "id": "lich-2",
+      "filename": "Production Element Title Transition Stab Dark Ghostly 04.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Ghostly 04.wav",
+      "url": "vfx_preview/se/lich-2.wav",
+      "duration": 1.95,
+      "originalDuration": 7.444542,
+      "start": 3.605062,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "リッチ：死霊の響き（2026-10-27 利用者指摘で選び直し）",
+      "sha256": "008843b423ba9bcf604693e639bcdff98dee1a3116dc7f2529d9b675de10673b"
+    },
+    "lich-3": {
+      "id": "lich-3",
+      "filename": "Production Element Title Transition Horror Dark 07.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Horror Dark 07.wav",
+      "url": "vfx_preview/se/lich-3.wav",
+      "duration": 1.95,
+      "originalDuration": 5.4165,
+      "start": 0.28725,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "リッチ：暗い呼び声（2026-10-27 利用者指摘で選び直し）",
+      "sha256": "ea3d9dafe06b3922c9c005eeedf8afb75eeece9d4222dd02772e68b12e087a8b"
     }
   },
   "effects": {
@@ -6718,9 +6748,9 @@
       "spell-voice"
     ],
     "lich": [
-      "ghost",
-      "dark-ref",
-      "plasma"
+      "lich-1",
+      "lich-2",
+      "lich-3"
     ],
     "great-shield": [
       "shield",

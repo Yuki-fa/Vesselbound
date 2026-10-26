@@ -20,7 +20,8 @@ const cases=[
   // 2026-10-26 利用者指定：永久バフは成長（レプラコーン）に統一。
   {no:'E005',fx:'leprechaun-quick',targets:1,fire:x=>{const dead=x.find('foe0');dead.hp=0;dead._lastDamageSource=x.find('owner');coreApplyDeathEffects(dead,x.state,x.rng,x.emit,x.hit);}},
   {no:'C092',fx:'leprechaun-quick',targets:1,support:'C104',fire:x=>coreApplyAttackEffects(x.find('support'),x.state,x.rng,x.emit,x.hit)},
-  {no:'E027',fx:'keyword:即死',targets:1,fire:x=>{x.rng.next=()=>0;x.hit(x.find('owner'),x.find('foe0'),1);}},
+  // 2026-10-27 シート改訂：即死の本文は E004（黒い波動）へ移った。
+  {no:'E004',fx:'keyword:即死',targets:1,fire:x=>{x.rng.next=()=>0;x.hit(x.find('owner'),x.find('foe0'),1);}},
   {no:'E028',fx:'leprechaun',targets:1,fire:x=>coreTriggerBattleEnd(x.state,x.emit,x.rng,x.hit)},
   // 現行コアが実体を出さない4種も、将来の実体イベントで選ぶ割り当てを契約として検査する。
   {no:'E023',fx:'S009',targets:1,contract:true,fire:x=>x.emit({type:'stat_change',side:x.find('owner').side,unitId:'owner',sourceId:'owner',atk:4,hp:4,reason:'summon_observer_stats'})},
@@ -62,7 +63,7 @@ async function play(x,mode){
     if(c.fx==='S009'||c.fx==='S005')assert.equal(selected[0].targets.length,c.targets);
     else if(c.fx.startsWith('keyword:')){
       assert.equal(new Set(selected.map(v=>v.unit)).size,c.targets);
-      assert.ok(selected.every(v=>v.key===getKeywordAssetKey(c.no==='E027'?'即死':'毒牙')));
+      assert.ok(selected.every(v=>v.key===getKeywordAssetKey(c.no==='E004'?'即死':'毒牙')));
     }else assert.equal(selected[0].options.targets.length,c.targets);
     if(c.no==='E028')assert.equal(selected[0].options.targets[0].element.dataset.unitId,'owner','成長は本人だけ');
   });
@@ -70,7 +71,7 @@ async function play(x,mode){
     const x=setup(c,'p1');x.emit({type:'effect_flash',side:'p1',unitId:'owner',trigger:c.label==='死亡'?'death':c.no==='C011'?'injury':'passive'});
     await x.pve();assert.equal(h.calls.filter(v=>v.name===c.fx).length,0);
   });
-  await check('マナの種：確率の外れでは即死演出なし',async()=>{const x=setup({no:'E027'},'p1');x.rng.next=()=>.99;x.hit(x.find('owner'),x.find('foe0'),1);await x.pve();assert.ok(!h.calls.some(v=>v.name==='keyword:即死'));});
+  await check('黒い波動：確率の外れでは即死演出なし',async()=>{const x=setup({no:'E004'},'p1');x.rng.next=()=>.99;x.hit(x.find('owner'),x.find('foe0'),1);await x.pve();assert.ok(!h.calls.some(v=>v.name==='keyword:即死'));});
   await check('ラミア・エイトヴォルム：対象不在では固有演出なし',async()=>{
     for(const no of ['C011','EN060']){const x=setup({no},'p1');x.state.units.p2=[];G.enemies=[];
       if(no==='C011')coreApplyInjuryEffects(x.find('owner'),1,x.state,x.rng,x.emit,x.hit);

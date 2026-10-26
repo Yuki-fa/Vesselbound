@@ -59,13 +59,16 @@ function validatedBundle(){
   // 分布・複数材質・縁の減衰を省略せず宣言するための上限。描画コードや画像は含めない。
   // 2026-10-25 利用者の方針：一旦 1.1MB に上げる。後で使っていない演出を削って 1MB へ戻す（削る候補は利用者が確認してから）。
   assert.ok(jsonBytes<=1100000,'定義JSONが1.1MBを超えています');
-  return {bundle:copy,counts,sourceBytes,jsonBytes};
+  // 2026-10-27：色違いの記録（variantOf）を展開した一覧。検査は層を持つ通常の定義と同じ形で見る（展開は schema.js の validate でも検査済み）。
+  const expanded={schemaVersion:2,shapes:copy.shapes,effects:JSON.parse(JSON.stringify(registry.definitions()))};
+  const expandedBytes=Buffer.byteLength(JSON.stringify(expanded,null,JSON_INDENT)+'\n');
+  return {bundle:copy,expanded,counts,sourceBytes,jsonBytes,expandedBytes};
 }
 function main(){
-  const {bundle,counts,sourceBytes,jsonBytes}=validatedBundle(),output=path.join(ROOT,'tools/vfx_export/vfx_defs.json');
+  const {bundle,counts,sourceBytes,jsonBytes,expandedBytes}=validatedBundle(),output=path.join(ROOT,'tools/vfx_export/vfx_defs.json');
   fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(bundle,null,JSON_INDENT)+'\n');
   console.log(`${counts.effects}効果 / ${counts.layers}層 / ${counts.shapes}図形 / ${counts.types}部品型: 許可リスト・リテラル・式/構文木なし・JSON往復 OK`);
-  console.log(`定義JS合計 ${sourceBytes} bytes / JSON ${jsonBytes} bytes → ${path.relative(ROOT,output)}`);
+  console.log(`定義JS合計 ${sourceBytes} bytes / JSON ${jsonBytes} bytes → ${path.relative(ROOT,output)}（色違い ${counts.variants} 件を展開すると ${expandedBytes} bytes）`);
 }
 if(require.main===module)main();
 module.exports={DEFINITION_SCRIPTS,RUNTIME_SCRIPTS,loadDefinitions,validatedBundle,equalValues,literalDefinition};

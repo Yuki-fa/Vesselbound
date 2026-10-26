@@ -282,8 +282,9 @@ async function run(){
   for(const d of (t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/additions_1023.js'),'utf8')).effects) added1017.add(d.name);
   // 2026-10-25: additions_1025.js も元の50種に数えない。
   for(const d of (t=>JSON.parse(t.slice(t.indexOf('VbFxDefs.register(')+18,t.lastIndexOf(');'))))(require('fs').readFileSync(require('path').join(__dirname,'../../js/vfx/defs/additions_1025.js'),'utf8')).effects) added1017.add(d.name);
-  const {bundle}=validatedBundle();assert.equal(bundle.effects.filter(d=>!d.sourceCode&&!added1017.has(d.name)).length,50);assert.ok(Object.keys(bundle.shapes).length>=15,'元の図形を保持');
-  schemaChecks(bundle);await allEffects(bundle);await stateChecks();await genericParts(bundle);await shapeAxisChecks(bundle);
+  // 2026-10-27：中身の検査は色違いの記録を展開した一覧で見る（登録の検査は記録のままの bundle）。
+  const {bundle,expanded}=validatedBundle();assert.equal(bundle.effects.filter(d=>!d.sourceCode&&!added1017.has(d.name)).length,50);assert.ok(Object.keys(bundle.shapes).length>=15,'元の図形を保持');
+  schemaChecks(bundle);await allEffects(expanded);await stateChecks();await genericParts(expanded);await shapeAxisChecks(bundle);
   console.log('VFXデータ回帰: 50効果・9時刻・5速さ・状態値8段階・許可リスト拒否・新部品 OK（画面は未確認）');
 }
 if(require.main===module)run().catch(e=>{console.error(e.stack);process.exitCode=1;});

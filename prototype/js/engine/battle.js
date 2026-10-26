@@ -623,6 +623,8 @@ function isBattlePresentationPlaying(){
 // この入口へ集約し、待ち・タイマー・アニメーション同期の経路差を作らない。
 function getBattlePresentationSpeedScale(){
   if(!isBattlePresentationPlaying()) return 1;
+  // 終戦の効果の演出は等倍で見せる（2026-10-27 利用者指定「終戦VFXは省略せず、早送りもしません」）。
+  if((typeof G!=='undefined'&&G&&G._battleEndPresenting)||(typeof presentBattleEndPhase==='function'&&presentBattleEndPhase())) return 1;
   // オプションの2倍速・3倍速は最初から固定の倍率（自動加速の立ち上がりも無し）。
   // 決着（どちらかの陣営が全滅）した後は、省かずに速く見せる（2026-10-22 利用者指定。倍率は present.js）。
   const decided=typeof presentDecidedSpeedScale==='function'?presentDecidedSpeedScale():1;
@@ -2725,6 +2727,8 @@ async function onBattleEnd(){
   // ゴールドの既存演出をイベント順へ挟み、終戦効果の順序・資源を変えない。
   const endGold=new Map(goldEffectUnits.map(x=>[x.event,x]));
   const endFind=(side,id)=>((side==='p2'?G.enemies:G.allies)||[]).find(u=>u&&u.id===id)||null;
+  G._battleEndPresenting=true;
+  try{
   await presentLabCommittedEvents(endEvents,{
     findUnit:endFind,
     units:side=>side==='p2'?G.enemies||[]:G.allies||[],
@@ -2750,6 +2754,7 @@ async function onBattleEnd(){
       updateHud:()=>updateHUD(),
     });
   });
+  }finally{ delete G._battleEndPresenting; }
   // 途中で抜けても預けた分を残さない（表示と所持金を必ず一致させる）。
   if(pendingGold&&typeof goldFxRelease==='function') goldFxRelease(pendingGold);
   for(const a of randomItemEffectUnits) _grantRandomItem(a.name,{free:true});

@@ -576,9 +576,16 @@ function presentIsSilentEvent(ev) { return !!ev && _presentSilentEvents.has(ev);
 // 決着（どちらかの陣営が全滅）した後のイベント。ここへ来たら、以後の演出をこの倍率で速くする（2026-10-22 利用者指定）。
 const PRESENT_DECIDED_SPEED_SCALE = 3;
 let _presentDecidedEvents = new WeakSet(), _presentDecided = false;
-function presentNoteDecidedEvent(ev) { if (ev && _presentDecidedEvents.has(ev)) _presentDecided = true; }
-function presentDecidedSpeedScale() { return _presentDecided ? PRESENT_DECIDED_SPEED_SCALE : 1; }
-function presentResetDecided() { _presentDecided = false; _presentDecidedEvents = new WeakSet(); }
+// 終戦の効果に来たら、以後は省かず早送りもしない（決着後の加速・オプションの倍速とも外す。2026-10-27 利用者指定）。
+let _presentBattleEndPhase = false;
+function presentIsBattleEndEffectEvent(ev) { return !!ev && (ev.trigger === '終戦' || ev.trigger === 'battle_end' || /battle_?end/i.test(String(ev.reason || ''))); }
+function presentNoteDecidedEvent(ev) {
+  if (ev && _presentDecidedEvents.has(ev)) _presentDecided = true;
+  if (presentIsBattleEndEffectEvent(ev)) _presentBattleEndPhase = true;
+}
+function presentBattleEndPhase() { return _presentBattleEndPhase; }
+function presentDecidedSpeedScale() { return _presentDecided && !_presentBattleEndPhase ? PRESENT_DECIDED_SPEED_SCALE : 1; }
+function presentResetDecided() { _presentDecided = false; _presentBattleEndPhase = false; _presentDecidedEvents = new WeakSet(); }
 function presentSkipsEvent(ev) { return presentIsSilentEvent(ev) && PRESENT_TAIL_CUE_TYPES.has(ev.type); }
 
 // 説明文も、コアの先の最終値ではなく今見せた眷属強化の合計を読む。
@@ -2004,7 +2011,8 @@ const PRESENT_LAB_FX = {
   E023:['aura-buff',.45,'target','S009'], C040:['aura-buff',.45,'target','S009'],
   E028:['leprechaun',.9,'self','C088'],
   E044:['attack-buff',.511,'target','S005'], E016:['dragonnet',.58,'morph','C064'],
-  E027:['death-mark',null,'target',getKeywordAssetKey('即死')],
+  // 2026-10-27 シート改訂：即死の本文が E027 から E004（黒い波動）へ移った。
+  E004:['death-mark',null,'target',getKeywordAssetKey('即死')],
   // 2026-10-26 利用者指定：単体に飛ばす毒は毒液の共通演出（全体はスキュラの波）。音は毒牙の音を仮に共有。
   E015:['poison-spit',.45,'foes',getKeywordAssetKey('毒牙')],
   // 2026-10-25 新しいキャラクター（additions_1025.js の新作6種と、既存演出の流用）。第2要素は採用したSEのピーク（秒）。
@@ -2067,7 +2075,7 @@ const PRESENT_LAB_FX = {
   [getKeywordAssetKey('隠密')]:['stealth-veil',0.4785,'target'], [getKeywordAssetKey('防戦')]:['guard-stance',0.156354,'target'],
   shield_break:['shield-break',0.318812,'target'],
   // 2026-10-12 利用者指定：候補1の仮SE。peakは切り出し後の測定値で後述の音声台帳と揃える。
-  C009:['satyr',0.625708,'self'],E083:['hecatoncheir',0.655729,'self'],E043:['zombie',0.263917,'self'],
+  C009:['satyr',0.625708,'self'],E027:['hecatoncheir',0.655729,'self'],E043:['zombie',0.263917,'self'],
   C075:['behemoth',0.48,'self'],E031:['sylph',0.284083,'self'],C091:['nymph',0.736167,'colors'],
   C107:['fiend',0.833771,'foe'],C039:['phantom',0.218375,'kenzoku'],C044:['eidolon',0.218375,'kenzoku'],
   // 2026-10-26 利用者指定：アークデーモンは旧サンダーバードの落雷（thunder-strike）。音はアークデーモンのまま。
@@ -2092,8 +2100,11 @@ const PRESENT_ITEM_USE_FX = {
   I015:'scroll-guts-fang', I016:'scroll-guts-evil-eye', I017:'scroll-guts-impact', I018:'scroll-guts-double', I019:'scroll-guts-stealth',
   I020:'scroll-guts-first', I021:'scroll-guts-tri', I022:'scroll-guts-drain', I023:'scroll-guts-pierce',
   I008:'keyword-grant-first', I005:'scroll-revive', I010:'gold-gain', I013:'map-resonance',
-  I001:'scroll-sealed-reverse', I006:'scroll-sealed-reverse', I007:'scroll-sealed-reverse', I014:'scroll-sealed-reverse',
+  // 2026-10-27 利用者指定：次の戦闘で効く巻物は静寂の巻物（scroll-sealed-reverse）の色違い（色違いの記録。js/vfx/schema.js が展開）。音も静寂の巻物にそろえる。
+  I001:'scroll-sealed-reverse', I006:'scroll-sealed-meteor', I007:'scroll-sealed-doll', I014:'scroll-sealed-dragon',
   I009:'portal-vortex',
+  // 2026-10-27 利用者指定：見通しの巻物（再抽選が3回可能になる）＝旧・魔力の巻物（I011）の水色の魔法陣を、アイテムの枠から。
+  I011:'scroll-mana',
   // 変身の巻物＝起動の変身と同じ演出（additions_1023.js）。
   I002:'activation-transform' };
 // アイテムの使用の音（2026-10-26 利用者指定「アイテムにもSEを」）：その巻物の番号の音（LAB採用）、無ければ同じ演出の音、それも無ければ巻物の共通音。
@@ -2101,9 +2112,13 @@ const PRESENT_ITEM_USE_SFX = { I002:'C080', I013:'map:resonance', I010:'S003',
   // 鼓舞の旗の色違いは鼓舞の旗の音。
   I003:'I012', I004:'I012', I024:'I012', I015:'I012', I016:'I012', I017:'I012', I018:'I012', I019:'I012', I020:'I012', I021:'I012', I022:'I012', I023:'I012' };
 // アイテムの枠から出す演出（対象を選ばない巻物）。ポータルは画面全体から出す（reward_items.js _playItemSlotVfx）。
-const PRESENT_ITEM_SLOT_FX = new Set(['I001','I006','I007','I010','I014']);
+const PRESENT_ITEM_SLOT_FX = new Set(['I001','I006','I007','I010','I011','I014']);
 const PRESENT_ITEM_SCREEN_FX = new Set(['I009']);
+// 次の戦闘で効く巻物（アイテム表の本文が「次の戦闘」）は、静寂の巻物の演出の色違いで、使う時の音も静寂の巻物にそろえる（2026-10-27 利用者指定）。
+// 隕石の巻物の I006 の音は、戦闘開始時の隕石の音なので使う時には鳴らさない。
+const PRESENT_ITEM_NEXT_BATTLE = new Set(['I001','I006','I007','I014']);
 function presentItemUseSfxKey(no) {
+  if (PRESENT_ITEM_NEXT_BATTLE.has(String(no || '')) && String(no) !== 'I001') return presentItemUseSfxKey('I001');
   const code = String(no || ''), sfx = typeof Assets !== 'undefined' && Assets.sfx || {};
   return sfx[code] ? code : sfx[PRESENT_ITEM_USE_SFX[code]] ? PRESENT_ITEM_USE_SFX[code] : 'itemScroll';
 }
@@ -2121,7 +2136,7 @@ function presentActivationFx(code, available) {
   return name === 'hellknight-slash' && !available.includes(name) ? 'activation-devour' : name || '';
 }
 // この割り当ては既存の対象バフ／キーワード入口が描画する。LABの表を追加しても二重に再生しない。
-const PRESENT_ASSIGNED_SHARED_FX = new Set(['C020','C047','C070','E023','C040','E044','E027']);
+const PRESENT_ASSIGNED_SHARED_FX = new Set(['C020','C047','C070','E023','C040','E044','E004']);
 function presentAssignedLabEventMatches(code, ev) {
   if (PRESENT_ASSIGNED_SHARED_FX.has(code)) return false;
   if (['C011','EN060','C026','C051'].includes(code)) return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0
@@ -2143,7 +2158,7 @@ function presentAssignedLabEventMatches(code, ev) {
   if (code === 'E015') return ev.type === 'keyword_effect' && ev.effect === 'poison' && Number(ev.amount) > 0;
   if (code === 'E018') return ev.type === 'keyword_effect' && ev.effect === 'evil_eye';
   if (code === 'E037') return ev.type === 'damage' && ev.unitId === ev.sourceId;
-  if (code === 'E055') return ev.type === 'damage' && ev.redirectedFrom != null;
+  if (code === 'E055') return ev.type === 'effect_flash' && ev.trigger === 'passive' || ev.type === 'damage' && ev.redirectedFrom != null;
   if (code === 'E060') return ev.type === 'keyword_effect' && ev.effect === 'keyword_nullify';
   if (code === 'R029') return ev.type === 'summon' && ev.reason === 'release_copy';
   if (code === 'EN045') return ev.type === 'damage' && ev.reason === 'ally_attack_all_damage';
@@ -2164,15 +2179,16 @@ const PRESENT_DIRECT_LAB_FX = [
 ];
 // 2026-10-22 シート改訂：効果が移った番号へ付け替え（C025→E083・C031→E043・C084→E031・C057→E056・C109→E024、
 // アークデーモン C082 とフィーンド C099 は効果が入れ替わったので演出も入れ替え）。ファミリア C089 は効果が変わったので外した。
+// 2026-10-27 シート改訂：マナの種（負傷：20%で1マナ）が E083 から E027 へ移った。
 // 負傷の発光で始め、続く本人の割り込み攻撃で締める演出（ミノタウロスの怒り）。
 const PRESENT_LAB_REACTION_CODES=new Set(['C014','EN043']);
-const PRESENT_LAB_1012_CODES=new Set(['C001','C052','C009','E083','E043','C075','E031','C091','C124','C039','C044','C077','C107','C108','C120','C122','C014','EN043','E056','C071','C086','C099','E024','C119']);
+const PRESENT_LAB_1012_CODES=new Set(['C001','C052','C009','E027','E043','C075','E031','C091','C124','C039','C044','C077','C107','C108','C120','C122','C014','EN043','E056','C071','C086','C099','E024','C119']);
 const PRESENT_LAB_CARD_COLORS={赤:'#f47786',青:'#68bfff',緑:'#8bdd87',黄:'#f8dd78',紫:'#c283ef',茶:'#bd9471',黒:'#8993b5',白:'#ebf1ed'};
 // 実体イベントだけを選ぶ。発光だけ・確率の外れ・条件未達・対象不在では再生しない。
 function presentLab1012EventMatches(code,ev){
   if(!ev||ev.effectSource===false)return false;
   if(['C001','C009','C071','C086','C099','C052'].includes(code))return ev.type==='mana_threshold'&&ev.effectNo===code;
-  if(['E083','E043','E031','C091'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({E083:'injury_chance_mana',E043:'manaOnDeath',E031:'manaOnAttack',C091:'nymph_colors'})[code];
+  if(['E027','E043','E031','C091'].includes(code))return ev.type==='mana_gain'&&Number(ev.amount)>0&&ev.reason===({E027:'injury_chance_mana',E043:'manaOnDeath',E031:'manaOnAttack',C091:'nymph_colors'})[code];
   if(code==='C075')return ev.type==='mana_set'&&ev.reason==='behemoth'&&Number(ev.gained)>0;
   if(code==='C039'||code==='C044')return ev.type==='summon_buff';
   // 2026-10-25：ティアマト（旧シャナの本文）。シャナは本文が変わったので外した。
@@ -2551,7 +2567,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     presentBreaksEffectRun,
     presentEffectRun, presentStatChangeRun, presentEffectRunDuration,
-    presentMarkBattleTail, presentIsSilentEvent, presentSkipsEvent, presentNoteDecidedEvent, presentDecidedSpeedScale, presentResetDecided,
+    presentMarkBattleTail, presentIsSilentEvent, presentSkipsEvent, presentNoteDecidedEvent, presentDecidedSpeedScale, presentBattleEndPhase, presentResetDecided,
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
     presentReorderDeathsAfterDamageBatch, presentHoldHpForGuts, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,

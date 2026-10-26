@@ -1077,7 +1077,7 @@ VbFxDefs.register({
     {
       "name": "hecatoncheir",
       "label": "ヘカトンケイル",
-      "sourceCode": "E083",
+      "sourceCode": "E027",
       "ms": 1350,
       "color": "#3aa6ff",
       "light": "#e6f6ff",

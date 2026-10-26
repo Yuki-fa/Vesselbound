@@ -95,7 +95,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   const own=data?data.ownCard(owner):owner;
   // エンチャントが持つ効果は、そのエンチャントの本文で発動の種類を確かめる（2026-10-22 シート改訂で多くの効果がエンチャントへ移った）。
   const textCard=source&&source.kind==='enchant'?source.card:own;
-  const trigger={C001:'mana',C009:'mana',E083:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C092:'passive',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',EN043:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
+  const trigger={C001:'mana',C009:'mana',E027:'injury',E043:'death',C075:'release',E031:'attack',C091:'opening',C124:'release',C039:'death',C044:'injury',C092:'passive',C107:'release',C108:'injury',C120:'opening',C122:'release',C014:'injury',EN043:'injury',E056:'death',C071:'mana',C086:'mana',C099:'mana',E024:'passive'}[code];
   if(!presentActionBannerEffectText(textCard,trigger))return null;
   const members=[ev];
   for(let i=index+1;i<events.length;i++){
@@ -115,7 +115,7 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   let targets=members.filter(e=>e.type==='stat_change'||e.type==='keyword_effect'||e.type==='damage')
     .map(e=>find(e.unitId)||(joining?.unit.id===e.unitId?joining.unit:null)).filter(Boolean);
   let value=1,contactEvent=null,sourceRect=null,colors=null;
-  if(['C009','E083','E043','C075','E031','C122','E056'].includes(code))targets=[owner];
+  if(['C009','E027','E043','C075','E031','C122','E056'].includes(code))targets=[owner];
   if(code==='C009'&&!members.some(e=>e.type==='mana_gain'&&Number(e.amount)>0))return null;
   if(['C071','C086','C099'].includes(code)&&!targets.length)return null;
   if(code==='C091'){
@@ -201,6 +201,9 @@ function _presentLabPlan(ev, events, index, api, context) {
     // アトラス（常時：受けたダメージを他の味方へ割り振る）は、常時の発光から割り振りのダメージへ（2026-10-26 利用者指摘「アトラスのVFXが出ていない」：発生元が引けず出ていなかった）。
     if(unit&&(unit.no||unit.artCode)==='C005'&&ev.trigger==='passive')
       source={card:unit,side:unit.side,kind:'character'};
+    // 団結（E055）で接続した体の常時の発光も同じ形（2026-10-27 利用者指摘「団結のVFXが出ません」）。
+    else if(unit&&ev.trigger==='passive'&&Array.isArray(unit._uniteGroups)&&unit._uniteGroups.length)
+      source={card:{no:'E055',id:unit.id},side:unit.side,kind:'enchant'};
   }
   let code = ev.type === 'mana_threshold' ? String(ev.effectNo || '')
     : source && String(source.card.no || source.card.artCode || '');
@@ -227,7 +230,7 @@ function _presentLabPlan(ev, events, index, api, context) {
   if(PRESENT_LAB_1012_CODES.has(code))return _presentLab1012Plan(code,ev,events,index,api,source);
   const spec = typeof presentLabFx === 'function' ? presentLabFx(code) : null;
   if (!spec || ['S001',getKeywordAssetKey('復活'),getKeywordAssetKey('全体攻撃')].includes(code)) return null;
-  if (ev.type === 'effect_flash' && !['C035','C096','C005'].includes(code)) return null;
+  if (ev.type === 'effect_flash' && !['C035','C096','C005','E055'].includes(code)) return null;
   if (ev.type === 'attack' && !ev.controlled) return null;
   if (ev.type === 'damage' && ev.damageKind === 'combat' && code !== 'E062') return null;
   if (ev.type === 'revive' || ev.type === 'shield_lost' || ev.type === 'shield_set') return null;
@@ -473,6 +476,15 @@ async function presentLabBeginEvent(ev, events, index, api) {
     const target=api.findUnit('p1',ev.retriggerTargetId)||api.findUnit('p2',ev.retriggerTargetId);
     if(result&&owner&&target&&(owner.no||owner.artCode)==='C119'){
       context.retriggers.add(ev.retriggerKey);await playBattleLabFx('C119',owner,[target],{side:owner.side==='p2'?'enemy':'ally'});
+    }
+  }
+  // 大盾（E062）は防いだ反撃のイベントより前、攻撃がぶつかった瞬間に出す（2026-10-27 利用者指定）。
+  if(ev.type==='attack'&&typeof presentAttackContactHitEvents==='function'){
+    for(const hit of presentAttackContactHitEvents(events,index)){
+      if(hit.blockedBy!=='great_shield'||_presentLabClaims.has(hit))continue;
+      const shield=_presentLabPlan(hit,events,events.indexOf(hit),api,context);
+      if(!shield)continue;shield.contactEvent=ev;
+      _presentLabContacts.set(ev,[...(_presentLabContacts.get(ev)||[]),shield]);
     }
   }
   if (claimed) {
@@ -946,8 +958,36 @@ async function presentRunEffectEvent(ev, api) {
   const companion = typeof presentRunEffectCompanionVfxCode === 'function' ? presentRunEffectCompanionVfxCode(ev) : '';
   if (companion && typeof _playCardEffectSfxAtCue === 'function') _playCardEffectSfxAtCue(companion, base);
   await Promise.all([_playCardEffectVfx(code, [unit], { gateMs: 0, hitDuration: duration }),
-    companion ? _playCardEffectVfx(companion, [unit], { gateMs: 0, hitDuration: base }) : null]);
+    companion ? _playCardEffectVfx(companion, [unit], { gateMs: 0, hitDuration: base }) : null,
+    code === 'E016' ? _presentTransformResultCover(ev, api, unit, duration).catch(() => {}) : null]);
   return true;
+}
+// 変化（E016）：変身の霧の山場で、変化後の姿（変身先の味方のカード）を本人の枠に重ねて見せる（2026-10-27 利用者指定）。
+// 写しは見た目を固めた複製（_activationCaptureVisual）。盤面の描き直しで枠ごと消える。
+const PRESENT_TRANSFORM_COVER_FADE_MS = 320, PRESENT_TRANSFORM_COVER_HOLD_MS = 900;
+async function _presentTransformResultCover(ev, api, unit, duration) {
+  const from = ev.fromUnitId != null ? api.findUnit(ev.side, ev.fromUnitId) : null;
+  const side = ev.side === 'p2' ? 'enemy' : 'ally';
+  const slot = typeof getCurrentUnitSlot === 'function' ? getCurrentUnitSlot(side, unit) : null;
+  const fromSlot = from && typeof getCurrentUnitSlot === 'function' ? getCurrentUnitSlot(side, from) : null;
+  const shot = fromSlot && typeof fromSlot.cloneNode === 'function' && typeof _activationCaptureVisual === 'function' ? _activationCaptureVisual(fromSlot) : null;
+  if (!slot || !shot) return;
+  const spec = typeof presentLabFx === 'function' ? presentLabFx('E016') : null;
+  const wait = ms => new Promise(resolve => (typeof battlePresentationSetTimeout === 'function' ? battlePresentationSetTimeout : setTimeout)(resolve, ms));
+  await wait(duration * (spec ? Number(spec[1]) || .58 : .58));
+  if (!slot.isConnected) return;
+  const node = shot.node;
+  node.classList.remove('slot');
+  [node, ...node.querySelectorAll('[data-unit-id],[data-unit-idx]')].forEach(n => { n.removeAttribute('data-unit-id'); n.removeAttribute('data-unit-idx'); });
+  node.style.setProperty('z-index', '92', 'important');
+  node.style.setProperty('pointer-events', 'none', 'important');
+  // 枠の中の座標なので、変身先の枠の大きさを本人の枠の大きさへ合わせるだけでよい。
+  node.style.setProperty('transform', `scale(${(slot.offsetWidth || shot.width) / shot.width},${(slot.offsetHeight || shot.height) / shot.height})`, 'important');
+  node.style.setProperty('opacity', '0', 'important');
+  slot.appendChild(node);
+  const fade = node.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: PRESENT_TRANSFORM_COVER_FADE_MS, easing: 'ease-out', fill: 'forwards' });
+  if (fade) await fade.finished.catch(() => {}); else node.style.setProperty('opacity', '1', 'important');
+  await wait(PRESENT_TRANSFORM_COVER_HOLD_MS);
 }
 
 // 2026-10-12 利用者指定: キーワードの意味は名前で引き、既存素材キーは共通対応表で解決する。
@@ -999,6 +1039,9 @@ function presentKeywordEffectEvent(ev, api) {
 // **絵も音も名前から素材キーで引く**（`getKeywordAssetKey`）。素材が無ければ何も出さない。
 function presentInstantDeathEvent(ev, api) {
   if (!ev || !api) return false;
+  // 即死したカードは焼失ではなく、薄れながら四散させる（2026-10-27 利用者指定。render.js _playUnitDeathCardFx が見る印）。
+  const unit = api.findUnit(ev.side, ev.unitId);
+  if (unit) unit._deathByInstant = true;
   return presentKeywordEffectEvent({ side: ev.side, unitId: ev.unitId, keyword: '即死' }, api);
 }
 

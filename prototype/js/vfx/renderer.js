@@ -14,7 +14,8 @@ var VbFxRenderer = (function () {
   var leases = new WeakMap();
   var settings = { speed: 1.5, size: 1, particles: 1, shake: 1, dprMax: 2, seed: null };
   // 2026-10-12: 派生設定は共有層への参照と入力値だけ。JSONに同じ効果を複製しない。
-  var definitions=[];VbFxDefs.effects.forEach(function(d){definitions.push(d);(d.variants||[]).forEach(function(v){definitions.push(Object.assign({},d,v,{variants:undefined}));});});
+  // 2026-10-27: 色違いの記録（variantOf＋recolor）は VbFxDefs.definitions() が元の演出から展開する。
+  var definitions=[];VbFxDefs.definitions().forEach(function(d){definitions.push(d);(d.variants||[]).forEach(function(v){definitions.push(Object.assign({},d,v,{variants:undefined}));});});
   var lookup={}, fieldSpecs={};
   VbFxDefs.types.forEach(function(type){fieldSpecs[type]=VbFxDefs.fields(type);});
   definitions.forEach(function(d){lookup[d.name]=d;lookup[d.label]=d;});
