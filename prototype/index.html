@@ -7706,7 +7706,8 @@ html body.reward-screen-active #hand-slots.board-slots .card-activation-ready-la
   font-style:normal!important;
   text-align:center!important;
   text-shadow:0 1px 2px #000!important;
-  z-index:10012!important;
+  /* プログラムの枠線（map-boundary-layer＝110）より下、魔導板の枠（100）より上。売却・還魂のラベルと同じ（2026-10-27 利用者指定）。 */
+  z-index:105!important;
   cursor:var(--cursor-normal)!important;
 }
 /* 戦闘終了演出中は、カードのhover発光・浮上を完全に停止する。 */
