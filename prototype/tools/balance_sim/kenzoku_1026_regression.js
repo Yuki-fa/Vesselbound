@@ -349,7 +349,8 @@ function fullInput(own, foes, extra = {}) {
     };
     let compared = 0;
     // 現行カードは対象も含めて維持できる。新たに扱う「敵の眷属」本文は現行シートに無い。
-    for (const row of rows) for (const enhanced of row.kind === 'ring' ? [false] : [false, true]) for (const side of ['p1', 'p2']) {
+    // 新実装の指輪はitems_1026_regressionで検証し、旧版との一致は非対象だけに適用する。
+    for (const row of rows.filter(row=>!['R024','R030','R037'].includes(row['No.']))) for (const enhanced of row.kind === 'ring' ? [false] : [false, true]) for (const side of ['p1', 'p2']) {
       const other = side === 'p1' ? 'p2' : 'p1';
       const own = row.kind === 'ring' ? plain('subject') : subject(row['No.'], enhanced, { id: 'subject', atk: 10, hp: 70, maxHp: 70 });
       const input = { sides: { [side]: { units: [own, plain('ally')] }, [other]: { units: [plain('foe', { hp: 5, maxHp: 5 }), plain('foe2')] } },
@@ -357,7 +358,7 @@ function fullInput(own, foes, extra = {}) {
         ...(row.kind === 'ring' ? { rings: { [side]: [definition(row['No.'])] } } : {}) };
       assert.deepEqual(run(current, input), run(baseline, input), row['No.'] + '/' + enhanced + '/' + side); compared++;
     }
-    assert.ok(compared > 900); console.log('  ' + compared + 'ケース完全一致（除外なし）');
+    assert.ok(compared > 900); console.log('  ' + compared + 'ケース完全一致（新実装の指輪3種を除く）');
   });
   console.log('眷属1026: OK ' + passed + ' / NG ' + failed); process.exitCode = failed ? 1 : 0;
 })().catch(error => { console.error(error.stack); process.exitCode = 1; });

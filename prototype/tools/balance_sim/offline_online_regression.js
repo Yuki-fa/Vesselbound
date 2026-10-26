@@ -205,7 +205,7 @@ function main() {
   assert.match(versus, /buildBoardFormation\(board, \{ persistEternal: !!\(opts && opts\.persistEternal\) \}\)/,
     'オンライン編成生成が共通ビルダーを使っていない');
   // 永劫の力の恒久加算は「実際に戦闘を行う呼び出し」1回だけ。両方で加算すると1戦で+2/+2になる。
-  assert.match(versus, /buildSelfFormation\(\{ persistEternal: true \}\)/,
+  assert.match(versus, /buildSelfFormation\(\{ persistEternal: true, battleItems: G\.activeBattleItems \}\)/,
     'オンラインの戦闘実行時に永劫の力の恒久加算を行っていない');
   assert.equal((versus.match(/persistEternal: true/g) || []).length, 1,
     'オンラインで永劫の力の恒久加算が複数箇所にある（1戦で二重加算になる）');

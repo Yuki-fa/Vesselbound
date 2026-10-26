@@ -192,7 +192,7 @@ function _isCardExchangeShop(){
   return !!(G&&G._isShop&&!G._isItemShop&&_cardTradingRules().exchangeShop);
 }
 function _shopSlotCapacity(){
-  return G._isItemShop?3:(_isCardExchangeShop()?SHOP_EXCHANGE_TRIAL.stockCount:REWARD_GRID_CAPACITY);
+  return G._isItemShop?3:(_isCardExchangeShop()?_exchangeShopStockCount():REWARD_GRID_CAPACITY+_shopExtraCardCount());
 }
 // オンラインの従来の購入では押し出しを許さない。交換店は専用の共通入口へ渡す。
 function _shopOfferBoardSwapBlocked(card,destCard,merged,isOfferSource){

@@ -122,7 +122,7 @@ async function main(args=process.argv.slice(2)) {
       assert.equal(data.meta.trial.panelMerge,false);assert.equal(data.meta.trial.exchangeItemSale,false);
       for(const row of data.rows){
         for(const card of [...row.finalBoard,...row.battles.flatMap(b=>b.board)].filter(Boolean))assert.ok(!card.triple&&!card.bond);
-        assert.ok(!row.actions.some(a=>['sell','item_sale'].includes(a.type)||a.type==='item'&&a.name==='絆の巻物'));
+        assert.ok(!row.actions.some(a=>['sell','item_sale'].includes(a.type)));
         assert.ok(!row.offers.some(o=>o.card.name==='魔鏡'));
       }
     }

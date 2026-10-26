@@ -23,6 +23,8 @@
   // ①→②の順で呼ばれることが前提。順序を変える場合はここを見直すこと。
   function buildSelfFormation(opts) {
     const board = (typeof _getPartyBoardUnit === 'function') ? _getPartyBoardUnit() : null;
+    const battleItems = opts && Array.isArray(opts.battleItems) ? opts.battleItems
+      : (typeof _pendingStartingBattleItems === 'function' ? _pendingStartingBattleItems() : []);
     // 「どのスロットが出撃するか・レーン・体数・並び順」は共通ビルダーが決める。
     // ここで独自に組み立て直さないこと（以前はレーン判定と出撃順がPvEと食い違っていた）。
     const formation = (typeof buildBoardFormation === 'function')
@@ -139,11 +141,11 @@
         p2: [],
       },
       items: {
-        p1: (typeof G !== 'undefined' && G && Array.isArray(G.activeBattleItems))
-          ? G.activeBattleItems.filter(Boolean).map(item => ({
+        p1: battleItems.filter(Boolean).map(item => ({
             id: String(item.id || item.name || ''),
             itemEffectKey: String(item.itemEffectKey || ''),
-          })) : [],
+            desc: String(item.desc || ''),
+          })),
         p2: [],
       },
       resources: {
@@ -164,8 +166,9 @@
   // オンライン対戦マスの戦闘を実行して再生する。
   async function startOnlineVersusBattle() {
     if (typeof OnlineMatch === 'undefined' || !OnlineMatch || !OnlineMatch.isActive()) return null;
+    if (typeof _prepareStartingBattleItems === 'function') _prepareStartingBattleItems(false);
     // 実際に戦闘を行うのはこちら。永劫の力の恒久加算はここだけで行う。
-    const formation = buildSelfFormation({ persistEternal: true });
+    const formation = buildSelfFormation({ persistEternal: true, battleItems: G.activeBattleItems });
 
     // 再生が終わるまで進行の追従を止める。サーバーは戦闘を確定させた時点で次のマスへ
     // 進めるので、止めないと再生の途中で次のマス（街など）へ切り替わる。

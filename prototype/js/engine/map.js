@@ -2380,13 +2380,16 @@ function openMapItemShop(){
 function _openWaveAltarMenu(){
   openMapVillage({tower:true});
 }
-// 目利きの指輪：常時：魔導店と道具屋の商品が半額になる。
-// **売値には効かない**（半額になるのは商品＝購入価格だけ）。
-function _shopBuyPriceWithRings(price){
-  const base=Math.max(0,Number(price)||0);
-  const rings=typeof _ringCount==='function'?Math.max(0,Number(_ringCount('目利きの指輪'))||0):0;
-  if(!rings||!base) return base;
-  return Math.max(1,Math.floor(base/Math.pow(2,Math.min(4,rings))));
+// 魔導取引所＝魔導店、トレーダー＝敗北時の行商人。道具屋の商品数・価格には関わらない。
+function _shopExtraCardCount(){
+  const rings=typeof _effectiveRings==='function'?_effectiveRings():[];
+  return rings.reduce((sum,ring)=>{
+    const match=String(ring.desc||'').match(/^常時：魔導取引所、トレーダーがカードを(\d+)枚多く持つようになる/);
+    return sum+(match?Number(match[1]):0);
+  },0);
+}
+function _exchangeShopStockCount(){
+  return SHOP_EXCHANGE_TRIAL.stockCount+_shopExtraCardCount();
 }
 function _mapSalePrice(card){
   const r=Math.max(1,Math.min(5,Number(card&&card.rarity)||1));
@@ -2402,7 +2405,7 @@ function _mapPickSaleCard(pred, used){
   consumePanelSaleStock(def);
   used.add(def.id);
   const card=towerBoonGeneratedOffers([makePanel(def.id)])[0];
-  if(card) card._buyPrice=_shopBuyPriceWithRings(_mapSalePrice(card));
+  if(card) card._buyPrice=_mapSalePrice(card);
   return card;
 }
 function _drawPricedShopStock(){
@@ -2414,6 +2417,7 @@ function _drawPricedShopStock(){
     _mapPickSaleCard(p=>Number(p.rarity)>=2,used),
     _mapPickSaleCard(p=>Number(p.rarity)>=3,used),
   ];
+  for(let i=0;i<_shopExtraCardCount();i++) stock.push(_mapPickSaleCard(()=>true,used));
   // **キャラクターと強化を最低1枚ずつ含める**（シートの「ショップカード出現率計算式」は
   // 戦闘報酬の式に準じ、報酬側は「キャラクターと強化は最低1枚ずつ含まれる」）。
   // レアリティの枠だけで引いていたため、実測で品揃えの3.3%が全部キャラクターになっていた。
@@ -2439,16 +2443,33 @@ function _drawPricedShopStock(){
   return stock;
 }
 // 魔導店・敗北時の行商人で共用。抽選・祝福は通常報酬の実装へ渡す。
-function _drawExchangeShopStock(key){
-  return runWithKeyedRandom(key,()=>drawRewards(SHOP_EXCHANGE_TRIAL.stockCount,{trader:true}))
-    .filter(Boolean).map(_exchangeShopCardCopy);
+function _drawExchangeShopStock(key,count=_exchangeShopStockCount()){
+  const stock=runWithKeyedRandom(key,()=>drawRewards(count,{trader:true})).filter(Boolean);
+  stock.splice(count).forEach(returnPanelToSalePool);
+  return stock.map(_exchangeShopCardCopy);
+}
+// 保存済み・交換済みの品揃えを保持し、指輪の増減分だけ枠を合わせる。
+function _resizeExchangeShopStock(stock,key){
+  const count=_exchangeShopStockCount();
+  if(stock.length>count) stock.splice(count).filter(Boolean).forEach(returnPanelToSalePool);
+  if(stock.length<count) stock.push(..._drawExchangeShopStock(`${key}:extra:${stock.length}:${count}`,count-stock.length));
+  return stock;
 }
 function _ensureWaveShopStock(){
   const waveKey=_waveFacilityCacheKey();
   const old=G._waveShopStock&&G._waveShopStock[waveKey];
   const exchange=_cardTradingRules().exchangeShop;
-  if(Array.isArray(old)&&(!exchange||old.length===SHOP_EXCHANGE_TRIAL.stockCount&&old.every(c=>c&&!('_buyPrice' in c)))) {
+  if(Array.isArray(old)&&(!exchange||old.every(c=>c&&!('_buyPrice' in c)))) {
     const stock=applyRewardCharacterEffects(clone(old),false);
+    if(exchange) _resizeExchangeShopStock(stock,`exchange-shop:${waveKey}`);
+    else {
+      const count=REWARD_GRID_CAPACITY+_shopExtraCardCount();
+      if(stock.length>count) stock.splice(count).filter(Boolean).forEach(returnPanelToSalePool);
+      const used=new Set(stock.filter(Boolean).map(card=>card.id));
+      runWithKeyedRandom(`shop:${waveKey}:extra:${stock.length}:${count}`,()=>{
+        while(stock.length<count) stock.push(_mapPickSaleCard(()=>true,used));
+      });
+    }
     G._waveShopStock[waveKey]=clone(stock);
     return stock;
   }
@@ -2473,7 +2494,7 @@ function _drawItemShopStock(){
   // 最初の村ではレアリティ1・2のアイテムだけを売る（2026-10-26 利用者指定。再抽選も同じ）。
   const opts={forShop:true,maxRarity:_isFirstWaveVillage()?2:0};
   const stock=(typeof drawItems==='function'?drawItems(3,undefined,opts):[]).filter(Boolean);
-  stock.forEach(it=>{it._buyPrice=_shopBuyPriceWithRings(_itemShopBuyPrice(it));});
+  stock.forEach(it=>{it._buyPrice=_itemShopBuyPrice(it);});
   while(stock.length<3) stock.push(null);
   return stock;
 }

@@ -329,7 +329,7 @@ function _consumeItemSlot(idx){
   renderRewCards();
   updateHUD();
 }
-// 絆の巻物：キーワードの合体ルール。「毒3」「封印2」等、末尾が数値のキーワードは数値同士を
+// 永久キーワードの合算（巻物・強化後の引き継ぎで共用）。「毒3」「封印2」等、末尾が数値のキーワードは数値同士を
 // 加算する。数値の無い単純なキーワード（先制・即死等）は重複させず1つのまま残す。
 function _mergeCardKeywordsForBond(baseKeywords,addKeywords){
   const result=[...(Array.isArray(baseKeywords)?baseKeywords:[])];
@@ -364,12 +364,8 @@ function _canUseItemNow(card){
   if(!card||card._implemented===false||card._noItemEffectImpl||!panelMergeContentAvailable(card)) return false;
   const key=_itemEffectKey(card);
   const chars=_boardCharacterSlots();
-  if(['shield_scroll','giant_scroll','inspire_flag','keyword_scroll'].includes(key)) return chars.length>0;
-  if(key==='bond_scroll'){
-    const counts={};
-    chars.forEach(({card})=>{ if(!card._merged) counts[card.name]=(counts[card.name]||0)+1; });
-    return Object.values(counts).some(n=>n>=2);
-  }
+  if(key==='keyword_scroll'||key==='bond_scroll') return chars.some(({idx})=>_isItemUseTargetSlot(idx,{key,card}));
+  if(['shield_scroll','giant_scroll','inspire_flag'].includes(key)) return chars.length>0;
   if(key==='sacrifice_doll'||key==='mana_scroll') return true;
   if(key==='transform_scroll') return chars.length>0&&_mainBoardCards().filter(Boolean).length>=2;
   // 永劫の巻物は2枚のキャラクターの戦闘力を交換する。
@@ -397,10 +393,12 @@ function _cardHasKeyword(card,kw){
 // 対象として選べるスロットか。**選べないカードは暗くして押しても何も起きない。**
 // エンチャントは「キャラクターを選ぶアイテム」の対象にならないので、
 // _isBoardCharacterCard() で一律に落とす（個別のアイテムごとに書かない）。
-function _isItemUseTargetSlot(slotIdx){
-  const pending=G._pendingItemUse;
+function _itemGrantedKeyword(card){
+  const match=/^対象のキャラクターに(.+?)を与える。?$/.exec(String(card&&card.desc||'').trim());
+  return match?match[1].trim():'';
+}
+function _isItemUseTargetSlot(slotIdx,pending=G._pendingItemUse){
   if(!pending) return true;
-  if(pending.key==='bond_scroll'&&!panelMergeEnabled()) return false;
   const boardList=typeof _mainBoardCards==='function'?_mainBoardCards():[];
   const card=boardList[slotIdx];
   const key=pending.key;
@@ -409,14 +407,12 @@ function _isItemUseTargetSlot(slotIdx){
   // 付与系は**既に同じキーワードを持つキャラクターを対象にできない**（無駄になるため）。
   if(key==='inspire_flag'&&_cardHasKeyword(card,'根性')) return false;
   if(key==='vision_scroll'&&_cardHasKeyword(card,'復活')) return false;
+  if(key==='keyword_scroll'){
+    const keyword=_itemGrantedKeyword(pending.card);
+    return !!keyword&&(/\d+$/.test(keyword)||!_cardHasKeyword(card,keyword));
+  }
   if(key==='bond_scroll'){
-    if(card._merged) return false;
-    if(!Number.isInteger(pending.firstIdx)){
-      // 1枚目：同名かつ未合体の相方が別スロットに要る
-      return boardList.some((c,i)=>i!==slotIdx&&_isBoardCharacterCard(c)&&!c._merged&&c.name===card.name);
-    }
-    // 2枚目：1枚目と同名の別スロット
-    return slotIdx!==pending.firstIdx&&card.name===pending.firstName;
+    return ['up','right','down','left'].some(direction=>!(card.directions||[]).includes(direction));
   }
   if(key==='weakening_scroll') return slotIdx!==pending.firstIdx;
   return true;
@@ -480,10 +476,10 @@ if(!window._itemUseCancelBound){
 
 // ── 対象を選ぶアイテムの使用中の表示 ───────────────────────────
 // **指示文はテキストメッセージシートが唯一の出どころ**（「「◯◯」使用時」）。
-// 2段階選ぶアイテム（生贄人形・絆の巻物）は「使用時1」「使用時2」を使う。
+// 2段階選ぶアイテム（変身・魂交換）は「使用時1」「使用時2」を使う。
 // 予備の文字列はシートを読めない時のためだけに持つ。
 const _ITEM_USE_PROMPT_FALLBACK={
-  bond_scroll:['合体する1枚目の同名キャラクターを選んでください。','合体する2枚目の同名キャラクターを選んでください。'],
+  bond_scroll:['ポートを追加するキャラクターを選んでください。'],
   shield_scroll:['結界1を付与するキャラクターを選んでください。'],
   giant_scroll:['ATKとHPを増幅するキャラクターを選んでください。'],
   transform_scroll:['変身させるカードを選んでください。','変身先のキャラクターを選んでください。'],
@@ -495,7 +491,7 @@ const _ITEM_USE_PROMPT_FALLBACK={
 // いま何段階目か（1始まり）。1段階だけのアイテムは常に1。
 function _itemUseStep(pending){
   if(!pending) return 1;
-  if(['bond_scroll','transform_scroll','weakening_scroll'].includes(pending.key)) return (pending.firstIdx==null)?1:2;
+  if(['transform_scroll','weakening_scroll'].includes(pending.key)) return (pending.firstIdx==null)?1:2;
   return 1;
 }
 function _itemUsePromptText(pending){
@@ -606,7 +602,7 @@ function _useImmediateItem(idx,card){
     towerBoonState().rerolls+=Number(count[1]);
     _consumeItemSlot(idx); return true;
   }
-  if(key==='sacrifice_doll'){
+  if(key==='sacrifice_doll'||key==='dragon_scroll'){
     G.pendingBattleItems=G.pendingBattleItems||[]; G.nextBattleItems=G.nextBattleItems||[];
     const item=clone(card); item._itemUseInstanceId=uid();
     G.pendingBattleItems.push(clone(item)); G.nextBattleItems.push(clone(item));
@@ -657,7 +653,7 @@ function handlePendingItemBoardTarget(slotIdx){
     questOnRequiredCardDestroyed(destroyedEntry||deferredEntry);
   }
   if(pending&&G._pendingItemUse===null){
-    const idx=pending.key==='bond_scroll'?pending.firstIdx:slotIdx;
+    const idx=slotIdx;
     const target=Number.isInteger(idx)?_mainBoardCards()[idx]:null;
     if(target) target._itemBuffed=true;
   }
@@ -712,7 +708,6 @@ function _playItemSlotVfx(no,rect){
 function _handlePendingItemBoardTarget(slotIdx){
   const pending=G._pendingItemUse;
   if(!pending||!Number.isInteger(slotIdx)) return false;
-  if(pending.key==='bond_scroll'&&!panelMergeEnabled()){_cancelPendingItemUse(true);return false;}
   const boardList=_mainBoardCards();
   const card=boardList[slotIdx];
   const key=pending.key;
@@ -733,13 +728,12 @@ function _handlePendingItemBoardTarget(slotIdx){
   if(!_isBoardCharacterCard(card)){ return true; }
   // 「対象のキャラクターに〇〇を与える。」の巻物（二段攻撃・毒牙X…）。本文のキーワードをそのまま与える（2026-10-22）。
   if(key==='keyword_scroll'){
-    const m=/^対象のキャラクターに(.+?)を与える。?$/.exec(String(pending.card&&pending.card.desc||'').trim());
-    if(!m){ ; return true; }
-    card.keywords=Array.isArray(card.keywords)?card.keywords:[];
-    const kw=m[1].trim();
-    // 数値の無いキーワード（二段攻撃など）を既に持っている時は使わない（重ねても効果が無い）。
-    if(!/\d+$/.test(kw)&&card.keywords.includes(kw)){ ; return true; }
-    card.keywords.push(kw);
+    const keyword=_itemGrantedKeyword(pending.card);
+    if(!_isItemUseTargetSlot(slotIdx)) return true;
+    card.keywords=_mergeCardKeywordsForBond([], [...(card.keywords||[]),keyword]);
+    const counted=/^(.*?)(\d+)$/.exec(keyword);
+    if(counted) card._itemKeywordBonuses={...(card._itemKeywordBonuses||{}),
+      [counted[1]]:(Number(card._itemKeywordBonuses&&card._itemKeywordBonuses[counted[1]])||0)+Number(counted[2])};
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='shield_scroll'){
@@ -764,62 +758,16 @@ function _handlePendingItemBoardTarget(slotIdx){
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='bond_scroll'){
-    if(!pending.firstIdx&&pending.firstIdx!==0){
-      if(card._merged){ ; return true; }
-      pending.firstIdx=slotIdx;
-      pending.firstName=card.name;
-      _syncItemUsePickingUi();   // 2段階目の指示文へ差し替える
-      renderHandEditor();
-      return true;
+    if(!_isItemUseTargetSlot(slotIdx)) return true;
+    const available=['up','right','down','left'].filter(direction=>!(card.directions||[]).includes(direction));
+    const count=String(pending.card&&pending.card.desc||'').match(/ポートを(\d+)つ追加/);
+    if(!count) return true;
+    card.directions=Array.isArray(card.directions)?card.directions.slice():[];
+    for(let i=0;i<Number(count[1])&&available.length;i++){
+      const index=Math.floor(rand()*available.length);
+      card.directions.push(available.splice(index,1)[0]);
     }
-    const first=boardList[pending.firstIdx];
-    if(!first||first===card||card.name!==pending.firstName||card._merged||first._merged){
-      ; return true;
-    }
-    const bondBoon=coreMergeBoons([first,card]);
-    if(bondBoon){
-      // 祝福由来の基礎値と、アイテム等の個別補正を分けて最大の祝福を保持する。
-      const stats=[first,card].map(src=>{
-        const def=PANEL_POOL.find(p=>p.id===src.id)
-          ||ENEMY_POOL.find(p=>src._towerBoonBoss&&p.no===src.no)||src;
-        const ownMul=src.boon?src.boon.statMul:1;
-        return {power:Number(src.power||0)+Number(def.power||0)*(bondBoon.statMul-ownMul),
-          life:Number(src.life||0)+Number(def.life||0)*(bondBoon.statMul-ownMul)};
-      });
-      first.power=stats.reduce((n,s)=>n+s.power,0);
-      first.life=stats.reduce((n,s)=>n+s.life,0);
-      coreApplyCardBoon(first,bondBoon,{effectsOnly:true});
-    }else{
-      first.power=(Number(first.power)||0)+(Number(card.power)||0);
-      first.life=(Number(first.life)||0)+(Number(card.life)||0);
-    }
-    first.manaOnAttack=(Number(first.manaOnAttack)||0)+(Number(card.manaOnAttack)||0);
-    first.manaOnInjury=(Number(first.manaOnInjury)||0)+(Number(card.manaOnInjury)||0);
-    first.manaOnDeath=(Number(first.manaOnDeath)||0)+(Number(card.manaOnDeath)||0);
-    first.goldOnBattleEnd=(Number(first.goldOnBattleEnd)||0)+(Number(card.goldOnBattleEnd)||0);
-    first.goldOnDeath=(Number(first.goldOnDeath)||0)+(Number(card.goldOnDeath)||0);
-    // 絆の巻物は同名キャラクターを1枚に合体する。召喚枚数を加算すると、
-    // 合体後の1枚が戦闘開始時に2体として出撃してしまう。
-    // アイテム等で個別に付いたキーワードは、シート由来の姿へ作り直しても残す。
-    const bondExtraKeywords=typeof extraPanelKeywords==='function'
-      ?_mergeCardKeywordsForBond(extraPanelKeywords(first),extraPanelKeywords(card)):[];
-    first.keywords=_mergeCardKeywordsForBond(first.keywords,card.keywords);
-    first.rarity=Math.min(5,(Number(first.rarity)||1)+1);
-    first.grade=Math.max(Number(first.grade)||1,first.rarity);
-    // **矢印は directions（配列）で描く。** directionCount だけ4にしても
-    // 見た目は元の2方向のままになる（3枚合体は両方を設定している）。
-    first.directions=['up','right','down','left'];
-    first.directionCount=4;
-    first._merged=true;
-    // **合体後の効果はシートの「合体効果」列がそのまま入る**（pool.js／loader.js）。
-    // 以前はここで「効果を2回発動」（_effectRepeatBonus）にしていたが、シートの
-    // 合体効果は既に合体後の値で書かれているため、重ねて増やしてはいけない。
-    // 列が空欄のカードは効果もキーワードも変わらない。
-    if(typeof applyMergedPanelForm==='function'&&applyMergedPanelForm(first)){
-      if(bondExtraKeywords.length) first.keywords=_mergeCardKeywordsForBond(first.keywords,bondExtraKeywords);
-    }
-    delete first.effectRepeatBonus;
-    boardList[slotIdx]=null;
+    card.directionCount=card.directions.length;
     G._pendingItemUse=null; _syncItemUsePickingUi(); _consumeItemSlot(pending.slotIdx); _playItemUseVfx(key,slotIdx); return true;
   }
   if(key==='weakening_scroll'){

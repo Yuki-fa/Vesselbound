@@ -48,6 +48,7 @@ for (const m of buildFn.matchAll(/([A-Za-z_][\w$]*)\s*:/g)) sentFields.add(m[1])
 
 // 送らなくてよいもの。**理由を必ず書くこと。**
 const ALLOW_MISSING = {
+  _skilledRingBonus: '老将軍の指輪が戦闘中に付けた熟練の内訳。開戦前の編成には無く、コピー・保存snapshotだけで引き継ぐ',
   _paladinRingApplied: 'コアが戦闘内で作る常時HP倍率の適用印。開戦前の編成には持たせず、戦闘のsnapshotに保存する',
   _keywordEffectsDisabled: '武器破壊の攻撃中だけコアが持つ状態。攻撃終了時に必ず取り除く',
   _copyFrame: '2026-10-20：コピー（ツインデビル等）の枠を決める見た目だけの印。戦闘中にコアがコピーを作る時に付け、編成の入力には無い（両陣営ともコアが同じく付ける）',

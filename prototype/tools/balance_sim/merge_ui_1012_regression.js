@@ -34,7 +34,7 @@ function node(id){
   const mergeBoard=clone(G.mainBoard);assert.equal(_tryTripleMergeOnBoard(_getPartyBoardUnit(),5),null);
   assert.deepEqual(G.mainBoard,mergeBoard,'3枚合体で盤面を書き換えない');
   assert.equal(_mergedPanelCard(G.mainBoard[1],G.mainBoard[3]),null,'2枚レシピを実行しない');
-  assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll',name:'絆の巻物'}),false,'絆の巻物を新規利用させない');
+  assert.equal(panelMergeContentAvailable({itemEffectKey:'bond_scroll',name:'絆の巻物'}),true,'絆の巻物はポート追加へ改訂され、合体停止の対象外');
   assert.equal(panelMergeContentAvailable(makePanel('魔鏡')),false,'魔鏡を新規抽選へ戻さない');
   // 旧保存の合体済みカードはそのまま。復元で新しい合体を作り直さない。
   initState();const old=makePanel(def('C011').id),base=def('C011');
