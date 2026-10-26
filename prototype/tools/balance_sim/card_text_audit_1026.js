@@ -72,6 +72,8 @@ function context(entry, form, text, configure = () => {}) {
     blood: { p1: 9, p2: 9 }, life: { p1: 1, p2: 1 }, maxLife: { p1: 3, p2: 3 },
     stageNumber: 2, itemFreeSlots: { p1: 3, p2: 3 }, itemDefs: ITEM_POOL,
     summonDefs: [...PANEL_POOL, ...ENEMY_POOL] };
+  // 色条件は架空の5色の体を直接置くだけでは監査しない。実際の魔導板→共通出撃を通す。
+  if (entry.no === 'C100') input.sides.p1.units = formedElemental(form, text);
   configure(input);
   const state = createBattleState(input), events = [], rng = createSeededRng(1026);
   state.life = copy(input.life); state.maxLife = copy(input.maxLife);
@@ -79,6 +81,20 @@ function context(entry, form, text, configure = () => {}) {
   const hit = (s, t, n, counter = false, skipSourceEffects = false, skipTough = false, options = {}) =>
     coreResolveHit(state, s, t, n, counter, rng, emit, { skipSourceEffects, skipTough, ...options });
   return { input, state, events, rng, emit, hit, u: state.units.p1[0], own: state.units.p1, foes: state.units.p2 };
+}
+function formedElemental(form, text = form.text) {
+  initState(); G.phase = 'reward'; G._wave = 2; G.mainBoard.fill(null);
+  const slots = [1, 3, 10, 12, 14], nos = ['C100', 'C006', 'C026', 'C051', 'C101'];
+  slots.forEach((slot, i) => {
+    const c = i ? copy(PANEL_POOL.find(c => c.no === nos[i])) : { ...copy(form.card), desc: text };
+    // 他の開戦・死亡は隔離する。色・スロット・出撃変換は本物のカードを使う。
+    if (i) { c.desc = ''; c.keywords = []; }
+    c.power = 17; c.life = 80; G.mainBoard[slot] = c;
+  });
+  const formation = buildBoardFormation(_getPartyBoardUnit(), { persistEternal: false });
+  assert.equal(formation.ordered.length, 5, '魔導板の5体が出撃する');
+  return formation.ordered.map((e, i) => ({ ...e.unit, id: i ? 'ally' + i : 'subject',
+    effectData: { releaseAtkBonus: 0, releaseHpBonus: 0 } }));
 }
 function fire(h, trigger) {
   const { state, u, rng, emit, hit } = h;

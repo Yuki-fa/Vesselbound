@@ -589,12 +589,12 @@ function presentResetSummonPreview() { _presentSummonPreview=null; _presentSummo
 function presentSummonPreviewState() { return _presentSummonPreview; }
 function presentSetSummonPreviewState(state, events) {
   const previous = _presentSummonPreview;
-  _presentSummonPreview = { rings:state.rings, items:state.items, _summonBuff:{}, _summonCount:{},
+  _presentSummonPreview = { rings:state.rings, items:state.items, _summonBuff:{}, gameSummonBuff:{}, _summonCount:{},
     _openingPhase:state._openingPhase, _openingRingsApplied:state._openingRingsApplied, _openingItemsApplied:state._openingItemsApplied };
   for (const side of ['p1','p2']) {
-    const first = (events || []).find(e=>e.type==='summon_buff'&&e.side===side);
-    _presentSummonPreview._summonBuff[side] = first
-      ? {atk:first.totalAtk-first.atk,hp:first.totalHp-first.hp} : coreSummonBuffOf(state,side);
+    const before = coreSummonPreviewBuffs(state,side,events);
+    _presentSummonPreview._summonBuff[side] = before.stats;
+    _presentSummonPreview.gameSummonBuff[side] = before.game;
     const count = Number(state._summonCount && state._summonCount[side]);
     _presentSummonPreview._summonCount[side] = Number.isFinite(count)
       ? Math.max(0,count-(events||[]).filter(e=>e.type==='summon'&&e.side===side).length)
@@ -619,7 +619,10 @@ function presentSetSummonPreviewFromResult(result, ownFormation) {
 function presentAdvanceSummonPreview(ev) {
   if (!_presentSummonPreview || _presentSummonPreviewEvents.has(ev)) return;
   _presentSummonPreviewEvents.add(ev);
-  if (ev.type==='summon_buff') _presentSummonPreview._summonBuff[ev.side]={atk:ev.totalAtk,hp:ev.totalHp};
+  if (ev.type==='summon_buff') {
+    _presentSummonPreview._summonBuff[ev.side]={atk:ev.totalAtk,hp:ev.totalHp};
+    if (ev.gameTotalShock != null) _presentSummonPreview.gameSummonBuff[ev.side].shock=ev.gameTotalShock;
+  }
   if (ev.type==='summon') _presentSummonPreview._summonCount[ev.side]++;
 }
 function presentMarkBattleTail(events, initialUnits) {

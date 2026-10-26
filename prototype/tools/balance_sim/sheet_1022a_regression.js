@@ -239,7 +239,11 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    assert.deepEqual([G.mainBoard[1].power,G.mainBoard[1].life,G.mainBoard[3].power,G.mainBoard[3].life],[13,17,7,9]);
    i=prepare('I002');G.mainBoard[1]=card('E001');_beginBoardItemUse(0,i);_handlePendingItemBoardTarget(1);_handlePendingItemBoardTarget(3);
    assert.equal(G.mainBoard[1].name,G.mainBoard[3].name);assert.equal(G.mainBoard[1].power,card('C007').power,'変身先の素の定義を使う');
-   i=prepare('I011');assert.ok(_useImmediateItem(0,i));assert.equal(towerBoonState().rerolls,Number(i.desc.match(/(\d+)回/)[1]));
+   i=prepare('I011');
+   // 改名されたアイテムも、本文の処理はNo.で引いた現行シートのコピーで検査する。
+   // ITEM_POOLの旧名との対応はloader側の別の責務（マスター・内蔵CSVは変更しない）。
+   const reroll=sheet.sheetRows('item').find(row=>row['No.']==='I011');i.name=reroll['名前'];i.desc=reroll['効果'];
+   assert.ok(_useImmediateItem(0,i));assert.equal(towerBoonState().rerolls,Number(i.desc.match(/(\d+)回/)[1]));
    i=prepare('I007');const before=copy(G.mainBoard);assert.ok(_useImmediateItem(0,i));assert.deepEqual(G.mainBoard,before);
    for(const side of ['p1','p2']){
     const x=setup(side,[plain('source')],{items:{[side]:[i]}});coreApplyOpeningItems(x.state,x.rng,x.emit,x.hit);

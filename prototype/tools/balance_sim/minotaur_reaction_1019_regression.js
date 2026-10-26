@@ -1,6 +1,6 @@
 'use strict';
 // 2026-10-22 利用者指定：割り込み攻撃でも攻撃効果を発動する。
-// 懺悔の再発動による負傷の再入は止め、攻撃と反撃を検証する。
+// 2026-10-26：処理中の懺悔は追加攻撃から再入せず、1ダメージ→追加攻撃を順に完了させる。
 const assert = require('node:assert/strict');
 const core = require(process.env.VB_CORE_BASELINE || '../../js/battle/core');
 const { createSeededRng } = require('../../js/online/protocol');
@@ -23,13 +23,16 @@ function run(side, penances, extraText = [], foeSpec = null, minoKeywords = []) 
   return { events, mino: state.units[side].find(u => u.id === 'mino'), foe: state.units[foe][0] };
 }
 for (const side of ['p1', 'p2']) {
-  check(`${side}：懺悔2枚は1ダメージごとに結界＋攻撃を4回、割り込み攻撃でも懺悔を再発動する`, () => {
+  check(`${side}：懺悔2枚は1ダメージごとに攻撃を4回、処理中の懺悔へ再入しない`, () => {
     const { events, mino, foe } = run(side, 2);
     const reactions = events.filter(e => e.type === 'attack' && e.immediate && e.attackerId === 'mino');
     assert.equal(reactions.length, 4);
     const selfHits = events.filter(e => e.type === 'damage' && e.unitId === 'mino' && (e.amount ?? e.damage) > 0);
-    assert.equal(selfHits.length, 25, '本来と割り込み4回の懺悔20回＋各攻撃の反撃5回');
-    assert.equal(mino.hp, 15);
+    assert.equal(selfHits.length, 9, '懺悔4回＋各攻撃の反撃5回');
+    assert.equal(mino.hp, 31);
+    assert.deepEqual(events.flatMap(e => e.type === 'damage' && e.unitId === 'mino' && e.damageKind === 'attack_effect'
+      ? ['自傷'] : e.type === 'attack' ? [e.immediate ? '追加攻撃' : '本来の攻撃'] : []),
+      [...Array.from({length:4}, () => ['自傷','追加攻撃']).flat(), '本来の攻撃']);
     assert.equal(foe.hp, 500 - 4 * 5);
     assert.equal(events.filter(e=>e.type==='keyword_effect'&&e.effect==='shield').length,0,'新本文は結界を与えない');
   });

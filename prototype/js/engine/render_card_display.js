@@ -524,7 +524,7 @@ function _summonNameAnnotation(name, owner, isSummon, context){
     &&(String(p.name||'').trim()===wanted
       ||`${p.color||''}${String(p.name||'').trim()}`===wanted));
   if(!def) return '';
-  const kws=(def.keywords||[]).map(k=>String(k||'').trim())
+  let kws=(def.keywords||[]).map(k=>String(k||'').trim())
     .filter(k=>k&&!(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(k)));
   const form=!isSummon&&owner&&owner._runLevelsApplied
     ?coreApplyUnitRunLevels(def,owner._runLevelsApplied,{familiar:coreRunLevelIsFamiliar(context||owner)}):def;
@@ -544,12 +544,14 @@ function _summonNameAnnotation(name, owner, isSummon, context){
     const stats=corePreviewSummonStats({...state,units:{p1:units(G.allies||[]),p2:units(G.enemies||[])}},side,def,
       {...source,atk:presentShownAtk(source),hp:presentShownHp(source),maxHp:presentShownMaxHp(source)},owner.boon);
     atk=stats.atk;hp=stats.hp;
+    kws=stats.keywords.filter(k=>!(typeof _INTERNAL_ONLY_ENCHANT_NAMES!=='undefined'&&_INTERNAL_ONLY_ENCHANT_NAMES.has(k)));
   }else if(owner&&owner._sheetEnemy){
     // 変身の注釈は、従来どおり元の敵の現在戦力を使う。
     const actual=coreEnemySummonStats(owner);
     if(actual){atk=actual.atk;hp=actual.hp;}
   }
-  const head=kws.length?`${kws.join('・')}を持つ`:'';
+  const shownKeywords=isSummon?_mergeCountedKeywords(kws):kws;
+  const head=shownKeywords.length?`${shownKeywords.join(isSummon?'と':'・')}を持つ`:'';
   // シートの「∞」は内部では SHEET_INFINITY_VALUE（loader.js）。表示は ∞ に戻す（鬼神の指輪の赤イフリート）。
   const shown=v=>typeof SHEET_INFINITY_VALUE!=='undefined'&&v>=SHEET_INFINITY_VALUE?'∞':v;
   const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${shown(atk)}/${shown(hp)}の`:'';

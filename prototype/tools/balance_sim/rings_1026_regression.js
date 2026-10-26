@@ -96,10 +96,14 @@ function opening(h){coreApplyOpeningRings(h.state,h.rng,h.emit,h.hit);}
   initRun();G.rings=[{...ring('R015'),desc:'開戦：全ての味方はHP+1を得る。'},ring('R033'),null,null];_storeRewardStartSnapshot();const saved=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(saved);
   assert.equal(G.rings[0].desc,ring('R015').desc);assert.equal(G._rewardStartSnapshot.rings[0].desc,ring('R015').desc);assert.equal(waveLifeMax(),4);
  });
- for(const no of ['R024','R030','R037'])await check(`${no} 実装false：報酬・店の候補に出ない`,()=>{
-  const row=sheet.sheetRows('ring').find(r=>r['No.']===no),def=RING_POOL.find(r=>r.no===no);assert.equal(row['実装'],'false');assert.equal(row['出現'],'false');assert.ok(!def||def._rewardExcluded||def._rewardAvailable===false);
-  initRun();for(let i=0;i<50;i++){G._bossRingOfferSeen=[];assert.ok(!_pickAltarRingOffer().some(r=>r.no===no));}
-  if(def)assert.equal(_shopOrRewardExcluded(def),true);
+ for(const no of ['R024','R030','R037'])await check(`${no} 現行シートの実装・出現フラグに従って候補を決める`,()=>{
+  const row=sheet.sheetRows('ring').find(r=>r['No.']===no),def=RING_POOL.find(r=>r.no===no);
+  // 1026のシート変更で有効化された指輪も、以前のfalseを期待値へ直書きしない。
+  const enabled=row['実装']==='true'&&row['出現']==='true';
+  if(enabled){assert.ok(def);assert.notEqual(def._implemented,false);assert.equal(_shopOrRewardExcluded(def),false);}
+  else {assert.ok(!def||def._rewardExcluded||def._rewardAvailable===false);if(def)assert.equal(_shopOrRewardExcluded(def),true);}
+  initRun();let found=false;for(let i=0;i<100;i++){G._bossRingOfferSeen=[];const has=_pickAltarRingOffer().some(r=>r.no===no);found=found||has;if(!enabled)assert.equal(has,false);}
+  if(enabled)assert.equal(found,true);
  });
  console.log(`指輪1026: OK ${passed} / NG ${failed}`);process.exitCode=failed?1:0;
 })().catch(e=>{console.error(e.stack);process.exitCode=1;});

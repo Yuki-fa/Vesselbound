@@ -198,7 +198,7 @@ function fullInput(own, foes, extra = {}) {
       assert.deepEqual(copy(h.state), before);
       assert.equal(h.rng.next(), createSeededRng(1026).next(), '説明だけで乱数を使わない');
       const child = coreSummonUnit(h.state, side, def, h.emit, h.u.id, false, h.rng, h.hit);
-      assert.deepEqual(preview, { atk: child.atk, hp: child.hp });
+      assert.deepEqual(preview, { atk: child.atk, hp: child.hp, keywords: coreUnitKeywords(child).filter(k => k !== '眷属') });
     });
     for (const scope of ['味方の', '敵の', '']) for (const dynamic of [false, true]) {
       await check(side + ': 「' + scope + '眷属」の固定／X観測を所有者基準で判定 (' + dynamic + ')', () => {
