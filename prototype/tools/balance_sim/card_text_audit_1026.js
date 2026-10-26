@@ -213,6 +213,20 @@ function exercise(entry, form, sentence, trigger) {
       run(); assert.equal(summons(h).length, Number(m[2] || 1) * r);
       summons(h).forEach(e => assert.equal(e.unit.name, m[1].replace(/^[赤青緑黄紫]/, '')));
       if (/攻撃させる/.test(body)) assert.equal(h.events.filter(e => e.type === 'attack' && e.immediate).length, Number(m[2] || 1) * r);
+    } else if ((m = body.match(/^このキャラクター以外の全てのキャラクターに(\d+)ダメージを(?:(\d+)回)?与える/))) {
+      // 2026-10-26：本人除外は新本文どおり。サイレンの動作は利用者指定で変更しない。
+      // 強化の回数に残る不一致を成功扱いせず、未登録とは区別して観測値を残す。
+      const before = [u.atk, u.hp, u.maxHp]; run();
+      const targets = [...own.slice(1), ...foes], damage = hits(h), count = Number(m[2] || 1) * r;
+      assert.deepEqual([u.atk, u.hp, u.maxHp], before, '本人へ当てない');
+      assert.ok(damage.every(e => e.unitId !== u.id && e.amount === Number(m[1])));
+      assert.deepEqual([...new Set(damage.map(e => e.unitId))].sort(), targets.map(t => t.id).sort());
+      if (damage.length !== targets.length * count) return {
+        ...unable('本人除外は本文どおり。各対象への回数は本文' + count + '回に対し実装'
+          + damage.length / targets.length + '回。既存の不一致は利用者の「確認のみ・変えない」指定に従い未修正（kenzoku_1026_regressionでも本人除外を検査）。'),
+        evidence: evidence(h, '本人除外・ダメージ量・実際の回数を実行確認'),
+      };
+      equalHits(h, Number(m[1]), targets.length * count, targets.flatMap(t => Array(count).fill(t.id)));
     } else if ((m = body.match(/^全ての(敵|キャラクター)に(\d+)ダメージを(?:(\d+)回)?与える/))) {
       if (entry.no === 'C016') {
         run(); const targets = [...own.slice(1), ...foes], count = Number(m[3] || 1) * r;

@@ -2967,6 +2967,11 @@ function coreClearKenzoku(unit) {
   unit.keywords = (unit.keywords || []).filter(keyword => keyword !== '眷属');
   if (unit._silenceStash) unit._silenceStash.keywords = (unit._silenceStash.keywords || []).filter(keyword => keyword !== '眷属');
 }
+// 「味方／敵」は効果の所有者を基準にする。指定のない旧本文は両陣営を観測する。
+function coreKenzokuSummonMatchesSide(match, ownerSide, summonedSide) {
+  const scope = match[0].match(/^(味方|敵)の眷属/);
+  return !scope || (ownerSide === summonedSide) === (scope[1] === '味方');
+}
 function coreApplyKenzokuSummonEffects(state, child, emit, sourceId, context, rng, applyHit) {
   const side = child.side;
   // 通常召喚は従来と同じ時点の召喚元・所有者・累計を使い、指輪などの後続誘発を先取りしない。
@@ -2986,8 +2991,8 @@ function coreApplyKenzokuSummonEffects(state, child, emit, sourceId, context, rn
     }
   }
   if (isKenzoku) for (const observer of Object.values(state.units).flat().filter(x => x && x !== child && x.hp > 0 && !coreIsSealed(x))) {
-    for (const m of coreTriggerEffectEntries(observer, '常時', /^(?:味方の)?眷属が召喚され(?:るたび|る度)、このキャラクターは\+X\/\+Xを得る。Xは召喚された眷属のATKとHP(?:の(\d+)倍)?に等しい/)) {
-      if (/^味方/.test(m.input) && observer.side !== side) continue;
+    for (const m of coreTriggerEffectEntries(observer, '常時', /^(?:(?:味方|敵)の)?眷属が召喚され(?:るたび|る度)、このキャラクターは\+X\/\+Xを得る。Xは召喚された眷属のATKとHP(?:の(\d+)倍)?に等しい/)) {
+      if (!coreKenzokuSummonMatchesSide(m, observer.side, side)) continue;
       const mul = Number(m[1]) || 1;
       const atk = coreStatBonus(observer, child.atk * mul, observer), hp = coreStatBonus(observer, child.maxHp * mul, observer);
       observer.atk += atk; observer.hp += hp; observer.maxHp += hp;
@@ -2996,8 +3001,8 @@ function coreApplyKenzokuSummonEffects(state, child, emit, sourceId, context, rn
       coreTriggerAtkGainEffects(observer, atk, state, rng, emit, applyHit);
     }
     // 2026-10-25 利用者指定：数値が決まった形（強化「武威」：味方の眷属が召喚されるたび、このキャラクターは+4/+4を得る）。
-    for (const m of coreTriggerEffectEntries(observer, '常時', /^(?:味方の)?眷属が召喚され(?:るたび|る度)、このキャラクターは(永久に)?\+(\d+)\/\+(\d+)を得る/)) {
-      if (/^味方/.test(m.input) && observer.side !== side) continue;
+    for (const m of coreTriggerEffectEntries(observer, '常時', /^(?:(?:味方|敵)の)?眷属が召喚され(?:るたび|る度)、このキャラクターは(永久に)?\+(\d+)\/\+(\d+)を得る/)) {
+      if (!coreKenzokuSummonMatchesSide(m, observer.side, side)) continue;
       const atk = coreStatBonus(observer, Number(m[2]), observer), hp = coreStatBonus(observer, Number(m[3]), observer);
       observer.atk += atk; observer.hp += hp; observer.maxHp += hp;
       coreEmitPassiveFlash(emit, observer);

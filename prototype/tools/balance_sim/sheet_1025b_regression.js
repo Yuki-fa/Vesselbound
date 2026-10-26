@@ -237,9 +237,12 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       const h = setup(side, [unit('C046', enhanced), plain('a'), plain('b')]); fire(h, '死亡');
       assert.deepEqual(stats(h).map(e => [e.unitId, e.atk, e.hp]), ['a', 'b'].map(id => [id, Number(value.match(/ATK\+(\d+)/)[1]), 0]));
     });
-    test('C047', '敵味方の眷属召喚を観測して本文の永久強化', value => {
-      const h = setup(side, [unit('C047', enhanced)]); summon(h); summon(h, h.other);
-      const ev = stats(h, 'summon_observer_stats'); assert.deepEqual(ev.map(e => [e.atk, e.hp]), [pair(value), pair(value)]); assert.ok(ev.every(e => e.persistent && e.boardSlot === 1));
+    // 2026-10-26：本文の対象が「味方の眷属」へ変更されたため、敵召喚の期待値は0。
+    test('C047', '味方の眷属召喚だけを観測して本文の永久強化', value => {
+      const h = setup(side, [unit('C047', enhanced)]); summon(h, h.other);
+      assert.equal(stats(h, 'summon_observer_stats').length, 0, '敵の眷属では永久加算しない');
+      summon(h);
+      const ev = stats(h, 'summon_observer_stats'); assert.deepEqual(ev.map(e => [e.atk, e.hp]), [pair(value)]); assert.ok(ev.every(e => e.persistent && e.boardSlot === 1 && e.side === side));
     });
     test('C070', '状態異常を得た1体ごとに全味方HPを加算', value => {
       const h = setup(side, [unit('C070', enhanced), plain('ally')]), amount = Number(value.match(/HP\+(\d+)/)[1]);

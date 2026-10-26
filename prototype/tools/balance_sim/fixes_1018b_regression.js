@@ -95,7 +95,12 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
       if (/味方の攻撃効果が発動するたび/.test(definition.desc)) kinds.push('味方攻撃');
       if (/召喚したキャラクターは「死亡/.test(definition.desc)) kinds.push('召喚後死亡');
       for (const kind of kinds) for (const online of [false, true]) for (const side of ['p1', 'p2']) {
-        const raw = makePanel(definition.id), blessed = copy(raw); coreApplyCardBoon(blessed, { dmgMul: 3 });
+        const raw = makePanel(definition.id);
+        // 2026-10-26：サイレンは本人除外を明記した新本文へ変更済み。今回は動作変更禁止なので、
+        // 旧祝福の互換検査は旧本文で続ける。現行本文の本人除外・回数の不一致は
+        // kenzoku_1026_regression / card_text_audit_1026 が実行・報告する。
+        if (definition.no === 'C016') raw.desc = raw.desc.replace('このキャラクター以外の全ての', '全ての');
+        const blessed = copy(raw); coreApplyCardBoon(blessed, { dmgMul: 3 });
         const a = trigger(formed(raw, online), kind, side), b = trigger(formed(blessed, online), kind, side);
         unblessedResults.push({card:definition.no,kind,online,side,hits:a.hits.map(e=>[e.unitId,e.amount]),
           units:Object.fromEntries(Object.entries(a.state.units).map(([side,list])=>[side,list.map(u=>[u.id,u.atk,u.hp,u.shield,u.poison||0])]))});
