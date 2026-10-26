@@ -7486,8 +7486,9 @@ html body.reward-screen-active .shop-board-sell-action{
 #reward-reroll-layer{position:absolute;inset:0;z-index:4500;pointer-events:auto}
 html body.reward-reroll-active #reward-offer-row{visibility:hidden!important;transition:none!important}
 /* 中の層（レアリティの線 .reward-card-line-layer など）は visibility を個別に持つので、子も隠す。
-   隠さないと、めくる前の裏向きのカードの周りに報酬欄のカードの発光が見えていた（2026-10-26 利用者指摘）。 */
-html body.reward-reroll-active #reward-offer-row *{visibility:hidden!important}
+   隠さないと、めくる前の裏向きのカードの周りに報酬欄のカードの発光が見えていた（2026-10-26 利用者指摘）。
+   報酬カードの transition:all .18s で visibility の切り替えが0.18秒遅れ、編成画面に入る暗転の明けに発光が見えていた（2026-10-26）ので、遷移も止める。 */
+html body.reward-reroll-active #reward-offer-row *{visibility:hidden!important;transition:none!important}
 /* 手前の層が消える間に流す光の帯（reward.js の _finishRewardReveal）。大きな縦長の柔らかい帯を1本だけ、
    左から右へ流す（REWARD_REVEAL_SWEEP_MS＝640ms と揃える）。 */
 #reward-reveal-sweep{position:absolute;inset:0;z-index:4501;pointer-events:none;overflow:hidden}
