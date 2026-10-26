@@ -11354,7 +11354,7 @@ html body.facility-greeting-active #village-status{z-index:5100!important}
 @keyframes gold-fx-in{from{opacity:0}to{opacity:1}}
 @keyframes gold-fx-rise{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(var(--gold-fx-rise,-40px))}}
 /* 指輪未取得：施設の出入りはそのまま、出発の実行だけを止める。 */
-.ring-exchange-required{cursor:not-allowed}
+.ring-exchange-required{cursor:var(--cursor-normal)}
 </style>
 <style>
 /* OPTIONS: 3840x2160設計座標。既存の.screenと同じ縮尺枠に載せる。 */
@@ -12158,7 +12158,7 @@ _watchVesselboundDpr();
 <script src="js/engine/map.js?v=innFace0928-q0060928-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q001e0751004-eventFix1004-se1004-fix1005-riese1008-refactor2_1008-d1010-p1011-fix1011-fix1012-vfxm1013-towerBoon1016-boss-shopExchange1017-peddlerExchange1017-trialFix1018-noSell1018-levels1018c-peddlerReroll1019-flame1019f-board1020-bf1020-v1021d-sheet1022a-sheet1023-renum1024-split1025-1-a1026-items1026"></script>
 <script src="js/engine/map_facility_dialogue.js?v=split1025-eof1025"></script>
     <script src="js/engine/game_confirm.js?v=tmKeys0926"></script>
-    <script src="js/engine/quest.js?v=q006done0929-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q008replace1004-q001e0751004-eventFix1004-fix1005b-defeatRetry1007-part1007-riese1008-refactor2_1008-d1010-e1010-dina1011-p1011-fixes1018b-soulDim1019-tavernSave1019-sheet1023-dead1025-split1025-1"></script>
+    <script src="js/engine/quest.js?v=q006done0929-outcome0929-fiveSaints1001-storyCycle1001-deep1002-debugStory1002-q008replace1004-q001e0751004-eventFix1004-fix1005b-defeatRetry1007-part1007-riese1008-refactor2_1008-d1010-e1010-dina1011-p1011-fixes1018b-soulDim1019-tavernSave1019-sheet1023-dead1025-split1025-1-cur1027"></script>
 <script src="js/engine/quest_event_flow.js?v=split1025"></script>
     <script src="js/engine/gold_fx.js?v=cargoLoss0927"></script>
     <script src="js/engine/arena.js?v=reportedFixes0928-talkA0928-outcome0929-deep1002-fix1005-bannerHold1006-defeatRetry1007-fixes1018b-banner1019"></script>
@@ -14426,13 +14426,13 @@ html body.blessing-flame-active :is(.shop-board-sell-value,.quest-part-btn,#btn-
 /* 起動できるカードは枠を緑に光らせる（2026-10-23 利用者指定）。対象選び中の発生元は強く光らせる。 */
 html body #hand-slots.board-slots > .card.card-activation-ready{
   box-shadow:0 0 0 3px rgba(96,232,128,.95),0 0 22px 6px rgba(96,232,128,.62)!important;
-  cursor:pointer;
+  cursor:var(--cursor-normal);
 }
 html body #hand-slots.board-slots > .card.card-activation-ready.card-activation-source{
   box-shadow:0 0 0 4px rgba(170,255,190,1),0 0 34px 10px rgba(96,232,128,.85)!important;
 }
 /* 破壊の起動（ヘルナイト）で選べる報酬枠のカード（2026-10-23） */
-.card-activation-target{outline:3px dashed #a8e5ff;cursor:pointer}
+.card-activation-target{outline:3px dashed #a8e5ff;cursor:var(--cursor-normal)}
 /* 起動の対象選び中（body.activation-picking）は、アイテム使用中と同じく画面を暗くして、
    魔導板と報酬欄（アイテムを選ぶ起動＝activation-picking-item では魔導板とアイテム枠）だけを前に出す（2026-10-26 利用者指定）。 */
 html body.activation-picking #board-drag-overlay{

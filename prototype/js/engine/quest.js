@@ -677,7 +677,7 @@ html body.quest-destroy-wait #scr-battle,html body.quest-destroy-wait #scr-battl
   transition:opacity ${TAVERN_DIALOGUE_FADE_MS}ms ease!important;
 }
 .tavern-dialogue-text.is-visible{opacity:1!important}
-.tavern-dialogue-choice{display:block!important;pointer-events:auto!important;cursor:var(--cursor-pointer, pointer)!important}
+.tavern-dialogue-choice{display:block!important;pointer-events:auto!important;cursor:var(--cursor-normal)!important}
 .tavern-dialogue-choice:hover,.tavern-dialogue-choice:focus-visible{
   color:#a45a1f!important;text-shadow:0 0 9px rgba(255,232,162,.85)!important;outline:none!important;
 }
