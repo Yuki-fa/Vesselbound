@@ -766,7 +766,8 @@ function coreExtraTriggerTimes(unit, kind, copies) {
 }
 function coreAllyExtraTriggerTimes(unit, state, kind) {
   const pattern = new RegExp('味方の' + kind + '効果は(\\d+)回追加で発動する');
-  return (state.units[unit.side] || []).filter(x => x && x.hp > 0 && !coreIsSealed(x))
+  // 死亡した本人の常時効果も、その死亡効果には適用する。他の死亡済みの体は数えない。
+  return (state.units[unit.side] || []).filter(x => x && (x.hp > 0 || (kind === '死亡' && x === unit)) && !coreIsSealed(x))
     .reduce((n, x) => n + coreTriggerEffectEntries(x, '常時', pattern).reduce((v, m) => v + Number(m[1]), 0), 0);
 }
 
@@ -2760,6 +2761,16 @@ function coreSummonBuffEventValues(event) {
   return { atk: event.gameTotalAtk, hp: event.gameTotalHp,
     ...(event.gameTotalShock != null ? { shock: event.gameTotalShock } : {}) };
 }
+// 再生開始前の眷属修正。能力値は戦闘中の合計、キーワードはランの合計を別々に控える。
+function coreSummonPreviewBuffs(state, side, events) {
+  const first = (events || []).find(e => e.type === 'summon_buff' && e.side === side);
+  const shock = (events || []).find(e => e.type === 'summon_buff' && e.side === side && e.shock);
+  return {
+    stats: first ? { atk: first.totalAtk - first.atk, hp: first.totalHp - first.hp } : coreSummonBuffOf(state, side),
+    game: { atk: 0, hp: 0, shock: shock ? shock.gameTotalShock - shock.shock
+      : Number(state.gameSummonBuff && state.gameSummonBuff[side] && state.gameSummonBuff[side].shock) || 0 },
+  };
+}
 function coreAddSummonShock(state, side, amount, source, emit) {
   if (!(amount > 0)) return;
   state.gameSummonBuff = state.gameSummonBuff || {};
@@ -2955,7 +2966,7 @@ function corePreviewSummonStats(state, side, definition, sourceUnit, summonBoon)
   const child = createCoreUnit(source, side, 0);
   coreMarkBattleSummon(child);
   coreApplySummonStatEffects(preview, child, null, owner, sourceId, () => {});
-  return { atk: child.atk, hp: child.hp };
+  return { atk: child.atk, hp: child.hp, keywords: coreUnitKeywords(child).filter(k => k !== '眷属') };
 }
 
 // 旧PvEの直接生成入口も、この分類・眷属効果の実装を共有する。
@@ -3948,10 +3959,11 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
   }
   // 色数の条件・弱体の量を本文から読む。既存の弱体イベントを両方の再生経路へ渡す。
   for (const m of coreTriggerEffectEntries(unit, '開戦', /^味方の色が(\d+)色以上の場合、全ての敵に弱体(\d+)を与える/)) {
-    const colors = new Set(allies.filter(x => x.hp > 0 && !coreIsSealed(x) && x.color).map(x => x.color));
+    // 同じ開戦効果の途中の召喚・奪取も含め、条件を判定する瞬間の盤面を見る。
+    const colors = new Set((state.units[unit.side] || []).filter(x => x && x.hp > 0 && !coreIsSealed(x) && x.color).map(x => x.color));
     if (colors.size < Number(m[1])) continue;
     const amount = Number(m[2]);
-    foes.filter(x => x.hp > 0 && !coreIsSealed(x)).forEach(x => {
+    (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(x => x && x.hp > 0 && !coreIsSealed(x)).forEach(x => {
       x.weaken = (Number(x.weaken) || 0) + amount;
       coreEmitAilment(state, emit, { type: 'keyword_effect', effect: 'weaken', side: x.side,
         unitId: x.id, sourceId: unit.id, amount });
@@ -4192,12 +4204,18 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
     // 2026-10-12: 通常2回・合体6回のように本文ごとに異なる回数も、それぞれ発動する。
     const penances = coreTriggerEffectEntries(damageDefinition, '攻撃', /このキャラクターは(\d+)ダメージを(\d+)回受ける/);
     if (!penances.length) for (let p = 0; p < coreEffectCount(damageDefinition, '懺悔'); p++) penances.push(['', '1', '2']);
-    for (const penance of penances) {
-      for (let i = 0; i < Number(penance[2]) && unit.hp > 0; i++) {
-        const result = applyHit(unit, unit, Number(penance[1]), false, false, false, coreEnhancementHitOpt());
-        if (result.died) break;
+    if (!penances.length || unit._coreSelfDamageResolving) return;
+    // 1回ずつ命中と負傷の反応を解決する。その反応の追加攻撃から同じ自傷へは再入しない。
+    // 他の攻撃効果と、次の正規の攻撃での自傷は従来どおり発動する。
+    unit._coreSelfDamageResolving = true;
+    try {
+      for (const penance of penances) {
+        for (let i = 0; i < Number(penance[2]) && unit.hp > 0; i++) {
+          const result = applyHit(unit, unit, Number(penance[1]), false, false, false, coreEnhancementHitOpt());
+          if (result.died) break;
+        }
       }
-    }
+    } finally { delete unit._coreSelfDamageResolving; }
   });
   // 攻撃：血がN以上ならXマナを得る（ファミリア）。**数値は本文から読む**（合体後は4マナ）。
   const familiarBlood = coreUnitTriggerText(unit, '攻撃')
@@ -5199,6 +5217,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   const allies = (state.units[unit.side] || []).filter(Boolean);
   const foes = (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
   const repeats = 1 + coreExtraTriggerTimes(unit, '死亡', coreEffectCount(unit, '逆襲'))
+    + coreAllyExtraTriggerTimes(unit, state, '死亡')
     + coreRingCount(state, unit.side, '屍術師の指輪')
     + Math.max(0, Number(unit._effectRepeatBonus) || Number(unit.effectData && unit.effectData.effectRepeatBonus) || 0);
   if (String(coreUnitTriggerText(unit, '死亡') || '').trim()) coreEmitEffectFlash(emit, unit, 'death', repeats);
@@ -7493,6 +7512,7 @@ if (typeof window !== 'undefined') {
   window.coreUnitKeywords = coreUnitKeywords;
   window.coreUnitEffectText = coreUnitEffectText;
   window.coreGameSummonBuffFields = coreGameSummonBuffFields;
+  window.coreSummonPreviewBuffs = coreSummonPreviewBuffs;
   window.coreDefeatedEnemyFields = coreDefeatedEnemyFields;
   window.coreApplyDeathSummonGrantEvent = coreApplyDeathSummonGrantEvent;
   window.coreApplyInjuryGrantEvent = coreApplyInjuryGrantEvent;
@@ -7586,7 +7606,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreDefeatedEnemyFields,
     coreLaneAttackCandidates, corePickAttacker, coreExtraAttackTotal,
     battleCoreFinalState, coreUnitSnapshot, createCoreUnit,
-    coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced, coreGameSummonBuffFields, coreSummonBuffEventValues, coreApplyDeathSummonGrantEvent, coreApplyInjuryGrantEvent,
+    coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced, coreGameSummonBuffFields, coreSummonBuffEventValues, coreSummonPreviewBuffs, coreApplyDeathSummonGrantEvent, coreApplyInjuryGrantEvent,
     coreShieldValueFromKeyword, coreUnitShieldValue, coreUnitHasKeyword,
     coreUnitKeywordCount, coreIsSealed, coreCanAct, coreAttackDamage, coreCounterDamage,
     coreSummonUnit, corePreviewSummonStats, coreMarkBattleSummon, coreApplyKenzokuSummonEffects,

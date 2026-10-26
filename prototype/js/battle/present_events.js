@@ -149,6 +149,8 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
     let next=null;
     for(let i=index+1;i<events.length;i++){
       const e=events[i];if(!e)continue;
+      // 割り込みでも本人の攻撃効果は発動する。その発光を次の負傷の区切りと取り違えない。
+      if(e.type==='effect_flash'&&e.unitId===owner.id&&e.trigger==='attack')continue;
       if(['effect_flash','turn_begin','battle_end'].includes(e.type))break;
       if(e.type==='attack'&&e.reactionSourceId===owner.id){next=e;break;}
     }
