@@ -25,7 +25,7 @@ const { launch } = require('./headless');
 
 const BASE = process.env.VB_URL || 'http://127.0.0.1:5500/index.html';
 const CASES = Number(process.env.VB_CASES || 24);
-const READY = "typeof G!=='undefined' && typeof battlePhase==='function' && typeof runBattleCore==='function' && typeof PANEL_POOL!=='undefined' && PANEL_POOL.length>0";
+const READY = "document.readyState==='complete' && typeof G!=='undefined' && typeof battlePhase==='function' && typeof runBattleCore==='function' && typeof PANEL_POOL!=='undefined' && PANEL_POOL.length>0";
 
 // ページ内で1ケースを実行して結果を返す。ci で盤面が決まる。
 const PLAIN = process.env.VB_PLAIN === '1';
