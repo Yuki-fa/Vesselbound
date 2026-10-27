@@ -43,7 +43,23 @@ function _battleFxResolveElement(element) {
   const unit = [...(G.allies||[]),...(G.enemies||[])].find(u=>u && _battleFxKey(u)===String(id));
   const r = unit && battleFxRect(unit);
   // IDを持つカードが盤面から外れたら、まだ接続中の旧DOMも再利用しない。
-  return r && r.element || null;
+  return r && r.element ? (element.dataset.battleStateHost ? _battleFxStateRect(element.dataset.battleStateHost,r).element : r.element) : null;
+}
+// 隠密の微小な揺れはイラストの層だけで行う。カード本体のtransformは
+// 詰め（FLIP）と攻撃モーションが使うため、状態ループに原値として保持させない。
+// 矩形はカード全体のまま渡し、枠の光・寸法・揺れの量は従来の定義を使う。
+function _battleFxStateRect(name,rect) {
+  if(name!=='stealth-state'||!rect||!rect.element) return rect;
+  const card=rect.element,portrait=card.querySelector('.unit-portrait');
+  if(!portrait) return {...rect,element:null};
+  let host=card.querySelector('.battle-state-motion-layer');
+  if(!host){
+    host=document.createElement('div');host.className='battle-state-motion-layer';
+    host.dataset.unitId=card.dataset.unitId;host.dataset.battleStateHost=name;
+    host.style.cssText='position:absolute;inset:0;pointer-events:none';
+    portrait.parentNode.insertBefore(host,portrait);host.appendChild(portrait);
+  }
+  return {...rect,element:host};
 }
 function _battleFxTimer(fn, ms) {
   const id = setTimeout(() => { _battleFxTimers.delete(id); fn(); }, Math.max(0,ms));
@@ -197,13 +213,14 @@ function _battleFxFollowStates() {
   reads.forEach(({entry,key,r,visible}) => {
     for (const state of ['shield','poison','weaken','guts','revive','stealth','guard']) {
       const name = `${state}-state`, old = entry.loops.get(name), value = visible ? Number(entry.values[state])||0 : 0;
+      const target=value?_battleFxStateRect(name,r):r;
       // カードの要素が作り直されただけなら、止めずに付け替える（出し直すと明滅する）。
-      if (old && value && old.element !== r.element && VbFx.retarget && VbFx.retarget({name,key,element:old.element},r)) old.element = r.element;
-      if (old && (!value || old.element !== r.element)) { VbFx.stop({name,key,element:old.element}); entry.loops.delete(name); }
+      if (old && value && old.element !== target.element && VbFx.retarget && VbFx.retarget({name,key,element:old.element},target)) old.element = target.element;
+      if (old && (!value || old.element !== target.element)) { VbFx.stop({name,key,element:old.element}); entry.loops.delete(name); }
       const cur = entry.loops.get(name);
-      if (value > 0 && (!cur || cur.element !== r.element || cur.value !== value)) {
-        VbFx.play(name,{key,source:r,targets:[r],side:entry.side,value,dir:1,resolveElement:_battleFxResolveElement}).catch(err=>console.error('[battle state VFX]',err));
-        entry.loops.set(name,{element:r.element,value});
+      if (value > 0 && target.element && (!cur || cur.element !== target.element || cur.value !== value)) {
+        VbFx.play(name,{key,source:target,targets:[target],side:entry.side,value,dir:1,resolveElement:_battleFxResolveElement}).catch(err=>console.error('[battle state VFX]',err));
+        entry.loops.set(name,{element:target.element,value});
       }
     }
     if ((!r || !r.element) && !entry.loops.size) _battleFxStates.delete(key);
