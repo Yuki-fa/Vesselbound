@@ -621,7 +621,7 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   return String(fallbackPrefix||'C').toUpperCase()+String(n).padStart(3,'0');
 }
 
-const CARD_ART_VERSION='art1027'; // 2026-10-27 エンチャント・キャラクターの絵の差し替え
+const CARD_ART_VERSION='art1027b'; // 2026-10-27 エンチャント・キャラクターの絵の差し替え、刻印・荷物の番号の振り直し（E066/E076〜E080→E101〜E106、E101/E102→E107/E108）
 function getCharacterNoArtPath(card){
   if(!card||typeof card!=='object') return '';
   const raw=_assetCodeRaw(card);

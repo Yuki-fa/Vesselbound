@@ -22618,7 +22618,7 @@ VbFxDefs.register({
     {
       "name": "gold-loss",
       "label": "苦悶の刻印 · E078",
-      "sourceCode": "E078",
+      "sourceCode": "E104",
       "ms": 1100,
       "color": "#8a7a50",
       "light": "#c8b880",
@@ -22980,7 +22980,7 @@ VbFxDefs.register({
     {
       "name": "suffering-brand",
       "label": "受難の刻印 · E077",
-      "sourceCode": "E077",
+      "sourceCode": "E103",
       "ms": 1100,
       "color": "#d02040",
       "light": "#ffc0c8",
