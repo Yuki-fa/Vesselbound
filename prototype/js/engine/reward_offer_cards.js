@@ -2,7 +2,7 @@
 // 2026-10-25 リファクタリング：reward.js から移した（処理は変えていない）。
 
 // ── 祭壇・指輪依頼の提示：通常の報酬カードと同じ場所（#reward-offer-row）に表示する ──
-// 暗い（未解放）間はホバーで説明のみ表示、明るくなったらドラッグで指輪置き場へ持っていく。
+// 暗い（未解放）間は説明のみ。必要枚数を選ぶとクリック・ドラッグで取得できる。
 // 祭壇の提示枠の数（＝提示される指輪の数）。取得後に残す空枠の数もこれに合わせる。
 const RING_OFFER_SLOT_COUNT=3;
 function _ringOfferSlotCount(){
@@ -55,6 +55,7 @@ function _renderRingOfferResolvedFrames(el){
   }
 }
 function _renderRingOfferCards(el){
+  if(_ringOfferSelectionActive()) _syncRingOfferSelection();
   const unlocked=!!G._ringOfferUnlocked;
   if(G._ringOfferResolved){ _renderRingOfferResolvedFrames(el); return; }
   (G._ringOffer||[]).forEach((ring,idx)=>{
@@ -78,7 +79,9 @@ function _renderRingOfferCards(el){
     }
     div.draggable=unlocked;
     if(unlocked){
+      div.onclick=e=>{ e.stopPropagation(); _takeRingOffer(idx); };
       div.addEventListener('dragstart',e=>{
+        if(!G._ringOfferUnlocked||G._ringOfferResolved){ e.preventDefault(); return; }
         _dragSrc={arr:'ringOffer',idx};
         if(e.dataTransfer){ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setDragImage(_transparentDragImg,0,0); }
         _setDragZoneClass('dragzone-ring-offer');
@@ -89,7 +92,9 @@ function _renderRingOfferCards(el){
         div.classList.add('dragging');
       });
       div.addEventListener('drag',e=>{ if(e.clientX||e.clientY) _moveDragGhost(e.clientX,e.clientY); });
-      div.addEventListener('dragend',()=>{ div.classList.remove('dragging'); _dragSrc=null; });
+      div.addEventListener('dragend',()=>{
+        div.classList.remove('dragging'); _dragSrc=null; _removeDragGhost(); _clearDragZoneClass();
+      });
     }
     el.appendChild(div);
   });
@@ -499,39 +504,82 @@ function _pickAltarRingOffer(){
   });
   return result.slice(0,3).map(r=>clone(r));
 }
-// 廃棄ボタンから呼ばれる：魔導板のカードを1枚廃棄し、3枚に達したら指輪提示を解放する。
-// 祭壇の指輪提示中に還魂できるカード（刻印は手放せない）。
+// 供物は位置だけを保存する。指輪を取るまでは魔導板も資源も変えない。
+function _ringOfferSelectionActive(){
+  return !!(G&&G.phase==='reward'&&G._ringOfferPhase&&!G._ringOfferResolved&&G._ringOffer?.length
+    &&!(typeof questRingOfferActive==='function'&&questRingOfferActive()));
+}
+function _syncRingOfferSelection(){
+  const board=_mainBoardCards();
+  G._ringOfferSelectedSlots=[...new Set(G._ringOfferSelectedSlots||[])]
+    .filter(i=>Number.isInteger(i)&&ringExchangeSacrificeAllowed(board[i]))
+    .slice(0,SHOP_EXCHANGE_TRIAL.ringCardCost);
+  G._boardDiscardCount=G._ringOfferSelectedSlots.length;
+  G._ringOfferUnlocked=G._boardDiscardCount===SHOP_EXCHANGE_TRIAL.ringCardCost;
+  return G._ringOfferSelectedSlots;
+}
+function _clearRingOfferSelection(){
+  const count=(G._ringOfferSelectedSlots||[]).length;
+  G._ringOfferSelectedSlots=[];
+  if(!G._ringOfferResolved){ G._boardDiscardCount=0; G._ringOfferUnlocked=false; }
+  return count;
+}
 function _ringOfferDiscardableCard(card){
-  return !!(card&&!_cardIsEngraved(card)&&G&&G._ringOfferPhase&&Array.isArray(G._ringOffer)&&G._ringOffer.length>0&&!G._ringOfferUnlocked&&!G._ringOfferResolved);
+  if(!_ringOfferSelectionActive()||!ringExchangeSacrificeAllowed(card)) return false;
+  return (G._ringOfferSelectedSlots||[]).length<SHOP_EXCHANGE_TRIAL.ringCardCost
+    ||(G._ringOfferSelectedSlots||[]).some(i=>_mainBoardCards()[i]===card);
 }
 function _discardBoardCardForRingOffer(idx,card){
-  if(!Array.isArray(G._ringOffer)||!G._ringOffer.length||G._ringOfferUnlocked) return;
-  if(typeof questCardRemovalLocked==='function'&&questCardRemovalLocked(card)) return;
-  if(_cardIsEngraved(card)) return;
-  const unit=_getPartyBoardUnit();
-  if(!unit) return;
-  const boardList=_normalizeUnitBoardCards(unit);
-  // 何らかの理由で同一クリックに対しこの関数が二重に呼ばれても、既に廃棄済み（枠が空）なら
-  // カウントを二重加算しない（3枚廃棄したはずが4枚必要になる不具合の再発防止）。
-  if(!boardList[idx]) return;
-  boardList[idx]=null;
-  unit.boardCards=boardList;
-  _syncUnitPanelEffectsAfterMove(unit);
-  if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
-  // 途中で祭壇を離れる時に**元の場所へ回収する**ため、捧げたカードと元のスロットを控える。
-  G._ringSacrificedCards=Array.isArray(G._ringSacrificedCards)?G._ringSacrificedCards:[];
-  const entry={idx,card:clone(card)};
-  G._ringSacrificedCards.push(entry);
-  if(typeof applyAscensionLifeOnSacrifice==='function') applyAscensionLifeOnSacrifice(entry);
-  G._boardDiscardCount=(G._boardDiscardCount||0)+1;
-  const ringGetCount=Math.max(1,Math.min(3,G._ringSacrificedCards.length));
-  _playRewardAcquireSfx(`ring_get${ringGetCount}.wav`);
-  // 3枚廃棄すると指輪を1つだけ得られるようになる（6枚廃棄しても2つにはならない：1度解放したら再度解放しない）
-  if(G._boardDiscardCount>=SHOP_EXCHANGE_TRIAL.ringCardCost&&!G._ringOfferUnlocked){
-    G._ringOfferUnlocked=true;
+  if(!_ringOfferSelectionActive()||_mainBoardCards()[idx]!==card) return;
+  const selected=_syncRingOfferSelection(),at=selected.indexOf(idx);
+  if(at>=0) selected.splice(at,1);
+  else{
+    if(!_ringOfferDiscardableCard(card)) return;
+    selected.push(idx);
+    _playRewardAcquireSfx(`ring_get${Math.max(1,Math.min(3,selected.length))}.wav`);
   }
+  _syncRingOfferSelection();
   renderHandEditor();
   renderFieldEditor();
   renderRewCards();
   renderMoveSlotsInEnemy();
+}
+function _wireRingOfferSelection(div,card,idx){
+  if(!_ringOfferSelectionActive()) return false;
+  const selected=(G._ringOfferSelectedSlots||[]).includes(idx),allowed=_ringOfferDiscardableCard(card);
+  _setPickingCardState(div,allowed,selected);
+  div.draggable=false;
+  div.onclick=e=>{ e.stopPropagation(); if(allowed) _discardBoardCardForRingOffer(idx,card); };
+  return true;
+}
+// クリックも指輪置き場へのドロップもここだけを通す。
+function _takeRingOffer(offerIdx,targetSlot){
+  if(G.phase!=='reward'||!G._ringOfferPhase||G._ringOfferResolved) return false;
+  const altar=_ringOfferSelectionActive();
+  const selected=altar?_syncRingOfferSelection():[];
+  const ring=(G._ringOffer||[])[offerIdx];
+  if(!ring||!G._ringOfferUnlocked) return false;
+  G.rings=Array.isArray(G.rings)?G.rings:[null,null,null,null];
+  const slot=targetSlot==null?G.rings.findIndex(r=>!r):targetSlot;
+  if(!Number.isInteger(slot)||slot<0||slot>=G.rings.length||G.rings[slot]) return false;
+  const board=_mainBoardCards(),entries=selected.map(idx=>({idx,card:board[idx]}));
+  G.rings[slot]=clone(ring);
+  selected.forEach(idx=>{ board[idx]=null; });
+  G._ringOfferFadeOut={taken:offerIdx,offer:clone(G._ringOffer)};
+  G._ringOffer.splice(offerIdx,1);
+  G._ringOfferResolved=true;
+  G._ringOfferUnlocked=false;
+  G._ringOfferSelectedSlots=[];
+  const unit=_getPartyBoardUnit();
+  if(unit) _syncUnitPanelEffectsAfterMove(unit);
+  if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
+  if(G._isRingExchange&&typeof questCommitAltarSacrifices==='function') questCommitAltarSacrifices(entries);
+  applyAscensionCardEffects(entries);
+  G._ringSacrificedCards=[];
+  if(typeof markCardAcquired==='function') markCardAcquired(ring);
+  _playRewardAcquireSfx('ring_get.wav');
+  _dragSrc=null; _removeDragGhost(); _clearDragZoneClass();
+  updateHUD(); renderRewCards(); renderHandEditor(); renderFieldEditor(); renderMoveSlotsInEnemy();
+  if(G._isRingExchange&&typeof questOnAltarRingTaken==='function') questOnAltarRingTaken();
+  return true;
 }
