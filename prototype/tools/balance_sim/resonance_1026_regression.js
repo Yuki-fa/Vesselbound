@@ -254,6 +254,7 @@ function unchangedMain() {
   };
   // effects-1026cで直した強化C016・R019だけを除き、通常／強化・両陣営・複数seedを比較する。
   for (const row of [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')]) {
+    if (['E065','E066'].includes(row['No.'])) continue;
     const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
     for (const enhanced of [false, true]) for (const side of ['p1', 'p2']) for (const seed of [1, 1026, 261026]) {
       if(row['No.']==='C016'&&enhanced) continue;

@@ -355,6 +355,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     }
     if(e.type==='run_effect'){
       applyCoreRunEffectEvent(e);
+      applyCoreBattleEndCardEvent(e);
       if(typeof presentRunEffectEvent==='function') await presentRunEffectEvent(e,{findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id))});
       continue;
     }

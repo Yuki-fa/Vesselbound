@@ -621,18 +621,18 @@ const _STAGE_ENGRAVING_NAMES=new Set([
 function _stageEngravingDescription(card,desc){
   const name=String(card&&card.name||'').trim();
   const no=String(card&&card.no||'').toUpperCase();
-  if(!_STAGE_ENGRAVING_NAMES.has(name)&&!['E066','E076','E077','E078','E079','E080'].includes(no)) return desc;
+  if(!_STAGE_ENGRAVING_NAMES.has(name)&&!['E102','E101','E103','E104','E105','E106'].includes(no)) return desc;
   // Xは取得した時のステージで固定（カードの _engravingStage）。記録の無いカード（未取得の提示中・古いセーブ）は現在のステージ。
   const stage=(typeof engravingCardStage==='function'&&engravingCardStage(card))
     ||Math.max(1,Math.floor(Number(typeof G!=='undefined'&&G&&G._wave)||1));
-  let value=stage*(name==='苦悶の刻印'||no==='E078'?20:5);
-  if(name==='宿業の刻印'||no==='E066'){
+  let value=stage*(name==='苦悶の刻印'||no==='E104'?20:5);
+  if(name==='宿業の刻印'||no==='E102'){
     value=-corePanelStatBonuses(card,{stageNumber:stage}).atk;
-  }else if(name==='修道の刻印'||no==='E079'){
+  }else if(name==='修道の刻印'||no==='E105'){
     value=-coreBoonDynamicValue(card,card.desc,-value,'mod');
-  }else if(name==='受難の刻印'||no==='E077') value=coreBoonDynamicValue(card,card.desc,value,'damage');
+  }else if(name==='受難の刻印'||no==='E103') value=coreBoonDynamicValue(card,card.desc,value,'damage');
   let out=String(desc||'');
-  if(name==='宿業の刻印'||no==='E066'){
+  if(name==='宿業の刻印'||no==='E102'){
     out=out.replace(/-\s*\d+\s*\/\s*-\s*\d+/,`-${value}/-${value}`);
     out=out.replace(/「[^」]+」(?=の効果で)/,`「${_cardUiName(card)}」`);
   }
@@ -642,11 +642,12 @@ function _stageEngravingDescription(card,desc){
 // 数えた終戦の回数はカードの _battleEndCount（コアの終戦処理が数え、戦闘の体からカードへ戻る）。
 function _battleEndCountdownDescription(card,desc){
   const text=String(desc||'');
-  const every=text.match(/(\d+)回目の終戦ごとに/);
+  const every=text.match(/(\d+)回目の終戦(?:ごとに|時に)/);
   if(!every||!/（あと\s*X\s*戦）/.test(text)) return text;
   const n=Math.max(1,Number(every[1])||1);
   const count=Math.max(0,Math.floor(Number(card&&card._battleEndCount)||0));
-  return text.replace(/（あと\s*X\s*戦）/g,`（あと${n-count%n}戦）`);
+  const remaining=/回目の終戦時に/.test(every[0])?Math.max(0,n-count):n-count%n;
+  return text.replace(/（あと\s*X\s*戦）/g,`（あと${remaining}戦）`);
 }
 function _rawSubstitutedDesc(card,owner){
   if(!card) return '';

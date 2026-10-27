@@ -31,7 +31,7 @@ function fresh({stage = 1, acquired = stage, power = 60, life = 80, fate = true,
   if (sealed) hero.keywords = ['封印99'];
   G.mainBoard[1] = hero;
   if (fate) {
-    const enchant = card('E066'); enchant.directions = ['right'];
+    const enchant = card('E102'); enchant.directions = ['right'];
     if (acquired != null) enchant._engravingStage = acquired;
     if (boon) coreApplyCardBoon(enchant, boon);
     G.mainBoard[0] = enchant;
@@ -127,7 +127,7 @@ function gameplay(result) {
   });
   check('同名2枚も取得ステージ・祝福を個別に合算、復活時も同じ値で掛け直す', () => {
     const board = fresh({stage: 5, acquired: 1});
-    const second = card('E066'); second._engravingStage = 2; second.directions = ['left'];
+    const second = card('E102'); second._engravingStage = 2; second.directions = ['left'];
     coreApplyCardBoon(second, {modMul: 2}); G.mainBoard[2] = second;
     const raw = formed(board); raw.keywords = ['復活'];
     assert.deepEqual(stats(raw), [35, 55, 55]);

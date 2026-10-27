@@ -890,6 +890,7 @@ function _pveCoreStageFields(){
     defeatedEnemies:G.defeatedEnemies||(G.defeatedEnemies=coreDefeatedEnemyFields().defeatedEnemies),
     ...coreGameSummonBuffFields({p1:G.gameSummonBuff}),
     ...coreRunEffectFields({p1:G.runEffects||{}}),
+    ...coreBattleEndCardFields({p1:G.mainBoard||[]}),
     itemFreeSlots:{p1:(G.spellSlots||[]).filter(x=>!x).length,p2:4},
     mapIndex:Math.max(1,Number(G.floor)||1),
     stageNumber:Math.max(1,Number(G._wave)||1),
@@ -2517,7 +2518,7 @@ async function _applyDeathKeywordEffects(unit, unitIsEnemy){
     // 死亡処理は一時コアstateで解決するため、血だけはイベント発行時点で
     // PvEのグローバル状態へ反映する。後段の演出待ちや盤面整理で処理が
     // 中断されても、封印解放判定が参照するカウンターを失わないようにする。
-    if(ev&&ev.type==='run_effect') applyCoreRunEffectEvent(ev);
+    if(ev&&ev.type==='run_effect') {applyCoreRunEffectEvent(ev);applyCoreBattleEndCardEvent(ev);}
     if(ev&&ev.type==='blood_set'&&ev.side==='p1'){
       G._blood=Math.max(0,Number(ev.amount)||0);
       if(typeof renderBattleCounters==='function') renderBattleCounters();
@@ -2624,7 +2625,7 @@ async function _applyCoreBattleEndEffectsLive(){
   });
   const emit=ev=>{
     if(Array.isArray(G._battleCoreEvents)) G._battleCoreEvents.push(ev);
-    if(ev&&ev.type==='run_effect') applyCoreRunEffectEvent(ev);
+    if(ev&&ev.type==='run_effect') {applyCoreRunEffectEvent(ev);applyCoreBattleEndCardEvent(ev);}
     // 終戦の「永久に+X/+Y」（レプラコーン）は魔導板のカードへ書き込む。
     // 戦闘中の再生（battle_events.js）と違い、ここはイベントを流さないので、書き込まないと効果が消えていた（利用者報告）。
     if(!(typeof arenaIsActive==='function'&&arenaIsActive())

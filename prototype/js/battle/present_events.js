@@ -427,8 +427,8 @@ async function _presentLabFinish(plan) {
 // ダメージ等を「VFXが当たった瞬間」まで待たせる演出（ワーム・援護射撃の弾・隕石の巻物）。
 // 隕石の巻物は、隕石が墜落した直後にダメージを出す（2026-10-12 利用者指摘：VFXより先にダメージが出ていた）。
 // アラクネ（C013）は熱波が届いた瞬間に強化とダメージを同時に出す（2026-10-15）。
-// 竜の契約（E008）・逆上（E032）・嵐の指輪（R023）・苦行の指輪（R012）・受難の刻印（E077）も着弾の瞬間に数値を出す（2026-10-17）。
-const PRESENT_LAB_WAIT_IMPACT = new Set(['C069','E067','I006','C124','C071','C011','EN060','C086','C099','C120','C107','C013','E008','E032','R023','R012','E077']);
+// 竜の契約（E008）・逆上（E032）・嵐の指輪（R023）・苦行の指輪（R012）・受難の刻印（E103）も着弾の瞬間に数値を出す（2026-10-17）。
+const PRESENT_LAB_WAIT_IMPACT = new Set(['C069','E067','I006','C124','C071','C011','EN060','C086','C099','C120','C107','C013','E008','E032','R023','R012','E103']);
 async function presentLabBeginEvent(ev, events, index, api) {
   // 決着後のイベントへ来たら、以後の演出を速くする（present.js presentDecidedSpeedScale）。
   if (typeof presentNoteDecidedEvent === 'function') presentNoteDecidedEvent(ev);

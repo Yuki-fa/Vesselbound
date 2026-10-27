@@ -59,7 +59,7 @@ const CORE_EFFECT_CARD_NAMES = new Set([...CORE_KEYWORD_CARD_NAMES,
   '逆襲', '闇の儀式', '執念の炎', '闇の炎', '狂気', '野生の力', '治癒能力', 'マナ生成',
   '逆上', '剣技', '怨念', '錬成', 'マナの種', '恩寵', '狙撃', '魔族の魂',
   '大いなる守護', '内なる大力', '魔導回路', '魔術の知識', '毒袋', '変化', '闇のオーラ', '制圧', '死者の守護', 'マナの放出', '武威', '渇望', '遺産', '奇妙な絆', '成長', '死の体感', 'マナの生成', '翡翠の壺', '黄金の壺', '天の雷槌', 'マナの残滓', '復讐の炎', '活性化', '乱れ撃ち', '継承', '咆哮', '威光', '屍術', '魔鏡', '献身', '援護射撃', '進軍の歌', '栄光の歌', '報復の歌', '衝撃波', '血の結束', '英雄の印', '漲る力',
-  '反抗心', '血の雫', '血盟',
+  '反抗心', '血の雫', '血盟', '呪いの印', '受け流し', '殉教', '一時の眠り',
   '宿業の刻印', '抑圧の刻印', '受難の刻印', '苦悶の刻印', '修道の刻印', '我慢の刻印']);
 // 効果文に書かれていれば自身が持つものとして扱うキーワード。
 const CORE_TEXT_KEYWORDS = ['復活', '根性', 'ヘイト', '二段攻撃', '三段攻撃', '三方向攻撃', '全体攻撃', '先制', '隠密'];
@@ -1739,6 +1739,9 @@ function coreInitializeBattleState(state) {
     // 結界の値を持たない体（保存された死亡体など）へ shield:0 を書き足さない。
     if (unit.shield != null) unit.shield = coreNormalizeShieldValue(unit.shield);
     if (Array.isArray(unit.keywords)) unit.keywords = coreNormalizeShieldKeywords(unit.keywords);
+    const poison = coreKeywordSum(unit, '毒', true), weaken = coreKeywordSum(unit, '弱体', true);
+    if (poison > 0) unit.poison = Math.max(Number(unit.poison) || 0, poison);
+    if (weaken > 0) unit.weaken = Math.max(Number(unit.weaken) || 0, weaken);
     coreApplyPassiveHpRings(state, unit, side);
   }));
   state.turn = 0;
@@ -1769,6 +1772,7 @@ function createBattleState(setup) {
     ...coreDefeatedEnemyFields(setup && setup.defeatedEnemies),
     ...coreGameSummonBuffFields(setup && setup.gameSummonBuff),
     ...coreRunEffectFields(setup && setup.runEffects),
+    ...coreBattleEndCardFields(setup && setup.battleEndCards),
     ...(setup && setup.itemFreeSlots ? { itemFreeSlots: { ...setup.itemFreeSlots } } : {}),
     ...(setup && setup.runLevels ? { runLevels: setup.runLevels } : {}),
     summonDefs: Array.isArray(setup && setup.summonDefs) ? setup.summonDefs.map(x => ({ ...x })) : [],
@@ -5219,7 +5223,7 @@ function coreApplyKeywordOnHit(attacker, target, damageDone, targetPreHp, state,
 // （状態異常：毒N）＝カードの効果文に書かれた、戦闘開始時に持っている毒（預言者"ディナ"、2026-10-11）。
 function coreStartingPoison(unit) {
   const m = String(coreUnitEffectText(unit) || '').match(/（状態異常：毒(\d+)）/);
-  return m ? Math.max(0, Number(m[1]) || 0) : 0;
+  return Math.max(coreKeywordSum(unit, '毒', true), m ? Number(m[1]) || 0 : 0);
 }
 // 常時：このキャラクターの毒は永続化する。（戦闘で生き残った時の毒をカードへ書き戻す。受け口は battle.js）
 function corePoisonPersists(unit) {
@@ -5597,15 +5601,15 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     }
   }
   for (let i = 0; i < repeats; i++) coreApplyTimedSummonBuff(unit, '死亡', state, emit, rng, applyHit);
-  // 死亡：（このキャラクター以外の）ランダムな味方（N体）はHP+Xを得る。Xは血に等しい（強化「献身」）。
+  // 死亡：（このキャラクター以外の）ランダムな味方（N体）はATK/HP+Xを得る。Xは血に等しい（強化「献身」）。
   // **シートは「このキャラクター以外の」付き。** 頭に付いた文を受け付けず、合体後（2体）も含め発動していなかった。
   // 「N体」は別々の体（同じ体を2回選ばない）。
-  for (const devotion of coreTriggerEffectEntries(unit, '死亡', /^(?:このキャラクター以外の、?)?ランダムな味方(?:(\d+)体)?はHP\+Xを得る。Xは血に等しい/)) {
+  for (const devotion of coreTriggerEffectEntries(unit, '死亡', /^(?:このキャラクター以外の、?)?ランダムな味方(?:(\d+)体)?は(ATK|HP)\+Xを得る。Xは血に等しい/)) {
     const times = Math.max(1, Number(devotion[1]) || 1);
     const amount = coreBoonDynamicValue(unit, devotion, Math.max(0, Number(state.blood && state.blood[unit.side]) || 0), 'mod');
     for (let i = 0; i < repeats; i++) {
       if (amount > 0) coreRandomDistinctTargets(unit, rng, allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x)), times)
-        .forEach(target => addStats(target, 0, amount, 'devotion'));
+        .forEach(target => addStats(target, devotion[2] === 'ATK' ? amount : 0, devotion[2] === 'HP' ? amount : 0, 'devotion'));
     }
   }
   // 死亡：このキャラクター以外の、この効果を持つ全ての味方は+X/+Yを得る（強化「血の結束」）。
@@ -6192,6 +6196,11 @@ function coreTriggerBattleEnd(state, emit, rng, applyHit) {
         unit._battleEndCount = (Number(unit._battleEndCount) || 0) + 1;
         const eligible = (unit.boardCards || []).filter(c => c && /エンチャント|強化/.test(c.category || '') && !c._tripleMerged && (c.mergedForm || c._mergedForm));
         const targets = unit._battleEndCount % Number(m[1]) === 0 ? corePickDistinct(rng, eligible, Number(m[2])) : [];
+        // 同じ終戦で先に強化されたカードは、強化後の本文に書かれた姿へ変化する。
+        for (const card of state.battleEndCards && state.battleEndCards[side] || []) {
+          const upgraded = targets.find(target => target._mainBoardSlot === card._mainBoardSlot);
+          if (upgraded && upgraded.mergedForm && upgraded.mergedForm.desc != null) card.desc = upgraded.mergedForm.desc;
+        }
         emit({ type: 'run_effect', kind: 'enchant_upgrade', side, unitId: unit.id, trigger: '終戦', boardSlot: unit._mainBoardSlot,
           count: unit._battleEndCount, targetSlots: targets.map(c => c._mainBoardSlot).filter(Number.isInteger) });
       }
@@ -6281,11 +6290,44 @@ function coreTriggerBattleEnd(state, emit, rng, applyHit) {
       }
     }
   }));
+  coreTriggerBoardCardBattleEnd(state, emit);
   // 終戦効果を全て解決した後に、戦闘限定の出自分類を終える。
   const units = Object.values(state.units).flat().filter(Boolean);
   state._kenzokuEnded = units.some(unit => coreUnitHasKeyword(unit, '眷属'))
     || Object.values(state._summonCount || {}).some(count => count > 0);
   units.forEach(coreClearKenzoku);
+}
+
+// 魔導板に置いてから数える変化。接続先の生死・体数・追加発動回数には依存しない。
+// 回数・対象名・強化後の姿はカード本文から読む。
+function coreBattleEndTransformSpec(card) {
+  const m = String(card && card.desc || '').match(/終戦[：:]\s*(\d+)回目の終戦時に、このキャラクターに接続している「([^」]+)」を「([^」]+)」に変化させる/);
+  return m ? { battles: Math.max(1, Number(m[1])), fromName: m[2], toName: m[3] } : null;
+}
+
+// 全魔導板から必要なカードだけを写す。既に抽出済みなら元のスロットを保つ。
+function coreBattleEndCardFields(boards) {
+  const cards = {};
+  for (const side of BATTLE_CORE_SIDES) {
+    cards[side] = (boards && boards[side] || []).flatMap((card, slot) => card && coreBattleEndTransformSpec(card)
+      ? [{ ...card, _mainBoardSlot: Number.isInteger(card._mainBoardSlot) ? card._mainBoardSlot : slot }] : []);
+  }
+  return Object.values(cards).some(list => list.length) ? { battleEndCards: cards } : {};
+}
+
+function coreTriggerBoardCardBattleEnd(state, emit) {
+  if (!state.battleEndCards) return;
+  for (const side of BATTLE_CORE_SIDES) {
+    state.battleEndCards[side] = (state.battleEndCards[side] || []).filter(card => {
+      const spec = coreBattleEndTransformSpec(card);
+      if (!spec) return false;
+      const count = card._battleEndCount = Math.max(0, Math.floor(Number(card._battleEndCount) || 0)) + 1;
+      const transform = count >= spec.battles;
+      emit({ type: 'run_effect', kind: 'enchant_transform', side, trigger: '終戦',
+        boardSlot: card._mainBoardSlot, effectCardId: card.id, count, toName: transform ? spec.toName : '' });
+      return !transform;
+    });
+  }
 }
 
 // PvE演出だけが使う、マナ閾値効果の遅延適用用スナップショット。
@@ -7605,6 +7647,8 @@ if (typeof window !== 'undefined') {
   window.coreMathRng = coreMathRng;
   window.CORE_KEYWORD_CARD_NAMES = CORE_KEYWORD_CARD_NAMES;
   window.CORE_EFFECT_CARD_NAMES = CORE_EFFECT_CARD_NAMES;
+  window.coreBattleEndTransformSpec = coreBattleEndTransformSpec;
+  window.coreBattleEndCardFields = coreBattleEndCardFields;
   window.coreUnitKeywords = coreUnitKeywords;
   window.coreUnitEffectText = coreUnitEffectText;
   window.coreGameSummonBuffFields = coreGameSummonBuffFields;
@@ -7706,6 +7750,7 @@ if (typeof module !== 'undefined' && module.exports) {
     coreDefeatedEnemyFields,
     coreLaneAttackCandidates, corePickAttacker, coreExtraAttackTotal,
     battleCoreFinalState, coreUnitSnapshot, createCoreUnit,
+    coreBattleEndTransformSpec, coreBattleEndCardFields,
     coreMathRng, CORE_KEYWORD_CARD_NAMES, CORE_EFFECT_CARD_NAMES, coreUnitKeywords, coreUnitEffectText, coreUnitTriggerText, coreUnitIsSilenced, coreGameSummonBuffFields, coreSummonBuffEventValues, coreSummonPreviewBuffs, coreApplyDeathSummonGrantEvent, coreApplyInjuryGrantEvent,
     coreShieldValueFromKeyword, coreUnitShieldValue, coreUnitHasKeyword,
     coreUnitKeywordCount, coreIsSealed, coreCanAct, coreAttackDamage, coreCounterDamage,

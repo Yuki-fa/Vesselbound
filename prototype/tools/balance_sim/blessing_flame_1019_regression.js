@@ -141,7 +141,7 @@ function simulate(units){
     const cases=[null,{...raw,_mergedSource:{desc:'',keywords:''}},
       {...raw,mergedForm:null},{...raw,_npcCard:true},{...raw,_npcDeployOnly:true},
       {...raw,_questOfferCard:true},{...raw,_questTransportId:'Q005'},{...raw,no:'BC001'},
-      card('E102'),enhancedPanelCopy(raw),{...raw,_merged:true}];
+      card('E108'),enhancedPanelCopy(raw),{...raw,_merged:true}];
     for(const invalid of cases){
       assert.equal(blessingFlameCardEligible(invalid),false);
       G.mainBoard[5]=invalid;assert.equal(blessingFlameSelect(5),false);

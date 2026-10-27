@@ -91,6 +91,10 @@ function invoke(card, side, trigger, enemyPool) {
   const events = []; const emit = e => events.push(e);
   const applyHit = (source, target, amount, counter) => core.coreResolveHit(state, source, target, amount, counter, createSeededRng(7), emit);
   const rng = createSeededRng(11);
+  const cardTransform = String(card.desc || '').match(/終戦[：:]\s*(\d+)回目の終戦時に/);
+  if (cardTransform) Object.assign(state, core.coreBattleEndCardFields({ [side]: [{
+    id: 'audit-enchant', name: card.name, desc: card.desc, _battleEndCount: Number(cardTransform[1]) - 1,
+  }] }));
   if (trigger === '開戦') core.coreApplyOpeningEffects(unit, state, rng, emit, applyHit);
   if (trigger === '攻撃') { core.coreTriggerManaOnAttack(unit, state, emit); core.coreApplyAttackEffects(unit, state, rng, emit, applyHit); core.coreApplyAttackObservers(unit, state, rng, emit, applyHit); }
   if (trigger === '負傷') { core.coreTriggerManaOnInjury(unit, state, emit); core.coreApplyInjuryEffects(unit, 1, state, rng, emit, applyHit, foes[0]); }

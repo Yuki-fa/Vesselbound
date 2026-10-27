@@ -312,7 +312,8 @@ function exercise(entry, form, sentence, trigger) {
     } else if ((m = body.match(/^(全ての味方|このキャラクター)は\+X\/\+Xを得る。Xは(血|マナ)(?:の(\d+)倍)?/))) {
       state.resources.p1.mana = 9; run(); const n = 9 * Number(m[3] || 1); equalStats(h, expectedStats(m[1] === '全ての味方' ? own : [u], n, n));
     } else if ((m = body.match(/^(?:「([^」]+)」|このキャラクター)以外のランダムな味方は(ATK|HP)\+Xを得る。Xは(このキャラクターのHP|血)/))) {
-      run(); assert.equal(stats(h).length, r); stats(h).forEach(e => { assert.notEqual(e.unitId, u.id); assert.deepEqual([e.atk, e.hp], m[2] === 'ATK' ? [80, 0] : [0, m[3] === '血' ? state.blood.p1 : 80]); });
+      run(); const amount = m[3] === '血' ? state.blood.p1 : 80;
+      assert.equal(stats(h).length, r); stats(h).forEach(e => { assert.notEqual(e.unitId, u.id); assert.deepEqual([e.atk, e.hp], m[2] === 'ATK' ? [amount, 0] : [0, amount]); });
     } else if (/^このキャラクターのATKをランダムな味方に与える/.test(body)) {
       run(); assert.equal(stats(h).length, r); stats(h).forEach(e => assert.deepEqual([e.atk, e.hp], [17, 0]));
     } else if ((m = body.match(/^ランダムな味方(?:\d+体)?(?:は|に)(?:\+(\d+)\/\+(\d+)と)?結界/))) {
@@ -371,6 +372,11 @@ function exercise(entry, form, sentence, trigger) {
     } else if (/^リロール\d+を得る/.test(body)) { run(); assert.equal(state.runEffects.p1.rerolls, number(body, /リロール(\d+)/) * r);
     } else if (/^全ての味方は永久に\+/.test(body) || /^このキャラクターは永久に\+/.test(body)) {
       run(); equalStats(h, expectedStats(/^全て/.test(body) ? own : [u], ...pair(body))); assert.ok(stats(h).every(e => e.persistent));
+    } else if ((m = body.match(/^(\d+)回目の終戦時に、このキャラクターに接続している「([^」]+)」を「([^」]+)」に変化させる/))) {
+      const source = { ...copy(form.card), _mainBoardSlot: 0, _battleEndCount: Number(m[1]) - 1 };
+      Object.assign(state, coreBattleEndCardFields({ p1: [source] })); run();
+      const event = h.events.find(e => e.kind === 'enchant_transform');
+      assert.ok(event); assert.equal(event.boardSlot, 0); assert.equal(event.count, Number(m[1])); assert.equal(event.toName, m[3]);
     } else if (/^\d+回目の終戦ごとに/.test(body)) {
       u._battleEndCount = number(body, /^(\d+)回/) - 1; u.boardCards = ['E001', 'E002', 'E003'].map((no, i) => ({ ...copy(PANEL_POOL.find(c => c.no === no)), _mainBoardSlot: i })); run();
       assert.equal(h.events.find(e => e.kind === 'enchant_upgrade').targetSlots.length, number(body, /エンチャント(\d+)枚/));
@@ -383,10 +389,10 @@ function exercise(entry, form, sentence, trigger) {
     } else if (/^ランダムな敵(?:\d+体)?に封印∞/.test(body)) { run(); assert.equal(h.events.filter(e => e.type === 'seal_apply').length, number(body, /敵(\d+)体/) * r);
     } else if (/^全ての紫の味方は\+/.test(body)) {
       u.boardCards.push({ name: '接続検査', category: 'エンチャント' }); run(); equalStats(h, expectedStats(own.filter(t => t.color === '紫'), ...pair(body), 2 * r));
-    } else if (['E077', 'E078', 'E079'].includes(entry.no)) {
-      run(); if (entry.no === 'E077') equalHits(h, 10, own.length - 1);
-      if (entry.no === 'E078') assert.equal(state.resources.p1.gold, 760);
-      if (entry.no === 'E079') own.forEach(t => assert.equal(t.atk, 7));
+    } else if (['E103', 'E104', 'E105'].includes(entry.no)) {
+      run(); if (entry.no === 'E103') equalHits(h, 10, own.length - 1);
+      if (entry.no === 'E104') assert.equal(state.resources.p1.gold, 760);
+      if (entry.no === 'E105') own.forEach(t => assert.equal(t.atk, 7));
     } else if (/この攻撃終了まで|反撃ダメージを受けない/.test(body)) return exercisePassive(entry, form, text, body, h);
     else return unable('この本文を検証する戦闘状況・期待値が未登録。');
   } else return exercisePassive(entry, form, text, body, h);

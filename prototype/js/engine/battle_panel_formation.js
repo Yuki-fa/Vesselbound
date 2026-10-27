@@ -713,6 +713,26 @@ function _panelSummonDisplayBoardCards(sourcePanel, contributingPanels){
   return [center,...panels];
 }
 
+// カード単位の終戦の数え・変化の共通出口。コアの絶対値を保存するので再生しても重複しない。
+function applyCoreBattleEndCardEvent(event){
+  if(!event||event.type!=='run_effect'||event.kind!=='enchant_transform'||event.side!=='p1') return false;
+  const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
+  const cards=board&&board.boardCards;
+  const card=cards&&cards[event.boardSlot];
+  if(!card||String(card.id)!==String(event.effectCardId)) return false;
+  if(!event.toName){card._battleEndCount=event.count;return true;}
+  const enhanced=/\+$/.test(event.toName),name=String(event.toName).replace(/\+$/,'');
+  const def=PANEL_POOL.find(c=>c&&c.name===name);
+  if(!def) return false;
+  let next=clone(def);
+  if(enhanced) next=enhancedPanelCopy(next);
+  if(!next) return false;
+  for(const key of ['directions','directionCount','_placeKey']) if(card[key]!=null) next[key]=clone(card[key]);
+  if(card.boon) coreApplyCardBoon(next,card.boon);
+  cards[event.boardSlot]=next;
+  return true;
+}
+
 
 
 // ── 動的に再計算が必要な「常時」パッシブ（マナ数依存・リーダー依存）を反映する ──

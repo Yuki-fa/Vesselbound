@@ -297,9 +297,9 @@ async function checkDebugStoryCycleVisible(browser,ok){
         G._wave=1;G._isWaveAltar=true;
         const landing=villageFacilityList().find(f=>f.key==='landing');
         result.repeat.landing={visible:!!landing,disabled:_villageFacilityDisabled(landing),desc:villageFacilityDescText(landing.name)};
-        G._fiveSaints.decisions={'1':{accepted:false,no:'E077'}};
+        G._fiveSaints.decisions={'1':{accepted:false,no:'E103'}};
         result.repeat.refused={disabled:_villageFacilityDisabled(landing),desc:villageFacilityDescText(landing.name)};
-        G._fiveSaints.decisions={'1':{accepted:true,no:'E077'}};
+        G._fiveSaints.decisions={'1':{accepted:true,no:'E103'}};
         result.repeat.accepted={disabled:_villageFacilityDisabled(landing),desc:villageFacilityDescText(landing.name)};
 
         SaveProfile.hasClearedRun=()=>false;
@@ -466,7 +466,7 @@ async function checkDebugStoryCycleVisible(browser,ok){
         const calls=[];
         try{
           G._onlineMode=false;G._debugMode=false;G._wave=1;G._isFiveSaints=true;
-          G._fiveSaints={visited:true,offeredNos:['E077'],offers:{'1':'E077'},decisions:{'1':{accepted:false,no:'E077'}},targets:{}};
+          G._fiveSaints={visited:true,offeredNos:['E103'],offers:{'1':'E103'},decisions:{'1':{accepted:false,no:'E103'}},targets:{}};
           _qStartDialogue=async lines=>{calls.push(lines.map(line=>line.text));};
           _fiveSaintsOpenFormation=async()=>{calls.push(['FORMATION']);};
           _fiveSaintsLeaveToTower=async()=>{calls.push(['LEAVE']);};
@@ -486,10 +486,10 @@ async function checkDebugStoryCycleVisible(browser,ok){
         const calls=[];
         try{
           G._wave=1;G._isFiveSaints=true;G._fiveSaintsResolving=false;
-          G._fiveSaints={visited:true,offeredNos:['E077'],offers:{'1':'E077'},decisions:{},targets:{}};
-          const card={name:'受難の刻印',_fiveSaintsOfferCard:true,_fiveSaintsOfferWave:1,_fiveSaintsOfferNo:'E077'};
+          G._fiveSaints={visited:true,offeredNos:['E103'],offers:{'1':'E103'},decisions:{},targets:{}};
+          const card={name:'受難の刻印',_fiveSaintsOfferCard:true,_fiveSaintsOfferWave:1,_fiveSaintsOfferNo:'E103'};
           G.mainBoard=new Array(15).fill(null);G.mainBoard[2]=card;
-          _qFormationContext={mode:'fiveSaints',wave:1,no:'E077',targetSlot:null};
+          _qFormationContext={mode:'fiveSaints',wave:1,no:'E103',targetSlot:null};
           _qStartDialogue=async lines=>calls.push({type:'dialogue',text:lines.map(line=>line.text)});
           _qSmokePortraitUp=async key=>{calls.push({type:'smoke',key});return true;};
           _fiveSaintsLeaveToTower=async options=>{calls.push({type:'leave',delay:options&&options.delay});};

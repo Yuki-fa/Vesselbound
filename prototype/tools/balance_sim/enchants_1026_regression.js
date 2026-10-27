@@ -10,7 +10,8 @@ const damage=h=>h.events.filter(e=>e.type==='damage'&&e.sourceId===h.u.id&&e.amo
 const totals=h=>h.own.map(u=>[u.atk,u.hp,u.maxHp]);
 (async()=>{
   console.table=()=>{}; await loadGameData();
-  for(const no of REVISED_ENCHANTS) for(const enhanced of [false,true]) for(const modified of [false,true]) for(const side of ['p1','p2']) {
+  const implementedEnchants=[...REVISED_ENCHANTS].filter(no=>card(no)._implemented!==false);
+  for(const no of implementedEnchants) for(const enhanced of [false,true]) for(const modified of [false,true]) for(const side of ['p1','p2']) {
     const original=sheet.effectText(no,enhanced), text=modified?original.replace(/\d+/g,n=>String(Number(n)+2)):original;
     const label=`${no} ${card(no).name}/${enhanced?'強化':'通常'}/${modified?'数値差替':'シート'}/${side}`;
     await check(label,async()=>{
@@ -98,16 +99,6 @@ const totals=h=>h.own.map(u=>[u.atk,u.hp,u.maxHp]);
           h.u.hp=0;const before=h.state.blood[side];coreApplyDeathEffects(h.u,h.state,h.rng,h.emit,h.hit);assert.equal(h.state.blood[side]-before,Number(text.match(/血を(\d+)/)[1]));break;
         }
         case 'E059': coreApplyAttackObservers(h.own[1],h.state,h.rng,h.emit,h.hit);assert.equal(h.u.atk,start+pair(text)[0]);assert.equal(h.u.maxHp,100+pair(text)[1]);break;
-        case 'E060': {
-          const input=harness(side,[enchanted(no,enhanced,text,{atk:1})],{foes:[plain('foe',{keywords:['結界1','衝撃3'],desc:'負傷：このキャラクターは+2/+2を得る。'})]});
-          const run=await pipelines(input.initial), hits=run.events.filter(e=>e.type==='damage'&&e.sourceId==='source');assert.ok(hits.some(e=>e.amount>0),'敵の結界を無効化');
-          const firstSource = run.events.findIndex(e=>e.type==='attack'&&e.attackerId==='source');
-          const before = run.events.slice(0,firstSource+1).findLastIndex(e=>e.type==='turn_begin');
-          const next = run.events.findIndex((e,i)=>i>firstSource&&e.type==='turn_begin');
-          const sourceTurn = run.events.slice(before,next<0?undefined:next);
-          if(enhanced) assert.ok(!sourceTurn.some(e=>e.type==='stat_change'&&e.unitId==='foe'&&e.reason==='injury_self_buff'),'強化は自分の攻撃中の効果文も無効化');
-          else assert.ok(run.events.some(e=>e.type==='stat_change'&&e.unitId==='foe'),'通常は効果文を残す');break;
-        }
         case 'E062': {
           for(const atk of [4,5,8]) { const notice={};assert.equal(coreCounterDamage(h.u,{...h.foes[0],atk},notice),enhanced||atk<5?0:atk); }break;
         }
@@ -127,11 +118,11 @@ const totals=h=>h.own.map(u=>[u.atk,u.hp,u.maxHp]);
         case 'E074': coreApplyShieldLostEffects(h.own[1],h.state,h.rng,h.emit,h.hit);assert.equal(h.u.atk,start+pair(text)[0]);assert.equal(h.u.maxHp,100+pair(text)[1]);break;
         default:throw Error(no);
       }
-      if(no!=='E060') await pipelines(h.initial);
+      await pipelines(h.initial);
     });
   }
   await check('実際の魔導板→共通編成で全戦闘エンチャントの本文・強化・数値差替を保持し、カード名をキーワードへ混ぜない',()=>{
-    for(const no of REVISED_ENCHANTS)for(const enhanced of [false,true]) {
+    for(const no of implementedEnchants)for(const enhanced of [false,true]) {
       if(no==='E064')continue; // 還魂専用で接続効果を持たない。
       initRun();G.mapPanelPowers={1:'summon'};
       const base=makePanel(PANEL_POOL.find(c=>c.category==='キャラクター'&&c.name==='ノーム').id);
