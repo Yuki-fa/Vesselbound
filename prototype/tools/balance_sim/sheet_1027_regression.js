@@ -41,7 +41,7 @@ function finish(cards=G.mainBoard){
     assert.deepEqual(new Set(FIVE_SAINTS_ENGRAVING_NOS),new Set(changes.slice(0,6).map(c=>c[1])));
     assert.equal(QUEST_CONFIG.Q002.rewardMix.cardNo,'E107');assert.equal(QUEST_CONFIG.Q007.requiredCardNo,'E108');
     assert.equal(presentLabFx('E103')[0],'suffering-brand');assert.equal(presentLabFx('E104')[0],'gold-loss');
-    assert.equal(getEffectSfxKey('E103'),'E103');assert.equal(Assets.sfx.E103,Assets.sfx.E077);assert.equal(Assets.sfx.E104,Assets.sfx.E078);
+    assert.equal(getEffectSfxKey('E103'),'E103');assert.match(Assets.sfx.E103,/E077\.wav/);assert.match(Assets.sfx.E104,/E078\.wav/);/* 受難・苦悶は旧番号の音のファイルを引く。E077 は一時の眠りの番号になった（6cc3d8a） */
     fresh();const c=panel('E101');c._fiveSaintsOfferCard=true;c._fiveSaintsOfferNo='E101';c._fixedBoardSlot=2;
     assert.equal(_cardIsSuppressionEngraving(c),true);assert.equal(_cardIsSuppressionEngraving(panel('E076')),false);
     assert.equal(fiveSaintsCardCanUseBoardSlot(c,2),true);assert.equal(fiveSaintsCardCanUseBoardSlot(c,3),false);
