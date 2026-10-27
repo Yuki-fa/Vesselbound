@@ -1,4 +1,6 @@
 'use strict';
+// 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
+const {REVISED: revised1027} = require('./effects_1027_regression');
 
 // 2026-10-26 利用者報告。内蔵シートは参照だけにし、変更予定の本文は個体のコピーで検査する。
 const vm = require('node:vm');
@@ -76,6 +78,7 @@ function element(tag = 'div') {
   Object.defineProperty(el, 'innerHTML', { get: () => '', set: () => { el.children.length = 0; } });
   return el;
 }
+// 現行C080の2枚入替でも、無料報酬の取得済み状態と枚数を保つ。
 async function rewardExchange() {
   const original = { create: document.createElement, get: document.getElementById,
     mkCardEl, renderHandEditor, renderRewCards, _playActivationFx, applyCardVisual };
@@ -135,7 +138,7 @@ async function unchangedMain() {
     return copy({ result, events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() });
   }
   for (const row of [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')]) {
-    if (REVISED.has(row['No.'])) continue;
+    if (REVISED.has(row['No.'])||revised1027.has(row['No.'])) continue;
     const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
     for (const enhanced of [false, true]) for (const side of ['p1', 'p2']) for (const seed of [1, 1026, 261026]) {
       if (row['No.']==='C016'&&enhanced) continue; // effects-1026c: 強化サイレンは2波
@@ -150,12 +153,12 @@ async function unchangedMain() {
     }
   }
   // 1026の新実装3種はitems_1026_regressionで現行本文を検証する。
-  for (const ring of RING_POOL.filter(r => r._implemented !== false && !['R019','R024','R030','R037'].includes(r.no))) {
+  for (const ring of RING_POOL.filter(r => r._implemented !== false && !['R017','R019','R024','R030','R037'].includes(r.no))) {
     const input = { sides: { p1: { units: [plain('one'), plain('two')] }, p2: { units: [plain('foe'), plain('foe2')] } },
       rings: { p1: [ring] }, resources: { p1: { mana: 15, gold: 800 } }, summonDefs: PANEL_POOL };
     assert.deepEqual(run(current, input, 1026), run(baseline, input, 1026), ring.no); compared++;
   }
-  assert.ok(compared > 2400); console.log(`  非対象${compared}戦闘：main ${BASELINE.slice(0, 7)} と結果・全イベント・最終状態・次の乱数が完全一致`);
+  assert.ok(compared > 2200); console.log(`  非対象${compared}戦闘：main ${BASELINE.slice(0, 7)} と結果・全イベント・最終状態・次の乱数が完全一致`);
 }
 
 (async () => {
@@ -235,7 +238,7 @@ async function unchangedMain() {
       await pipelines(full.initial);
     });
   }
-  await check('チェンジリング：無料取得の前後とも実際の報酬DOMから交換でき、再取得で枚数は増えない', rewardExchange);
+  await check('チェンジリング：無料取得の前後とも実際の報酬DOMから2枚を交換でき、再取得で枚数は増えない', rewardExchange);
   await check('サンダーバード：図書館・デバッグの試験戦闘中だけ累積し、終了時はランの記録を戻す', async () => {
     const old = { startBattle, onBattleEnd, openMapLibraryFormation, showScreen };
     try {

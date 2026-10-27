@@ -1222,7 +1222,7 @@ function audit() {
     const dead = { id: 'ring-dead', name: '犠牲', atk: 1, hp: 0, maxHp: 1, lane: 'front', keywords: [], desc: '' };
     const rear = { id: 'ring-rear', name: '後衛', atk: 1, hp: 5, maxHp: 5, lane: 'rear', keywords: [], desc: '' };
     const foe = { id: 'ring-foe', name: '敵', atk: 1, hp: 5, maxHp: 5, keywords: [], desc: '' };
-    const s = core.createBattleState({ sides: { p1: { units: [dead, rear] }, p2: { units: [foe] } }, rings: { p1: [{ name: '不死の指輪' }], p2: [] } });
+    const s = core.createBattleState({ sides: { p1: { units: [dead, rear] }, p2: { units: [foe] } }, rings: { p1: [{ name: '不死の指輪', desc: sheetData.sheetRows('ring').find(row=>row['No.']==='R017')['効果'] }], p2: [] } });
     const es = [];
     s.units.p1[0].hp = 0;
     // **死亡の直後には発動しない**（同時に倒れた仲間が復活する場面があるため）。
@@ -1238,7 +1238,7 @@ function audit() {
     // 一時的に前衛がいなくなっても、復活などで前衛が戻れば発動しない。
     const dead = { id: 'ring2-dead', name: '犠牲', atk: 1, hp: 0, maxHp: 4, lane: 'front', keywords: [], desc: '' };
     const foe = { id: 'ring2-foe', name: '敵', atk: 1, hp: 5, maxHp: 5, keywords: [], desc: '' };
-    const s = core.createBattleState({ sides: { p1: { units: [dead] }, p2: { units: [foe] } }, rings: { p1: [{ name: '不死の指輪' }], p2: [] } });
+    const s = core.createBattleState({ sides: { p1: { units: [dead] }, p2: { units: [foe] } }, rings: { p1: [{ name: '不死の指輪', desc: sheetData.sheetRows('ring').find(row=>row['No.']==='R017')['効果'] }], p2: [] } });
     const es = [];
     s.units.p1[0].hp = 0;
     core.coreApplyDeathObservers(s.units.p1[0], s, createSeededRng(131), e => es.push(e), () => {});

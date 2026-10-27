@@ -158,11 +158,14 @@ function finish(cards=G.mainBoard){
     for(let i=0;i<20;i++){for(const cards of [drawRewards(3),drawRewards(3,{trader:true})]){assert.ok(cards.length);assert.ok(cards.every(c=>!excluded.includes(c.no)));}}
     assert.ok(panel('E057').adjacentKeywords.includes('封印6'));
   });
-  await check('巻物の各段階は新テキストキーでシート本文を引き、旧キー参照がソースに残らない',()=>{
+  await check('巻物の各段階の新テキストキーを保持し、廃止した説明UI・旧キー参照を復活させない',()=>{
     const rows=sheet.parseCsv(sheet.loadLocalXlsxData().textMessage),keys=new Set(rows.map(r=>r[0]));
+    const headers=rows.find(r=>r.includes('場面')&&r.includes('テキスト'));
+    const messageByKey=new Map(rows.map(r=>[r[headers.indexOf('場面')],r[headers.indexOf('テキスト')]]));
     const names=['変身の巻物','結界の巻物','復活の巻物','巨大化の巻物','魂交換の巻物','絆の巻物','毒牙の巻物','邪眼の巻物','衝撃の巻物','二段攻撃の巻物','隠密の巻物','先制の巻物','三方向攻撃の巻物','生命吸収の巻物','貫通の巻物','熟練の巻物'];
     for(const name of names){const c=ITEM_POOL.find(c=>c.name===name);assert.ok(c,name);const pair=['変身の巻物','魂交換の巻物'].includes(name);
-      for(let step=1;step<=(pair?2:1);step++){const key=`「${name}」使用時${pair?step:''}`;assert.ok(keys.has(key),key);const expected=textMessage(key,'');assert.ok(expected);assert.equal(_itemUsePromptText({card:c,key:c.itemEffectKey,...(step===2?{firstIdx:1}:{})}),_shieldDisplayText(expected));}}
+      for(let step=1;step<=(pair?2:1);step++){const key=`「${name}」使用時${pair?step:''}`;assert.ok(keys.has(key),key);assert.ok(messageByKey.get(key),key);assert.equal(textMessage(key,''),messageByKey.get(key));}}
+    assert.equal(typeof _itemUsePromptText,'undefined','picking-1026で廃止した報酬説明UIを戻さない');
     assert.ok(textMessage('報酬未入手時',''));
     for(const key of ['「マモン」','「チェンジリング」1','「チェンジリング」2'])assert.ok(textMessage(key,''),key);
     for(const file of fs.readdirSync(path.resolve(__dirname,'../../js/engine')).filter(f=>f.endsWith('.js'))){

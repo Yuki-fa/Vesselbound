@@ -1,7 +1,9 @@
 'use strict';
+// 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
+const {REVISED: revised1027} = require('./effects_1027_regression');
 
 // 2026-10-25 本文改訂。期待値はヘッダ名で読んだ通常／強化本文から独立に求める。
-// 入手を止めている、名前の無い E084/E085 も同じ内蔵CSVから読む。
+// 入手を止めている、名前の無い強化カードも同じ内蔵CSVから読む。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -20,7 +22,10 @@ for (const key of ['card', 'enchant']) {
   }
 }
 const required = ('C001 C002 C003 C004 C005 C026 C027 C028 C029 C030 C051 C052 C053 C054 C055 C076 C077 C078 C079 C080 '
-  + 'C101 C102 C103 C104 C105 C007 C010 C018 C021 C031 C058 C067 C099 C017 C020 C034 C046 C047 C070 C092 C116 C121 E006 E084 E085').split(' ');
+  + 'C101 C102 C103 C104 C105 C007 C010 C018 C021 C031 C058 C067 C099 C017 C020 C034 C046 C047 C070 C092 C116 C121 E006 E009').split(' ');
+// 旧E084は現行シートにない。青への移転は互換入力として検査し、
+// 現行E076（封印中の味方への移転・実装false）を実装済みとして扱わない。
+const legacyTransferText=enhanced=>`死亡：このキャラクターのATKとHP${enhanced?'':'の半分'}を、ランダムな青の味方に与える。`;
 let passed = 0, failed = 0;
 const covered = new Set();
 function check(label, fn) {
@@ -286,12 +291,13 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       for (let i = 0; i < repeats(value); i++) { const wave = hits.slice(i * count, (i + 1) * count); assert.equal(new Set(wave.map(e => e.unitId)).size, count); assert.equal(new Set(wave.map(e => e.batch)).size, 1); }
       const x = setup(side, [unit('E006', enhanced)], { enemies: [plain('only')] }); fire(x, '死亡'); assert.equal(damage(x).length, repeats(value));
     });
-    test('E084', '死体のATK・最大HPを青の生存味方へ移す、半分はそれぞれ切捨て', value => {
-      const h = setup(side, [unit('E084', enhanced, { atk: 9, hp: 0, maxHp: 13 }), plain('blue', { color: '青' }), plain('red')]); fire(h, '死亡'); const divisor = value.includes('半分') ? 2 : 1;
+    check(`旧E084/${side}/${enhanced?'強化':'通常'}：青への移転の互換本文、半分はそれぞれ切捨て`, () => {
+      const value=legacyTransferText(enhanced);
+      const h = setup(side, [plain('source',{desc:value,atk:9,hp:0,maxHp:13}), plain('blue', { color: '青' }), plain('red')]); fire(h, '死亡'); const divisor = value.includes('半分') ? 2 : 1;
       assert.deepEqual(stats(h).map(e => [e.unitId, e.atk, e.hp]), [['blue', Math.floor(9 / divisor), Math.floor(13 / divisor)]]);
     });
-    test('E085', '本文の血獲得にストリゴイの補正が1回乗る', value => {
-      const h = setup(side, [unit('E085', enhanced), { ...unit('C102', false), id: 'strigoi' }]); fire(h, '攻撃');
+    test('E009', '本文の血獲得にストリゴイの補正が1回乗る', value => {
+      const h = setup(side, [unit('E009', enhanced), { ...unit('C102', false), id: 'strigoi' }]); fire(h, '攻撃');
       const amount = Number((value.match(/血を(\d+)/) || [])[1]) || 1, bonus = Number(text('C102', false).match(/血は\+(\d+)/)[1]); assert.equal(h.state.blood[side], amount + bonus); assert.equal(h.events.filter(e => e.type === 'blood_set').length, 1);
     });
     // 起動のコアの対象区域・量も通常／強化、両側から同じAPIへ渡す。
@@ -307,6 +313,9 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       assert.equal(coreActivateBoardCard(source,target,PANEL_POOL,rng),null);
       assert.deepEqual(coreActivateBoardCard(source,target,PANEL_POOL,rng,{otherTarget:other}),{kind:'swap_cards'});
       assert.deepEqual(coreActivateBoardCard(source,other,PANEL_POOL,rng,{targetZone:'reward',otherTarget:target}),{kind:'swap_cards'});
+      const legacy={...source,desc:'起動：対象の魔導板のカードと、対象の報酬のカードを入れ替える。'},rewardTarget=card('E001');
+      assert.equal(coreActivateBoardCard(legacy,target,PANEL_POOL,rng,{targetZone:'board'}),null);
+      assert.equal(coreActivateBoardCard(legacy,target,PANEL_POOL,rng,{targetZone:'board',rewardTarget}),null,'廃止した交換専用APIへ戻さない');
     });
     test('C116', '通常も強化も対象区域・吸収量は現行本文どおり', value => {
       const source = card('C116', enhanced), target = { ...card('C006'), power: 7, life: 11 }, rng = createSeededRng(1), mul = Number((value.match(/の(\d+)倍/) || [])[1]) || 1;
@@ -321,7 +330,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
   check('アンタイオスの実編成：本文が空の貫通接続もPvE・送信payloadで同じ接続枚数', () => {
     for (const enhanced of [false, true]) {
       initState(); G.mainBoard.fill(null); G.mainBoard[1] = card('C101', enhanced); G.mainBoard[1].directions = ['left'];
-      G.mainBoard[0] = card('E009'); G.mainBoard[0].directions = ['right'];
+      G.mainBoard[0] = copy(PANEL_POOL.find(c=>c.category==='エンチャント'&&!c.desc&&(c.adjacentKeywords||[]).includes('貫通'))); G.mainBoard[0].directions = ['right'];
       assert.equal(String(G.mainBoard[0].desc || ''), '');
       const deployed = buildBoardFormation(_getPartyBoardUnit(), { persistEternal: false }).ordered.find(e => e.slotIdx === 1).unit;
       const payload = buildOnlineSelfFormation().units.find(u => u._mainBoardSlot === 1);
@@ -341,7 +350,8 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
   });
   check('死の体感などで生存中に死亡効果を発動した場合は、本文の味方・全キャラクターに本人も含める', () => {
     for (const no of ['C029', 'C046', 'C078', 'C103', 'E084']) for (const enhanced of [false, true]) {
-      const h = setup('p1', [unit(no, enhanced, { color: '青' })]);
+      const owner=no==='E084'?plain('source',{desc:legacyTransferText(enhanced),color:'青'}):unit(no,enhanced,{color:'青'});
+      const h = setup('p1', [owner]);
       coreApplyDeathEffects(h.u, h.state, h.rng, h.emit, h.hit);
       const ownEvents = h.events.filter(e => e.unitId === h.u.id);
       assert.ok(ownEvents.some(e => no === 'C029' ? e.keyword === '復活' : no === 'C103' ? e.effect === 'weaken' : e.type === 'stat_change'), no);
@@ -407,7 +417,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
     const source = execFileSync('git', ['show', '62fe8751c3cefbe67c844ce70490a1ef52d0b8c4:prototype/js/battle/core.js'], { encoding: 'utf8', maxBuffer: 2e6 });
     const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox); const baseline = sandbox.module.exports;
     const current = require('../../js/battle/core'); let compared = 0;
-    for (const no of [...rows.keys()].filter(no => /^[CE]\d+$/.test(no) && !required.includes(no) && !revised1026.has(no) && PANEL_POOL.some(c => c.no === no))) for (const enhanced of [false, true]) {
+    for (const no of [...rows.keys()].filter(no => /^[CE]\d+$/.test(no) && !required.includes(no) && !revised1026.has(no) && !revised1027.has(no) && PANEL_POOL.some(c => c.no === no))) for (const enhanced of [false, true]) {
       if(no==='C016'&&enhanced) continue; // effects-1026c: 強化サイレンは2波
       const input = { sides: { p1: { units: [unit(no, enhanced), plain('ally', { color: '青' })] }, p2: { units: [plain('foe'), plain('foe2')] } }, summonDefs: PANEL_POOL, resources: { p1: { mana: 8, gold: 800 } } };
       const run = api => { const state = api.createBattleState(copy(input)), events = [], rng = createSeededRng(251025); api.runBattleCore(state, rng, { turnLimit: 5, onEvent: e => events.push(e) }); return copy({ events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() }); };

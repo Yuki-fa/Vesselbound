@@ -207,6 +207,12 @@ function _enchantCharacterDescription(panel,unit,slotIdx){
     }
     if(passive) text=text.replace(/\+X\/\+X/g,`+${passive.atk}/+${passive.hp}`);
   }
+  const keywordBonus=coreKeywordValueBonus({desc:panel.desc});
+  if(keywordBonus){
+    const names=['邪眼','毒牙','衝撃'].filter(name=>coreKeywordSum(source,name,true)>0);
+    if(!names.length) return '';
+    text=text.replace('邪眼、毒牙、衝撃',names.join('、')).replace(/\+X/g,'+'+keywordBonus);
+  }
   return text;
 }
 // 接続中の強化カード効果を「通常表示分」と「キャラクター用説明文（同名複数接続は×N・数値N倍）」に分けて
@@ -446,7 +452,11 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
     .map(k=>String(k||'').replace(/^毒(\d+)$/,'毒牙$1'))
     .filter(k=>k&&!_isInternalOnlyKeyword(k)&&!_isRemovedKeyword(k));
   // 邪眼X・毒牙X等、末尾に数値を持つキーワードは複数所持時にXを合算した1つの表示にまとめる
-  const mergedKws=typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(normalizedKws):[...new Set(normalizedKws)];
+  const keywordEffects=displayUnit._adjacentPanelEffectTexts?.length?displayUnit._adjacentPanelEffectTexts:
+    _enchantmentEffectsList(unit,slotIdx).map(entry=>entry.panel.desc);
+  const keywordSource={...displayUnit,keywords:normalizedKws,_adjacentPanelEffectTexts:keywordEffects};
+  const mergedKws=(typeof _mergeCountedKeywords==='function'?_mergeCountedKeywords(normalizedKws):[...new Set(normalizedKws)])
+    .map(k=>/^(邪眼|毒牙|衝撃)\d+$/.test(k)?k.replace(/\d+$/,String(coreKeywordSum(keywordSource,k.replace(/\d+$/,'')))):k);
   const filtered=mergedKws.filter(k=>{
     // 眷属は召喚による分類。自身の効果文にも眷属が現れていても、所持欄へ表示する。
     if(k==='眷属') return true;

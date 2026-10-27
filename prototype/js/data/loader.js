@@ -1035,6 +1035,9 @@ async function loadGameData() {
     };
     const _setEnchantFieldsFromDesc = panel => {
       const desc = String(panel.desc || '');
+      const bareDesc = desc.split(/\n/)
+        .filter(line => !/^\s*(?:常時|開戦|攻撃|負傷|死亡|終戦|解放|マナ|\d+マナ)/.test(line))
+        .join('\n');
       panel.adjacentAtkBonus = 0;
       panel.adjacentHpBonus = 0;
       panel.adjacentKeywords = [];
@@ -1072,7 +1075,7 @@ async function loadGameData() {
       ].forEach(k=>{
         // カード名そのものはキーワードではない。説明文またはシートのキーワード欄に
         // 明記された場合だけ採用し、末尾に残ったカード名を誤ってキーワード化しない。
-        if (desc.includes(k)) panel.adjacentKeywords.push(k);
+        if (bareDesc.includes(k)) panel.adjacentKeywords.push(k);
       });
       // 新エンチャントの固有処理用フィールド（説明文が未同期でも名前で認識する）。
       if(panel.name==='封印されしもの'){
@@ -1089,9 +1092,6 @@ async function loadGameData() {
       //     召喚された側が得るもので、**このカードを付けたキャラクターには付かない**。
       // 付与として読むのは「トリガの前置きが無い＝素のキーワード行」だけにする。
       // （シートは付与キーワードを「キーワード」列に書く。ここは列が空の古いデータ用の保険）
-      const bareDesc = String(desc || '').split(/\n/)
-        .filter(line => !/^\s*(?:常時|開戦|攻撃|負傷|死亡|終戦|解放|マナ|\d+マナ)/.test(line))
-        .join('\n');
       // カード名からの推測は効果文が空の（キーワードだけの）強化カードに限る。
       // 「結界」は2026-10-10に効果文（死亡：ランダムな味方は結界1を得る）を持つ強化になり、
       // 名前から結界1まで付けると接続先が結界を持ってしまう。
@@ -1109,7 +1109,7 @@ async function loadGameData() {
       if (evilEye) panel.adjacentKeywords.push('邪眼' + (evilEye[1] || '1'));
       const weaken = bareDesc.match(/衝撃\s*(\d*)/);
       if (weaken) panel.adjacentKeywords.push('衝撃' + (weaken[1] || '1'));
-      const tough = desc.match(/強靭\s*(\d*)/);
+      const tough = bareDesc.match(/強靭\s*(\d*)/);
       if (tough) panel.adjacentKeywords.push('強靭' + (tough[1] || '1'));
       const poison = bareDesc.match(/毒牙\s*(\d*)/);
       if (poison) panel.adjacentKeywords.push('毒牙' + (poison[1] || '1'));

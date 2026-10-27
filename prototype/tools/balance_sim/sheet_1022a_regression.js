@@ -79,6 +79,8 @@ function check(name,fn){fn();checks++;console.log('OK '+name);}
    const source=card('C084',enhanced),other=card('C007');
    const sylph=coreActivateBoardCard(source,target,PANEL_POOL,rng,{otherTarget:other});
    assert.equal(sylph.kind,'swap_stats');assert.deepEqual(sylph.first,{power:enhanced?other.power:source.power,life:enhanced?other.life:source.life});
+   const legacy=coreActivateBoardCard({...source,desc:'起動：対象のキャラクターを同じレアリティの別のキャラクターに変身させる。'},target,PANEL_POOL,rng);
+   assert.ok(legacy);assert.equal(legacy.definition.rarity,target.rarity);assert.notEqual(legacy.definition.name,target.name);
    const incubus=card('C109',enhanced),result=coreActivateBoardCard(incubus,target,PANEL_POOL,rng),pair=incubus.desc.match(/\+(\d+)\/\+(\d+)/);
    assert.deepEqual([result.atk,result.hp],[Number(pair[1]),Number(pair[2])]);assert.ok(['赤','青','緑','黄','紫'].includes(result.color));
    const knight=card('C116',enhanced),mul=Number((knight.desc.match(/の(\d+)倍/)||[])[1])||1;

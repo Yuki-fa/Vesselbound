@@ -4,6 +4,7 @@ const _battleFxForms = new Map();
 const _battleFxLastRects = new Map();
 const _battleFxTimers = new Set();
 const _battleFxVoices = new Set();
+const BATTLE_LAB_VFX_WAIT_GRACE_MS = 1000;
 let _battleFxFrame = 0, _battleFxGeneration = 0, _battleFxSequence = 0;
 let _battleFxStatesSuspended = false;
 function resumeBattleLabStates() { _battleFxStatesSuspended = false; }
@@ -111,7 +112,15 @@ function playBattleLabFx(code, source, targets, options) {
   if(!opt.silent)_battleFxSound(code,speed,ms * endRatio - seekMs,spec[2] === 'howl',cueMs);
   // 効果は直列。再描画で発生元DOMが替わっても遠吠えの区間で確実に閉じる。
   if (spec[2] === 'howl') _battleFxTimer(() => VbFx.stop({name:spec[0]}),ms*.46);
-  const done = Promise.resolve(promise).catch(err=>{ console.error('[battle LAB VFX]',code,err); return false; }).finally(()=>marker.remove());
+  // 非表示タブや中断でrendererの完了通知が来なくても、召喚・次のイベントの待ちを残さない。
+  // 通常は本来の完了通知が先に来る。尺そのものは変えず、全尺の後に安全弁を置く。
+  let timeout;
+  const deadline = new Promise(resolve=>{ timeout=setTimeout(()=>{
+    VbFx.stop({name:spec[0]});resolve(false);
+  },Math.max(0,ms-seekMs)+BATTLE_LAB_VFX_WAIT_GRACE_MS); });
+  const done = Promise.race([Promise.resolve(promise),deadline])
+    .catch(err=>{ console.error('[battle LAB VFX]',code,err); return false; })
+    .finally(()=>{clearTimeout(timeout);marker.remove();});
   const active = window.__activeVfxPromises || (window.__activeVfxPromises = new Set());
   active.add(done); done.finally(()=>active.delete(done));
   return done;

@@ -82,10 +82,10 @@ async function check(name, run) {
     await x.pve();
     const fx=h.calls.filter(c=>c.name==='projectile:'+no);
     if(no==='E042') {
-      // E042はキャラクター本来の効果ではない。旧C024の固有弾は出さず既存の命中表示で流す。
-      assert.equal(fx.length,0);
+      // 天の魔弓E042は既存E042の弾を使い、反復でも全ての命中を見せる。
+      assert.equal(fx.length,3);
       assert.deepEqual(x.events.filter(e=>e.type==='damage'&&e.effectSource===false).map(e=>e.amount),[3,3,3]);
-      assert.equal(h.calls.filter(c=>c.name==='hit'&&c.amount===3).length,3);
+      assert.ok(fx.slice(1).every(c=>c.options.flightMs===PRESENT_MANA_RUN_GAP_MS));
     } else {
       assert.equal(fx.length,3);
       assert.equal(fx[0].options.flightMs,undefined);

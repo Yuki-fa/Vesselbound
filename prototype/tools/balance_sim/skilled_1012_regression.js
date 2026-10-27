@@ -37,9 +37,9 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   assert.equal(coreKeywordCountBuff(['熟練','熟練1','熟練3','先制'],[{desc:'常時：このキャラクターは+X/+Xを得る。Xはキーワードの数の2倍に等しい。'}]),4,'熟練Nは1種類、カード名は除外');
 
   for(const side of ['p1','p2'])for(const merged of [false,true]){
-    // E052はシート本文の通常1／合体3。改名しても本文で効く。
+    // 卓越E052はシートのキーワード列で通常1／強化2を得る。
     const unit=formed('C118',[['E052',merged]],{name:'改名した与え手',desc:'',keywords:[]});
-    const amount=Number(text('E052',merged).match(/値は(\d+)/)[1]);
+    const amount=Number(row('E052')[merged?'強化キーワード':'キーワード'].match(/熟練(\d+)/)[1]);
     unit.keywords.push('熟練2');
     const h=setup([unit,plain('receiver','青')],side),u=h.state.units[side][0],foe=h.state.units[h.other][0];
     assert.equal(coreStatBonus(foe,2,u),2+amount+2);assert.equal(coreStatBonus(foe,-2,u),-2-amount-2);
@@ -54,7 +54,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   }
   // 同じ旧文を通常＋合体で接続すると各本文の値を足す（最大値で上書きしない）。
   const mixed=formed('C118',[['E052',false],['E052',true]],{desc:'',keywords:[]});
-  const mixedBonus=[false,true].reduce((n,m)=>n+Number(text('E052',m).match(/値は(\d+)/)[1]),0);
+  const mixedBonus=[false,true].reduce((n,m)=>n+Number(row('E052')[m?'強化キーワード':'キーワード'].match(/熟練(\d+)/)[1]),0);
   assert.equal(coreStatBonus(plain('r'),1,mixed),1+mixedBonus);assert.equal(coreStatBonus(plain('r'),-1,mixed),-1-mixedBonus);
   for(const side of ['p1','p2']){
     const eye=setup([plain('eye','赤',{keywords:['熟練1'],desc:'負傷：ランダムな敵はATK-2を得る。'})],side);

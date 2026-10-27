@@ -538,10 +538,10 @@ async function webpPresenterChecks(){
         assert.ok(events.some(e=>e.type==='keyword_effect'&&e.effect==='weaken'),'現行マータは負傷で弱体を与える');
         assert.ok(!pve.some(c=>c[0]===expected),'廃止した肩代わりVFXを流用しない');
       } else if(no==='E042') {
-        // 現行E042は付与効果。旧キャラクターC024の専用VFXを借りない。
+        // 天の魔弓E042は付与効果として既存のE042を使う。
         assert.ok(events.some(e=>e.type==='damage'&&e.effectSource===false));
-        assert.ok(!pve.some(c=>c[0]===expected),'付与効果にキャラクター固有VFXを出さない');
-        assert.ok(pve.some(c=>c[0]==='hit-burst'),'既存の命中表示を使う');
+        assert.ok(pve.some(c=>c[0]===expected),'天の魔弓の既存VFXを出す');
+        // 命中の光はE042の弾と着弾に含まれる。
       } else assert.ok(pve.some(c=>c[0]===expected),no+' のコアのイベントから '+expected+' を再生: '+JSON.stringify(pve));
       const normal=fixture(no);setup(normal);G._savedBattleReplaying=false;renderAll();
       await vbLabVfxStartPve(no,normal,currentTrigger).done;
