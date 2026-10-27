@@ -11,6 +11,7 @@ const def=code=>PANEL_POOL.find(c=>c.no===code);
 const sheetNumber=value=>String(value)==='∞'?SHEET_INFINITY_VALUE:Number(String(value).replace(/,/g,''));
 function saveAtReward(){
   SaveRun.begin();G.phase='reward';G.gold=123;G._waveLife=3;_rewCards=[];_rewPhaseId=0;
+  _capturePlacementStart();
   return SaveRun.buildRunSave('reward');
 }
 // Nodeの境界DOMにも実際のremove/insertBeforeと兄弟関係を持たせ、復帰時の重複・位置を検査する。

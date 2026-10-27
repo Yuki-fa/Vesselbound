@@ -191,8 +191,9 @@ function renderDebugCardPalette(){
         art.alt=card.name||'指輪';
         cardEl.appendChild(art);
       }
-      cardEl.setAttribute('data-preview',[typeof _cardUiName==='function'?_cardUiName(card):card.name,card.desc||''].filter(Boolean).join('\n'));
-      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(card,card.desc||''):'';
+      const desc=_plainEffectTextForPreview(card);
+      cardEl.setAttribute('data-preview',[typeof _cardUiName==='function'?_cardUiName(card):card.name,desc].filter(Boolean).join('\n'));
+      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(card,desc):'';
       if(keywordPreview) cardEl.setAttribute('data-keyword-preview',keywordPreview);
     }else if(kind==='item'){
       // デバッグ一覧のアイテムも指輪と同じく、専用画像を原寸比で収める表示にする。
@@ -208,8 +209,9 @@ function renderDebugCardPalette(){
         art.alt=card.name||'アイテム';
         cardEl.appendChild(art);
       }
-      cardEl.setAttribute('data-preview',[typeof _cardUiName==='function'?_cardUiName(card):card.name,card.desc||''].filter(Boolean).join('\n'));
-      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(card,card.desc||''):'';
+      const desc=_plainEffectTextForPreview(card);
+      cardEl.setAttribute('data-preview',[typeof _cardUiName==='function'?_cardUiName(card):card.name,desc].filter(Boolean).join('\n'));
+      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(card,desc):'';
       if(keywordPreview) cardEl.setAttribute('data-keyword-preview',keywordPreview);
     }else{
       cardEl=panelKind&&typeof mkCardEl==='function'

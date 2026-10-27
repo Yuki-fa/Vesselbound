@@ -188,7 +188,7 @@ function element(tag) {
     finally { warpToPreviousWaveVillage = warp; _wavePreviousVillage = previous; }
   });
   await check('I013の方向と次の乱数は保存前後で同じ。付与キーワードはオンラインpayloadにも残る', () => {
-    board(); select('I024'); select('I018'); const saved = SaveRun.buildRunSave('reward');
+    board(); _capturePlacementStart(); select('I024'); select('I018'); const saved = SaveRun.buildRunSave('reward');
     const first = copy(select('I013')), random = rand(); SaveRun.restoreRunState(copy(saved));
     assert.deepEqual(select('I013'), first); assert.equal(rand(), random);
     const payload = buildOnlineSelfFormation(), u = payload.units.find(u => u._mainBoardSlot === 1);

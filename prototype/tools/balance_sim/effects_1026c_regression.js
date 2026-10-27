@@ -14,7 +14,8 @@ const item=no=>makeItem(ITEM_POOL.find(c=>'I'+String(c.no).padStart(3,'0')===no)
 function fresh(){initRun();G.mainBoard.fill(null);G.spellSlots.fill(null);_rewCards=[];_pendingCardActivation=null;_blessingFlameVisit=null;}
 function ready(no,enhanced=false){fresh();const c=G.mainBoard[1]=card(no,enhanced);c._activationReady=true;return c;}
 function openActivation(){assert.equal(cardActivationClick(1),true);assert.ok(_pendingCardActivation);}
-function roundtrip(){const before=copy(G.mainBoard),save=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(copy(save));assert.deepEqual(G.mainBoard,before);}
+// このハーネスは画面の入場記録を止めているため、配置印だけ本番と同じく先に用意する。
+function roundtrip(){_capturePlacementStart();const before=copy(G.mainBoard),save=SaveRun.buildRunSave('reward');SaveRun.restoreRunState(copy(save));assert.deepEqual(G.mainBoard,before);}
 const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
 (async()=>{
  console.table=()=>{};await loadGameData();
@@ -31,7 +32,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   const next=G.mainBoard[1],definition=PANEL_POOL.find(c=>c.no==='C084');
   assert.deepEqual([next.power,next.life],[47,61]);for(const key of ['name','no','art','desc'])assert.equal(next[key],definition[key],key);
   assert.deepEqual(next.keywords,definition.keywords);for(const key of ['_merged','_tripleMerged','_mergedFormApplied'])assert.ok(!next[key],key);
-  assert.deepEqual(G.mainBoard[3],donorBefore);assert.equal(next._placeKey,'original');assert.ok(next._activationReady);assert.equal(next._battleEndCount,2);
+  assert.deepEqual(G.mainBoard[3],donorBefore);assert.equal(next._placeKey,undefined,'fixes-1027d：変身は元のカードとして配置を戻せない');assert.ok(next._activationReady);assert.equal(next._battleEndCount,2);
   assert.equal(G.spellSlots[0],null);roundtrip();
   fresh();G.mainBoard[1]=card('C006');G.mainBoard[2]=card('E001');assert.equal(_canUseItemNow(item('I002')),false);
  });

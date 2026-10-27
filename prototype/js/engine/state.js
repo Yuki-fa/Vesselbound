@@ -8,12 +8,25 @@ let G={};
 // ライフ枠の最大数。通常は3、オンライン対戦は5（サーバーの ONLINE_START_LIFE と同値）。
 // 表示・回復上限の両方でこの値を使う。ゲームオーバー判定（0以下）は変わらない。
 function waveLifeMax(){
-  // 生命の指輪：常時：ライフ上限が+1される。宿屋で上限まで回復できる。
+  // 生命の指輪：常時：ライフ上限が+1される。装備変更時は changeEquippedRings で現在ライフも合わせる。
   const ringBonus=typeof _ringCount==='function'?Math.max(0,Number(_ringCount('生命の指輪'))||0):0;
   if(typeof G!=='undefined'&&G&&G._onlineMode){
     return ((typeof ONLINE_START_LIFE!=='undefined'?Number(ONLINE_START_LIFE):5)||5)+ringBonus+(Number(G.ascensionLifeBonus)||0);
   }
   return 3+ringBonus+(Number(G.ascensionLifeBonus)||0);
+}
+
+// 指輪の取得・破棄・有効化・並べ替えを通す。鏡の指輪も含め、実効上限の増加分だけ回復する。
+// セーブや「元に戻す」は指輪とライフを一緒に復元するので、この取得処理を通さない。
+function changeEquippedRings(change){
+  const before=waveLifeMax();
+  const current=G._waveLife!=null?Number(G._waveLife):Number(G.life??before);
+  const result=change();
+  const after=waveLifeMax();
+  const next=Math.max(0,Math.min(after,(current||0)+Math.max(0,after-before)));
+  if(G._waveLife!=null) G._waveLife=next;
+  G.life=next;
+  return result;
 }
 
 // キーワード説明文マップ（loader.js で effect_id シートから上書き可）

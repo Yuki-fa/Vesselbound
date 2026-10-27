@@ -826,7 +826,7 @@ function mkCardEl(card,_idx,_ctx){
   }
   if(typeof _isSpellCard==='function'&&_isSpellCard(card)){
     div.classList.add('spell-card');
-    const preview=[_cardUiName(card),_previewRarityLine(card),card.desc||''].filter(Boolean).join('\n');
+    const preview=[_cardUiName(card),_previewRarityLine(card),_plainEffectTextForPreview(card)].filter(Boolean).join('\n');
     if(preview) div.setAttribute('data-preview',preview);
     div.innerHTML=`${manaCostEl}${sealCostEl}${badgeEl}<div class="card-art"></div>`;
     if(typeof _applyManaOrbState==='function') _applyManaOrbState(div,card);

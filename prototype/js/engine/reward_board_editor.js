@@ -403,6 +403,14 @@ function _wireHeCardControls(div,card,arrName,i){
     div.addEventListener('dragstart',e=>{
       if(arrName==='boardCards'&&_cardIsSuppressionEngraving(card)) { e.preventDefault(); return; }
       if(arrName==='boardCards'&&_libraryTutorialIsMoveStep()) { e.preventDefault(); return; }
+      if(arrName==='boardCards'&&_ringOfferSelectionActive()){
+        _clearRingOfferSelection();
+        // ドラッグ元のDOMは保ち、選択印と指輪のロックだけを更新する。
+        document.querySelectorAll('#hand-slots > [data-board-idx]').forEach(el=>{
+          _setPickingCardState(el,_ringOfferDiscardableCard(_mainBoardCards()[Number(el.dataset.boardIdx)]),false);
+        });
+        renderRewCards();renderMoveSlotsInEnemy();
+      }
       _dragSrc=arrName==='boardCards'?{arr:arrName,idx:i,unitIdx:G._selectedBoardUnitIdx}:{arr:arrName,idx:i};
       if(arrName==='boardCards'){
         _detachBoardConnectionVisuals(i,div,card);

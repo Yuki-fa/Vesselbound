@@ -9,6 +9,9 @@ const _activationStatHolds = new WeakMap();
 function cardActivationShownStats(card, stats) { return _activationStatHolds.get(card)?.stats || stats; }
 function cardActivationVisitKey() {
   if (G.phase !== 'reward') return '';
+  if (G._isBlessingFlame) return blessingFlameActive() && _blessingFlameVisit.executed && !_blessingFlameVisit.busy
+    ? `blessing:${_blessingFlameVisit.key}` : '';
+  if (G._isRingExchange) return G._ringOfferResolved ? `altar:${G._facilityCacheKey ?? G._wave}` : '';
   if (G._isPeddler) return `peddler:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`;
   if (G._isForge) return `forge:${G._facilityCacheKey ?? G._wave}`;
   if (G._isItemShop) return `items:${G._facilityCacheKey ?? G._wave}`;
@@ -97,11 +100,16 @@ function cardActivationItemSlotDimmed(item) {
   return !!_pendingCardActivation && !!item && !_cardActivationTargetsItem();
 }
 function wireCardActivation(element, card, index) {
-  if (!cardActivationCanUse(card)) return;
-  element.classList.add('card-activation-ready');
-  element.classList.toggle('card-activation-source', !!(_pendingCardActivation && _pendingCardActivation.card === card));
+  const canUse = cardActivationCanUse(card);
+  // 祝福・祭壇では確定待ちの充填済みラベルも残す。発光と操作は同じ可否判定に従う。
+  const locked = !canUse && G.phase === 'reward' && (G._isBlessingFlame || G._isRingExchange)
+    && card && card._activationReady && coreUnitTriggerText(card, '起動');
+  if (!canUse && !locked) return;
+  element.classList.toggle('card-activation-ready', canUse);
+  element.classList.toggle('card-activation-source', canUse && !!(_pendingCardActivation && _pendingCardActivation.card === card));
   const label = document.createElement('div');
   label.className = 'card-activation-ready-label';
+  label.classList.toggle('card-activation-locked', !!locked);
   label.textContent = typeof textMessage === 'function' ? textMessage('「起動可」表示', '起動可') : '起動可';
   element.appendChild(label);
 }

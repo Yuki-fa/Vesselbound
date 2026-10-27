@@ -50,6 +50,7 @@ function event(type,extra={}){
 function offered(index=0){return row.children.find(n=>n.dataset.mergeRewIdx===String(index));}
 function take(index=0,slot=10){takeRewCard(index,slot);assert.ok(G.mainBoard[slot]);return G.mainBoard[slot];}
 function saveBoard(){
+  _capturePlacementStart(); // 入場を省略する検査でも、配置印は保存前に記録する。
   // その報酬画面だけの返却先は既存の保存対象外。カードの実体と永続効果を比べる。
   const permanent=list=>JSON.parse(JSON.stringify(list,(key,value)=>key.startsWith('_rewardReturn')?undefined:value));
   const before=permanent(G.mainBoard);SaveRun.restoreRunState(clone(SaveRun.buildRunSave('reward')));assert.deepEqual(permanent(G.mainBoard),before);

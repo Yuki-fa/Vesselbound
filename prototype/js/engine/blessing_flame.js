@@ -7,7 +7,7 @@ const BLESSING_FLAME_CONFIG={
   text:{description:'魔導板のキャラクターかエンチャント1枚を強化する。',
     used:'この炎の祝福は、すでに失われた。',
     instruction:'強化するカードを1枚選んでください。',
-    completed:'強化しました。「元に戻す」で選び直せます。',
+    completed:'強化しました。',
     execute:'実行',cancel:'キャンセル',leave:'祝福を離れる',preview:'強化後のカード'},
 };
 // 選択・演出は画面内だけの一時状態。使用済み（強化して立ち去った）だけを G に保存する。
@@ -54,6 +54,7 @@ function openBlessingFlame(){
 }
 function blessingFlameSelect(index){
   if(!blessingFlameActive()) return false;
+  if(G._pendingPanelPlacement) return false;
   const visit=_blessingFlameVisit,card=(G.mainBoard||[])[index];
   if(visit.busy||visit.executed||blessingFlameUsed(visit.key)||!blessingFlameCardEligible(card)) return false;
   visit.preview=enhancedPanelCopy(card);
@@ -102,10 +103,8 @@ function blessingFlameReset(){
   if(!blessingFlameActive()||_blessingFlameVisit.busy) return false;
   _blessingFlameVisit.selected=-1;
   _blessingFlameVisit.preview=null;
-  // 入場時点へ戻す。使用済みの炎へ入り直した時は、入場時点が強化後なので使用済みのまま。
-  _blessingFlameVisit.executed=!!_blessingFlameVisit.spent;
-  resetRewardToStart();
-  return true;
+  // 強化済み・使用済みの印は保ち、カードの配置だけを戻す。
+  return resetRewardPlacement();
 }
 async function blessingFlameLeave(){
   if(!blessingFlameActive()||_blessingFlameVisit.busy) return false;
@@ -152,9 +151,11 @@ function blessingFlameRenderControls(el){
     const span=document.createElement('span');span.className='rew-btn-label';span.textContent=label;b.appendChild(span);
     b.onclick=action;el.appendChild(b);
   };
-  // 右下は「祝福を離れる」「元に戻す」。実行・キャンセルはプレビュー中だけ、報酬枠のカードの左右に出す（2026-10-20 利用者指定）。
+  // 右下は「祝福を離れる」「配置を戻す」。実行・キャンセルはプレビュー中だけ。
   button(_uiLabel('「祝福を離れる」ボタン',text.leave),'rew-move-btn blessing-flame-leave-btn',()=>void blessingFlameLeave(),!visit||visit.busy);
-  button(_uiLabel('「元に戻す」ボタン','元に戻す'),'rew-reset-btn',blessingFlameReset,!visit||visit.busy);
+  const reset=_placementResetButton(blessingFlameReset);
+  reset.disabled=!visit||visit.busy;
+  el.appendChild(reset);
   if(visit&&visit.preview&&!visit.executed){
     button(_uiLabel('「実行」ボタン',text.execute),'rew-move-btn blessing-flame-execute-btn',()=>void blessingFlameExecute(),visit.busy);
     button(_uiLabel('「キャンセル」ボタン',text.cancel),'rew-reset-btn blessing-flame-cancel-btn',blessingFlameCancel,visit.busy);
@@ -166,7 +167,7 @@ function blessingFlameMoveAllowed(){
 }
 function blessingFlameWireCard(el,card,index){
   const visit=_blessingFlameVisit;
-  const selecting=!G._pendingItemUse&&!_pendingCardActivation;
+  const selecting=!G._pendingItemUse&&!_pendingCardActivation&&!G._pendingPanelPlacement;
   el.classList.toggle('blessing-flame-unavailable',selecting&&!visit.executed&&!blessingFlameCardEligible(card));
   el.classList.toggle('blessing-flame-selected',selecting&&visit.selected===index&&!visit.executed);
   if(selecting&&visit.selected===index&&!visit.executed){
@@ -183,7 +184,12 @@ function blessingFlameBlockInput(event){
   const target=event.target;
   if(!target.closest('#scr-battle')||target.closest('#battle-options-btn,#options-layer')) return;
   if(_blessingFlameVisit.busy){event.preventDefault();event.stopImmediatePropagation();return;}
-  if(G._pendingItemUse&&event.type==='contextmenu') return; // 共通のアイテム取り消しへ渡す。
+  // デバッグの一覧・廃棄・ボタンは、通常の編成画面と同じ操作へ渡す。
+  if(G._debugMode&&target.closest('#debug-card-palette,.debug-discard-btn,#btn-test-battle,[id^="btn-debug-"]')){
+    if(event.type==='click'||event.type==='dragstart') blessingFlameCancel({keepBoard:true});
+    return;
+  }
+  if(_targetPickingActive()&&event.type==='contextmenu') return; // 共通のアイテム・起動取り消しへ渡す。
   if(event.type==='dragstart'&&blessingFlameMoveAllowed()&&target.closest('#hand-slots')) blessingFlameCancel({keepBoard:true});
   if(['dragstart','dragover','drop'].includes(event.type)&&blessingFlameMoveAllowed()
     &&target.closest('#hand-slots')&&!target.closest('button')) return;

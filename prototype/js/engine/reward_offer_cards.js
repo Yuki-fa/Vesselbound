@@ -351,7 +351,7 @@ function _takeRingCard(card){
   G.rings=Array.isArray(G.rings)?G.rings:Array(4).fill(null);
   const idx=G.rings.findIndex(r=>!r);
   if(idx<0) return false;
-  G.rings[idx]=clone(card);
+  changeEquippedRings(()=>{ G.rings[idx]=clone(card); });
   if(typeof markCardAcquired==='function') markCardAcquired(card);
   _playRewardAcquireSfx('ring_get.wav');
   return true;
@@ -548,9 +548,8 @@ function _wireRingOfferSelection(div,card,idx){
   if(!_ringOfferSelectionActive()) return false;
   const selected=(G._ringOfferSelectedSlots||[]).includes(idx),allowed=_ringOfferDiscardableCard(card);
   _setPickingCardState(div,allowed,selected);
-  div.draggable=false;
-  div.onclick=e=>{ e.stopPropagation(); if(allowed) _discardBoardCardForRingOffer(idx,card); };
-  return true;
+  // 選択中も通常のドラッグを付ける。移動開始時に供物の選択を外し、別カードの誤取得を防ぐ。
+  return false;
 }
 // クリックも指輪置き場へのドロップもここだけを通す。
 function _takeRingOffer(offerIdx,targetSlot){
@@ -563,7 +562,7 @@ function _takeRingOffer(offerIdx,targetSlot){
   const slot=targetSlot==null?G.rings.findIndex(r=>!r):targetSlot;
   if(!Number.isInteger(slot)||slot<0||slot>=G.rings.length||G.rings[slot]) return false;
   const board=_mainBoardCards(),entries=selected.map(idx=>({idx,card:board[idx]}));
-  G.rings[slot]=clone(ring);
+  changeEquippedRings(()=>{ G.rings[slot]=clone(ring); });
   selected.forEach(idx=>{ board[idx]=null; });
   G._ringOfferFadeOut={taken:offerIdx,offer:clone(G._ringOffer)};
   G._ringOffer.splice(offerIdx,1);
