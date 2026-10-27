@@ -164,6 +164,8 @@ function assetChecks() {
   };
   add(Assets);
   for(const [no]of Object.entries(cases)) {
+    // 2026-10-27：シートで実装 false のカード（E077 一時の眠りなど）は絵がまだ無い。演出の割り当てだけ検査し、絵の実在は問わない。
+    if([...PANEL_POOL,...ITEM_POOL].some(d=>(d.no===no||d.artCode===no)&&d._implemented===false))continue;
     const state=fixture(no);
     for(const unit of [...state.units.p1,...state.units.p2]) {
       add(getCharacterNoArtPath(unit));add(getPanelArtPath(unit));add(actionBannerImage(unit,'character'));
@@ -290,7 +292,8 @@ async function extraChecks() {
   for(const name of ['shield-state','poison-state','weaken-state','guts-state','revive-state']) assert.equal(VbFx.duration(name,1.5),VbFx.duration(name,4.5),name+'の周期は速度に依存しない');
   const adopted=fs.readFileSync(path.join(ROOT,'tools/vfx_preview/se/ADOPTED.md'),'utf8');
   // 2026-10-27：C025→E083 のマナの種は、さらに E027 へ移った。
-  const moved={C025:'E027',C031:'E043',C084:'E031',C057:'E056',C109:'E024',C121:'E082',C049:'C050',C024:'E042',C107:'C124',C124:'C107'};
+  // 2026-10-27：C121→E082 の本文は、さらに E077（一時の眠り）へ移った。
+  const moved={C025:'E027',C031:'E043',C084:'E031',C057:'E056',C109:'E024',C121:'E077',C049:'C050',C024:'E042',C107:'C124',C124:'C107'};
   // 2026-10-25：10-22 の番号の振り直しより後の節（新番号で書いた行）には旧→新の読み替えをしない。
   let renumbered=false;
   for(const line of adopted.split('\n')){const section=line.match(/^## (\d{4}-\d{2}-\d{2})/);if(section)renumbered=section[1]>='2026-10-22';
@@ -314,6 +317,8 @@ async function extraChecks() {
     if(['C114'].includes(cells[1])){
       assert.equal(presentLabFx(cells[1]),null,'旧効果の割り当てを外す '+cells[1]);assert.ok(VbFx.effects.some(d=>d.name===cells[2]),'定義は残す '+cells[2]);continue;
     }
+    // 2026-10-27 シート改訂：受難の刻印 E077→E103・苦悶の刻印 E078→E104・E082 の本文→E077（一時の眠り）。どの節の行も先に読み替える。
+    cells[1]=({E077:'E103',E078:'E104',E082:'E077'})[cells[1]]||cells[1];
     if(!renumbered)cells[1]=moved[cells[1]]||cells[1];
     // 2026-10-26：アークデーモン C124 は旧サンダーバードの落雷（thunder-strike）へ（旧定義 arch-demon は残す）。
     if(cells[1]==='C124'&&cells[2]==='arch-demon'){

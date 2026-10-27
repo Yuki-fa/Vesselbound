@@ -349,7 +349,7 @@ const Assets = {
     C002: 'assets/sfx/C002.wav', // LAB採用（2026-10-25 erinyes-flame 候補1）
     C001: 'assets/sfx/C001.wav', // LAB採用（2026-10-26 alastor-brand 候補1・演出の終わりでフェードしない（PRESENT_LAB_SOUND_NO_FADE））
     R031: 'assets/sfx/R031.wav', // LAB採用（2026-10-21 speed-ring 候補2）
-    E078: 'assets/sfx/E078.wav', // LAB採用（2026-10-21 gold-loss 候補1）
+    E104: 'assets/sfx/E078.wav', // LAB採用（2026-10-21 gold-loss 候補1。2026-10-27 苦悶の刻印が E078 から E104 へ。ファイル名は据え置き）
     R012: 'assets/sfx/R012.wav', // LAB採用（2026-10-21 penance-ring 候補2）
     E057: 'assets/sfx/E057.wav', // LAB採用（2026-10-21 sealed-power 候補3）
     K009_SWEEP: 'assets/sfx/K009.wav', // 全体攻撃（敵が1列だけの時の白い芯の横一閃。音は全体攻撃と同じ）
@@ -407,7 +407,7 @@ const Assets = {
     C100: 'assets/sfx/C100.wav',
     C106: 'assets/sfx/C106.wav',
     C117: 'assets/sfx/C117.wav',
-    E082: 'assets/sfx/E082.wav', // 2026-10-22 シート改訂で C096 から移った
+    E077: 'assets/sfx/E082.wav', // 2026-10-22 シート改訂で C096 から移った（2026-10-27 一時の眠りが E082 から E077 へ。ファイル名は据え置き）
     C123: 'assets/sfx/C123.wav',
     C096: 'assets/sfx/C096.wav',
     C056: 'assets/sfx/C056.wav',
@@ -426,7 +426,7 @@ const Assets = {
     R017: 'assets/sfx/R017.wav', // LAB採用（2026-10-18 undying-ring 候補3）
     R013: 'assets/sfx/R013.wav', // LAB採用（2026-10-18 magic-ring-mana 候補2）
     'map:duplicate': 'assets/sfx/map_duplicate.wav', // LAB採用（2026-10-18 map-duplicate 候補1）
-    E077: 'assets/sfx/E077.wav', // LAB採用（2026-10-18 suffering-brand 候補1）
+    E103: 'assets/sfx/E077.wav', // LAB採用（2026-10-18 suffering-brand 候補1。2026-10-27 受難の刻印が E077 から E103 へ。ファイル名は据え置き）
     R023: 'assets/sfx/R023.wav', // LAB採用（2026-10-18 storm-ring 候補1）
     R020: 'assets/sfx/R020.wav', // LAB採用（2026-10-18 oni-ring 候補1）
     C041: 'assets/sfx/C041.wav', // LAB採用（2026-10-18 soul-recall 候補1）

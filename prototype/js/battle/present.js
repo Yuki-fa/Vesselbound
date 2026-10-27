@@ -2041,7 +2041,8 @@ const PRESENT_LAB_FX = {
   C069:['worm',.9,'foes'], C073:['wyvern',.3,'foe'], C087:['frost-sprite',.18,'foe'],
   C088:['leprechaun',.9,'friends'], C089:['melusine',.9,'foes'], C097:['carbuncle',.04,'lost'],
   C098:['pixie',.9,'pair'], C100:['elemental',.74,'friends'], C106:['imp',.9,'others'],
-  C117:['wendigo',.9,'foes'], E082:['nightmare',.9,'self'], C123:['baron',.9,'self'],
+  // 2026-10-27 シート改訂：E082（死亡：封印Xを得て封印される）の本文は E077 一時の眠りへ移った。
+  C117:['wendigo',.9,'foes'], E077:['nightmare',.9,'self'], C123:['baron',.9,'self'],
   C096:['pegasus',.9,'friend'], C056:['direwolf',.12,'howl'], C019:['titan',.9,'foes'],
   // 2026-10-15 アラクネの熱波（ゲームのC013.wavのピーク0.38秒）
   C013:['arachne-ring',0.171354,'friends'],

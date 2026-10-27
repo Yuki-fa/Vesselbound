@@ -3,7 +3,8 @@ function vbLabVfxFixture(no) {
   const def=[...PANEL_POOL,...ITEM_POOL].find(d=>d.no===no||d.artCode===no||no.startsWith('I')&&'I'+String(d.no).padStart(3,'0')===no);
   if(!def) {
     // E082/E083は内蔵シートに行がない（E083 のマナの種は 2026-10-27 に E027 へ移った）。ゲーム用データは足さず、割り当て済み演出の接続を旧本文で検査する。
-    const text={E083:'負傷：10%の確率で1マナを得る。',E082:'死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。'}[no];
+    // 2026-10-27：E082 の本文は E077 一時の眠り（実装 false）へ移った。定義が無い時だけ本文で検査する。
+    const text={E083:'負傷：10%の確率で1マナを得る。',E082:'死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の2倍に等しい。',E077:'死亡：このキャラクターは封印Xを得て封印される。Xは現在の血の3倍に等しい。'}[no];
     if(!text) throw new Error('カードの定義 '+no);
     return createBattleState({sides:{p1:{units:[{id:'source',name:'演出検査素体',atk:12,hp:30,maxHp:100,color:'赤',keywords:[],boardCards:[{no,name:no,category:'エンチャント',desc:text,art:'assets/art/enchantments/E043.jpg'}],_adjacentPanelEffectTexts:[text]},...['赤','青','緑','黄','紫'].map((color,i)=>({id:'ally'+i,name:'味方'+i,color,atk:4,hp:70,maxHp:100,keywords:[],desc:''}))]},p2:{units:[{id:'foe0',name:'敵',atk:4,hp:100,maxHp:100,keywords:[],desc:''}]}},blood:{p1:20,p2:20}});
   }
@@ -50,7 +51,7 @@ var vbLabVfxTriggers={
   revive:(s,_u,_rng,_emit,hit)=>hit(s.units.p2[0],s.units.p1[1],10000,false,false,false),
   shieldBlock:(s,u,_rng,_emit,hit)=>hit(u,s.units.p2[0],4,false,false,false),
 };
-var vbLabVfxCases={E006:'death',E035:'death',C050:'observerDeath',E062:'counter',E067:'attack',E071:'attack',E075:'attack',C042:'mana',C048:'injury',C061:'opening',C064:'mana',C068:'mana',C066:'mana',C069:'attack',C073:'atkGain',C087:'allyAttack',C088:'battleEnd',C089:'attack',C097:'shieldLost',C098:'attack',C100:'opening',C106:'attack',C117:'opening',E082:'death',C123:'release',C096:'attack',C056:'mana',C019:'opening',C023:'mana',C035:'death',I006:'item'};
+var vbLabVfxCases={E006:'death',E035:'death',C050:'observerDeath',E062:'counter',E067:'attack',E071:'attack',E075:'attack',C042:'mana',C048:'injury',C061:'opening',C064:'mana',C068:'mana',C066:'mana',C069:'attack',C073:'atkGain',C087:'allyAttack',C088:'battleEnd',C089:'attack',C097:'shieldLost',C098:'attack',C100:'opening',C106:'attack',C117:'opening',E077:'death',C123:'release',C096:'attack',C056:'mana',C019:'opening',C023:'mana',C035:'death',I006:'item'};
 function vbLabVfxExtraCases() {
   return [['K016','C086','mana'],['K002','C117','opening'],['K009','C008','allAttack'],
     ['S001','C056','mana'],['K020','C008','revive'],['K018_gain','C099','mana'],

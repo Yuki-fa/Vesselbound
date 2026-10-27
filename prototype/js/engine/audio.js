@@ -3,11 +3,7 @@
 // すべてのSE参照は Assets.sfx に集約する。
 // ═══════════════════════════════════════
 
-// 刻印の番号は現行シート、音声ファイル名は既存資産のまま。素材は複製・改名しない。
-if(typeof Assets!=='undefined'&&Assets.sfx){
-  Assets.sfx.E103=Assets.sfx.E077;
-  Assets.sfx.E104=Assets.sfx.E078;
-}
+// 刻印の番号は現行シート、音声ファイル名は既存資産のまま（番号→ファイルの対応は assets.js の Assets.sfx。2026-10-27）。
 
 // 📦 【最前面ハック】すべての音声要素（Audioオブジェクト）の音量制限を根こそぎ解除
 (function _boostGlobalUiSounds() {
@@ -243,7 +239,7 @@ const SFX_SETTINGS={
     C100: {group:'magic',volume:.70},
     C106: {group:'magic',volume:.70},
     C117: {group:'magic',volume:.70},
-    E082: {group:'magic',volume:.70},
+    E077: {group:'magic',volume:.70}, // 一時の眠り（2026-10-27 シート改訂で E082 から移った）
     C123: {group:'magic',volume:.70},
     C096: {group:'magic',volume:.70},
     C056: {group:'magic',volume:.70},
