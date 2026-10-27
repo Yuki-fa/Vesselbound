@@ -332,9 +332,43 @@ function undecidedDigest(api) {
       const after = h.clone(G.mainBoard);
       SaveRun.applyEnd({ units: { p1: G.allies, p2: G.enemies } });
       assert.deepEqual(G.mainBoard, after, '終戦の再適用で永久値を二重加算しない');
+
+      // 実際の報酬入口と同じく、確定したカードへ配置の印を付けてから保存する。
+      // 控えのない旧セーブは復元時に印を補うので、印のない戦闘直後の配列とは一致しない。
+      G.phase = 'reward'; _rewPhaseId++; _rewCards = []; _rewFreePickDone = false;
+      _storeRewardStartSnapshot();
+      const placed = h.clone(G.mainBoard), placement = h.clone(G._placementStart), placeKeySeq = G._placeKeySeq;
+      G.mainBoard[2] = G.mainBoard[1]; G.mainBoard[1] = null; G._partyBoardUnit = null;
+      const moved = h.clone(G.mainBoard), lifeBeforeRing = G._waveLife;
+      changeEquippedRings(() => { G.rings[0] = h.clone(RING_POOL.find(r => r.name === '生命の指輪')); });
+      assert.equal(G._waveLife, lifeBeforeRing + 1, '指輪取得時だけ現在ライフを増やす');
+      const rings = h.clone(G.rings), life = G._waveLife;
       const runSave = SaveRun.buildRunSave('reward');
       SaveRun.restoreRunState(runSave);
-      assert.deepEqual(G.mainBoard, after, 'ラン保存後も確定した魔導板の値を保持する');
+      assert.deepEqual(G.mainBoard, moved, 'ラン保存後も永久強化・移動先・配置の印を保持する');
+      assert.deepEqual(G._placementStart, placement, '配置を戻す先も保存・復元する');
+      assert.equal(G._placeKeySeq, placeKeySeq, '復元で配置の印を振り直さない');
+      assert.equal(resetRewardPlacement(), true);
+      assert.deepEqual(G.mainBoard, placed, '配置を戻しても終戦の永久強化を保持する');
+      assert.deepEqual(G.rings, rings, '配置を戻しても取得した指輪を保持する');
+      assert.equal(G._waveLife, life, '復元・配置を戻すで生命の指輪の回復を重ねない');
+
+      // 配置の控えも印もない旧セーブでは、追加されるのは配置の印だけ。
+      const legacy = h.clone(runSave);
+      delete legacy.state.choices._placementStart; delete legacy.state.choices._placeKeySeq;
+      for (const card of legacy.state.player.mainBoard) if (card) delete card._placeKey;
+      const legacyBoard = h.clone(legacy.state.player.mainBoard);
+      SaveRun.restoreRunState(legacy);
+      assert.deepEqual(G._placementStart.slots, G.mainBoard.map(c => c ? c._placeKey : null));
+      assert.ok(G.mainBoard[2]._placeKey, '旧セーブには配置の印を補う');
+      const withKeys = h.clone(G.mainBoard), withoutKeys = h.clone(G.mainBoard), legacySeq = G._placeKeySeq;
+      for (const card of withoutKeys) if (card) delete card._placeKey;
+      assert.deepEqual(withoutKeys, legacyBoard, '旧セーブの補完でも永久強化を含むカードの値を変えない');
+      SaveRun.restoreRunState(SaveRun.buildRunSave('reward'));
+      assert.deepEqual(G.mainBoard, withKeys, '補完した配置の印も次の保存で保持する');
+      assert.equal(G._placeKeySeq, legacySeq);
+      assert.equal(G._waveLife, life);
+      assert.deepEqual(G.rings, rings);
       assert.equal(G.gold, saved.finalState.resources.p1.gold);
     } finally { global.persistBoardCharacterStats = persist; global.finishBattleAsVictory = finish; }
   });
@@ -395,7 +429,9 @@ function undecidedDigest(api) {
     }
     const actual = undecidedDigest(api);
     if (process.env.VB_VICTORY_BASELINE_CORE) console.log('旧コア照合値 ' + JSON.stringify(actual));
-    assert.deepEqual(actual, { count: 435, hash: '382a2cd2a2dfe60fff162b0aae13d82502f2062a9aa85711d39288435c0094a4' });
+    // 1028：4枚の仮絵指定が外れ、boardCardsを含む照合値が変わった。
+    // 現行入力で旧コアと435標本の全イベント・最終状態が一致し、旧loaderだけ戻すと旧照合値になることを確認済み。
+    assert.deepEqual(actual, { count: 435, hash: '3b835857782b715ef0cec1bfeb6985cd49f7ed9cf5c5d2fb68ffffa3b3f3e3e2' });
   });
   await check('旧コアとの差分：最後の敵の死亡反撃・召喚・死亡金を止めるため、勝敗も変わる', () => {
     const setup = contactSetup(); setup.sides.p1.units.length = 1;
