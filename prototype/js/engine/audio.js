@@ -3,6 +3,12 @@
 // すべてのSE参照は Assets.sfx に集約する。
 // ═══════════════════════════════════════
 
+// 刻印の番号は現行シート、音声ファイル名は既存資産のまま。素材は複製・改名しない。
+if(typeof Assets!=='undefined'&&Assets.sfx){
+  Assets.sfx.E103=Assets.sfx.E077;
+  Assets.sfx.E104=Assets.sfx.E078;
+}
+
 // 📦 【最前面ハック】すべての音声要素（Audioオブジェクト）の音量制限を根こそぎ解除
 (function _boostGlobalUiSounds() {
   try {
@@ -119,7 +125,7 @@ const SFX_SETTINGS={
     R017: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 undying-ring 候補3）
     R013: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 magic-ring-mana 候補2）
     'map:duplicate': {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 map-duplicate 候補1）
-    E077: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 suffering-brand 候補1）
+    E103: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 suffering-brand 候補1）
     R023: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 storm-ring 候補1）
     R020: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 oni-ring 候補1）
     C041: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-18 soul-recall 候補1）
@@ -174,7 +180,7 @@ const SFX_SETTINGS={
     R031: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 speed-ring 候補2）
     K001: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 death-mark 候補1）
     R016: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 intimidate-ring 候補1・長めに切り直した候補）
-    E078: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 gold-loss 候補1）
+    E104: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 gold-loss 候補1）
     R012: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 penance-ring 候補2）
     C115: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 steal-mark 候補3）
     E057: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-21 sealed-power 候補3）

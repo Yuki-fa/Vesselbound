@@ -83,7 +83,8 @@ function unchangedMain() {
     const result = api.runBattleCore(state,rng,{ turnLimit:6,onEvent:e=>events.push(e) });
     return copy({result,events,finalState:api.battleCoreFinalState(state),nextRandom:rng.next()}); };
   for (const row of [...sheet.sheetRows('card'),...sheet.sheetRows('enchant')]) {
-    if (row['No.'] === 'C004' || REVISED_ENCHANTS.has(row['No.'])) continue;
+    // 1027：献身のATK付与と呪いの印はsheet_1027／本文監査で現行の効果を検査する。
+    if (['C004','E065','E066'].includes(row['No.']) || REVISED_ENCHANTS.has(row['No.'])) continue;
     const def = PANEL_POOL.find(c=>c.no===row['No.']); if (!def) continue;
     for (const enhanced of [false,true]) {
       const c = {...copy(def),desc:(enhanced?row['強化効果']:'')||row['効果']||''};

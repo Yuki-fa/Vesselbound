@@ -132,6 +132,7 @@
       units,
       ...coreGameSummonBuffFields({p1:typeof G!=='undefined'&&G&&G.gameSummonBuff}),
       ...coreRunEffectFields({p1:G.runEffects||{}}),
+      ...coreBattleEndCardFields({p1:board&&board.boardCards||[]}),
       itemFreeSlots:{p1:(G.spellSlots||[]).filter(x=>!x).length,p2:4},
       stageNumber: Math.max(1, Number(typeof G !== 'undefined' && G && G._wave) || 1),
       mapIndex: Math.max(1, Number(typeof G !== 'undefined' && G && G._wave) || 1),

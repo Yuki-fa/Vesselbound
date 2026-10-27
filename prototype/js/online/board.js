@@ -889,6 +889,7 @@
       }
       case 'run_effect': {
         applyCoreRunEffectEvent(ev);
+        applyCoreBattleEndCardEvent(ev);
         if (typeof presentRunEffectEvent === 'function') await presentRunEffectEvent(ev, { findUnit: (side, id) => _find(side, id) });
         break;
       }

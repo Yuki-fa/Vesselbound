@@ -238,6 +238,7 @@ async function playOnlineBattleEvents(result, handlers) {
       if (ev.side === 'p1' && ev.item) ctx.itemRewards.push({ ...ev.item });
     } else if (ev.type === 'run_effect') {
       applyCoreRunEffectEvent(ev);
+      applyCoreBattleEndCardEvent(ev);
     } else if (ev.type === 'bonus_reward') {
       if (ev.side === 'p1' && ev.unit) ctx.bonusRewards.push({ ...ev.unit });
     } else if (ev.type === 'summon' && ev.unit) {

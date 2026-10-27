@@ -53,7 +53,7 @@ async function testShopExchange(api,check=(title,fn)=>{fn();console.log('OK '+ti
     _rewCards[0]=makePanel('ノーム');assert.equal(exchangeShopCard(0,1),true);assert.equal(_rewCards[0].name,'ノーム');assert.equal(G.mainBoard.filter(Boolean).length,count);
   });
   check('交換店：刻印・依頼枠の制限を保ち、売却ドラッグ先を受け付けない',()=>{
-    G.mainBoard[0]=makePanel(PANEL_POOL.find(c=>c.no==='E066').id);
+    G.mainBoard[0]=makePanel(PANEL_POOL.find(c=>c.no==='E102').id);
     assert.equal(canExchangeShopCardAt(0,0),false);
     _dragSrc={arr:'boardCards',idx:1};assert.equal(_canReturnDragSrcToRewardArea(),false);
     const board=clone(G.mainBoard),stock=clone(_rewCards);_returnDragSrcToRewardArea();assert.deepEqual(G.mainBoard,board);assert.deepEqual(_rewCards,stock);_dragSrc=null;

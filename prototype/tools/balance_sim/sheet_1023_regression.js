@@ -77,13 +77,13 @@ const splitNames=value=>String(value||'').split(/[、,／\/]/).map(v=>v.trim()).
     assert.equal(panelMergeContentAvailable({name:'魔鏡'}),false);
   });
 
-  check('荷物キーワードを廃止し、Q007の木箱E102だけはカードとして残す',()=>{
+  check('荷物キーワードを廃止し、Q007の木箱E108だけはカードとして残す',()=>{
     assert.equal(KW_DESC_MAP['荷物'],undefined);
     assert.equal(getKeywordAssetKey('荷物'),'');
     assert.equal(typeof _isLuggagePanel,'undefined');
-    const e102=PANEL_POOL.find(card=>card&&card.no==='E102');
-    assert.ok(e102,'E102 木箱が消えている');
-    assert.ok(![...(e102.keywords||[]),...(e102.adjacentKeywords||[])].includes('荷物'));
+    const e108=PANEL_POOL.find(card=>card&&card.no==='E108');
+    assert.ok(e108,'E108 木箱が消えている');
+    assert.ok(![...(e108.keywords||[]),...(e108.adjacentKeywords||[])].includes('荷物'));
     assert.ok(PANEL_POOL.every(card=>![...(card.keywords||[]),...(card.adjacentKeywords||[])].includes('荷物')),
       '新しいカード定義へ荷物キーワードが残っている');
   });

@@ -244,7 +244,6 @@ async function pipelines(initial) {
 function unchangedMain() {
   const context = { module: { exports: {} } };
   const source = execFileSync('git', ['show', `${BASELINE}:prototype/js/battle/core.js`], { encoding: 'utf8', maxBuffer: 2e6 });
-  assert.equal(runtimeSource('js/battle/core.js'), source, 'コア本体も開始時mainと同一');
   vm.runInNewContext(source, context);
   const baseline = context.module.exports, current = require('../../js/battle/core'); let compared = 0;
   const run = (api, input, seed) => {
@@ -252,8 +251,9 @@ function unchangedMain() {
     const result = api.runBattleCore(state, rng, { turnLimit: 6, onEvent: e => events.push(e) });
     return copy({ result, events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() });
   };
-  // 今回はルール変更が無いのでカードを1枚も除外しない。通常／強化・両陣営・複数seedを比較する。
+  // 通常／強化・両陣営・複数seedを比較する。1027で変更した2効果は専用回帰で検査する。
   for (const row of [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')]) {
+    if (['E065','E066'].includes(row['No.'])) continue;
     const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
     for (const enhanced of [false, true]) for (const side of ['p1', 'p2']) for (const seed of [1, 1026, 261026]) {
       const c = { ...copy(def), desc: sheet.effectText(row['No.'], enhanced) };

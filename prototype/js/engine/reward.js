@@ -138,7 +138,7 @@ function _cardIsEngraved(card){
     .some(k=>String(k||'').trim()==='刻印');
 }
 function _cardIsSuppressionEngraving(card){
-  return !!(card&&(String(card.no||'').toUpperCase()==='E076'
+  return !!(card&&(String(card.no||'').toUpperCase()==='E101'
     ||String(card.name||'').trim()==='抑圧の刻印'));
 }
 

@@ -1573,7 +1573,7 @@ function presentStatChangeVfxAllowed(ev) {
 
 // ── 行動表示：発動元の選択（表示だけ。コアの入力・イベントは変更しない）────
 // 常時というトリガでは除外しない。除外は発動元の characterDesc（シート「キャラクター用説明文」）だけ。
-// 現行の非空行：E002/E003/E026/E034/E046/E063/E066/E073、R001〜R005/R032。
+// 現行の非空行：E002/E003/E026/E034/E046/E063/E102/E073、R001〜R005/R032。
 // 理由→カードの対応は発動元の検索用。表示／非表示の一覧を別にハードコードしない。
 const PRESENT_ACTION_BANNER_GROUP_REASONS = new Set([
   'bond_scroll', 'bond_scroll_summon', 'map_passive_team_buff', 'skoll_hati', 'enemy_mana_passive',
@@ -1585,9 +1585,9 @@ const PRESENT_ACTION_BANNER_ENCHANT_BY_REASON = {
   healing: 'E012', wild_power: 'E013', incite: 'E036', roar: 'E049', majesty: 'E050',
   necromancy: 'E051', character_death_self_buff: 'E051', release_bonus: 'E057',
   devotion: 'E065', blood_bond: 'E072', release_self_buff: 'E057',
-  discipline_engraving: 'E079', anguish_engraving: 'E078',
+  discipline_engraving: 'E105', anguish_engraving: 'E104',
   randomItemOnBattleEnd: 'E030', alchemy: 'E030', wild_power_summon: 'E013',
-  strange_bond: 'E026', strategy: 'E063', tactician: 'E063', fate_engraving: 'E066',
+  strange_bond: 'E026', strategy: 'E063', tactician: 'E063', fate_engraving: 'E102',
   evil_eye: 'E018', march_song: 'E068', summon_song_buff: 'E068', glory_song: 'E069', revenge_song: 'E070',
 };
 const PRESENT_ACTION_BANNER_RING_BY_REASON = {
@@ -2048,7 +2048,7 @@ const PRESENT_LAB_FX = {
   EN044:['keyword-grant',0.45,'friends'], EN075_1:['fate-sever',0.45,'self'],
   // 第3弾（2026-10-17。何も出ていなかった）：苦行の指輪・錬成・ハイドラ・苦悶の刻印・受難の刻印。
   R012:['penance-ring',0.45,'friends'], E030:['alchemy',0.45,'self'],
-  E078:['gold-loss',0.242979,'self'], E077:['suffering-brand',0.074896,'dead'],
+  E104:['gold-loss',0.242979,'self'], E103:['suffering-brand',0.074896,'dead'],
   // 第4弾（2026-10-17。汎用の演出で代わりに出していた）：レムレースの呼び戻し・召喚の指輪・魔導板の力・威圧／魔力の指輪。
   // field＝発動元のカードが盤面に無いので、その陣営の陣の中央を起点にする（present_events.js）。
   C041:['soul-recall',0.45,'dead'], R017:['undying-ring',0.45,'field'], R020:['oni-ring',0.45,'field'],
