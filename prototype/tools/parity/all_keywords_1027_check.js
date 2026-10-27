@@ -195,6 +195,9 @@ else (async () => {
     }
     const runtimeErrors = browser.events.filter(e => e.method === 'Runtime.exceptionThrown').map(e => e.params.exceptionDetails);
     assert.deepEqual(runtimeErrors, []);
-    assert.deepEqual(await browser.consoleErrors(), []);
+    // file:// の回は、ブラウザが file:// からの fetch・画像の読み込みを CORS で止める（BGM・カーソル・xlsx の探索など。ゲームは代わりの経路で動く）。
+    // その通知と続く ERR_FAILED だけは除き、それ以外のコンソールのエラーは残さない（2026-10-27）。
+    const fileCors = m => /^Access to (?:fetch|image) at 'file:\/\/.*' from origin 'null' has been blocked by CORS policy/.test(m) || m === 'Failed to load resource: net::ERR_FAILED';
+    assert.deepEqual((await browser.consoleErrors()).filter(m => !fileCors(String(m))), []);
   } finally { await browser.close(); }
 })().catch(e => { console.error(e.stack); process.exitCode = 1; });

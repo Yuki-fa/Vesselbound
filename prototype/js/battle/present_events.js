@@ -1489,6 +1489,12 @@ async function presentDeathBatch(evs, api) {
     // （オンラインは1手ずつ進めるので焼失→復活。戦闘中に召喚されたスケルトンで食い違った。2026-09-29）。
     const shownHp = typeof presentShownHp === 'function' ? presentShownHp(unit) : Number(unit.hp);
     if (Number(shownHp) > 0) return;
+    // 死亡の効果で自分が封印される体は盤面に残る。焼失を出さず、続く封印の付与で封印中の姿にする（present.js）。
+    if (typeof presentDeathEndsSealed === 'function' && presentDeathEndsSealed(ev)) {
+      if (typeof api.markDone === 'function') api.markDone(ev);
+      unit._deathFxDone = true;
+      return;
+    }
     _presentRememberDeathOrigin(ev,unit);
     if (typeof api.markDone === 'function') api.markDone(ev);
     entries.push({ ev, unit });

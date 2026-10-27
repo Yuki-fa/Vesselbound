@@ -820,13 +820,23 @@ function presentDeathBatchEvents(events, index) {
   const start = list[index];
   if (!start || start.type !== 'death') return [];
   const out = [];
-  for (let i = index; i < list.length; i++) {
+  let i = index;
+  for (; i < list.length; i++) {
     const e = list[i];
     if (!e || e.type !== 'death') break;
     out.push(e);
   }
+  // 死亡の効果で自分が封印される体（一時の眠り「死亡：このキャラクターは封印Xを得て封印される。」）は盤面に残る。
+  // 焼失を出さない（PvE は最終状態の封印中の体を見るので出ない。オンラインは HP0 の時点で焼いてから描き直していた。2026-10-27）。
+  for (; i < list.length; i++) {
+    const e = list[i];
+    if (!e || e.type === 'turn_begin' || e.type === 'attack' || e.type === 'battle_end') break;
+    if (e.type === 'seal_apply' && e.fromDeath) out.forEach(d => { if (d.side === e.side && String(d.unitId) === String(e.unitId)) _presentDeathSealed.add(d); });
+  }
   return out;
 }
+const _presentDeathSealed = new WeakSet();
+function presentDeathEndsSealed(ev) { return !!ev && _presentDeathSealed.has(ev); }
 
 // ── 決着時の敵台詞 ──────────────────────────────────
 // 台詞の種類と「通常攻撃の接触で決着したか」の対応付けは、
@@ -2573,7 +2583,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     presentBreaksEffectRun,
     presentEffectRun, presentStatChangeRun, presentEffectRunDuration,
-    presentMarkBattleTail, presentIsSilentEvent, presentSkipsEvent, presentNoteDecidedEvent, presentDecidedSpeedScale, presentBattleEndPhase, presentResetDecided,
+    presentMarkBattleTail, presentIsSilentEvent, presentSkipsEvent, presentNoteDecidedEvent, presentDecidedSpeedScale, presentDeathEndsSealed, presentBattleEndPhase, presentResetDecided,
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
     presentReorderDeathsAfterDamageBatch, presentHoldHpForGuts, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,

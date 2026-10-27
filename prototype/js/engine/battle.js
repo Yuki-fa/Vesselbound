@@ -1671,20 +1671,21 @@ function compactBattleUnits(options){
   // 相手側の死亡・召喚で人数が変わっても、攻撃中の自陣まで再センタリングしない。
   // 以前はどちらか一方の人数変化を全陣営へ適用していたため、多段攻撃の途中で
   // 敵が減ると、攻撃者まで左右へ移動してから元の位置へ戻るFLIPが発生していた。
+  // 前回の記録（_lastCompactLiveCounts）が無い最初の詰め直しでも、画面上の枚数と死亡体は比べる。
+  // オンラインは戦闘の最初の詰め直しが召喚のことがあり、記録が無いと「人数の変化なし」として旧配置を保持し、
+  // 2体目を1体の時の位置の隣へ置いたまま列が中央からずれていた（2026-10-27 全キーワードのミテーラ・ペリカン）。
   const compactSideChanged={
-    allies:(!!previousCounts&&(
-      previousCounts.allies!==compactCounts.allies||previousDomCounts.allies!==compactCounts.allies
+    allies:(!!previousCounts&&previousCounts.allies!==compactCounts.allies)||previousDomCounts.allies!==compactCounts.allies
       // 死亡体がまだ配列に残る再生中は、前回のcompactで人数だけ先に記録されて
       // いても、今回の死亡側を詰める必要がある。これを見落とすとholdLayoutが
       // 古いleftを採用し、後段の通常renderAll()でFLIPなしに隙間を詰めてしまう。
       ||(G.allies||[]).some(u=>u&&u.hp<=0&&!u._isSoul&&!u._isObject)
       // 死亡枠を残した再生中はIDの並びが既に生存体だけに見えることがある。
       // それでも旧位置は詰まっていないため、保留印がある側は必ずFLIPする。
-      ))||!!G._battleCompactHeldGaps?.allies,
-    enemies:(!!previousCounts&&(
-      previousCounts.enemies!==compactCounts.enemies||previousDomCounts.enemies!==compactCounts.enemies
+      ||!!G._battleCompactHeldGaps?.allies,
+    enemies:(!!previousCounts&&previousCounts.enemies!==compactCounts.enemies)||previousDomCounts.enemies!==compactCounts.enemies
       ||(G.enemies||[]).some(u=>u&&u.hp<=0&&!u._isSoul&&!u._isObject)
-      ))||!!G._battleCompactHeldGaps?.enemies,
+      ||!!G._battleCompactHeldGaps?.enemies,
   };
   G._compactRecenterSides=compactSideChanged;
   G._compactHoldSides={
