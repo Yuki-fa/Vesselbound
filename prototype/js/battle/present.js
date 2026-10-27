@@ -2080,7 +2080,9 @@ const PRESENT_LAB_FX = {
   EN013:['echo-bolt',0.45,'foes'], EN031:['frost-retaliate',0.45,'foes'],
   'map:duplicate':['map-duplicate',0.45,'self'],
   C023:['cyclops',.9,'self'], C035:['wraith',.34,'friend'], [getKeywordAssetKey('弱体')]:['weaken',.2,'target'],
-  [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], K009_SWEEP:['all-sweep',.04,'foes'], I006:['meteor-scroll',.08,'foes'],
+  [getKeywordAssetKey('邪眼')]:['atk-down',.44,'target'], [getKeywordAssetKey('全体攻撃')]:['all-cross',.04,'foes'], K009_SWEEP:['all-sweep',.04,'foes'],
+  // 2026-10-27 利用者指定：先制（K006）＝先に斬りつける白金の一閃。先制が効く攻撃（相手が先制を持たない）の、当たる瞬間に相手の上へ（present_events.js）。
+  [getKeywordAssetKey('先制')]:['first-strike',0.050521,'target'], I006:['meteor-scroll',.08,'foes'],
   S001:['battle-summon',.46,'target'], [getKeywordAssetKey('復活')]:['revive-summon',.9,'target'],
   [getKeywordAssetKey('結界','gain')]:['shield-gain',.22,'target'], [getKeywordAssetKey('復活','gain')]:['revive-gain',.24,'target'],
   // 2026-10-25 利用者指定：隠密・防戦を得た瞬間（持っている間は状態のループ stealth-state / guard-state）。

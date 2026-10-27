@@ -16108,6 +16108,505 @@ VbFxDefs.register({
       ]
     },
     {
+      "name": "first-strike",
+      "label": "先制：先に斬りつける · K006",
+      "ms": 560,
+      "color": "#ffe9a8",
+      "light": "#fffaf0",
+      "playback": {
+        "maxMs": 30000,
+        "speedMin": 0.01,
+        "speedMax": 100,
+        "baseSize": 1
+      },
+      "defaultTargets": "explicit",
+      "loop": false,
+      "underStatus": false,
+      "stackable": false,
+      "impact": {
+        "atMs": 90,
+        "cueMs": 90
+      },
+      "composites": [],
+      "sourceCode": "K006",
+      "layers": [
+        {
+          "type": "beam",
+          "anchor": "each-target",
+          "basis": "unit",
+          "intrinsicAlpha": true,
+          "color": "#ffd76a",
+          "points": [
+            [
+              0.62,
+              -0.52
+            ],
+            [
+              -0.62,
+              0.52
+            ]
+          ],
+          "width": 0.2,
+          "noise": 0.02,
+          "segments": 24,
+          "geometry": "polyline",
+          "strokeProfile": "halo",
+          "core": 0.55,
+          "time": [
+            0,
+            0.5
+          ],
+          "curves": {
+            "progress": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.35,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 3
+            },
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  0.45,
+                  1
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "taper": {
+            "keys": [
+              [
+                0,
+                0.15
+              ],
+              [
+                0.5,
+                1
+              ],
+              [
+                1,
+                0.15
+              ]
+            ],
+            "interpolation": "smooth"
+          }
+        },
+        {
+          "type": "beam",
+          "anchor": "each-target",
+          "basis": "unit",
+          "intrinsicAlpha": true,
+          "color": "#ffffff",
+          "points": [
+            [
+              0.62,
+              -0.52
+            ],
+            [
+              -0.62,
+              0.52
+            ]
+          ],
+          "width": 0.07,
+          "noise": 0.02,
+          "segments": 24,
+          "geometry": "polyline",
+          "strokeProfile": "halo",
+          "core": 0.55,
+          "time": [
+            0,
+            0.42
+          ],
+          "curves": {
+            "progress": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.35,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 3
+            },
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  0.45,
+                  1
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "taper": {
+            "keys": [
+              [
+                0,
+                0.15
+              ],
+              [
+                0.5,
+                1
+              ],
+              [
+                1,
+                0.15
+              ]
+            ],
+            "interpolation": "smooth"
+          }
+        },
+        {
+          "type": "beam",
+          "anchor": "each-target",
+          "basis": "unit",
+          "intrinsicAlpha": true,
+          "color": "#fff0c0",
+          "points": [
+            [
+              0.78,
+              -0.3
+            ],
+            [
+              -0.4,
+              0.7
+            ]
+          ],
+          "width": 0.05,
+          "noise": 0.02,
+          "segments": 24,
+          "geometry": "polyline",
+          "strokeProfile": "halo",
+          "core": 0.55,
+          "time": [
+            0.06,
+            0.46
+          ],
+          "curves": {
+            "progress": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.35,
+                  1
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 3
+            },
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0.7
+                ],
+                [
+                  0.45,
+                  0.7
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          },
+          "taper": {
+            "keys": [
+              [
+                0,
+                0.15
+              ],
+              [
+                0.5,
+                1
+              ],
+              [
+                1,
+                0.15
+              ]
+            ],
+            "interpolation": "smooth"
+          }
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
+          "type": "shape",
+          "shape": "flare",
+          "color": "#fff6d8",
+          "blend": "add",
+          "offset": [
+            0,
+            0
+          ],
+          "time": [
+            0.04,
+            0.45
+          ],
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.3,
+                  1
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.03
+                ],
+                [
+                  0.4,
+                  0.5
+                ],
+                [
+                  1,
+                  0.2
+                ]
+              ],
+              "interpolation": "ease-out"
+            },
+            "rotation": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0.4
+                ]
+              ],
+              "interpolation": "linear"
+            }
+          }
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#ffd76a",
+          "texture": "glow",
+          "blend": "add",
+          "radius": 0.8,
+          "time": [
+            0.02,
+            0.6
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.18,
+                  0.85
+                ],
+                [
+                  0.6,
+                  0.595
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
+          "seedOffset": 61,
+          "intrinsicAlpha": true,
+          "type": "particles",
+          "motion": "radial-drag",
+          "color": "#ffe2a0",
+          "count": 22,
+          "radius": 0.75,
+          "afterglow": true,
+          "glint": true,
+          "time": [
+            0.04,
+            0.5
+          ],
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0.9
+                ],
+                [
+                  0.15,
+                  1
+                ],
+                [
+                  0.5,
+                  0.5
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
+          "seedOffset": 62,
+          "intrinsicAlpha": true,
+          "type": "ring",
+          "color": "#ffe9a8",
+          "width": 3.2,
+          "widthSpace": "pixel",
+          "noise": 0.04,
+          "noiseClock": 9,
+          "strokeProfile": "halo",
+          "core": 0.2,
+          "time": [
+            0.06,
+            0.65
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.12,
+                  0.9
+                ],
+                [
+                  0.6,
+                  0.63
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.1
+                ],
+                [
+                  1,
+                  0.9
+                ]
+              ],
+              "interpolation": "ease-out"
+            }
+          }
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "card",
+          "time": [
+            0.04,
+            0.4
+          ],
+          "clockSpace": "life",
+          "holdEnd": true,
+          "filterOrder": [
+            "brightness"
+          ],
+          "curves": {
+            "brightness": {
+              "keys": [
+                [
+                  0,
+                  1.6
+                ],
+                [
+                  1,
+                  1
+                ]
+              ],
+              "interpolation": "power-out",
+              "exponent": 2
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "scroll-sealed-meteor",
       "label": "隕石の巻物（静寂の巻物の色違い：燃える橙）",
       "variantOf": "scroll-sealed-reverse",

@@ -12,5 +12,19 @@
     "labWired": false,
     "duration": 1.95,
     "sha256": "ae8fac594e73f7098dde2b8bcffa46463ef784522e7d698b3f2e2ffd84629a77"
+  },
+  "K006": {
+    "code": "K006",
+    "effect": "first-strike",
+    "candidate": "first-strike-1",
+    "file": "assets/sfx/K006.wav",
+    "source": "WEAPSwrd_Mecha Energy Sword Shing_RogueWaves_AnimeStudio.wav",
+    "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Rogue Waves - Anime Studio Freebies/Anime Studio Freebies/WEAPSwrd_Mecha Energy Sword Shing_RogueWaves_AnimeStudio.wav",
+    "peak": 0.050521,
+    "gainDb": null,
+    "note": "仮採用：LAB で選ぶまでの候補1（先制）",
+    "labWired": false,
+    "duration": 1.627063,
+    "sha256": "c09b9f917984437dd650a06e6d7d8201951ac3381ed5a74a716835d8989c22f8"
   }
 }

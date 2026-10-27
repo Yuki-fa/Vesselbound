@@ -350,9 +350,7 @@ function _assignSheetArtCode(obj, row, fallbackPrefix, isEnemy) {
   obj.no = code;
   obj.imageNo = code;
   obj.artCode = code;
-  // 1027に入手可能になった4枚は番号の絵が未配置。番号と効果は保ち、既存の仮絵を表示する。
-  // 対応するjpgを追加したら、この一覧からその番号を外す。
-  if (['E066','E073','E076','E077'].includes(code)) obj.art = 'assets/art/enchantments/E0XX.jpg';
+  // 2026-10-27：E066・E073・E076・E077 の絵が届いたので、仮絵（E0XX.jpg）の指定を外した。番号の絵を引く。
 }
 
 function _truthySheet(v) {

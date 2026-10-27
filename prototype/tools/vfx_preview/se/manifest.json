@@ -6783,6 +6783,60 @@
       "provisional": false,
       "reason": "2026-10-27 シルフの魂の入れ替え：瞬間移動の軽い煌めき（互いのカードへ移る）",
       "sha256": "e1157ceb1fdc1f2ddc3a448b0d18343ee0f8d2c0c0b1b6602295cec5094fa04c"
+    },
+    "first-strike-1": {
+      "id": "first-strike-1",
+      "filename": "WEAPSwrd_Mecha Energy Sword Shing_RogueWaves_AnimeStudio.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Rogue Waves - Anime Studio Freebies/Anime Studio Freebies/WEAPSwrd_Mecha Energy Sword Shing_RogueWaves_AnimeStudio.wav",
+      "url": "vfx_preview/se/first-strike-1.wav",
+      "duration": 1.627063,
+      "originalDuration": 1.627063,
+      "start": 0.0,
+      "trimmed": false,
+      "peak": 0.050521,
+      "tailFadeMs": 30,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": true,
+      "provisional": false,
+      "reason": "2026-10-27 先制：鋭い刃の鳴り（先に斬りつける一閃）",
+      "sha256": "c09b9f917984437dd650a06e6d7d8201951ac3381ed5a74a716835d8989c22f8"
+    },
+    "first-strike-2": {
+      "id": "first-strike-2",
+      "filename": "WEAPSwrd_Sword Slide Cuts, Metallic, Impact CM4 2_344 Audio_Medieval Weapons Vol 2.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Sonniss.com-GDC2026-GameAudioBundle1of5/344 Audio - Historical Weapons Vol. 2/WEAPSwrd_Sword Slide Cuts, Metallic, Impact CM4 2_344 Audio_Medieval Weapons Vol 2.wav",
+      "url": "vfx_preview/se/first-strike-2.wav",
+      "duration": 1.95,
+      "originalDuration": 12.96,
+      "start": 3.901896,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-27 先制：金属の斬り抜け（刃が相手を走る）",
+      "sha256": "ef2b97ac81a9503a34faa4606a56373dbb4cc15947eb5fe38110276dcac6519f"
+    },
+    "first-strike-3": {
+      "id": "first-strike-3",
+      "filename": "HERO - DESIGNED - SWORD Unsheathe-01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/Hero/Sounds/分割/HERO - DESIGNED - SWORD Unsheathe-01.wav",
+      "url": "vfx_preview/se/first-strike-3.wav",
+      "duration": 1.250563,
+      "originalDuration": 1.73,
+      "start": 0.479438,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 30,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-27 先制：剣を抜く音（先に抜いて斬る）",
+      "sha256": "b18ae42aa3388ed58a73938fbabb6ea03b007644d359952eccb14b4c4ceb745c"
     }
   },
   "effects": {
@@ -7470,6 +7524,11 @@
       "soul-swap-1",
       "soul-swap-2",
       "soul-swap-3"
+    ],
+    "first-strike": [
+      "first-strike-1",
+      "first-strike-2",
+      "first-strike-3"
     ]
   }
 }

@@ -293,7 +293,8 @@ async function main() {
       cwd:require('node:path').resolve(__dirname,'../..'),encoding:'utf8',timeout:20000,maxBuffer:4e6});
     const previous=JSON.parse(output.trim().split('\n').at(-1));
     const pendingArt=new Set(['E066','E073','E076','E077']);
-    for(const card of PANEL_POOL.filter(c=>pendingArt.has(c.no)))assert.equal(card.art,'assets/art/enchantments/E0XX.jpg');
+    // 2026-10-27：4枚の絵が届き、仮絵の指定を外した（番号の絵を引く）。
+    for(const card of PANEL_POOL.filter(c=>pendingArt.has(c.no)))assert.equal(card.art,undefined);
     // ui-1027b: 未配置の絵は既存の仮絵へ接続した。それ以外の入力値は全て比較する。
     const unchanged=list=>copy(list.filter(card=>!REVISED.has(card.no)).map(card=>{
       const out={...card};if(pendingArt.has(card.no))delete out.art;return out;

@@ -173,10 +173,11 @@ function formed(no,enhanced=false){
       assert.equal(online._sealed,false);assert.equal(online._sealValue,undefined);
     }finally{playSealReleaseVfx=old;}
   });
-  await check('4・5 未配置の4枚は番号・効果を維持し、通常／強化・行動表示とも実在する仮画像を使う',()=>{
+  // 2026-10-27：4枚の絵が届いたので、仮画像ではなく番号の絵（版の印付き）を引く。
+  await check('4・5 1027に入手可能になった4枚は番号・効果を維持し、通常／強化・行動表示とも実在する番号の絵を使う',()=>{
     for(const no of ['E066','E073','E076','E077'])for(const enhanced of [false,true]){
       const c=panel(no,enhanced),art=getPanelArtPath(c);assert.equal(c.no,no);assert.equal(c.artCode,no);
-      assert.equal(art,'assets/art/enchantments/E0XX.jpg');assert.ok(fs.existsSync(require('node:path').resolve(__dirname,'../..',art)));
+      assert.equal(art.split('?')[0],'assets/art/enchantments/'+no+'.jpg');assert.ok(fs.existsSync(require('node:path').resolve(__dirname,'../..',art.split('?')[0])));
       assert.equal(actionBannerImage(c,'enchant'),art);
     }
   });

@@ -478,6 +478,13 @@ async function presentLabBeginEvent(ev, events, index, api) {
       context.retriggers.add(ev.retriggerKey);await playBattleLabFx('C119',owner,[target],{side:owner.side==='p2'?'enemy':'ally'});
     }
   }
+  // 先制（K006）：先制を持つ体が先制を持たない相手を攻撃する時、当たる瞬間に相手の上へ一閃を出す（2026-10-27 利用者指定）。
+  // 攻撃を止めないよう、接触の受け口（presentAttackContactHits）で待たずに再生する。
+  if(ev.type==='attack'&&ev.attackVisual!==false&&!ev.effectOnly&&typeof coreUnitHasKeyword==='function'&&presentLabFx(getKeywordAssetKey('先制'))){
+    const find=id=>api.findUnit('p1',id)||api.findUnit('p2',id);
+    const attacker=find(ev.attackerId),target=find(ev.targetId);
+    if(attacker&&target&&coreUnitHasKeyword(attacker,'先制')&&!coreUnitHasKeyword(target,'先制'))_presentFirstStrikes.set(ev,{attacker,target});
+  }
   // 大盾（E062）は防いだ反撃のイベントより前、攻撃がぶつかった瞬間に出す（2026-10-27 利用者指定）。
   if(ev.type==='attack'&&typeof presentAttackContactHitEvents==='function'){
     for(const hit of presentAttackContactHitEvents(events,index)){
@@ -834,9 +841,15 @@ function presentShieldLostEvent(ev, api) {
 
 // PvE・オンライン・保存再生とも、接触フックから同じイベント受け口を呼ぶ。
 // VFXの終了を待たず、表示済みのイベントは後続ループで二重に出さない。
+const _presentFirstStrikes = new WeakMap();
 async function presentAttackContactHits(events, index, api) {
   const pending=_presentLabContacts.get(events[index])||[];
   pending.forEach(_presentLabStart);
+  const first=_presentFirstStrikes.get(events[index]);
+  if(first&&typeof playBattleLabFx==='function'){
+    _presentFirstStrikes.delete(events[index]);
+    Promise.resolve(playBattleLabFx(getKeywordAssetKey('先制'),first.attacker,[first.target],{side:first.attacker.side==='p2'?'enemy':'ally'})).catch(()=>{});
+  }
   for (const ev of presentAttackContactHitEvents(events,index)) {
     if (_presentContactHits.has(ev)) continue;
     const shown = ev.type==='shield_lost' ? presentShieldLostEvent(ev,api.shield) : await api.damage(ev);

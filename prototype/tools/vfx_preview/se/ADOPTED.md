@@ -135,6 +135,7 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | 番号 | 演出 | 元の素材 | 長さ | peak |
 |---|---|---|---|---|
 | C084 | soul-swap | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Musical Tone Whoosh 01.wav | 1.95秒 | 0.564729 |
+| K006 | first-strike | Rogue Waves - Anime Studio Freebies/Anime Studio Freebies/WEAPSwrd_Mecha Energy Sword Shing_RogueWaves_AnimeStudio.wav | 1.627063秒 | 0.050521 |
 
 ## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 

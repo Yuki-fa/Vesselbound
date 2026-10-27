@@ -324,6 +324,7 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    K006: 'assets/sfx/K006.wav', // LAB採用（2026-10-27 first-strike 候補1・仮採用：LAB で選ぶまでの候補1（先制））
     C084: 'assets/sfx/C084.wav', // LAB採用（2026-10-27 soul-swap 候補1・仮採用：LAB で選ぶまでの候補1（シルフの魂の入れ替え））
     R018: 'assets/sfx/R018.wav', // LAB採用（2026-10-26 revival-ring 候補1）
     I008: 'assets/sfx/I008.wav', // LAB採用（2026-10-26 scroll-mana 候補3・アイテムの使用の音）
@@ -622,7 +623,7 @@ function _normalizeAssetCode(raw, fallbackPrefix){
   return String(fallbackPrefix||'C').toUpperCase()+String(n).padStart(3,'0');
 }
 
-const CARD_ART_VERSION='art1027b'; // 2026-10-27 エンチャント・キャラクターの絵の差し替え、刻印・荷物の番号の振り直し（E066/E076〜E080→E101〜E106、E101/E102→E107/E108）
+const CARD_ART_VERSION='art1027c'; // 2026-10-27 呪いの印 E066・E073・殉教 E076・一時の眠り E077・静寂の巻物 I001・変身の巻物 I002 の絵を追加。以前：エンチャント・キャラクターの絵の差し替え、刻印・荷物の番号の振り直し（E066/E076〜E080→E101〜E106、E101/E102→E107/E108）
 function getCharacterNoArtPath(card){
   if(!card||typeof card!=='object') return '';
   const raw=_assetCodeRaw(card);
