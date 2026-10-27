@@ -21,7 +21,7 @@ function kill(units, shield, side = 'p1') {
   const ainsel = ENEMY_POOL.find(c => c.no === 'EN011');
   const ward = bit => ({ shield: shield & bit ? 1 : 0, keywords: shield & bit ? ['結界1'] : [] });
   const foes = [plain('ainsel', { ...ainsel, atk: 9, hp: 100, maxHp: 100, ...ward(1) }), plain('foe1', ward(2)), plain('foe2', ward(4))];
-  const state = createBattleState({ sides: { [side]: { units, rings: [] }, [other]: { units: foes, rings: [] } },
+  const state = createBattleState({ sides: { [side]: { units: [...units, plain('reserve')], rings: [] }, [other]: { units: foes, rings: [] } },
     summonDefs: [...PANEL_POOL, ...ENEMY_POOL] });
   const before = h.copy(state), events = [], emit = e => events.push(e), rng = createSeededRng(7);
   const hit = (source, target, amount, counter, skipSourceEffects, skipTough, options) =>

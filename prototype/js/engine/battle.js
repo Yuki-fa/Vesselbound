@@ -626,10 +626,8 @@ function getBattlePresentationSpeedScale(){
   // 終戦の効果の演出は等倍で見せる（2026-10-27 利用者指定「終戦VFXは省略せず、早送りもしません」）。
   if((typeof G!=='undefined'&&G&&G._battleEndPresenting)||(typeof presentBattleEndPhase==='function'&&presentBattleEndPhase())) return 1;
   // オプションの2倍速・3倍速は最初から固定の倍率（自動加速の立ち上がりも無し）。
-  // 決着（どちらかの陣営が全滅）した後は、省かずに速く見せる（2026-10-22 利用者指定。倍率は present.js）。
-  const decided=typeof presentDecidedSpeedScale==='function'?presentDecidedSpeedScale():1;
   const optionMul=optionBattleSpeedMultiplier();
-  if(optionMul>1) return optionMul*decided;
+  if(optionMul>1) return optionMul;
   // 速度を読む全経路（sleep・タイマー・rAF・VFX）から同じ判定を通す。
   // イベント再生型のPvEは battleSleep() を通らないため、ここが自動加速判定の入口。
   // rAFは毎フレーム呼ばれるので、短時間の再判定は間引く。
@@ -641,7 +639,7 @@ function getBattlePresentationSpeedScale(){
       updateBattleSpeedMode();
     }
   }
-  return getBattleSpeedScale()*decided;
+  return getBattleSpeedScale();
 }
 function battlePresentationSetTimeout(fn,ms){
   const speed=typeof getBattlePresentationSpeedScale==='function'
@@ -990,6 +988,8 @@ async function _resolveSeals(){
   // コア駆動の戦闘では coreBattleStep() が毎接触ごとに封印を再判定している。
   // ここで再度回すと生贄が二重に消費され、解放の回数が食い違う。
   if(G._coreDrivenBattle) return false;
+  const effectsStopped=()=>!!(_pveOpeningSummonState&&_pveOpeningSummonState._coreBattleStopped);
+  if(effectsStopped()) return false;
   if(_battleVictoryAlreadyPending()) return false;
   if(!_livingCombatUnits(G.enemies).length) return false;
   if(G._resolvingSeals) return false;
@@ -998,6 +998,7 @@ async function _resolveSeals(){
   G._resolvingSeals=true;
   try{
     for(const unit of candidates){
+      if(effectsStopped()) return false;
       if(_battleVictoryAlreadyPending()||!_livingCombatUnits(G.enemies).length) return false;
       if(!unit||unit.hp<=0||!_isSealed(unit)) continue;
       const required=Math.max(1,Number(_sealValue(unit)||unit._sealValue)||1);
@@ -1026,6 +1027,7 @@ async function _resolveSeals(){
       await _afterPanelSummon(unit,isEnemySide);
       const repeats=_releaseRepeatCount(unit,isEnemySide);
       for(let i=0;i<repeats;i++) await _applyReleaseEffect(unit,isEnemySide,[]);
+      if(effectsStopped()) return false;
       // 呼応の指輪：常時：味方が解放された時、そのコピーを召喚する。
       if(!isEnemySide&&unit.hp>0){
         const echoCount=_ringCount('呼応の指輪');
@@ -1455,11 +1457,14 @@ function _takePveSummonState(state){
   state._summonBuff=_pveOpeningSummonState._summonBuff;
   if(_pveOpeningSummonState.gameSummonBuff) state.gameSummonBuff=_pveOpeningSummonState.gameSummonBuff;
   state._coreEnemyDeaths=_pveOpeningSummonState._coreEnemyDeaths;
+  state._coreBattleActive=!!_pveOpeningSummonState._coreBattleActive;
+  state._coreBattleStopped=!!_pveOpeningSummonState._coreBattleStopped;
   _pveOpeningSummonState=null;
 }
 function _keepPveSummonState(state){
   _pveOpeningSummonState={_summonCount:state._summonCount,_summonBuff:state._summonBuff,gameSummonBuff:state.gameSummonBuff,
-    _coreEnemyDeaths:state._coreEnemyDeaths};
+    _coreEnemyDeaths:state._coreEnemyDeaths,
+    _coreBattleActive:!!state._coreBattleActive,_coreBattleStopped:!!state._coreBattleStopped};
 }
 function _createPveCoreState(){
   const state=coreInitializeBattleState({
@@ -2039,15 +2044,12 @@ async function finishBattleAsVictory(reason){
   // 敵全滅を理由にする場合は、召喚済みの敵を含めて最後に再確認する。
   // 復活・召喚後なら、演出も勝利処理も止めない。
   if(reason==='敵を全滅させた！'&&_livingCombatUnits(G.enemies).length) return;
-  // 勝利条件が確定した瞬間に、残っているカード固有VFX・ダメージ表示を止める。
-  // モーションの後始末を待つ前に止めることで、勝利後に演出だけが残らない。
-  // 勝利確定時も、直前に出たダメージVFX・数値は最後まで読めるように残す。
-  // 攻撃モーションや固有効果など、戦闘を継続して見せる演出だけを止める。
-  if(typeof _forceStopAllVfx==='function') _forceStopAllVfx({preserveDamage:true,keepActionBanner:true});
   if(G._battleMotionDepth>0){
     G._pendingVictoryReason=reason||'敵を全滅させた！';
     return;
   }
+  await _waitForPendingVfx();
+  if(G.phase==='reward'||G._battleVictoryPending) return;
   // 試験戦闘は敵を全滅しても通常の勝利・報酬フローへ入れない。
   // ここで専用終了しないと _testBattleMode が残り、次の「戦闘開始」も試験戦闘になる。
   if(G._testBattleMode&&!G._libraryTestBattleMode){
@@ -2756,6 +2758,8 @@ async function onBattleEnd(){
       updateHud:()=>updateHUD(),
     });
   });
+  // 汎用VFXは発動の合図だけで戻る経路もある。等倍の印を外す前に最後まで待つ。
+  await _waitForPendingVfx();
   }finally{ delete G._battleEndPresenting; }
   // 途中で抜けても預けた分を残さない（表示と所持金を必ず一致させる）。
   if(pendingGold&&typeof goldFxRelease==='function') goldFxRelease(pendingGold);

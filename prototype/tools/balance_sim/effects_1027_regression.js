@@ -1,4 +1,5 @@
 'use strict';
+const {compareBeforeDecision,reportDecisionComparison}=require('./victory_1027_compare');
 // 2026-10-27 指示書1〜16。内蔵CSV→本番loader→編成→コア→保存／オンラインを検査する。
 // --presentation は独立した仮DOMで本番の表示待ちも実行する（ブラウザ・聴感の確認ではない）。
 const assert = require('node:assert/strict');
@@ -24,9 +25,9 @@ async function presentation() {
   field.getBoundingClientRect = () => ({ left: 0, top: 0, width: 800, height: 300, right: 800, bottom: 300 });
   document.getElementById = id => ['f-ally','f-enemy'].includes(id) ? field : getElement(id);
   for (const mode of ['pve','online']) {
-    await check(`1 ${mode}: 相打ちの永久強化は現在HPを戻さず、魔導板にはHP増分を渡す`, async () => {
+    await check(`1 ${mode}: 決着前の相打ちの永久強化は現在HPを戻さず、魔導板にはHP増分を渡す`, async () => {
       const owner=P.enchantUnit('killer','E005',{atk:4,hp:4,maxHp:4,_mainBoardSlot:1});
-      const x=P.setup({sides:{p1:{units:[owner]},p2:{units:[P.unit('victim',null,{atk:4,hp:4,maxHp:4})]}}});
+      const x=P.setup({sides:{p1:{units:[owner,P.unit('reserve')]},p2:{units:[P.unit('victim',null,{atk:4,hp:4,maxHp:4}),P.unit('foe-reserve')]}}});
       coreHitAll(x.state,x.rng,x.emit,(_s,t,n,c,ss,st,o)=>x.hit(t.id==='killer'?x.find('victim'):x.find('killer'),t,n,c,ss,st,o),null,[x.find('killer'),x.find('victim')],4);
       const apply=presentStatChangeEvent,persist=persistBoardCharacterStats,seen=[],written=[];
       presentStatChangeEvent=async(ev,api)=>apply(ev,{...api,applyStats:(u,e)=>{api.applyStats(u,e);if(e.reason==='kill_permanent_buff')seen.push(presentShownHp(u));}});
@@ -102,11 +103,11 @@ async function main() {
   }
   for (const side of ['p1','p2']) for (const enhanced of [false,true]) {
     const tag = `${side}/${enhanced?'強化':'通常'}`;
-    await check(`1 ${tag}: 相打ちで渇望・執念の炎、HPは0のまま、永久値は魔導板へ書く`, async () => {
+    await check(`1 ${tag}: 決着前の相打ちで渇望・執念の炎、HPは0のまま、永久値は魔導板へ書く`, async () => {
       const e = card('E005',enhanced), thirst = card('E024',enhanced);
       const source = plain('source',{atk:4,hp:4,maxHp:4,_mainBoardSlot:1,
         boardCards:[e,thirst],_adjacentPanelEffectTexts:[e.desc,thirst.desc]});
-      const h = harness(side,[source],{foes:[plain('foe',{atk:4,hp:4,maxHp:4})]});
+      const h = harness(side,[source,plain('reserve')],{foes:[plain('foe',{atk:4,hp:4,maxHp:4}),plain('foe-reserve')]});
       const blood = h.state.blood[side];
       coreHitAll(h.state,h.rng,h.emit,
         (_source,target,amount,counter,skipSource,skipTough,options) => h.hit(target === h.u ? h.foes[0] : h.u,target,amount,counter,skipSource,skipTough,options),
@@ -300,7 +301,7 @@ async function main() {
     }));
     assert.deepEqual(unchanged(PANEL_POOL),unchanged(previous));
   });
-  await check('対象外の通常・強化カード、敵、指輪は開始時mainと結果・全イベント・次の乱数まで完全一致', () => {
+  await check('対象外の通常・強化カード、敵、指輪は開始時mainと決着前の全イベントが一致し、非決着は全結果が一致', () => {
     const source=execFileSync('git',['show',`${BASELINE}:prototype/js/battle/core.js`],{encoding:'utf8',maxBuffer:2e6});
     const sandbox={module:{exports:{}}};vm.runInNewContext(source,sandbox);
     const baseline=sandbox.module.exports,current=require('../../js/battle/core');let count=0;
@@ -315,18 +316,19 @@ async function main() {
       const own=def.category==='キャラクター'?{..._makePanelSummonUnit(_panelSummonSpec(c),[]),id:'source',atk:10,hp:70,maxHp:70}:plain('source',{_adjacentPanelEffectTexts:[c.desc],boardCards:[c]});
       for(const side of ['p1','p2']) {const other=side==='p1'?'p2':'p1';
         const input={sides:{[side]:{units:[own,plain('ally')]},[other]:{units:[plain('foe',{hp:5,maxHp:5}),plain('foe2')]}},resources:{[side]:{mana:8,gold:800}},summonDefs:PANEL_POOL};
-        assert.deepEqual(run(current,input),run(baseline,input),`${row['No.']}/${enhanced}/${side}`);count++;
+        compareBeforeDecision(run(current,input),run(baseline,input),`${row['No.']}/${enhanced}/${side}`);count++;
       }
     }
     for(const def of ENEMY_POOL) {
       const input={sides:{p1:{units:[plain('ally',{hp:70,maxHp:70})]},p2:{units:[{...copy(def),id:'enemy',atk:8,hp:70,maxHp:70}]}},summonDefs:PANEL_POOL};
-      assert.deepEqual(run(current,input),run(baseline,input),def.name);count++;
+      compareBeforeDecision(run(current,input),run(baseline,input),def.name);count++;
     }
     for(const ring of RING_POOL.filter(r=>!['R017','R019'].includes(r.no))) for(const side of ['p1','p2']) {
       const input={sides:{p1:{units:[plain('source'),plain('ally')]},p2:{units:[plain('foe'),plain('foe2')]}},rings:{[side]:[ring]},resources:{p1:{mana:15,gold:800},p2:{mana:15,gold:800}},summonDefs:PANEL_POOL};
-      assert.deepEqual(run(current,input),run(baseline,input),ring.no+'/'+side);count++;
+      compareBeforeDecision(run(current,input),run(baseline,input),ring.no+'/'+side);count++;
     }
-    assert.ok(count>850);console.log(`  非対象 ${count} ケースで完全一致（基準 ${BASELINE.slice(0,7)}）`);
+    assert.ok(count>850);console.log(`  非対象 ${count} ケースで決着前一致（非決着は全結果一致）（基準 ${BASELINE.slice(0,7)}）`);
+    reportDecisionComparison();
   });
   await check('仮DOMでPvE／オンラインの演出受け口と中断したVFX待ちを検査',()=>{
     const output=execFileSync(process.execPath,[__filename,'--presentation'],{encoding:'utf8',timeout:45000,maxBuffer:1e6});

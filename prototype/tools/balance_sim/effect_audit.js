@@ -236,7 +236,7 @@ function audit() {
       keywords: [], desc: '', manaOnDeath: 1, goldOnDeath: 1 };
     const state = core.createBattleState({
       sides: { p1: { units: [{ id: 'defer-killer', name: '攻撃者', side: 'p1', atk: 3, hp: 5, maxHp: 5, keywords: [], desc: '' }] },
-        p2: { units: [target] } },
+        p2: { units: [target, { id: 'defer-reserve', name: '決着前の死亡効果用', atk: 1, hp: 100, maxHp: 100 }] } },
       resources: { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } },
     });
     const events = [];
@@ -1176,14 +1176,14 @@ function audit() {
     const martyr = { id: 'martyr', name: '検査体', atk: 7, hp: 9, maxHp: 9, keywords: [], desc: martyrText };
     const sealed = { id: 'sealed', name: '封印対象', atk: 2, hp: 20, maxHp: 20, keywords: ['封印999'] };
     const foe = { id: 'foe', atk: 1, hp: 100, maxHp: 100, keywords: [] };
-    const s = core.createBattleState({ sides: { [side]: { units: [martyr, sealed] }, [other]: { units: [foe] } } });
+    const s = core.createBattleState({ sides: { [side]: { units: [martyr, sealed, { id: 'reserve', atk: 1, hp: 100, maxHp: 100 }] }, [other]: { units: [foe] } } });
     core.coreInitSealStates(s.units[side]); const es = [];
     core.coreResolveHit(s, s.units[other][0], s.units[side][0], 100, false, createSeededRng(1027), e => es.push(e));
     const divisor = /の半分/.test(martyrText) ? 2 : 1, target = s.units[side][1];
     recordDirect('殉教', target.atk === 2 + Math.floor(7 / divisor) && target.hp === 20 + Math.floor(9 / divisor)
       && target._sealed && es.filter(e => e.reason === 'death_sealed_stat_transfer').length === 1, `${side}/${enhanced}:${target.atk}/${target.hp}`);
     const sleepText = sheetData.effectText('E077', enhanced), mul = Number(sleepText.match(/血の(\d+)倍/)[1]);
-    const t = core.createBattleState({ sides: { [side]: { units: [{ ...martyr, desc: sleepText }] }, [other]: { units: [foe] } }, blood: { p1: 2, p2: 2 } });
+    const t = core.createBattleState({ sides: { [side]: { units: [{ ...martyr, desc: sleepText }, { id: 'reserve', atk: 1, hp: 100, maxHp: 100 }] }, [other]: { units: [foe] } }, blood: { p1: 2, p2: 2 } });
     const se = []; core.coreResolveHit(t, t.units[other][0], t.units[side][0], 100, false, createSeededRng(1027), e => se.push(e));
     const u = t.units[side][0];
     recordDirect('一時の眠り', u.hp === 9 && u._sealed && u._sealValue === 3 * mul

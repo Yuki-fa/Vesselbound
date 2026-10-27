@@ -1,4 +1,5 @@
 'use strict';
+const {compareBeforeDecision,reportDecisionComparison}=require('./victory_1027_compare');
 // 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
 const {REVISED: revised1027} = require('./effects_1027_regression');
 
@@ -272,7 +273,7 @@ function coreEvents(events) { return events.map(event => { const { pveRewardGold
       assert.deepEqual(input.defeatedEnemies, history());
     } finally { PANEL_POOL.splice(0, PANEL_POOL.length, ...oldPool); simulateOnlineBattle = originalSim; Date.now = now; }
   });
-  await check('エキドナを含まない全カードの通常／強化本文が開始時mainと結果・全イベント・次の乱数まで完全一致', () => {
+  await check('エキドナを含まない全カードの通常／強化本文が開始時mainと決着前の全イベントが一致し、非決着は全結果が一致', () => {
     const source = execFileSync('git', ['show', `${BASELINE}:prototype/js/battle/core.js`], { cwd: path.resolve(__dirname, '../..'), encoding: 'utf8', maxBuffer: 2e6 });
     const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox); const baseline = sandbox.module.exports;
     const current = require('../../js/battle/core'); let compared = 0;
@@ -289,9 +290,10 @@ function coreEvents(events) { return events.map(event => { const { pveRewardGold
       const run = api => { const state = api.createBattleState(copy(input)), events = [], rng = createSeededRng(261026);
         const result = api.runBattleCore(state, rng, { turnLimit: 6, onEvent: e => events.push(e) });
         return copy({ result, events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() }); };
-      assert.deepEqual(run(current), run(baseline), `${row['No.']}/${enhanced}`); compared++;
+      compareBeforeDecision(run(current), run(baseline), `${row['No.']}/${enhanced}`); compared++;
     }
-    assert.ok(compared > 350); console.log(`  ${compared}本文で完全一致（基準main ${BASELINE.slice(0, 7)}）`);
+    assert.ok(compared > 350); console.log(`  ${compared}本文で決着前一致（非決着は全結果一致）（基準main ${BASELINE.slice(0, 7)}）`);
+  reportDecisionComparison();
   });
   console.log(`エキドナ1026: OK ${passed} / NG ${failed}`); process.exitCode = failed ? 1 : 0;
 })().catch(error => { console.error(error.stack); process.exitCode = 1; });

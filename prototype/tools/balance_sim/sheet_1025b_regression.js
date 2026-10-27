@@ -400,7 +400,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
     h.state.units.p1[2] = restored; restored.hp = 0; delete restored._starterRegenUsed; restored.keywords.push('復活'); coreTryRevive(restored, h.state, h.emit, h.rng, h.hit);
     assert.equal(coreKeywordSum(restored, '衝撃'), 3 + amount);
   });
-  check('ケール：消費で正の倍数になっても発動、根性は反復条件外、死亡召喚連鎖は20波で止まる', () => {
+  check('ケール：消費で発動、根性は反復条件外、最後の敵の死亡後は召喚連鎖を開始しない', () => {
     const amount = Number(text('C105').match(/(\d+)ダメージ/)[1]), cost = Number(text('C030').match(/血を(\d+)/)[1]);
     const h = setup('p1', [unit('C030'), { ...unit('C105'), id: 'kael' }], { blood: { p1: cost + 3 } }); fire(h, '攻撃');
     assert.equal(damage(h, 'kael').length, 3);
@@ -411,7 +411,8 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
     // 敵召喚の80%基礎補正を避け、眷属の死亡を常に1ダメージで確定させる。
     endless.u.boon = { statMul: 1, modDelta: 0, dmgMul: 1, manaDelta: 0, famMul: 1 };
     coreGainBlood(endless.state, 'p1', 1, endless.u, endless.emit, endless.rng, endless.hit);
-    assert.equal(new Set(damage(endless).map(e => e.batch)).size, 20); assert.equal(endless.state._bloodMultipleContext, undefined);
+    assert.equal(new Set(damage(endless).map(e => e.batch)).size, 1);
+    assert.equal(endless.events.filter(e => e.type === 'summon').length, 0); assert.equal(endless.state._bloodMultipleContext, undefined);
   });
   check('未改訂カードは作業開始時のコアと戦闘結果・イベント・次の乱数が完全一致', () => {
     const source = execFileSync('git', ['show', '62fe8751c3cefbe67c844ce70490a1ef52d0b8c4:prototype/js/battle/core.js'], { encoding: 'utf8', maxBuffer: 2e6 });

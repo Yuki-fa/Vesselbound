@@ -1,4 +1,5 @@
 'use strict';
+const {compareBeforeDecision,reportDecisionComparison}=require('./victory_1027_compare');
 // 内蔵CSV→本番の対象選択・編成→共通コア→オンライン・保存フレーム・ラン保存を検査する。
 // ブラウザの見た目と聴感は検査しない。
 const {assert,sheet,copy,plain,harness,initRun,pipelines}=require('./rules_1026_harness');
@@ -192,7 +193,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
    delete p.characterDesc;assert.ok(_groupedEnchantEffectTexts(preview,1).charTexts.length>0,no+' オンラインの説明列補完');
   }
  });
- await check('非対象：開始時mainのコアと全通常・強化本文、指輪、戦闘アイテムの結果・全イベント・最終状態・次の乱数が完全一致',()=>{
+ await check('非対象：開始時mainのコアと全通常・強化本文、指輪、戦闘アイテムの決着前は旧版一致、非決着は結果・全イベント・最終状態・次の乱数が完全一致',()=>{
   const source=execFileSync('git',['show',`${BASELINE}:prototype/js/battle/core.js`],{encoding:'utf8',maxBuffer:2e6}),sandbox={module:{exports:{}}};vm.runInNewContext(source,sandbox);
   const baseline=sandbox.module.exports,current=require('../../js/battle/core');let compared=0;
   const run=(api,input,seed)=>{const state=api.createBattleState(copy(input)),events=[],rng=createSeededRng(seed);const result=api.runBattleCore(state,rng,{turnLimit:6,onEvent:e=>events.push(e)});return copy({result,events,finalState:api.battleCoreFinalState(state),nextRandom:rng.next()});};
@@ -203,11 +204,12 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
    const def=PANEL_POOL.find(c=>c.no===row['No.']);if(!def)continue;
    const c={...copy(def),desc:(enhanced?row['強化効果']:'')||row['効果']||''};
    const own=def.category==='キャラクター'?{..._makePanelSummonUnit(_panelSummonSpec(c),[]),id:'source',atk:10,hp:70,maxHp:70}:plain('source',{_adjacentPanelEffectTexts:[c.desc],boardCards:[c]});
-   assert.deepEqual(run(current,base(own),seed),run(baseline,base(own),seed),`${row['No.']}/${enhanced}/${seed}`);compared++;
+   compareBeforeDecision(run(current,base(own),seed),run(baseline,base(own),seed),`${row['No.']}/${enhanced}/${seed}`);compared++;
   }
-  for(const r of RING_POOL.filter(r=>!['R017','R019'].includes(r.no))){const input={...base(plain('source')),rings:{p1:[r]}};assert.deepEqual(run(current,input,1026),run(baseline,input,1026),r.no);compared++;}
-  for(const i of ITEM_POOL){const input={...base(plain('source')),items:{p1:[i]}};assert.deepEqual(run(current,input,1026),run(baseline,input,1026),i.no);compared++;}
-  assert.ok(compared>800);console.log(`  ${compared}ケース完全一致（main ${BASELINE.slice(0,7)}）`);
+  for(const r of RING_POOL.filter(r=>!['R017','R019'].includes(r.no))){const input={...base(plain('source')),rings:{p1:[r]}};compareBeforeDecision(run(current,input,1026),run(baseline,input,1026),r.no);compared++;}
+  for(const i of ITEM_POOL){const input={...base(plain('source')),items:{p1:[i]}};compareBeforeDecision(run(current,input,1026),run(baseline,input,1026),i.no);compared++;}
+  assert.ok(compared>800);console.log(`  ${compared}ケース決着前一致（非決着は全結果一致）（main ${BASELINE.slice(0,7)}）`);
+  reportDecisionComparison();
  });
  console.log(`effects_1026c: OK ${passed} / NG ${failed}`);process.exitCode=failed?1:0;
 })().catch(e=>{console.error(e.stack);process.exitCode=1;});

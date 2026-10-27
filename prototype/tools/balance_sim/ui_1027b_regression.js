@@ -142,7 +142,7 @@ function formed(no,enhanced=false){
     both.hit(both.foes[0],both.u,1000,false,true);assert.deepEqual(both.events.filter(e=>e.reason==='death_sealed_stat_transfer').map(e=>[e.atk,e.hp]),[[3,4],[7,9]]);
   });
   await check('5 一時の眠りの通常と強化を同時接続すると、各カードの封印を合算する',()=>{
-    const cards=[card('E077'),card('E077',true)],h=harness('p1',[plain('source',{boardCards:cards,_adjacentPanelEffectTexts:cards.map(c=>c.desc)})]);
+    const cards=[card('E077'),card('E077',true)],h=harness('p1',[plain('source',{boardCards:cards,_adjacentPanelEffectTexts:cards.map(c=>c.desc)}),plain('reserve')]);
     h.hit(h.foes[0],h.u,1000,false,true);
     const scales=cards.map(c=>Number(c.desc.match(/血の(\d+)倍/)[1]));
     assert.equal(h.u._sealValue,h.state.blood.p1*scales.reduce((a,b)=>a+b));
@@ -150,7 +150,7 @@ function formed(no,enhanced=false){
   });
   await check('5 一時の眠りで本人も封印された時は、殉教の「味方」から本人を勝手に除外しない',()=>{
     for(const enhanced of [false,true]){
-      const cards=[card('E077',enhanced),card('E076',enhanced)],h=harness('p1',[plain('source',{atk:7,hp:9,maxHp:9,boardCards:cards,_adjacentPanelEffectTexts:cards.map(c=>c.desc)})]);
+      const cards=[card('E077',enhanced),card('E076',enhanced)],h=harness('p1',[plain('source',{atk:7,hp:9,maxHp:9,boardCards:cards,_adjacentPanelEffectTexts:cards.map(c=>c.desc)}),plain('reserve')]);
       h.hit(h.foes[0],h.u,1000,false,true);
       const d=/の半分/.test(cards[1].desc)?2:1;
       assert.deepEqual([h.u.atk,h.u.hp,h.u.maxHp],[7+Math.floor(7/d),9+Math.floor(9/d),9+Math.floor(9/d)]);

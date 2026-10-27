@@ -613,7 +613,8 @@ function runPersistentDeathObserverScenario() {
         {id: 'ally-b', name: '味方B', atk: 1, hp: 1, maxHp: 1},
         {id: 'ally-c', name: '味方C', atk: 1, hp: 1, maxHp: 1}]},
       p2: {units: [{id: 'enemy-a', name: '敵A', atk: 1, hp: 1, maxHp: 1},
-        {id: 'enemy-b', name: '敵B', atk: 1, hp: 1, maxHp: 1}]},
+        {id: 'enemy-b', name: '敵B', atk: 1, hp: 1, maxHp: 1},
+        {id: 'enemy-reserve', name: '決着前の観測用', atk: 1, hp: 100, maxHp: 100}]},
     },
   });
   const events = [];
@@ -627,14 +628,14 @@ function runPersistentDeathObserverScenario() {
   assert.equal(events.filter(e => e.type === 'mana_gain' && e.reason === 'eidolon').length, 1,
     'エイドロンのマナ効果がちょうど1回発動していない');
 
-  for (const dead of state.units.p2) {
+  for (const dead of state.units.p2.slice(0, 2)) {
     dead.hp = 0;
     // 実戦アダプタではこの値をGから毎回引き継ぐ。
     state._enemyDeaths = state._enemyDeaths || 0;
     core.coreApplyDeathObservers(dead, state, createSeededRng(22), emit, hit);
   }
   const pair = state.units.p1[1].desc.match(/このキャラクターは\+(\d+)\/\+(\d+)を得る/);
-  const deaths = state.units.p1.slice(2).length + state.units.p2.length;
+  const deaths = state.units.p1.slice(2).length + 2;
   assert.deepEqual([state.units.p1[1].atk, state.units.p1[1].maxHp],
     [1 + Number(pair[1]) * deaths, 5 + Number(pair[2]) * deaths], 'ヘルハウンドは敵味方の死亡1件ごとに本文の修正を1回受ける');
 }
@@ -645,7 +646,8 @@ function runSuccubusCaptureScenario() {
   for (const enhanced of [false, true]) {
     const desc = (enhanced ? row['強化効果'] : '') || row['効果'];
     const state = core.createBattleState({sides: {
-      p1: {units: [{id:'succubus', name:row['名前'], atk:6, hp:3, maxHp:3, desc}]},
+      p1: {units: [{id:'succubus', name:row['名前'], atk:6, hp:3, maxHp:3, desc},
+        {id:'reserve', name:'決着前の奪取用', atk:1, hp:100, maxHp:100}]},
       p2: {units: [0,1,2].map(i => ({id:'victim'+i, name:'敵', atk:4, hp:7, maxHp:7}))},
     }});
     const events = [], rng = createSeededRng(31), emit = e => events.push(e);

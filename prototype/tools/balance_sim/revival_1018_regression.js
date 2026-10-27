@@ -118,7 +118,7 @@ for (const side of ['p1', 'p2']) {
     assert.deepEqual([h.subject.atk, h.subject.hp, h.subject._genericEnemyManaBuff], [21, 21, 16]);
   });
   check(`${side}：半減後の常時HP減少でHP0になれば、再び衰弱死として死亡効果を処理`, () => {
-    const h = harness(side, [unit('left'), unit('frail', { hp: 1, maxHp: 4, baseMaxHp: 4,
+    const h = harness(side, [unit('left', { hp: 1000, maxHp: 1000 }), unit('frail', { hp: 1, maxHp: 4, baseMaxHp: 4,
       keywords: ['復活'], manaOnDeath: 1, _adjacentPanelEffectTexts: ['常時：このキャラクターは+8/-3を得る。'] })]);
     const foe = side === 'p1' ? 'p2' : 'p1';
     h.state.units[foe][0].atk = 20;

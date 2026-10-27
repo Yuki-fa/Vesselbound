@@ -199,9 +199,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
   const eventList=typeof presentReorderDeathFlashesBeforeDeath==='function'
     ?presentReorderDeathFlashesBeforeDeath(_noStolenDeaths):_noStolenDeaths;
   presentSetSummonPreviewState(presentationState,eventList);
-  if(typeof presentMarkBattleTail==='function')presentMarkBattleTail(eventList,Object.fromEntries(['p1','p2'].map(side=>[side,
-    [...new Set([...(state.units[side]||[]),...(beforeUnits||[])])]
-      .filter(u=>u&&u.side===side).map(u=>({...u,hp:presentShownHp(u)}))])));
+  if(typeof presentResetBattleEndPhase==='function')presentResetBattleEndPhase();
   async function _showDamage(e) {
     await _awaitContactHold(e);
     return presentDamageEvent(e,{
@@ -307,7 +305,6 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     // 戦闘を打ち切った（オプションからタイトルへ戻った等）後は、この手番の残りを再生しない。
     // 開戦のマナ効果のように1手番に数百件ある時、タイトルでもSEが鳴り続けた（2026-10-20 利用者報告）。
     if(G._debugFormationAbort)break;
-    if(typeof presentSkipsEvent==='function'&&presentSkipsEvent(e))continue;
     if(!_preAttack&&(e.type==='turn_begin'||e.type==='battle_start'
       ||(typeof presentPreAttackActorId==='function'&&presentPreAttackActorId(e)!=null))){
       _startPreAttackAt(eventIndex);

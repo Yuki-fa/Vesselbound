@@ -1,4 +1,5 @@
 'use strict';
+const {compareBeforeDecision,reportDecisionComparison}=require('./victory_1027_compare');
 // 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
 const {REVISED: revised1027} = require('./effects_1027_regression');
 
@@ -149,16 +150,17 @@ async function unchangedMain() {
       const other = side === 'p1' ? 'p2' : 'p1';
       const input = { sides: { [side]: { units: [own, plain('ally')] }, [other]: { units: [plain('foe', { hp: 5, maxHp: 5 }), plain('foe2')] } },
         resources: { p1: { mana: 8, gold: 800 }, p2: { mana: 8, gold: 800 } }, summonDefs: PANEL_POOL };
-      assert.deepEqual(run(current, input, seed), run(baseline, input, seed), `${row['No.']}/${enhanced}/${side}/${seed}`); compared++;
+      compareBeforeDecision(run(current, input, seed), run(baseline, input, seed), `${row['No.']}/${enhanced}/${side}/${seed}`); compared++;
     }
   }
   // 1026の新実装3種はitems_1026_regressionで現行本文を検証する。
   for (const ring of RING_POOL.filter(r => r._implemented !== false && !['R017','R019','R024','R030','R037'].includes(r.no))) {
     const input = { sides: { p1: { units: [plain('one'), plain('two')] }, p2: { units: [plain('foe'), plain('foe2')] } },
       rings: { p1: [ring] }, resources: { p1: { mana: 15, gold: 800 } }, summonDefs: PANEL_POOL };
-    assert.deepEqual(run(current, input, 1026), run(baseline, input, 1026), ring.no); compared++;
+    compareBeforeDecision(run(current, input, 1026), run(baseline, input, 1026), ring.no); compared++;
   }
-  assert.ok(compared > 2200); console.log(`  非対象${compared}戦闘：main ${BASELINE.slice(0, 7)} と結果・全イベント・最終状態・次の乱数が完全一致`);
+  assert.ok(compared > 2200); console.log(`  非対象${compared}戦闘：main ${BASELINE.slice(0, 7)} と結果・全イベント・最終状態・次の乱数が決着前一致（非決着は全結果一致）`);
+  reportDecisionComparison();
 }
 
 (async () => {
@@ -196,21 +198,21 @@ async function unchangedMain() {
         const providers = Array.from({ length: copies }, (_, i) => unit('C049', enhanced, { id: 'lich' + i }, text));
         const actor = self ? providers[0] : plain('actor');
         actor._adjacentPanelEffectTexts = ['死亡：7ゴールドを得る。', '死亡：「青スケルトン」を召喚する。'];
-        const own = self ? providers : [actor, ...providers];
+        const own = [...(self ? providers : [actor, ...providers]), plain('reserve', { lane: 'rear' })];
         const h = harness(side, own, { resources: { p1: { mana: 0, gold: 0 }, p2: { mana: 0, gold: 0 } } });
         h.hit(h.foes[0], h.u, 10000, false, true);
         assert.equal(h.state.resources[side].gold, 7 * (1 + copies * amount));
         assert.equal(h.events.filter(e => e.type === 'summon').length, 1 + copies * amount);
       }
       const old = unit('C049', enhanced, { _adjacentPanelEffectTexts: ['死亡：7ゴールドを得る。'] }, `常時：このキャラクターの死亡効果は${amount}回追加で発動する。`);
-      const h = harness(side, [old, plain('other', { desc: '死亡：7ゴールドを得る。' })]);
+      const h = harness(side, [old, plain('other', { desc: '死亡：7ゴールドを得る。' }), plain('reserve')]);
       const before = h.state.resources[side].gold;
       h.hit(h.foes[0], h.own[1], 10000, false, true); assert.equal(h.state.resources[side].gold - before, 7);
       h.hit(h.foes[0], h.u, 10000, false, true); assert.equal(h.state.resources[side].gold - before, 7 * (2 + amount));
       const full = harness(side, [unit('C049', enhanced, {}, text), plain('dying', { hp: 1, maxHp: 1, desc: '死亡：7ゴールドを得る。' })]);
       await pipelines(full.initial);
       for (const unavailable of ['封印','死亡済み','沈黙']) {
-        const h = harness(side,[plain('dying',{desc:'死亡：7ゴールドを得る。'}),unit('C049',enhanced,{},text)]);
+        const h = harness(side,[plain('dying',{desc:'死亡：7ゴールドを得る。'}),unit('C049',enhanced,{},text),plain('reserve')]);
         if(unavailable==='封印')h.own[1]._sealed=true;
         if(unavailable==='死亡済み')h.own[1].hp=0;
         if(unavailable==='沈黙')coreSilenceUnit(h.own[1]);

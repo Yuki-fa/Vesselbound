@@ -1,4 +1,5 @@
 'use strict';
+const {compareBeforeDecision,reportDecisionComparison}=require('./victory_1027_compare');
 // 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
 const {REVISED: revised1027} = require('./effects_1027_regression');
 const assert = require('node:assert/strict');
@@ -94,14 +95,15 @@ function unchangedMain() {
       const own = def.category === 'キャラクター' ? {..._makePanelSummonUnit(_panelSummonSpec(c),[]),id:'source',atk:10,hp:70,maxHp:70}
         : plain('source',{_adjacentPanelEffectTexts:[c.desc],boardCards:[c]});
       const input={sides:{p1:{units:[own,plain('ally')]},p2:{units:[plain('foe',{hp:5,maxHp:5}),plain('foe2')]}},resources:{p1:{mana:8,gold:800}},summonDefs:PANEL_POOL};
-      assert.deepEqual(run(current,input),run(baseline,input),`${row['No.']}/${enhanced}`); compared++;
+      compareBeforeDecision(run(current,input),run(baseline,input),`${row['No.']}/${enhanced}`); compared++;
     }
   }
   const excluded = new Set('R012 R014 R015 R019 R021 R022 R023 R024 R030 R031 R034 R035 R037'.split(' '));
   for (const ring of RING_POOL.filter(r=>!excluded.has(r.no)&&r.no!=='R017'&&r._implemented!==false)) {
     const input={sides:{p1:{units:[plain('source'),plain('ally')]},p2:{units:[plain('foe'),plain('foe2')]}},rings:{p1:[ring]},resources:{p1:{mana:15,gold:800}},summonDefs:PANEL_POOL};
-    assert.deepEqual(run(current,input),run(baseline,input),ring.no); compared++;
+    compareBeforeDecision(run(current,input),run(baseline,input),ring.no); compared++;
   }
-  assert.ok(compared>300); console.log(`  非対象 ${compared} ケース：main ${BASELINE.slice(0,7)} と結果・イベント・次の乱数が完全一致`);
+  assert.ok(compared>300); console.log(`  非対象 ${compared} ケース：main ${BASELINE.slice(0,7)} と結果・イベント・次の乱数が決着前一致（非決着は全結果一致）`);
+  reportDecisionComparison();
 }
 module.exports={assert,sheet,copy,plain,card,enchanted,harness,initRun,pipelines,unchangedMain,REVISED_ENCHANTS};

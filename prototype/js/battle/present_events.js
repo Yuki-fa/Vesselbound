@@ -21,7 +21,6 @@
 
 // 受け口の違いはカード情報の供給だけ。発動元の判定とDOMの終了監視は共通実装へ渡す。
 function presentBeginActionBannerEvent(ev, events, index) {
-  if (presentIsSilentEvent(ev)) return null;
   return typeof actionBannerEnterEvent === 'function' ? actionBannerEnterEvent(ev, events, index) : null;
 }
 function presentEndActionBannerEvent(scope) {
@@ -162,7 +161,6 @@ function _presentLab1012Plan(code, ev, events, index, api, source) {
   members.forEach(e=>_presentLabClaims.set(e,plan));_presentLabClaimHitReactions(plan,events);return plan;
 }
 function presentLabManaGainVfx(ev,unit,side){
-  if(presentIsSilentEvent(ev))return false;
   const plan=_presentLabClaims.get(ev);
   if(plan&&plan.contactEvent){plan.manaGain={unit,side};return false;}
   if(plan&&PRESENT_LAB_1012_CODES.has(plan.code))return _presentLabManaAfter(plan,unit,side);
@@ -430,13 +428,16 @@ async function _presentLabFinish(plan) {
 // 竜の契約（E008）・逆上（E032）・嵐の指輪（R023）・苦行の指輪（R012）・受難の刻印（E103）も着弾の瞬間に数値を出す（2026-10-17）。
 const PRESENT_LAB_WAIT_IMPACT = new Set(['C069','E067','I006','C124','C071','C011','EN060','C086','C099','C120','C107','C013','E008','E032','R023','R012','E103']);
 async function presentLabBeginEvent(ev, events, index, api) {
-  // 決着後のイベントへ来たら、以後の演出を速くする（present.js presentDecidedSpeedScale）。
-  if (typeof presentNoteDecidedEvent === 'function') presentNoteDecidedEvent(ev);
-  if (!ev || !Array.isArray(events) || typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
+  // 終戦へ移る前に、現在の効果とVFXを従来の速度で完了させる。
+  if (!ev || !Array.isArray(events)) return;
   const context = _presentLabContext(events), claimed = _presentLabClaims.get(ev);
   if (context.active && context.active !== claimed) { await _presentLabFinish(context.active); context.active = null; }
+  if (presentIsBattleEndEffectEvent(ev) && !presentBattleEndPhase()) {
+    if (typeof _waitForPendingVfx === 'function') await _waitForPendingVfx();
+    presentNoteBattleEndEvent(ev);
+  }
+  if (typeof playBattleLabFx !== 'function' || typeof VbFx === 'undefined') return;
   presentAdvanceSummonPreview(ev);
-  if(presentIsSilentEvent(ev))return;
   if (ev.type==='death' || ev.type==='shield_lost') {
     const u = api.findUnit(ev.side,ev.unitId);
     const origins = _presentLabOrigins[ev.type==='death'?'death':'shield'];
@@ -450,7 +451,6 @@ async function presentLabBeginEvent(ev, events, index, api) {
   if(ev.type==='death'){
     for(let i=index+1;i<events.length;i++){
       const next=events[i];if(['attack','turn_begin','battle_end','death'].includes(next.type))break;
-      if(presentIsSilentEvent(next))continue;
       const ownerId=next.sourceId||next.unitId,owner=api.findUnit('p1',ownerId)||api.findUnit('p2',ownerId);
       // エンチャントの効果（2026-10-22 シート改訂でマナの残滓・血の雫・渇望へ移った）は、エンチャントの番号で引く。
       const nextSource=_presentLabSource(next);
@@ -535,9 +535,8 @@ async function presentLabEndEvent(ev, events, index, api) {
     // 場に眷属がいない発動でも、召喚する側のカード説明・ホバーをすぐ更新する。
     for (const unit of api.units(ev.side).filter(Boolean)) refreshUnitPreviewUi(unit,ev.side==='p2'?'enemy':'ally');
   }
-  const silent=presentIsSilentEvent(ev);
   const context = _presentLabContext(events), plan = _presentLabClaims.get(ev);
-  if (ev.type==='mana_threshold' && plan && !silent) _presentLabStart(plan);
+  if (ev.type==='mana_threshold' && plan) _presentLabStart(plan);
   const unitId=ev.unitId!=null?ev.unitId:ev.type==='summon'&&ev.unit?ev.unit.id:null;
   const unit = unitId!=null ? api.findUnit(ev.side,unitId) : null;
   if (unit) {
@@ -561,8 +560,6 @@ async function presentLabEndEvent(ev, events, index, api) {
       battleFxAdvanceStates(unit,_battleFxValues(ev.unit||unit));
       if (api.render) api.render();
     }
-    // 演出を省く時も、結界・毒・弱体などの最終状態表示は進める。
-    if(silent)return;
     const gains = [];
     if(plan&&plan.spec[0]==='scylla'&&ev.type==='keyword_effect'&&ev.effect==='poison'){
       (plan.keywordGains||(plan.keywordGains=[])).push({ev,api});
@@ -585,11 +582,11 @@ async function presentLabEndEvent(ev, events, index, api) {
       }
     }
   }
-  if(!silent&&ev.type==='mana_set'&&plan&&plan.code==='C075'&&plan.owner&&Number(ev.gained)>0&&typeof playManaGainVfx==='function'){
+  if(ev.type==='mana_set'&&plan&&plan.code==='C075'&&plan.owner&&Number(ev.gained)>0&&typeof playManaGainVfx==='function'){
     _presentLabManaAfter(plan,plan.owner,plan.side);
   }
   const joined=_presentLabSummons.get(ev);
-  if(joined&&!silent){
+  if(joined){
     for(const pending of joined){
       pending.targets=pending.targets.map(u=>api.findUnit('p1',u.id)||api.findUnit('p2',u.id)).filter(Boolean);
       pending.summonReady=true;
@@ -885,11 +882,10 @@ function _presentStatChangeEvent(ev, api) {
   const fxSide = ev.side === 'p1' ? 'ally' : 'enemy';
   // **効果の発光（負傷＝赤など）は、能力変化を見せるこの瞬間に始める。** 発光は次のVFXまで保留する仕組みだが、
   // グレムリンの「全ての敵はATK-1」のように同期の入口を通るVFXが無い効果では、安全弁の700ms後まで光らず遅れて見えた。
-  if (!presentIsSilentEvent(ev) && typeof presentFlushEffectFlashes === 'function') presentFlushEffectFlashes();
+  if (typeof presentFlushEffectFlashes === 'function') presentFlushEffectFlashes();
   // 変化を見せる瞬間に、画面に出すATK/HPもここまで進める。
   if (typeof api.applyStats === 'function') api.applyStats(target, ev);
   if (typeof updateUnitDamageUi === 'function') updateUnitDamageUi(target, fxSide);
-  if(presentIsSilentEvent(ev)) { if(typeof api.render==='function')api.render();return true; }
   const source = ev.sourceId != null && typeof api.findAnyUnit === 'function'
     ? api.findAnyUnit(ev.sourceId) : null;
   // どの理由で固有VFXを出すかは present.js が唯一の実装。
@@ -946,7 +942,7 @@ function _presentStatChangeEvent(ev, api) {
 // 演出の番号は present.js presentRunEffectVfxCode が唯一の規則。尺・SEは能力変化の固有VFXと同じ。
 // api: findUnit(side,id)
 async function presentRunEffectEvent(ev, api) {
-  if (!ev || !api || presentIsSilentEvent(ev)) return false;
+  if (!ev || !api) return false;
   const code = typeof presentRunEffectVfxCode === 'function' ? presentRunEffectVfxCode(ev) : '';
   const unit = code ? api.findUnit(ev.side, ev.unitId) : null;
   if (!unit || typeof _playCardEffectVfx !== 'function') return false;
@@ -1020,7 +1016,6 @@ function presentKeywordEffectEvent(ev, api) {
   }
   // **ホバー説明もこの瞬間に作り直す**（弱体・毒などは盤面を描き直すまで説明に出なかった）。
   if (typeof refreshUnitPreviewUi === 'function') refreshUnitPreviewUi(unit, fxSide);
-  if(presentIsSilentEvent(ev))return true;
   const keyword = String(ev.keyword || PRESENT_KEYWORD_EFFECT_NAMES[String(ev.effect || '')] || '');
   if (!keyword) return false;
   // 「復活」の絵は**実際に復活した瞬間**の演出。復活を得ただけ（ヴリコラカス）では出さない（利用者指定）。
@@ -1164,7 +1159,6 @@ function presentResetEffectFlashes() {
   }
 }
 async function presentEffectFlashEvent(ev, api) {
-  if(presentIsSilentEvent(ev))return false;
   if (!ev || !api || typeof api.findUnit !== 'function') return false;
   const unit = api.findUnit(ev.side, ev.unitId);
   if (!unit || typeof playEffectFlash !== 'function') return false;
@@ -1362,7 +1356,6 @@ async function presentReviveEvent(ev, api) {
 //      playCue(units[{unit,isEnemySide,targets}], { repeat, effectNo })
 async function presentManaThresholdEvent(ev, api) {
   if (!ev || !api) return false;
-  if(presentIsSilentEvent(ev))return true;
   const source = api.findUnit(ev.side, ev.unitId);
   // 発光はマナ効果VFXが出る瞬間に合わせる（ここで光らせると、前の効果の演出を
   // 待っている間ずっと光ったままになり、絵より大きく先行して見える）。

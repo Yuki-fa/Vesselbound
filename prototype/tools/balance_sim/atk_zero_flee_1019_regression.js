@@ -99,7 +99,7 @@ for (const side of ['p1', 'p2']) {
   check(`${side}：ATKとHPが同時に0なら従来どおり死亡し、死亡効果を1回発動`, () => {
     const h = harness(side, [unit('opener', { hp: 10, maxHp: 10,
       desc: '開戦：全ての敵は-1/-1を得る。この効果は、このキャラクターのHP10につき1回発生する。' })],
-      [unit('victim', { atk: 1, hp: 1, maxHp: 1, manaOnDeath: 2 })]);
+      [unit('victim', { atk: 1, hp: 1, maxHp: 1, manaOnDeath: 2 }), unit('reserve', { atk: 20, hp: 500, maxHp: 500 })]);
     core.coreApplyOpeningEffects(h.find('opener'), h.state, h.rng, h.emit, h.runner.applyHit);
     assert.equal(h.events.some(e => e.type === 'fled'), false);
     assert.equal(h.events.filter(e => e.type === 'death' && e.unitId === 'victim').length, 1);
