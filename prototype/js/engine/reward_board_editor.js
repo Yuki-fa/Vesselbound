@@ -375,6 +375,7 @@ function _wireHeCardDiscard(div,card,arr,arrName,i,_ringOfferDiscardable){
 function _wireHeCardControls(div,card,arrName,i){
   if(arrName==='boardCards'&&typeof wireCardActivation==='function') wireCardActivation(div,card,i);
   if(arrName==='boardCards'&&_wireTargetPickingCard(div,'board',i,card)) return;
+  if(arrName==='boardCards'&&_wireRingOfferSelection(div,card,i)) return;
   if(arrName==='boardCards'&&blessingFlameActive()&&blessingFlameWireCard(div,card,i)) return;
   if(arrName==='boardCards') div.onclick=e=>{
     e.stopPropagation();

@@ -429,7 +429,8 @@ function _keywordOnlyPreviewText(card,desc,slotIdx){
   if(typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP['起動効果']
     &&/(?:^|\n)\s*起動\s*[:：]/.test(manaEffectText)) pseudoKeywords.push('起動効果');
   const tooltipKws=[...sourceKws,...pseudoKeywords];
-  _findPreviewKeywordMatches(manaEffectText).forEach(hit=>tooltipKws.push(hit.name));
+  // 「即死する」は本文による確率判定。キーワード「即死」の所持や付与ではない。
+  _findPreviewKeywordMatches(manaEffectText.replace(/即死(?:する|させる)/g,'')).forEach(hit=>tooltipKws.push(hit.name));
   // **説明は種類ごとに1回だけ、変数はXのまま出す。**
   // 結界は固定の1回として説明し、その他の数値キーワードは一般的な説明を出す。
   return tooltipKws.map(k=>String(k||'').trim()).filter(Boolean)

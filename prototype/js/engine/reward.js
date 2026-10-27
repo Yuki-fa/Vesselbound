@@ -138,7 +138,7 @@ function _cardIsEngraved(card){
     .some(k=>String(k||'').trim()==='刻印');
 }
 function _cardIsSuppressionEngraving(card){
-  return !!(card&&(String(card.no||'').toUpperCase()==='E076'
+  return !!(card&&(String(card.no||'').toUpperCase()==='E101'
     ||String(card.name||'').trim()==='抑圧の刻印'));
 }
 
@@ -355,28 +355,29 @@ function _sellPendingShopCard(idx){
   return true;
 }
 
-// 祭壇へ捧げたカードを魔導板へ回収する。
-// **元の場所が空いていればそこへ、埋まっていればランダムな空きスロットへ**戻す
-// （「元に戻す」＝画面に入った時点への巻き戻し、とは別物。他の操作は取り消さない）。
-// 置き場所が無いカードは戻せないので、その分は捧げたままにする。
-function _reclaimSacrificedRingCards(){
+// 旧セーブだけの移行。以前は選択時に消していたカードを戻し、先払いのライフも戻す。
+// 新しい選択ではこの控えを作らず、通常の取り消しは選択解除だけを行う。
+function _restoreLegacyRingSacrifices(){
   const list=Array.isArray(G._ringSacrificedCards)?G._ringSacrificedCards:[];
   if(!list.length) return 0;
   const unit=_getPartyBoardUnit();
   if(!unit) return 0;
   const boardList=_normalizeUnitBoardCards(unit);
   let restored=0;
+  const pending=[];
   list.forEach(entry=>{
     if(!entry||!entry.card) return;
     const idx=Number(entry.idx);
     let slot=(Number.isInteger(idx)&&idx>=0&&idx<boardList.length&&!boardList[idx])?idx:-1;
     if(slot<0){
       const free=boardList.map((c,i)=>c?-1:i).filter(i=>i>=0);
-      if(!free.length) return;
-      slot=free[Math.floor(rand()*free.length)];
+      if(!free.length){ pending.push(entry); return; }
+      slot=free[0];
     }
     boardList[slot]=clone(entry.card);
-    revertAscensionLifeOnReclaim(entry);
+    const heal=Math.max(0,Number(entry.healGain)||0),gain=Math.max(0,Number(entry.lifeGain)||0);
+    if(heal) _shiftCurrentLife(-heal);
+    if(gain){ G.ascensionLifeBonus=Math.max(0,(Number(G.ascensionLifeBonus)||0)-gain); _shiftCurrentLife(-gain); }
     restored++;
   });
   if(!restored) return 0;
@@ -385,14 +386,14 @@ function _reclaimSacrificedRingCards(){
   if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
   // 戻した分は「捧げていない」ことにする。減らさないと、次に入り直した時に
   // カードが手元にあるまま指輪だけ解放された状態になる。
-  G._ringSacrificedCards=[];
-  G._boardDiscardCount=Math.max(0,(Number(G._boardDiscardCount)||0)-restored);
-  if(G._boardDiscardCount<SHOP_EXCHANGE_TRIAL.ringCardCost) G._ringOfferUnlocked=false;
+  G._ringSacrificedCards=pending;
+  _clearRingOfferSelection();
   return restored;
 }
+function _reclaimSacrificedRingCards(){ return _clearRingOfferSelection(); }
 // 祭壇（指輪交換）を、指輪を取らずに離れる時の確認。
 // **文言はテキストメッセージシートが唯一の出どころ**（「「祭壇」途中離脱時」）。
-// 1〜2枚だけ捧げた時に加え、**3枚捧げて指輪を取っていない時**も確認する。
+// 1〜2枚の選択中も、3枚そろえて指輪を取っていない時も確認する。
 function _confirmRingExchangeReturn(onYes){
   const discarded=Number(G._boardDiscardCount)||0;
   const needsConfirm=!!(G._ringOfferPhase&&!G._ringOfferResolved&&discarded>=1);
@@ -401,7 +402,7 @@ function _confirmRingExchangeReturn(onYes){
     ?textMessage('「祭壇」途中離脱時','捧げたカードを回収して祭壇を離れますか？')
     :'捧げたカードを回収して祭壇を離れますか？';
   const reclaimAndLeave=()=>{
-    // 「回収して離れる」なので、捧げたカードを魔導板へ戻してから出る。
+    // カードは盤面に残っているので、選択だけを外して離れる。
     _reclaimSacrificedRingCards();
     if(typeof renderHandEditor==='function') renderHandEditor();
     if(typeof renderRewCards==='function') renderRewCards();
@@ -772,6 +773,7 @@ function goToReward(options){
     if(!_isFacilityEntry&&!G._isItemShop&&!_peddler) G.activationFormationSeq=(Number(G.activationFormationSeq)||0)+1;
     G._isBossRewardCycle=!!G._bossJustDefeated;
     G._boardDiscardCount=0;
+    G._ringOfferSelectedSlots=[];
     G._ringOfferUnlocked=false;
     G._ringOfferResolved=false;
     // ボス撃破後の指輪報酬は廃止済み。指輪提示は祭壇・クエスト側だけが用意する。
@@ -1112,6 +1114,9 @@ function _placementOfferCard(card){
 }
 function resetRewardPlacement(){
   if(G.phase!=='reward') return false;
+  if(_ringOfferSelectionActive()){
+    _clearRingOfferSelection(); renderHandEditor(); renderRewCards(); renderMoveSlotsInEnemy(); return true;
+  }
   if(rewardPlacementInitialMissing()){ _showInitialCardMissingError(); return false; }
   _finishRewardReveal(true);
   const base=G._placementStart,keys=new Set(base.slots.filter(Boolean));
@@ -1188,9 +1193,9 @@ function _storeRewardStartSnapshot(){
     ringOfferUnlocked:!!G._ringOfferUnlocked,
     ringOfferResolved:!!G._ringOfferResolved,
     boardDiscardCount:G._boardDiscardCount||0,
-    // 祭壇で捧げたカードの控え。還魂の音（ring_get1〜3）の段階もこの件数で決めるので、「元に戻す」で一緒に戻す。
+    // 旧セーブの還魂控え。新しい祭壇の選択はリセット時に解除する。
     ringSacrificedCards:clone(G._ringSacrificedCards||[]),
-    // 精霊の魂は還魂した瞬間にライフが増えるので、「元に戻す」でライフも戻す。
+    // 指輪取得を含む確定済み操作を戻す時は、ライフも同じ時点へ戻す。
     ascensionLifeBonus:Number(G.ascensionLifeBonus)||0,
     waveLife:G._waveLife,
     life:G.life,
@@ -1223,7 +1228,11 @@ function _facilityCommitStateChanged(){
 }
 
 function resetRewardToStart(options){
-  if(G.phase!=='reward'||!G._rewardStartSnapshot) return;
+  if(G.phase!=='reward') return;
+  if(_ringOfferSelectionActive()){
+    _clearRingOfferSelection(); renderHandEditor(); renderRewCards(); renderMoveSlotsInEnemy(); return;
+  }
+  if(!G._rewardStartSnapshot) return;
   _finishRewardReveal(true);
   const s=G._rewardStartSnapshot;
   if(s.retainedQuests&&typeof questRestoreRetainedProgress==='function') questRestoreRetainedProgress(s.retainedQuests);
@@ -1249,6 +1258,8 @@ function resetRewardToStart(options){
   G._ringSacrificedCards=clone(s.ringSacrificedCards||[]);
   if(s.ascensionLifeBonus!=null){ G.ascensionLifeBonus=s.ascensionLifeBonus; G._waveLife=s.waveLife; G.life=s.life; }
   G._ringOfferPhase=!!s.ringOfferPhase;
+  _restoreLegacyRingSacrifices();
+  _clearRingOfferSelection();
   G.mapPanelPowers=_forgePlacementOnly?_forgePowers:clone(s.mapPanelPowers||{});
   G._mapForgeOffers=_forgePlacementOnly?_forgeOffers:clone(s.mapForgeOffers||[]);
   G._pendingMapForgePower=_forgePlacementOnly?G._pendingMapForgePower:(s.pendingMapForgePower?clone(s.pendingMapForgePower):null);
@@ -1299,6 +1310,21 @@ function guardFormationLeave(){
   if(!_noDeployableBoardCharacter()) return true;
   _showNoDeployableCharacterError();
   return false;
+}
+function _hasUnclaimedBattleReward(){
+  return !!(G&&G.phase==='reward'&&!G._onlineMode&&G._rewardOnePickMode&&!_rewFreePickDone
+    &&!_isInVillageScene()&&!G._isPeddler&&!G._isFiveSaints&&!G._ringOfferPhase
+    &&!runLevelRewardActive()&&!blessingFlameActive()
+    &&(_rewCards||[]).some(card=>card&&card._isOriginalReward&&!card._shopSalePending
+      &&!card._temporaryRewardAreaCard));
+}
+function _confirmUnclaimedBattleReward(onOk){
+  if(!_hasUnclaimedBattleReward()){ onOk(); return; }
+  showGameConfirm({
+    title:_uiLabel('「編成画面の報酬枠」見出し','報酬'),
+    message:_uiLabel('報酬未入手時','報酬カードをまだ取得していません。\nこのまま進みますか？'),
+    onOk
+  });
 }
 function renderMoveSlotsInEnemy(){
   const el=document.getElementById('reward-move-btns');
@@ -1505,9 +1531,12 @@ function renderMoveSlotsInEnemy(){
       if(!guardRingExchangeDeparture()) return;
       if(btn.disabled||G._moveInlineLocked) return;
       if(!_onlineFormLabel&&!guardFormationLeave()) return;
-      btn.disabled=true;
-      if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
-      chooseMoveInline(opt.nodeType);
+      _confirmUnclaimedBattleReward(()=>{
+        if(btn.disabled||G._moveInlineLocked||G._pendingPanelPlacement) return;
+        btn.disabled=true;
+        if(typeof playSfx==='function') playSfx('menuClose',{group:'ui'});
+        chooseMoveInline(opt.nodeType);
+      });
     };
     if(G._pendingPanelPlacement||G._moveInlineLocked){ btn.classList.add('disabled'); btn.disabled=true; }
     syncRingExchangeDepartureButton(btn);
@@ -1821,34 +1850,7 @@ function _syncRewardProductionRings(){
         if(_dragSrc&&_dragSrc.arr==='ringOffer'&&G._ringOfferUnlocked&&!slot._rewardRing){
           e.preventDefault();
           const offerIdx=_dragSrc.idx; _dragSrc=null;
-          const offerRing=(G._ringOffer||[])[offerIdx];
-          if(!offerRing) return;
-          G.rings=Array.isArray(G.rings)?G.rings:[null,null,null,null];
-          G.rings[idx]=clone(offerRing);
-          // 提示枠から指輪枠へ配置できた瞬間に取得SEを鳴らす。
-          _playRewardAcquireSfx('ring_get.wav');
-          // 指輪は1つだけ取得可能。選んだ指輪を提示から取り除き、残りはフェードアウトで
-          // 消して空の枠3つだけを残す（_renderRingOfferCards()）。フェードアウトは取得直後の
-          // 1回だけなので、消える指輪と取得した位置を_ringOfferFadeOutに退避しておく。
-          G._ringOfferFadeOut={taken:offerIdx,offer:clone(G._ringOffer||[])};
-          G._ringOffer.splice(offerIdx,1);
-          G._ringOfferUnlocked=false;
-          G._ringOfferResolved=true;
-          // 指輪を取った時点で「捧げたカード」は確定する（もう回収できない）。
-          if(G._isRingExchange&&typeof questCommitAltarSacrifices==='function') questCommitAltarSacrifices(G._ringSacrificedCards||[]);
-          applyAscensionCardEffects(G._ringSacrificedCards||[]);
-          G._ringSacrificedCards=[];
-          // 別の枠へドラッグした場合は自然発火するdragendでゴーストが消えるが、この枠の
-          // ようにドロップ成功でrenderRewCards()がこの要素自体を作り直す（＝ドラッグ元の要素が
-          // DOMから消える）場合はdragendが発火しないことがあるため、ここで明示的に片付ける。
-          if(typeof _removeDragGhost==='function') _removeDragGhost();
-          if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
-          updateHUD();
-          renderRewCards();
-          // 指輪（瞳の指輪など）は魔導板の数値に効くので、取った瞬間に描き直す（2026-10-02 利用者指摘）。
-          if(typeof renderHandEditor==='function') renderHandEditor();
-          renderMoveSlotsInEnemy();
-          if(G._isRingExchange&&typeof questOnAltarRingTaken==='function') questOnAltarRingTaken();
+          _takeRingOffer(offerIdx,idx);
         }
       });
     }
@@ -1925,6 +1927,7 @@ function renderRewCards(){
   _syncRewardPanelPlacementOverlay();
   _syncRewardProductionUi();
   document.body.classList.toggle('ring-offer-phase',!!(G&&G.phase==='reward'&&G._ringOfferPhase));
+  document.body.classList.toggle('ring-offer-selecting',_ringOfferSelectionActive());
   // 指輪取得後の祭壇：見出し下の説明文を「代償の対価たる力は与えられた」に差し替える。
   document.body.classList.toggle('ring-offer-resolved',!!(G&&G.phase==='reward'&&G._ringOfferPhase&&G._ringOfferResolved));
   const section=document.getElementById('reward-offer-section');
@@ -2879,30 +2882,6 @@ function moveBoardCardToUnit(boardIdx, srcUnitIdx, destUnitIdx){
 // ── イベント（祭壇・宿屋）単品アイテム受け取り画面 ─────
 // onDone は受け取り後または「戻る」を押したときに呼ばれるコールバック
 
-// 精霊の魂：還魂した瞬間にライフを回復する（通常「ライフが1回復」）、または最大ライフと今のライフを増やす（強化「最大ライフが2増える」）。
-// 2026-10-26 利用者指定。変わった分は捧げたカードの控え（entry.lifeGain＝最大ライフ、entry.healGain＝回復）に残し、
-// 回収・「元に戻す」で同じだけ戻す。
-function applyAscensionLifeOnSacrifice(entry){
-  if(!entry||!entry.card||typeof coreAscensionSpec!=='function') return 0;
-  const spec=coreAscensionSpec(entry.card);
-  const gain=spec.life?Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax())):0;
-  entry.lifeGain=gain;
-  if(gain>0){
-    G.ascensionLifeBonus=(Number(G.ascensionLifeBonus)||0)+gain;
-    _shiftCurrentLife(gain);
-  }
-  entry.healGain=spec.heal?_shiftCurrentLife(spec.heal):0;
-  return gain;
-}
-function revertAscensionLifeOnReclaim(entry){
-  const gain=Math.max(0,Number(entry&&entry.lifeGain)||0);
-  const heal=Math.max(0,Number(entry&&entry.healGain)||0);
-  if(heal){ _shiftCurrentLife(-heal); entry.healGain=0; }
-  if(!gain) return;
-  G.ascensionLifeBonus=Math.max(0,(Number(G.ascensionLifeBonus)||0)-gain);
-  _shiftCurrentLife(-gain);
-  entry.lifeGain=0;
-}
 // 戦闘外の今のライフ（G._waveLife。無ければ G.life）を増減する。最大ライフを超えず、1を下回らない。実際に変わった量を返す。
 function _shiftCurrentLife(delta){
   const max=typeof waveLifeMax==='function'?waveLifeMax():3;
@@ -2913,17 +2892,18 @@ function _shiftCurrentLife(delta){
   if(typeof updateHUD==='function') updateHUD();
   return Math.abs(next-cur);
 }
-// 還魂の仮置き・回収では発動せず、指輪を取得して供物が確定した時だけ解決する（最大ライフだけは還魂した瞬間。上）。
+// 指輪を取得して供物が確定した時だけ、ライフ・ゴールド・アイテムを解決する。
 function applyAscensionCardEffects(entries){
   for(const entry of entries){
     const card=entry.card;
     const spec=coreAscensionSpec(card);
-    // 最大ライフ（精霊の魂）は還魂した瞬間に済ませている（applyAscensionLifeOnSacrifice）。旧セーブの控えだけここで足す。
-    if(spec.life&&entry.lifeGain==null) G.ascensionLifeBonus=(Number(G.ascensionLifeBonus)||0)+Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax()));
+    const gain=spec.life?Math.max(0,Math.min(spec.life,spec.lifeCap-waveLifeMax())):0;
+    if(gain){ G.ascensionLifeBonus=(Number(G.ascensionLifeBonus)||0)+gain; _shiftCurrentLife(gain); }
+    if(spec.heal) _shiftCurrentLife(spec.heal);
     if(spec.gold) gainEventGold(spec.gold);
     if(spec.items){
       const generate=()=>drawItems(spec.items);
-      const items=typeof runWithKeyedRandom==='function'?runWithKeyedRandom(`ascension:${G._wave}:${card.id}:${G._ringSacrificedCards.length}`,generate):generate();
+      const items=typeof runWithKeyedRandom==='function'?runWithKeyedRandom(`ascension:${G._wave}:${card.id}:${entry.idx}:${entries.length}`,generate):generate();
       for(const item of items){const slot=_ensureItemSlots().findIndex(x=>!x);if(slot>=0) G.spellSlots[slot]=item;}
     }
   }

@@ -115,7 +115,7 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
   });
   await check('1：同名の強化を通常＋祝福で接続しても各カードの値で発動する', () => {
     const misses = [];
-    for (const [no, kind] of [['E006','死亡'],['E008', '攻撃'], ['E032', '負傷'], ['E035', '死亡'], ['E037','攻撃'], ['E058', 'マナ'], ['E067', '攻撃'], ['E070','召喚後死亡'], ['E077', '死亡']]) {
+    for (const [no, kind] of [['E006','死亡'],['E008', '攻撃'], ['E032', '負傷'], ['E035', '死亡'], ['E037','攻撃'], ['E058', 'マナ'], ['E067', '攻撃'], ['E070','召喚後死亡'], ['E103', '死亡']]) {
       for (const online of [false, true]) for (const side of ['p1', 'p2']) {
         const one = card(no), two = copy(one); coreApplyCardBoon(two, { dmgMul: 3 });
         fresh(); const c = card('C006'); c.directions = ['left', 'right']; one.directions = ['right']; two.directions = ['left'];
@@ -124,7 +124,7 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
         raw.id = 'subject'; raw.atk = 17; raw.hp = raw.maxHp = 10000;
         const h = trigger(raw, kind, side), amounts = h.hits.map(e => e.amount);
         if (!amounts.length) continue;
-        if (no==='E077' ? amounts.some(n=>n!==40) : !amounts.some(n => amounts.includes(n * 3))) misses.push(no + '/' + online + '/' + side + ': ' + amounts);
+        if (no==='E103' ? amounts.some(n=>n!==40) : !amounts.some(n => amounts.includes(n * 3))) misses.push(no + '/' + online + '/' + side + ': ' + amounts);
       }
     }
     assert.deepEqual(misses, []);
@@ -296,7 +296,7 @@ function trigger(raw, kind, side = 'p1', extraAllies = []) {
     assert.deepEqual(result,['win',2]);
   });
   await check('6：依頼品・NPC・帰滅は両方向の交換不可、通常カードは交換可', () => {
-    for (const peddler of [false, true]) for (const no of ['BC001', 'BC002', 'BC004', 'E102', 'E101']) {
+    for (const peddler of [false, true]) for (const no of ['BC001', 'BC002', 'BC004', 'E108', 'E107']) {
       fresh(); G._isShop = true; G._isPeddler = peddler; G._wave = 3;
       G.mainBoard[0] = card(no); G.mainBoard[1] = card('C006'); _rewCards = [card('E003')];
       assert.equal(canExchangeShopCardAt(0, 0), false, no); assert.equal(exchangeShopCard(0, 0), false, no);

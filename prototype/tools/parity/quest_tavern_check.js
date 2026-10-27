@@ -420,8 +420,8 @@ const WAVE=1;
     const gold=await b.run(`(()=>{const count=${Number(count)};const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();
       const e=questDebugForceWaveQuest(1,'Q002');e.status='accepted';e.rewardCardTaken=true;e.towerEventDone=false;e.townEventDone=false;e.townEventStarted=false;e.townRewardGiven=false;
       e.rewardMixAssigned=true;e.rewardMixTargets=[{wave:1,stage:1,used:true},{wave:1,stage:2,used:true},{wave:2,stage:1,used:true}];
-      const lists=[G.mainBoard,G.globalPanels,G.spellSlots,_rewCards];for(const list of lists)for(let i=0;i<list.length;i++)if(no(list[i])==='E101')list[i]=null;
-      const def=PANEL_POOL.find(c=>c&&no(c)==='E101');const make=()=>makePanel(def.id);
+      const lists=[G.mainBoard,G.globalPanels,G.spellSlots,_rewCards];for(const list of lists)for(let i=0;i<list.length;i++)if(no(list[i])==='E107')list[i]=null;
+      const def=PANEL_POOL.find(c=>c&&no(c)==='E107');const make=()=>makePanel(def.id);
       if(count>0)G.mainBoard[0]=make();if(count>1)G.spellSlots[0]=make();if(count>2)_rewCards[0]=make();
       G._partyBoardUnit=null;G._wave=2;const route=_waveRouteForWave(2)||[];G._waveStage=Math.max(1,route.indexOf('city')+1);G._waveVillage=true;G._isWaveAltar=false;G.gold=Number(G.gold)||0;
       window.__questRewardScreenSeen=false;const watch=()=>{if(document.body.classList.contains('reward-screen-active'))__questRewardScreenSeen=true;if(!e.townEventDone)requestAnimationFrame(watch);};requestAnimationFrame(watch);
@@ -436,8 +436,8 @@ const WAVE=1;
     await startRunWithWaveQuest(b,3,'Q007');
     const gold=await b.run(`(()=>{const held=${Number(held)};const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();
       const e=questDebugForceWaveQuest(3,'Q007');e.status='accepted';e.transportCount=3;e.rewardCardTaken=true;e.townEventDone=false;e.townEventStarted=false;e.townRewardGiven=false;e.cargoLossPaid=false;
-      const lists=[G.mainBoard,G.globalPanels,G.spellSlots,G.rings,G.inventory,G.hand,G.handSlots,_rewCards];for(const list of lists){if(!Array.isArray(list))continue;for(let i=0;i<list.length;i++)if(no(list[i])==='E102')list[i]=null;}
-      const def=PANEL_POOL.find(c=>c&&no(c)==='E102');const make=()=>makePanel(def.id);const slots=[[G.mainBoard,0],[G.spellSlots,0],[G.globalPanels,0],[_rewCards,0]];
+      const lists=[G.mainBoard,G.globalPanels,G.spellSlots,G.rings,G.inventory,G.hand,G.handSlots,_rewCards];for(const list of lists){if(!Array.isArray(list))continue;for(let i=0;i<list.length;i++)if(no(list[i])==='E108')list[i]=null;}
+      const def=PANEL_POOL.find(c=>c&&no(c)==='E108');const make=()=>makePanel(def.id);const slots=[[G.mainBoard,0],[G.spellSlots,0],[G.globalPanels,0],[_rewCards,0]];
       for(let i=0;i<held;i++){const [list,idx]=slots[i];list[idx]=make();}
       G._partyBoardUnit=null;G._wave=4;const route=_waveRouteForWave(4)||[];G._waveStage=Math.max(1,route.indexOf('city')+1);G._waveVillage=true;G._isWaveAltar=false;G.gold=${startGold==null?'Math.max(0,Number(G.gold)||0)':Math.max(0,Number(startGold)||0)};
       window.__questRewardScreenSeen=false;const watch=()=>{if(document.body.classList.contains('reward-screen-active'))__questRewardScreenSeen=true;if(!e.townEventDone)requestAnimationFrame(watch);};requestAnimationFrame(watch);
@@ -454,20 +454,20 @@ const WAVE=1;
 
   async function inspectQ007TownResult(b){
     await b.until(`document.querySelector("#scr-village.active")&&!document.body.classList.contains("quest-town-event-active")&&${notFading}`,30000);
-    return b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const lists=[G.mainBoard,G.globalPanels,G.spellSlots,G.rings,G.inventory,G.hand,G.handSlots,_rewCards];let boxes=0;for(const list of lists)if(Array.isArray(list))boxes+=list.filter(c=>no(c)==='E102').length;return {gold:G.gold,status:G.questProgress.Q007.status,boxes,cargoLossPaid:G.questProgress.Q007.cargoLossPaid===true,rewardSeen:__questRewardScreenSeen};})()`);
+    return b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const lists=[G.mainBoard,G.globalPanels,G.spellSlots,G.rings,G.inventory,G.hand,G.handSlots,_rewCards];let boxes=0;for(const list of lists)if(Array.isArray(list))boxes+=list.filter(c=>no(c)==='E108').length;return {gold:G.gold,status:G.questProgress.Q007.status,boxes,cargoLossPaid:G.questProgress.Q007.cargoLossPaid===true,rewardSeen:__questRewardScreenSeen};})()`);
   }
 
   async function inspectQ002RewardMix(b){
     return b.run(`(()=>{const e=G.questProgress.Q002;const oldWave=G._wave,oldStage=G._waveStage;
       const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();
-      const seed=PANEL_POOL.find(c=>c&&c.id&&!c._npcCard&&no(c)!=='E101');
+      const seed=PANEL_POOL.find(c=>c&&c.id&&!c._npcCard&&no(c)!=='E107');
       const all=[];const fromStage=Math.max(0,Number(oldStage)||0);
       for(let wave=1;wave<=2;wave++){const route=_waveRouteForWave(wave)||[];const city=route.indexOf('city');
         const first=wave===1?fromStage+1:1;const last=city>=0?city:route.length;
         for(let stage=first;stage<=last;stage++) if(['battle','elite','boss'].includes(String(route[stage-1]||''))) all.push({wave,stage});}
       const targets=Array.isArray(e&&e.rewardMixTargets)?e.rewardMixTargets:[];
       const targetKeys=new Set(targets.map(t=>String(t.wave)+':'+String(t.stage)));
-      const mixAt=(wave,stage)=>{G._wave=wave;G._waveStage=stage;const cards=seed?[makePanel(seed.id),makePanel(seed.id)]:[];const out=questMixBattleRewards(cards);return out.filter(c=>no(c)==='E101').length;};
+      const mixAt=(wave,stage)=>{G._wave=wave;G._waveStage=stage;const cards=seed?[makePanel(seed.id),makePanel(seed.id)]:[];const out=questMixBattleRewards(cards);return out.filter(c=>no(c)==='E107').length;};
       const targetCounts=targets.map(t=>mixAt(Number(t.wave),Number(t.stage)));
       const non=all.find(t=>!targetKeys.has(String(t.wave)+':'+String(t.stage)));
       const nonCount=non?mixAt(non.wave,non.stage):null;
@@ -525,7 +525,7 @@ const WAVE=1;
     await b.until(`document.querySelector("#scr-village.active")&&!G._isTavern&&${notFading}`,30000);
     ok('Q002を引き受けると受託台詞の後に酒場を出て、状態がaccepted',await statusOf(b,'Q002')==='accepted');
     const mix=await inspectQ002RewardMix(b);
-    ok('Q002受託後の保存状態：ヴァルガまで最大3戦を選び、対象だけE101を1枚、対象外は0枚',
+    ok('Q002受託後の保存状態：ヴァルガまで最大3戦を選び、対象だけE107を1枚、対象外は0枚',
       mix.assigned&&mix.count>0&&mix.max&&mix.targetsValid&&mix.targetCounts.every(n=>n===1)
       // 残り戦闘がすべて対象の時は、対象外の戦闘が無いので確認を飛ばす（乱数で起きる）。
       &&(mix.non?mix.nonCount===0:true)&&mix.remaining===0,mix);
@@ -560,7 +560,7 @@ const WAVE=1;
 
     // ── Q002ヴァルガ到着：手持の落とし物を自動回収 ──
     const z=await newPage();
-    const goldZ=await beginQ002TownArrival(z,0,'E101が0枚');
+    const goldZ=await beginQ002TownArrival(z,0,'E107が0枚');
     const q002InitialFace=q2.q2.initial[0].face||'';
     const initialFaces=await z.run(`return [...document.querySelectorAll('.tavern-presentation-host .tavern-face.is-visible')].map(f=>f.dataset.faceId)`);
     ok('Q002・0個：A1前はクエストシート無指定の通常表情',!q002InitialFace&&initialFaces.length===0,{q002InitialFace,initialFaces});
@@ -571,12 +571,12 @@ const WAVE=1;
       await clickDialogue(z);
     }
     await z.until(`document.querySelector("#scr-village.active")&&!document.body.classList.contains("quest-town-event-active")&&${notFading}`,30000);
-    const afterZ=await z.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const all=[...(G.mainBoard||[]),...(G.spellSlots||[]),...(G.globalPanels||[]),...(G.rings||[]),...(G.inventory||[]),...(_rewCards||[])];return {gold:G.gold,status:G.questProgress.Q002.status,e101:all.filter(c=>no(c)==='E101').length,rewardSeen:__questRewardScreenSeen};})()`);
-    ok('Q002・0個：お金なし・落とし物0枚・completed、編成画面なし',afterZ.gold===goldZ&&afterZ.status==='completed'&&afterZ.e101===0&&!afterZ.rewardSeen,afterZ);
+    const afterZ=await z.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const all=[...(G.mainBoard||[]),...(G.spellSlots||[]),...(G.globalPanels||[]),...(G.rings||[]),...(G.inventory||[]),...(_rewCards||[])];return {gold:G.gold,status:G.questProgress.Q002.status,e107:all.filter(c=>no(c)==='E107').length,rewardSeen:__questRewardScreenSeen};})()`);
+    ok('Q002・0個：お金なし・落とし物0枚・completed、編成画面なし',afterZ.gold===goldZ&&afterZ.status==='completed'&&afterZ.e107===0&&!afterZ.rewardSeen,afterZ);
     await finish(z);
 
     const a=await newPage();
-    const goldA=await beginQ002TownArrival(a,2,'E101が2枚');
+    const goldA=await beginQ002TownArrival(a,2,'E107が2枚');
     await clickDialogue(a); await waitLine(a,q2.q2.initial[1]); await clickDialogue(a);
     await waitLine(a,q2.q2.initial[2]);
     ok('Q002・2個：台詞2の後に台詞3を出す',await a.run(`return G.gold`)===goldA);
@@ -586,12 +586,12 @@ const WAVE=1;
     ok('Q002・2個：台詞4のXを2に置換し、台詞4で+120G',true);
     await clickDialogue(a);
     await a.until(`document.querySelector("#scr-village.active")&&!document.body.classList.contains("quest-town-event-active")&&${notFading}`,30000);
-    const afterA=await a.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const all=[...(G.mainBoard||[]),...(G.spellSlots||[]),...(G.globalPanels||[]),...(G.rings||[]),...(G.inventory||[]),...(_rewCards||[])];return {gold:G.gold,status:G.questProgress.Q002.status,e101:all.filter(c=>no(c)==='E101').length,rewardSeen:__questRewardScreenSeen};})()`);
-    ok('Q002・2個：落とし物0枚・completed、編成画面なし',afterA.gold===goldA+120&&afterA.status==='completed'&&afterA.e101===0&&!afterA.rewardSeen,afterA);
+    const afterA=await a.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const all=[...(G.mainBoard||[]),...(G.spellSlots||[]),...(G.globalPanels||[]),...(G.rings||[]),...(G.inventory||[]),...(_rewCards||[])];return {gold:G.gold,status:G.questProgress.Q002.status,e107:all.filter(c=>no(c)==='E107').length,rewardSeen:__questRewardScreenSeen};})()`);
+    ok('Q002・2個：落とし物0枚・completed、編成画面なし',afterA.gold===goldA+120&&afterA.status==='completed'&&afterA.e107===0&&!afterA.rewardSeen,afterA);
     await finish(a);
 
     const t=await newPage();
-    const goldT=await beginQ002TownArrival(t,3,'E101が3枚（全部）');
+    const goldT=await beginQ002TownArrival(t,3,'E107が3枚（全部）');
     await clickDialogue(t); await waitLine(t,q2.q2.initial[1]); await clickDialogue(t);
     await waitLine(t,q2.q2.specialB1[0]);
     ok('Q002・3個＝全部：台詞2の後にB1を出し、まだ所持金を加えない',await t.run(`return G.gold`)===goldT);
@@ -599,8 +599,8 @@ const WAVE=1;
     ok('Q002・3個＝全部：B2で+250G（空のB3は飛ばす）',true);
     await clickDialogue(t);
     await t.until(`document.querySelector("#scr-village.active")&&!document.body.classList.contains("quest-town-event-active")&&${notFading}`,30000);
-    const afterT=await t.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const all=[...(G.mainBoard||[]),...(G.spellSlots||[]),...(G.globalPanels||[]),...(G.rings||[]),...(G.inventory||[]),...(_rewCards||[])];return {gold:G.gold,status:G.questProgress.Q002.status,e101:all.filter(c=>no(c)==='E101').length,rewardSeen:__questRewardScreenSeen};})()`);
-    ok('Q002・3個＝全部：落とし物0枚・completed、編成画面なし',afterT.gold===goldT+250&&afterT.status==='completed'&&afterT.e101===0&&!afterT.rewardSeen,afterT);
+    const afterT=await t.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const all=[...(G.mainBoard||[]),...(G.spellSlots||[]),...(G.globalPanels||[]),...(G.rings||[]),...(G.inventory||[]),...(_rewCards||[])];return {gold:G.gold,status:G.questProgress.Q002.status,e107:all.filter(c=>no(c)==='E107').length,rewardSeen:__questRewardScreenSeen};})()`);
+    ok('Q002・3個＝全部：落とし物0枚・completed、編成画面なし',afterT.gold===goldT+250&&afterT.status==='completed'&&afterT.e107===0&&!afterT.rewardSeen,afterT);
     await finish(t);
 
   }
@@ -1015,26 +1015,26 @@ const WAVE=1;
     ok('Q007のBはMC004（X1819・Y192）',portrait.id==='MC004'&&portrait.x==='1819px'&&portrait.y==='192px'&&portrait.loaded,portrait);
     for(const line of q10.q.initial){ await waitLine(b,line); await clickDialogue(b); }
     await b.until('document.body.classList.contains("reward-screen-active")&&document.querySelector("#reward-move-btns .rew-move-btn")',30000);
-    const offers=await b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const cards=(_rewCards||[]).filter(Boolean);return {count:cards.length,e102:cards.filter(c=>no(c)==='E102').length,names:cards.map(c=>c.name||''),heading:getComputedStyle(document.getElementById('reward-offer-section'),'::before').content,label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||''};})()`);
+    const offers=await b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const cards=(_rewCards||[]).filter(Boolean);return {count:cards.length,e108:cards.filter(c=>no(c)==='E108').length,names:cards.map(c=>c.name||''),heading:getComputedStyle(document.getElementById('reward-offer-section'),'::before').content,label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||''};})()`);
     ok('最後の台詞の後に編成画面が開き、見出し「依頼品」・木箱5枚・ボタンは「拒否」',
-      offers.count===5&&offers.e102===5&&offers.names.every(n=>n==='木箱')&&offers.heading.includes(q5.title2)&&offers.label==='拒否',offers);
+      offers.count===5&&offers.e108===5&&offers.names.every(n=>n==='木箱')&&offers.heading.includes(q5.title2)&&offers.label==='拒否',offers);
     const q007Slot=await b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const board=_getPartyBoardUnit().boardCards;const original=board[0]||null;
-      const def=PANEL_POOL.find(c=>c&&c.id&&!c._npcCard&&no(c)!=='E102'&&c.panelScope!=='global');const other=makePanel(def.id);board[0]=other;renderHandEditor();
+      const def=PANEL_POOL.find(c=>c&&c.id&&!c._npcCard&&no(c)!=='E108'&&c.panelScope!=='global');const other=makePanel(def.id);board[0]=other;renderHandEditor();
       const rewardBefore=_rewCards.filter(Boolean).length;
       _dragSrc={arr:'boardCards',idx:0,unitIdx:G._selectedBoardUnitIdx};const dragAllowed=_canReturnDragSrcToRewardArea();_returnDragSrcToRewardArea();
       const dragStayed=board[0]===other&&_rewCards.filter(Boolean).length===rewardBefore;
-      const ri=_rewCards.findIndex(c=>no(c)==='E102');_dragSrc={arr:'rew',idx:ri};const dropAllowed=_boardDropAllowedAt(0);_dragSrc=null;
+      const ri=_rewCards.findIndex(c=>no(c)==='E108');_dragSrc={arr:'rew',idx:ri};const dropAllowed=_boardDropAllowedAt(0);_dragSrc=null;
       takeRewCard(ri);const clickPlaced=placePendingPanelToSelectedUnit(0);cancelPendingPanelPlacement();
-      const clickStayed=board[0]===other&&_rewCards.filter(c=>no(c)==='E102').length===5;
+      const clickStayed=board[0]===other&&_rewCards.filter(c=>no(c)==='E108').length===5;
       board[0]=original;if(typeof syncBoardCardPassives==='function')syncBoardCardPassives();renderHandEditor();renderRewCards();
       return {dragAllowed,dragStayed,dropAllowed,clickPlaced,clickStayed};})()`);
     ok('Q007依頼枠：別カードはドラッグでもクリック入替でも置けず、ドロップ不可表示',
       !q007Slot.dragAllowed&&q007Slot.dragStayed&&!q007Slot.dropAllowed&&!q007Slot.clickPlaced&&q007Slot.clickStayed,q007Slot);
-    const one=await b.run(`(()=>{const ri=_rewCards.findIndex(Boolean);const bi=G.mainBoard.findIndex(c=>!c);if(ri<0||bi<0)return {moved:false};takeRewCard(ri);return {moved:placePendingPanelToSelectedUnit(bi),label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||'',board:(G.mainBoard||[]).filter(c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase()==='E102').length};})()`);
+    const one=await b.run(`(()=>{const ri=_rewCards.findIndex(Boolean);const bi=G.mainBoard.findIndex(c=>!c);if(ri<0||bi<0)return {moved:false};takeRewCard(ri);return {moved:placePendingPanelToSelectedUnit(bi),label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||'',board:(G.mainBoard||[]).filter(c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase()==='E108').length};})()`);
     ok('木箱を1枚移すとボタンが「受託」になる',one.moved&&one.board===1&&one.label==='受託',one);
-    const returned=await b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const idx=G.mainBoard.findIndex(c=>no(c)==='E102');_dragSrc={arr:'boardCards',idx,unitIdx:G._selectedBoardUnitIdx};_returnDragSrcToRewardArea();return {reward:_rewCards.filter(c=>c&&no(c)==='E102').length,board:(G.mainBoard||[]).filter(c=>no(c)==='E102').length,label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||''};})()`);
+    const returned=await b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const idx=G.mainBoard.findIndex(c=>no(c)==='E108');_dragSrc={arr:'boardCards',idx,unitIdx:G._selectedBoardUnitIdx};_returnDragSrcToRewardArea();return {reward:_rewCards.filter(c=>c&&no(c)==='E108').length,board:(G.mainBoard||[]).filter(c=>no(c)==='E108').length,label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||''};})()`);
     ok('木箱を戻すとボタンが「拒否」に戻る',returned.reward===5&&returned.board===0&&returned.label==='拒否',returned);
-    const movedTwo=await b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();let moved=0;for(let n=0;n<2;n++){const ri=_rewCards.findIndex(Boolean);const bi=G.mainBoard.findIndex(c=>!c);if(ri<0||bi<0)break;takeRewCard(ri);if(placePendingPanelToSelectedUnit(bi))moved++;}return {moved,board:(G.mainBoard||[]).filter(c=>no(c)==='E102').length,label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||''};})()`);
+    const movedTwo=await b.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();let moved=0;for(let n=0;n<2;n++){const ri=_rewCards.findIndex(Boolean);const bi=G.mainBoard.findIndex(c=>!c);if(ri<0||bi<0)break;takeRewCard(ri);if(placePendingPanelToSelectedUnit(bi))moved++;}return {moved,board:(G.mainBoard||[]).filter(c=>no(c)==='E108').length,label:document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||''};})()`);
     ok('木箱を2枚移すと2枚とも魔導板に残り、ボタンが「受託」',movedTwo.moved===2&&movedTwo.board===2&&movedTwo.label==='受託',movedTwo);
     await b.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
     // 受託台詞がシートにあれば送る（無ければそのまま酒場を出る）。
@@ -1044,7 +1044,7 @@ const WAVE=1;
       const savedStatus=save.state.questProgress.Q007?.status||'',savedCount=save.state.questProgress.Q007?.transportCount;
       G.questProgress.Q007.transportCount=0;SaveRun.restoreRunState(save);
       const restored=G.questProgress.Q007;const all=[...(_rewCards||[]),...(G.spellSlots||[]),...(G.globalPanels||[])];
-      return {status,transportCount,savedStatus,savedCount,restoredStatus:restored?.status||'',restoredCount:restored?.transportCount,board:(G.mainBoard||[]).filter(c=>no(c)==='E102').length,offer:all.filter(c=>no(c)==='E102').length};})()`);
+      return {status,transportCount,savedStatus,savedCount,restoredStatus:restored?.status||'',restoredCount:restored?.transportCount,board:(G.mainBoard||[]).filter(c=>no(c)==='E108').length,offer:all.filter(c=>no(c)==='E108').length};})()`);
     ok('「受託」でaccepted・保存数2になり、ランセーブ復元後も木箱2枚と運ぶ数2を保つ',
       accepted.status==='accepted'&&accepted.transportCount===2&&accepted.savedStatus==='accepted'&&accepted.savedCount===2
       &&accepted.restoredStatus==='accepted'&&accepted.restoredCount===2&&accepted.board===2&&accepted.offer===0,accepted);
@@ -1061,17 +1061,17 @@ const WAVE=1;
     await startRunWithWaveQuest(soldAfter,3,'Q007');
     await soldAfter.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();
       const e=G.questProgress.Q007;e.status='accepted';e.transportCount=2;e.rewardCardTaken=true;e.townEventDone=false;e.townEventStarted=false;e.cargoLossPaid=false;
-      const def=PANEL_POOL.find(c=>c&&no(c)==='E102');const make=()=>makePanel(def.id);const board=_getPartyBoardUnit().boardCards;
-      for(let i=0;i<board.length;i++)if(no(board[i])==='E102')board[i]=null;const slots=board.map((c,i)=>c? -1:i).filter(i=>i>=0);
+      const def=PANEL_POOL.find(c=>c&&no(c)==='E108');const make=()=>makePanel(def.id);const board=_getPartyBoardUnit().boardCards;
+      for(let i=0;i<board.length;i++)if(no(board[i])==='E108')board[i]=null;const slots=board.map((c,i)=>c? -1:i).filter(i=>i>=0);
       board[slots[0]]=make();board[slots[1]]=make();G._partyBoardUnit=null;G.gold=1000;return 1;})()`);
     await openWave(soldAfter,3);
     await enterShop(soldAfter);
     const soldOne=await soldAfter.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();
-      const before=(G.mainBoard||[]).filter(c=>no(c)==='E102').length;const idx=(G.mainBoard||[]).findIndex(c=>no(c)==='E102');
+      const before=(G.mainBoard||[]).filter(c=>no(c)==='E108').length;const idx=(G.mainBoard||[]).findIndex(c=>no(c)==='E108');
       const card=document.querySelector('#hand-slots.board-slots > .card[data-board-idx="'+idx+'"]');const btn=card?.querySelector('.shop-board-sell-action');
       // 2026-10-18：売却は無い。売却UIが無いことを確かめ、木箱を1枚失った状態は直接作る（交換で渡した場合と同じ）。
       const noButton=!btn;if(idx>=0){G.mainBoard[idx]=null;G._partyBoardUnit=null;}
-      return {before,after:(G.mainBoard||[]).filter(c=>no(c)==='E102').length,noButton};})()`);
+      return {before,after:(G.mainBoard||[]).filter(c=>no(c)==='E108').length,noButton};})()`);
     ok('Q007受託後：店に木箱の売却UIは無く、木箱を1枚失うと手持ちが1枚減る',soldOne.noButton&&soldOne.before===2&&soldOne.after===1,soldOne);
     await soldAfter.run(`document.querySelector('#reward-move-btns .rew-move-btn').click();return 1;`);
     await soldAfter.until(`document.querySelector("#scr-village.active")&&!G._isShop&&${notFading}`,30000);
@@ -1084,7 +1084,7 @@ const WAVE=1;
     }else{
       await sleep(1500);
     }
-    const soldFail=await soldAfter.run(`return {status:G.questProgress.Q007.status,boxes:(G.mainBoard||[]).filter(c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase()==='E102').length,acceptedAfterShown:[...document.querySelectorAll('#tavern-dialogue-layer .tavern-dialogue-text')].some(x=>x.textContent===${JSON.stringify(((q10.q.acceptedAfter||[])[0]||{}).text||'')})}`);
+    const soldFail=await soldAfter.run(`return {status:G.questProgress.Q007.status,boxes:(G.mainBoard||[]).filter(c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase()==='E108').length,acceptedAfterShown:[...document.querySelectorAll('#tavern-dialogue-layer .tavern-dialogue-text')].some(x=>x.textContent===${JSON.stringify(((q10.q.acceptedAfter||[])[0]||{}).text||'')})}`);
     ok(q7FailedAfter?'Q007受託後に木箱を失って再入店すると失敗後台詞、状態はacceptedのまま':'Q007受託後に木箱を失って再入店しても受託後台詞は出ない（シートに失敗後台詞が無いので台詞の確認は省略）、状態はacceptedのまま',
       soldFail.status==='accepted'&&soldFail.boxes===1&&!soldFail.acceptedAfterShown,soldFail);
     if(q7FailedAfter) await clickDialogue(soldAfter);
@@ -1097,11 +1097,11 @@ const WAVE=1;
     await clickFacility(r,'^酒場$');
     for(const line of q10.q.initial){ await waitLine(r,line); await clickDialogue(r); }
     await r.until('document.body.classList.contains("reward-screen-active")&&document.querySelector("#reward-move-btns .rew-move-btn")',30000);
-    const reject=await r.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const before=(_rewCards||[]).filter(c=>c&&no(c)==='E102').length;const label=document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||'';document.querySelector('#reward-move-btns .rew-move-btn').click();return {before,label};})()`);
+    const reject=await r.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const before=(_rewCards||[]).filter(c=>c&&no(c)==='E108').length;const label=document.querySelector('#reward-move-btns .rew-move-btn .rew-btn-label')?.textContent.trim()||'';document.querySelector('#reward-move-btns .rew-move-btn').click();return {before,label};})()`);
     ok('別ランの初期状態は木箱5枚・ボタン「拒否」',reject.before===5&&reject.label==='拒否',reject);
     for(const line of (q10.q.rejected||[])){ await waitLine(r,line); await clickDialogue(r); }
     await r.until(`document.querySelector("#scr-village.active")&&!G._isTavern&&!document.body.classList.contains("reward-screen-active")&&${notFading}`,30000);
-    const rejected=await r.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const e=G.questProgress.Q007;const save=SaveRun.serializeRunState();const all=[...(G.mainBoard||[]),...(G.spellSlots||[]),...(G.globalPanels||[]),...(_rewCards||[])];return {status:e?.status||'',saveStatus:save.questProgress.Q007?.status||'',transportCount:e?.transportCount,boxes:all.filter(c=>no(c)==='E102').length};})()`);
+    const rejected=await r.run(`(()=>{const no=c=>String(c&&(c.no||c.No||c['No.']||c.artCode)||'').toUpperCase();const e=G.questProgress.Q007;const save=SaveRun.serializeRunState();const all=[...(G.mainBoard||[]),...(G.spellSlots||[]),...(G.globalPanels||[]),...(_rewCards||[])];return {status:e?.status||'',saveStatus:save.questProgress.Q007?.status||'',transportCount:e?.transportCount,boxes:all.filter(c=>no(c)==='E108').length};})()`);
     ok('「拒否」後はrejectedで、木箱が持ち物に残らない',rejected.status==='rejected'&&rejected.saveStatus==='rejected'&&rejected.transportCount===0&&rejected.boxes===0,rejected);
     await finish(r);
 

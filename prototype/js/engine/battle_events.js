@@ -355,6 +355,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     }
     if(e.type==='run_effect'){
       applyCoreRunEffectEvent(e);
+      applyCoreBattleEndCardEvent(e);
       if(typeof presentRunEffectEvent==='function') await presentRunEffectEvent(e,{findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id))});
       continue;
     }
@@ -795,7 +796,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
         && typeof _getPartyBoardUnit === 'function') {
         // 書けなかった時は理由を残す（battle.js の _persistPermanentStatOrWarn が唯一の実装）。
         if (typeof _persistPermanentStatOrWarn === 'function') _persistPermanentStatOrWarn(_getPartyBoardUnit(), e);
-        else persistBoardCharacterStats(_getPartyBoardUnit(), e.boardSlot, e.atk, e.hp);
+        else persistBoardCharacterStats(_getPartyBoardUnit(), e.boardSlot, e.atk, e.persistentHp??e.hp);
       }
       continue;
     }

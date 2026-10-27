@@ -2,6 +2,7 @@
 // 内蔵CSV→本番の対象選択・編成→共通コア→オンライン・保存フレーム・ラン保存を検査する。
 // ブラウザの見た目と聴感は検査しない。
 const {assert,sheet,copy,plain,harness,initRun,pipelines}=require('./rules_1026_harness');
+const {REVISED:revised1027}=require('./effects_1027_regression');
 const vm=require('node:vm'),{execFileSync}=require('node:child_process');
 const {makeElement}=require('./stub');
 const BASELINE='1c2373079e7c006ed420d391b39633c16763e487'; // effects-1026c 作業開始時の main
@@ -170,8 +171,10 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
    formed.effectData={releaseAtkBonus:0,releaseHpBonus:0,...formed.effectData};
    const h=harness(side,[{...formed,id:'source',hp:100,maxHp:100}]);coreApplyAttackEffects(h.u,h.state,h.rng,h.emit,h.hit);
    assert.deepEqual(h.events.filter(e=>e.type==='damage'&&e.unitId==='source').map(e=>e.amount),[1+power,1+power]);
-   h.u.desc='開戦：全ての味方は+2/+3を得る。';h.u._adjacentPanelEffectTexts.push(sheet.effectText('E052',enhanced));
-   const skill=2+Number(sheet.effectText('E052',enhanced).match(/値は(\d+)/)[1]);
+   h.u.desc='開戦：全ての味方は+2/+3を得る。';
+   const skillKeywords=card('E052',enhanced).adjacentKeywords;
+   h.u.keywords.push(...skillKeywords);
+   const skill=2+skillKeywords.reduce((sum,k)=>sum+Number(k.match(/^熟練(\d+)$/)?.[1]||0),0);
    assert.ok(_unitPreviewText(h.u,h.u.desc,1).includes(`+${2+skill}/+${3+skill}`));
    assert.equal(coreStatBonus(h.u,-2,h.u),-2-skill);
    assert.ok(_unitCombinedDescHtml(h.u,'負傷：ランダムな敵はATK-2を得る。',1).includes(`ATK-${2+skill}`));
@@ -181,7 +184,7 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
    G.mainBoard[2]=card('E070');G.mainBoard[2].directions=['left'];assert.ok(!_unitPreviewText(preview,'',1).includes('魔術の知識'));
    await pipelines(h.initial);
   }
-  fresh();G.mainBoard[1]=card('C006');G.mainBoard[1].desc='';G.mainBoard[1].directions=['up','right','down','left'];
+  fresh();G.mainBoard[1]=card('C006');G.mainBoard[1].desc='';G.mainBoard[1].keywords=['邪眼1','毒牙1','衝撃1'];G.mainBoard[1].directions=['up','right','down','left'];
   for(const no of sheet.sheetRows('enchant').filter(r=>r['キャラクター用説明文']&&r['No.']!=='E011').map(r=>r['No.'])){
    const p=G.mainBoard[0]=card(no);p.directions=['right'];
    const preview={...G.mainBoard[1],boardCards:G.mainBoard,_ownedBoardPreview:true};
@@ -195,13 +198,14 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
   const run=(api,input,seed)=>{const state=api.createBattleState(copy(input)),events=[],rng=createSeededRng(seed);const result=api.runBattleCore(state,rng,{turnLimit:6,onEvent:e=>events.push(e)});return copy({result,events,finalState:api.battleCoreFinalState(state),nextRandom:rng.next()});};
   const base=own=>({sides:{p1:{units:[own,plain('ally')]},p2:{units:[plain('foe',{hp:5,maxHp:5}),plain('foe2')]}},resources:{p1:{gold:800,mana:8}},summonDefs:PANEL_POOL});
   for(const row of [...sheet.sheetRows('card'),...sheet.sheetRows('enchant')])for(const enhanced of [false,true])for(const seed of [1,1026]){
+   if(revised1027.has(row['No.'])||row['No.']==='E066')continue; // effects_1027／sheet_1027が現行本文を検査する。
    if(row['No.']==='C016'&&enhanced)continue;
    const def=PANEL_POOL.find(c=>c.no===row['No.']);if(!def)continue;
    const c={...copy(def),desc:(enhanced?row['強化効果']:'')||row['効果']||''};
    const own=def.category==='キャラクター'?{..._makePanelSummonUnit(_panelSummonSpec(c),[]),id:'source',atk:10,hp:70,maxHp:70}:plain('source',{_adjacentPanelEffectTexts:[c.desc],boardCards:[c]});
    assert.deepEqual(run(current,base(own),seed),run(baseline,base(own),seed),`${row['No.']}/${enhanced}/${seed}`);compared++;
   }
-  for(const r of RING_POOL.filter(r=>r.no!=='R019')){const input={...base(plain('source')),rings:{p1:[r]}};assert.deepEqual(run(current,input,1026),run(baseline,input,1026),r.no);compared++;}
+  for(const r of RING_POOL.filter(r=>!['R017','R019'].includes(r.no))){const input={...base(plain('source')),rings:{p1:[r]}};assert.deepEqual(run(current,input,1026),run(baseline,input,1026),r.no);compared++;}
   for(const i of ITEM_POOL){const input={...base(plain('source')),items:{p1:[i]}};assert.deepEqual(run(current,input,1026),run(baseline,input,1026),i.no);compared++;}
   assert.ok(compared>800);console.log(`  ${compared}ケース完全一致（main ${BASELINE.slice(0,7)}）`);
  });

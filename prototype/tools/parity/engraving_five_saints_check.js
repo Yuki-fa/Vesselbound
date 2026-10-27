@@ -18,7 +18,7 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
 
     const result=await browser.eval(`
       const noOf=card=>String(card&&(card.no||card.No||card['No.']||card.artCode)||'').toUpperCase();
-      const engravingNos=['E066','E076','E077','E078','E079','E080'];
+      const engravingNos=['E102','E101','E103','E104','E105','E106'];
       const defs=Object.fromEntries(engravingNos.map(no=>[no,PANEL_POOL.find(card=>noOf(card)===no)]));
       const cards=Object.fromEntries(engravingNos.map(no=>[no,defs[no]?makePanel(defs[no].id||defs[no].name):null]));
       const descriptions={};
@@ -31,7 +31,7 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
       const fateFormation=(stage,value)=>{
         const character=makePanel(PANEL_POOL.find(card=>card.no==='C008').id);
         character.power=value;character.life=value;character.directions=['left'];
-        const fate=makePanel(defs.E066.id);fate.directions=['right'];
+        const fate=makePanel(defs.E102.id);fate.directions=['right'];
         const board={boardCards:new Array(15).fill(null)};
         board.boardCards[0]=fate;board.boardCards[1]=character;
         const unit=buildBoardFormation(board,{persistEternal:false,stageNumber:stage}).ordered[0].unit;
@@ -105,22 +105,22 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
 
       // 刻印は売却・還魂・報酬枠返却の各入口と、ボタン表示の両方で拒否する。
       G.phase='reward';G._isShop=true;G._isForge=false;G._isWaveAltar=false;G._debugMode=false;
-      G.mainBoard=new Array(15).fill(null);G.mainBoard[2]=cards.E066;
+      G.mainBoard=new Array(15).fill(null);G.mainBoard[2]=cards.E102;
       const owner=_getPartyBoardUnit();owner.boardCards=G.mainBoard;
-      const sellAllowed=_boardCardSellEnabled(cards.E066);
-      const rewardAccepted=_rewardAreaAcceptsCard(cards.E066);
+      const sellAllowed=_boardCardSellEnabled(cards.E102);
+      const rewardAccepted=_rewardAreaAcceptsCard(cards.E102);
       _rewCards=[];
-      const rewardPushed=_pushToRewardArea(cards.E066);
+      const rewardPushed=_pushToRewardArea(cards.E102);
       G._isShop=false;G._isWaveAltar=true;G._ringOfferPhase=true;G._ringOffer=[{name:'検査指輪'}];
       G._ringOfferUnlocked=false;G._ringOfferResolved=false;G._boardDiscardCount=0;G._ringSacrificedCards=[];
-      _discardBoardCardForRingOffer(2,cards.E066);
+      _discardBoardCardForRingOffer(2,cards.E102);
       renderHandEditor();
       const engravingButton=!!document.querySelector('[data-board-idx="2"] .discard-btn,[data-board-idx="2"] .shop-board-sell-action');
-      const disposal={sellAllowed,rewardAccepted,rewardPushed,stillOnBoard:G.mainBoard[2]===cards.E066,
+      const disposal={sellAllowed,rewardAccepted,rewardPushed,stillOnBoard:G.mainBoard[2]===cards.E102,
         discardCount:G._boardDiscardCount,button:engravingButton};
 
       // 抑圧の刻印はUIだけでなく、盤面変更の最終判定でも同一オブジェクト・同一マスを要求する。
-      const suppression=cards.E076;suppression._fixedBoardSlot=2;
+      const suppression=cards.E101;suppression._fixedBoardSlot=2;
       const filler=makePanel(PANEL_POOL.find(card=>card&&card.category==='キャラクター').id);
       G.mainBoard=new Array(15).fill(null);G.mainBoard[2]=suppression;G.mainBoard[3]=filler;owner.boardCards=G.mainBoard;
       const removed=G.mainBoard.slice();removed[2]=null;
@@ -154,9 +154,9 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
       G._wave=1;G.mainBoard=new Array(15).fill(null);
       G._fiveSaints={visited:false,offeredNos:[],offers:{},decisions:{},targets:{}};
       const offers=[1,2,3,4].map(wave=>_fiveSaintsOfferNo(wave));
-      G._fiveSaints={visited:true,offeredNos:['E076'],offers:{'1':'E076'},decisions:{},targets:{}};
+      G._fiveSaints={visited:true,offeredNos:['E101'],offers:{'1':'E101'},decisions:{},targets:{}};
       G.mainBoard[0]=filler;
-      const targetA=_fiveSaintsTargetSlot(1,'E076'),targetB=_fiveSaintsTargetSlot(1,'E076');
+      const targetA=_fiveSaintsTargetSlot(1,'E101'),targetB=_fiveSaintsTargetSlot(1,'E101');
       const counts=[0,1,2,3].map(count=>fiveSaintsShouldAdvanceToStageFive({decisions:Object.fromEntries(
         Array.from({length:count},(_,i)=>[String(i+1),{accepted:true}]))}));
 
@@ -185,14 +185,14 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
 
     check('刻印6種がシートから読み込まれる',result.missing.length===0,JSON.stringify(result.missing));
     check('刻印6種の名称が新仕様',JSON.stringify(result.names)===JSON.stringify({
-      E066:'宿業の刻印',E076:'抑圧の刻印',E077:'受難の刻印',E078:'苦悶の刻印',E079:'修道の刻印',E080:'我慢の刻印'}),JSON.stringify(result.names));
+      E102:'宿業の刻印',E101:'抑圧の刻印',E103:'受難の刻印',E104:'苦悶の刻印',E105:'修道の刻印',E106:'我慢の刻印'}),JSON.stringify(result.names));
     check('刻印6種がキーワード説明経路へ乗る',Object.values(result.keywordRows).every(rows=>rows.includes('刻印')),JSON.stringify(result.keywordRows));
-    check('ステージ1の説明文へXを数値展開',result.descriptions[1].E066.includes('-5/-5')
-      &&result.descriptions[1].E077.includes('5ダメージ')&&result.descriptions[1].E078.includes('20ゴールド')
-      &&result.descriptions[1].E079.includes('ATK-5')&&/封印5/.test(result.descriptions[1].E080),JSON.stringify(result.descriptions[1]));
-    check('ステージ4の説明文へXを数値展開',result.descriptions[4].E066.includes('-20/-20')
-      &&result.descriptions[4].E077.includes('20ダメージ')&&result.descriptions[4].E078.includes('80ゴールド')
-      &&result.descriptions[4].E079.includes('ATK-20')&&/封印20/.test(result.descriptions[4].E080),JSON.stringify(result.descriptions[4]));
+    check('ステージ1の説明文へXを数値展開',result.descriptions[1].E102.includes('-5/-5')
+      &&result.descriptions[1].E103.includes('5ダメージ')&&result.descriptions[1].E104.includes('20ゴールド')
+      &&result.descriptions[1].E105.includes('ATK-5')&&/封印5/.test(result.descriptions[1].E106),JSON.stringify(result.descriptions[1]));
+    check('ステージ4の説明文へXを数値展開',result.descriptions[4].E102.includes('-20/-20')
+      &&result.descriptions[4].E103.includes('20ダメージ')&&result.descriptions[4].E104.includes('80ゴールド')
+      &&result.descriptions[4].E105.includes('ATK-20')&&/封印20/.test(result.descriptions[4].E106),JSON.stringify(result.descriptions[4]));
     check('宿業は編成時、受難・苦悶・修道・我慢は各効果時にステージ1の値で解決',result.effects1.opening.atk===95
       &&result.effects1.opening.initial===95&&result.effects1.opening.change===null
       &&result.effects1.opening.hp===95&&result.effects1.death.damage===5&&result.effects1.death.goldSpend===20
@@ -272,7 +272,7 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
         G._onlineMode=false;G._wave=3;G.questProgress={};G.mapPanelPowers={};G.allies=G.allies||[];G.enemies=G.enemies||[];  // 編成画面（goToReward）は G.allies・G.enemies を読む（この検査はランを始めずに開く）
         const hero=makePanel(PANEL_POOL.find(c=>c.category==='キャラクター'&&c.name==='ブラウニー').id);
         for(const accepted of [false,true])for(const invalid of ['empty','misplaced','sealed']){
-          G._fiveSaints={visited:true,offeredNos:['E077'],offers:{'3':'E077'},decisions:{},targets:{}};
+          G._fiveSaints={visited:true,offeredNos:['E103'],offers:{'3':'E103'},decisions:{},targets:{}};
           G._fiveSaintsResolving=false;G.mainBoard=new Array(15).fill(null);G.globalPanels=[];
           _fiveSaintsShowScene();
           const firstPair=['MC001','MC009'].every(id=>visible(document.querySelector('.tavern-portrait[data-portrait-id="'+id+'"]')));
@@ -332,8 +332,8 @@ const check=(name,value,detail='')=>checks.push({name,ok:!!value,detail});
     const addedAssets=await browser.eval(`
       const urls=['assets/art/backgrounds/tower_landing.webp','assets/art/sprites/MC009.webp',
         'assets/ui/approval.svg','assets/ui/symbol1.svg','assets/ui/symbol2.svg',
-        'assets/art/enchantments/E076.jpg','assets/art/enchantments/E077.jpg',
-        'assets/art/enchantments/E078.jpg','assets/art/enchantments/E079.jpg','assets/art/enchantments/E080.jpg'];
+        'assets/art/enchantments/E101.jpg','assets/art/enchantments/E103.jpg',
+        'assets/art/enchantments/E104.jpg','assets/art/enchantments/E105.jpg','assets/art/enchantments/E106.jpg'];
       const load=url=>new Promise(resolve=>{const img=new Image();img.onload=()=>resolve({url,ok:true,w:img.naturalWidth,h:img.naturalHeight});
         img.onerror=()=>resolve({url,ok:false,w:0,h:0});img.src=url;});
       return await Promise.all(urls.map(load));

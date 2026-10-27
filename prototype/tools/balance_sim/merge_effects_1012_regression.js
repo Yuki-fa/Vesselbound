@@ -391,9 +391,8 @@ async function pveBridgeChecks() {
       mixedChecked++;
     }catch(e){mixedFailures.push(`${row['No.']} ${side}: ${e.message}`);}
   }
-  assert.equal(mixedFailures.length,0,mixedFailures.join('\n'));
   // 5%の境界、2回目・3回目だけの成功、0ダメージでは判定しない。名前変更にも追従する。
-  const basilisk=rows.find(r=>r['No.']==='E027');
+  const basilisk=rows.find(r=>r['No.']==='E004'); // 現行の黒い波動。E027はマナの種へ改訂済み。
   for(const merged of [false,true]) for(const side of ['p1','p2']) {
     const text=String(merged?basilisk['合体効果']:basilisk['効果']);
     const prob=Number(text.match(/(\d+)%/)[1])/100,rep=effectRepetitions(text)-1;
@@ -409,4 +408,6 @@ async function pveBridgeChecks() {
   }
   const bridges=await pveBridgeChecks();
   console.log(`2026-10-12 全効果: ${rows.length}行 × 通常/合体 × 両陣営 = ${checked}件、本文反復 ${repeats}件、通常＋合体接続 ${mixedChecked}件、PvE状態引継ぎ ${bridges}件、確率境界 OK`);
+  // 既知の同時接続の失敗があっても、確率境界とPvE受け渡しまで全項目を実行する。
+  assert.equal(mixedFailures.length,0,'通常・強化の同時接続:\n'+mixedFailures.join('\n'));
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1;});

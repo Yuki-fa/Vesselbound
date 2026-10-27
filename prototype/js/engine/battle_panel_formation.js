@@ -162,7 +162,7 @@ function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
       enh.effectScales[name]=Math.max(enh.effectScales[name]||1,copies);
     }
     // 同じ接続カードにつながる体だけを渡す。効果の条件・倍率はコアが決める。
-    const connectedCharacters=coreConnectedColorStatMultiplier(panel)==null?[]:
+    const connectedCharacters=coreConnectedColorStatMultiplier(panel)==null&&!coreConnectedKeywordSpec(panel)?[]:
       (unit.boardCards||[]).filter((card,idx)=>card&&idx!==slotIdx&&String(card.category||'')==='キャラクター'
         &&_collectEnhancementPanelsForSlot(unit,idx).some(link=>link.idx===entry.idx));
     const stats=corePanelStatBonuses(panel,{stageNumber:stageNumber
@@ -170,6 +170,8 @@ function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
       character:(unit.boardCards||[])[slotIdx],connectedCharacters});
     enh.atk+=stats.atk;
     enh.hp+=stats.hp;
+    const connectedKeyword=coreConnectedKeyword(panel,connectedCharacters);
+    if(connectedKeyword) enh.keywords.push(connectedKeyword);
     enh.releaseAtkBonus=Math.max(enh.releaseAtkBonus,Number(panel.releaseAtkBonus)||0);
     enh.releaseHpBonus=Math.max(enh.releaseHpBonus,Number(panel.releaseHpBonus)||0);
     enh.manaOnAttack+=panel.manaOnAttack||0;
@@ -711,6 +713,26 @@ function _panelSummonDisplayBoardCards(sourcePanel, contributingPanels){
       ...(corePermanentDamageSpec(p.desc)?{_permanentEffectBoardSlot:entry.idx}:{})}:null;
   }).filter(Boolean);
   return [center,...panels];
+}
+
+// カード単位の終戦の数え・変化の共通出口。コアの絶対値を保存するので再生しても重複しない。
+function applyCoreBattleEndCardEvent(event){
+  if(!event||event.type!=='run_effect'||event.kind!=='enchant_transform'||event.side!=='p1') return false;
+  const board=typeof _getPartyBoardUnit==='function'?_getPartyBoardUnit():null;
+  const cards=board&&board.boardCards;
+  const card=cards&&cards[event.boardSlot];
+  if(!card||String(card.id)!==String(event.effectCardId)) return false;
+  if(!event.toName){card._battleEndCount=event.count;return true;}
+  const enhanced=/\+$/.test(event.toName),name=String(event.toName).replace(/\+$/,'');
+  const def=PANEL_POOL.find(c=>c&&c.name===name);
+  if(!def) return false;
+  let next=clone(def);
+  if(enhanced) next=enhancedPanelCopy(next);
+  if(!next) return false;
+  for(const key of ['directions','directionCount','_placeKey']) if(card[key]!=null) next[key]=clone(card[key]);
+  if(card.boon) coreApplyCardBoon(next,card.boon);
+  cards[event.boardSlot]=next;
+  return true;
 }
 
 

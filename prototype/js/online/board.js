@@ -785,7 +785,7 @@
         });
         if (ev.persistent && ev.side === 'p1' && typeof persistBoardCharacterStats === 'function'
           && typeof _getPartyBoardUnit === 'function') {
-          persistBoardCharacterStats(_getPartyBoardUnit(), ev.boardSlot, ev.atk, ev.hp);
+          persistBoardCharacterStats(_getPartyBoardUnit(), ev.boardSlot, ev.atk, ev.persistentHp??ev.hp);
         }
         break;
       }
@@ -889,6 +889,7 @@
       }
       case 'run_effect': {
         applyCoreRunEffectEvent(ev);
+        applyCoreBattleEndCardEvent(ev);
         if (typeof presentRunEffectEvent === 'function') await presentRunEffectEvent(ev, { findUnit: (side, id) => _find(side, id) });
         break;
       }

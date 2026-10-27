@@ -55,7 +55,7 @@ async function testPeddlerExchange(api,check=(title,fn)=>{fn();console.log('OK '
       assert.equal(G.mainBoard[1]._tripleMerged,undefined);assert.equal(G.mainBoard.filter(Boolean).length,count);
     });
     check('行商人：刻印と依頼カード枠の制限を共通判定で守る',()=>{
-      G.mainBoard[0]=makePanel(PANEL_POOL.find(c=>c.no==='E066').id);assert.equal(canExchangeShopCardAt(0,0),false);
+      G.mainBoard[0]=makePanel(PANEL_POOL.find(c=>c.no==='E102').id);assert.equal(canExchangeShopCardAt(0,0),false);
       _qFormationContext={mode:'accept'};
       try{assert.equal(questRewardSlotAcceptsCard(G.mainBoard[1]),false);assert.equal(canExchangeShopCardAt(0,1),false);assert.equal(exchangeShopCard(0,1),false);}
       finally{_qFormationContext=null;}

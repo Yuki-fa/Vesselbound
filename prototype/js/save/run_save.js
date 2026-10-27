@@ -1,6 +1,8 @@
 // 正式なRunStateとチェックポイントの寿命。G全体・DOM・演出の進捗は保存しない。
 const SaveRun=(()=>{
   const CHECKPOINT_TYPES=new Set(['reward','town','tower','battle']);
+  const ENCHANT_NUMBER_VERSION=20261027;
+  const LEGACY_ENCHANT_NUMBERS={E066:'E102',E076:'E101',E077:'E103',E078:'E104',E079:'E105',E080:'E106',E101:'E107',E102:'E108'};
   const BATTLE_RESUME_DELAY_MS=4000;
   const AUTO_SAVE_INDICATOR_DRAW_MS=1200;
   const AUTO_SAVE_INDICATOR_FADE_MS=400;
@@ -37,7 +39,7 @@ const SaveRun=(()=>{
   const fields={
     player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','goldenRingRewards','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons','runLevels','gameSummonBuff','defeatedEnemies','runEffects','runEffectRerollsApplied','activationFormationSeq','ascensionLifeBonus'],
     progress:['floor','_wave','_waveStage','_debugStoryCycle','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_waveEnemySnapshotAtEnd','_waveEnemySnapshotBlood','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','_waveBosses','_arenaActive','_arenaRound','_arenaWins','runStats'],
-    choices:['_shopRerollSeq','panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_blessingFlameUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards','_fiveSaints','_peddlerStock'],
+    choices:['_shopRerollSeq','panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_blessingFlameUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringOfferSelectedSlots','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards','_fiveSaints','_peddlerStock'],
     place:['_isPeddler','_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
   };
   const setFields=['_usedNamedElite','_usedNamedRest','_seenRarity3'];
@@ -192,9 +194,22 @@ const SaveRun=(()=>{
   function unpackRunSave(raw){
     return raw&&raw.pendingBattle&&raw.pendingBattle.eventsPacked?{...raw,pendingBattle:unpackBattleEvents(raw.pendingBattle)}:raw;
   }
+  // 再利用された番号（特にE066）を現在の番号だけで判別しない。保存単位で一度だけ移す。
+  // カード本体に加え、元に戻す控え・在庫・五聖の選択・保存済み戦闘も同じ対応で読む。
+  function migrateEnchantNumbers(save){
+    if(Number(save.enchantNumberVersion)>=ENCHANT_NUMBER_VERSION) return save;
+    const text=value=>String(value).replace(/E(?:066|07[6-9]|080|10[12])(?!\d)/g,no=>LEGACY_ENCHANT_NUMBERS[no]);
+    const visit=value=>{
+      if(typeof value==='string') return text(value);
+      if(Array.isArray(value)) return value.map(visit);
+      if(!value||typeof value!=='object') return value;
+      return Object.fromEntries(Object.entries(value).map(([key,item])=>[text(key),visit(item)]));
+    };
+    return {...visit(save),enchantNumberVersion:ENCHANT_NUMBER_VERSION};
+  }
   function validate(raw){
     raw=unpackRunSave(raw);
-    const save=SaveMigrations.migrate('run',raw),a=SaveMigrations.assert,s=save.state;
+    const save=migrateEnchantNumbers(SaveMigrations.migrate('run',raw)),a=SaveMigrations.assert,s=save.state;
     a(typeof save.runId==='string'&&s,'ラン状態がありません');
     a(save.checkpoint&&CHECKPOINT_TYPES.has(save.checkpoint.type),'保存地点が不正です');
     a(save.checkpoint.scene===s.location.scene&&save.checkpoint.stage===s.location.stage,'チェックポイントの現在地が一致しません');
@@ -234,7 +249,7 @@ const SaveRun=(()=>{
   function buildRunSave(type,pendingBattle=null){
     SaveMigrations.assert(CHECKPOINT_TYPES.has(type),'保存地点が不正です');
     const checkpoint={type,scene:G._wave,stage:G._waveStage,node:G._mapBattle?.nodeId||null,battleType:G._waveBattleType||null};
-    return {saveVersion:SaveMigrations.versions.run,gameVersion:SaveMigrations.gameVersion,runId:G._runId,savedAt:Date.now(),checkpoint,state:serializeRunState(),pendingBattle};
+    return {saveVersion:SaveMigrations.versions.run,gameVersion:SaveMigrations.gameVersion,enchantNumberVersion:ENCHANT_NUMBER_VERSION,runId:G._runId,savedAt:Date.now(),checkpoint,state:serializeRunState(),pendingBattle};
   }
   function showAutoSaveIndicator(options){
     if(typeof document==='undefined') return Promise.resolve(false);
@@ -319,6 +334,11 @@ const SaveRun=(()=>{
     G.difficulty=s.difficulty;G._runEnded=false;
     _rewCards=s.reward.cards;_rewFreePickDone=s.reward.freePickDone;_rewPhaseId=s.reward.phaseId;
     G._partyBoardUnit=null;G.phase=save.checkpoint.type==='battle'?'player':'reward';
+    if(!G._ringOfferResolved){
+      _restoreLegacyRingSacrifices();
+      if(_ringOfferSelectionActive()) _syncRingOfferSelection();
+      else _clearRingOfferSelection();
+    }
     if(typeof _isCardExchangeShop==='function'&&_isCardExchangeShop()){
       _rewCards=G._isPeddler?_ensureDefeatPeddlerStock():_ensureWaveShopStock();G._pendingPanelPlacement=null;
       _storeRewardStartSnapshot();
@@ -483,7 +503,7 @@ const SaveRun=(()=>{
     }
     return copy({units,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,turn:state.turn||0,
       ...coreDefeatedEnemyFields(state.defeatedEnemies),
-      _stormRingFireCount:Math.max(0,Number(state._stormRingFireCount)||0),...coreGameSummonBuffFields(state.gameSummonBuff),...coreRunEffectFields(state.runEffects),...(state.itemFreeSlots?{itemFreeSlots:state.itemFreeSlots}:{})});
+      _stormRingFireCount:Math.max(0,Number(state._stormRingFireCount)||0),...coreGameSummonBuffFields(state.gameSummonBuff),...coreRunEffectFields(state.runEffects),...coreBattleEndCardFields(state.battleEndCards),...(state.itemFreeSlots?{itemFreeSlots:state.itemFreeSlots}:{})});
   }
   function computeBattle(initial,seed,options){
     const state=copy(initial);
@@ -564,7 +584,7 @@ const SaveRun=(()=>{
       // プールは純データ。runner等の実行状態はsetupへ持ち込まない。
       const initial=copy({units:state.units,summonDefs:state.summonDefs,itemDefs:state.itemDefs,rings:state.rings,items:state.items,resources:state.resources,life:state.life,maxLife:state.maxLife,blood:state.blood,mapIndex:state.mapIndex,maxUnits:state.maxUnits,frontSlots:state.frontSlots,openingSides:state.openingSides,
         ...coreDefeatedEnemyFields(state.defeatedEnemies),
-        _stormRingFireCount:state._stormRingFireCount,...(state.runLevels?{runLevels:state.runLevels}:{}),...coreGameSummonBuffFields(state.gameSummonBuff),...coreRunEffectFields(state.runEffects),...(state.itemFreeSlots?{itemFreeSlots:state.itemFreeSlots}:{})});
+        _stormRingFireCount:state._stormRingFireCount,...(state.runLevels?{runLevels:state.runLevels}:{}),...coreGameSummonBuffFields(state.gameSummonBuff),...coreRunEffectFields(state.runEffects),...coreBattleEndCardFields(state.battleEndCards),...(state.itemFreeSlots?{itemFreeSlots:state.itemFreeSlots}:{})});
       const seed=Math.floor(random()*4294967296);
       const arenaBattle=!!G._arenaActive;
       const questGarmBattle=!!(typeof questIsGarmBattle==='function'&&questIsGarmBattle());
@@ -606,6 +626,7 @@ const SaveRun=(()=>{
     // 古い保存には無い。新しい保存は発動済み回数を各手番からGまで戻す。
     if(snap._stormRingFireCount!=null) state._stormRingFireCount=snap._stormRingFireCount;
     if(snap.runEffects) state.runEffects=snap.runEffects; else delete state.runEffects;
+    if(snap.battleEndCards) state.battleEndCards=snap.battleEndCards; else delete state.battleEndCards;
     if(snap.itemFreeSlots) state.itemFreeSlots=snap.itemFreeSlots; else delete state.itemFreeSlots;
     if(snap.gameSummonBuff) state.gameSummonBuff=snap.gameSummonBuff;
     else delete state.gameSummonBuff;
@@ -659,7 +680,7 @@ const SaveRun=(()=>{
       // ここで書かないと演出だけ出て魔導板は上がらない（2026-10-20 利用者報告）。闘技場は入場前の盤面へ戻すので書かない（戦闘中と同じ）。
       if(!(typeof arenaIsActive==='function'&&arenaIsActive())&&typeof _persistPermanentStatOrWarn==='function'&&typeof _getPartyBoardUnit==='function'){
         for(const event of end.pending.events.slice(f.from,f.to)){
-          if(event&&event.type==='run_effect') applyCoreRunEffectEvent(event);
+          if(event&&event.type==='run_effect') {applyCoreRunEffectEvent(event);applyCoreBattleEndCardEvent(event);}
           if(event&&event.type==='stat_change'&&event.persistent&&event.side==='p1') _persistPermanentStatOrWarn(_getPartyBoardUnit(),event);
         }
       }

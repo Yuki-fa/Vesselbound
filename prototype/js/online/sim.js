@@ -26,6 +26,7 @@ function simulateOnlineBattle(setup) {
     defeatedEnemies: setup && setup.defeatedEnemies,
     gameSummonBuff: setup && setup.gameSummonBuff,
     runEffects: setup && setup.runEffects,
+    battleEndCards: setup && setup.battleEndCards,
     itemFreeSlots: setup && setup.itemFreeSlots,
     resources: (setup && setup.resources) || {},
     blood: setup && setup.blood,

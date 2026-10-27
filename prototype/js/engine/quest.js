@@ -12,7 +12,7 @@
 
 const QUEST_TAVERN_VARIANT='_1';
 const QUEST_TOWER_VARIANT='_2';
-const FIVE_SAINTS_ENGRAVING_NOS=['E066','E076','E077','E078','E079','E080'];
+const FIVE_SAINTS_ENGRAVING_NOS=['E102','E101','E103','E104','E105','E106'];
 const FIVE_SAINTS_SYMBOL_X=[1875,1965,2055,2145];
 const FIVE_SAINTS_SYMBOL_TOP=155;
 const FIVE_SAINTS_CURRENT_PULSE_MS=4000;
@@ -34,10 +34,10 @@ const Q006_SCENE={
 // クエストごとの設定。requiredCardNo／requiredRingNo＝達成に必須の所持品のNo.。
 // portraitB＝会話で右（対象B）に出す立ち絵（TAVERN_PORTRAIT_CONFIG のキー）。
 const QUEST_CONFIG={
-  // Q002 は受託時に、次の街（wave 2）までの残り戦闘から最大3戦を選び、E101を報酬へ混ぜる。
+  // Q002 は受託時に、次の街（wave 2）までの残り戦闘から最大3戦を選び、E107を報酬へ混ぜる。
   // townArrival は塔イベントとは別に、指定waveの街へ着いた直後に所持品を自動集計する。
   Q002:{requiredCardNo:'',portraitB:'MC002',initialChoice:true,completeAt:'town',completeWave:2,
-    rewardMix:{cardNo:'E101',count:3,arrivalWave:2},
+    rewardMix:{cardNo:'E107',count:3,arrivalWave:2},
     townArrival:{portraitB:'MC005',fallbackGoldByCount:{1:50,2:120,3:250}}},
   // specialRejectForge：特殊拒否（特殊台詞A1）にした後、その街の鍛冶屋は入店台詞を台詞1の代わりに特殊台詞A1にし、
   // 魔導板強化を discount 割引にする（2026-10-11 利用者指定：ヴォルザークの鍛冶屋で2割引）。
@@ -55,8 +55,8 @@ const QUEST_CONFIG={
       secondAnchor:Q006_SCENE.acceptedA2Anchor,persistentLines:[1]},
     towerDeparture:{portrait:Q006_SCENE.companion,restored:Q006_SCENE.restored,restoreLine:2,
       fadeLine:3,line2Anchor:Q006_SCENE.firstAnchor}},
-  // Q007 は効果なしの荷物カード（E102 木箱）を、酒場の依頼枠へ5枚提示する。
-  Q007:{requiredCardNo:'E102',offerCount:5,cargo:true,portraitB:'MC004',completeAt:'town',completeWave:4,offerTitleKey:'「酒場の報酬枠」見出し2',
+  // Q007 は効果なしの荷物カード（E108 木箱）を、酒場の依頼枠へ5枚提示する。
+  Q007:{requiredCardNo:'E108',offerCount:5,cargo:true,portraitB:'MC004',completeAt:'town',completeWave:4,offerTitleKey:'「酒場の報酬枠」見出し2',
     townArrival:{portraitB:'MC006',fallbackGoldByCount:{1:75,2:150,3:300,4:500,5:800}}},
   // Q004 は依頼カードを介さず、酒場の台詞4で受託／拒否を選ぶ。
   // encounterTargets は受託時にランの鍵付き乱数で1件だけ保存する対象戦闘。
@@ -268,7 +268,7 @@ function _fiveSaintsOfferNo(wave){
 function _fiveSaintsTargetSlot(wave,no){
   const state=_fiveSaintsState();
   const key=String(wave);
-  if(String(no)!=='E076') return null;
+  if(String(no)!=='E101') return null;
   const saved=Number(state.targets[key]);
   if(Number.isInteger(saved)&&saved>=0&&saved<15) return saved;
   const board=Array.isArray(G&&G.mainBoard)?G.mainBoard:[];
@@ -302,7 +302,7 @@ function _fiveSaintsMakeOfferCard(wave){
   return card;
 }
 function fiveSaintsCardCanUseBoardSlot(card,slotIdx){
-  if(!card||!card._fiveSaintsOfferCard||String(card._fiveSaintsOfferNo||_qCardNo(card))!=='E076') return true;
+  if(!card||!card._fiveSaintsOfferCard||String(card._fiveSaintsOfferNo||_qCardNo(card))!=='E101') return true;
   const target=Number(card._fixedBoardSlot);
   return Number.isInteger(target)&&Number(slotIdx)===target;
 }
@@ -422,7 +422,7 @@ async function _fiveSaintsLeaveToTower(options){
 function fiveSaintsSyncTargetGlow(){
   document.querySelectorAll('.five-saints-target-glow').forEach(el=>el.remove());
   const ctx=_qFormationContext;
-  if(!G||!G._isFiveSaints||!ctx||ctx.mode!=='fiveSaints'||ctx.no!=='E076'||_fiveSaintsPlacedCard(ctx)) return;
+  if(!G||!G._isFiveSaints||!ctx||ctx.mode!=='fiveSaints'||ctx.no!=='E101'||_fiveSaintsPlacedCard(ctx)) return;
   const slot=document.querySelector(`#hand-slots.board-slots > :nth-child(${Number(ctx.targetSlot)+1})`);
   if(!slot) return;
   const glow=document.createElement('span');
@@ -514,7 +514,7 @@ async function _fiveSaintsAccept(){
     delete card._rewardReturnCard;
     delete card._rewardReturnIdx;
     delete card._rewardReturnPhaseId;
-    if(ctx.no==='E076') card._fixedBoardSlot=(G.mainBoard||[]).indexOf(card);
+    if(ctx.no==='E101') card._fixedBoardSlot=(G.mainBoard||[]).indexOf(card);
     // 刻印のXは取得した時のステージで固定する（2026-10-05 利用者指定）。
     card._engravingStage=Math.max(1,Number(ctx.wave)||Number(G._wave)||1);
     if(typeof _rewCards!=='undefined') _rewCards=[];
@@ -1464,7 +1464,7 @@ function _qMakeRequiredCard(entry){
   const card=makePanel(panel?panel.id:`panel_npc_${no}`);
   if(!card) return null;
   // NPC依頼カードの基本形だけを整える。配置制限はここでNPC扱いから推測せず、
-  // reward.js がキーワード「帰滅」で判定する（木箱 E102 は通常配置）。
+  // reward.js がキーワード「帰滅」で判定する（木箱 E108 は通常配置）。
   if(panel&&panel._npcCard){
     card._npcCard=true;
     card.boss=true;

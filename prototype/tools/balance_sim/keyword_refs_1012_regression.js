@@ -30,7 +30,7 @@ const read=file=>fs.readFileSync(path.join(ROOT,file),'utf8');
   assert.equal(_enchantKeywordDesc('熟練3'),skillDesc);
   assert.ok(_collectionDescriptionHtml(display,'character').includes('熟練3'),'図鑑の説明生成で熟練Nが消える');
   const enchant=PANEL_POOL.find(p=>p.no==='E052');
-  assert.deepEqual(_enchantPreviewKeywords(enchant),[],'E052のカード名を所持キーワードと推測');
+  assert.deepEqual(_enchantPreviewKeywords(enchant),['熟練1'],'卓越E052はシートの熟練1を付与する');
   assert.deepEqual(_enchantPreviewKeywords({...enchant,adjacentKeywords:['熟練']}),[],'旧E052の自己参照名が表示へ混ざる');
   assert.deepEqual(_enchantPreviewKeywords({name:'熟練3',desc:'',adjacentKeywords:['熟練3']}),['熟練3'],'同名の数値付きキーワードが表示から落ちる');
   for(const [name,scale] of [['毒牙',.5],['毒',.5],['衝撃',.4],['復活',.5]]){
