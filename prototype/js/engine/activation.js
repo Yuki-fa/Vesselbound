@@ -100,11 +100,16 @@ function cardActivationItemSlotDimmed(item) {
   return !!_pendingCardActivation && !!item && !_cardActivationTargetsItem();
 }
 function wireCardActivation(element, card, index) {
-  if (!cardActivationCanUse(card)) return;
-  element.classList.add('card-activation-ready');
-  element.classList.toggle('card-activation-source', !!(_pendingCardActivation && _pendingCardActivation.card === card));
+  const canUse = cardActivationCanUse(card);
+  // 祝福・祭壇では確定待ちの充填済みラベルも残す。発光と操作は同じ可否判定に従う。
+  const locked = !canUse && G.phase === 'reward' && (G._isBlessingFlame || G._isRingExchange)
+    && card && card._activationReady && coreUnitTriggerText(card, '起動');
+  if (!canUse && !locked) return;
+  element.classList.toggle('card-activation-ready', canUse);
+  element.classList.toggle('card-activation-source', canUse && !!(_pendingCardActivation && _pendingCardActivation.card === card));
   const label = document.createElement('div');
   label.className = 'card-activation-ready-label';
+  label.classList.toggle('card-activation-locked', !!locked);
   label.textContent = typeof textMessage === 'function' ? textMessage('「起動可」表示', '起動可') : '起動可';
   element.appendChild(label);
 }

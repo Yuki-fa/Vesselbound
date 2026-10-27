@@ -4595,13 +4595,13 @@ html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area{
 html body.dragzone-board.dragzone-board #main-hand-area #hand-pane,
 html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane,
 html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane,
-/* **ATK/HPは除く。** ここで filter:none を全子孫へ当てると、戦闘配置不可
+/* **ATK/HPと確定待ちの起動ラベルは除く。** ここで filter:none を全子孫へ当てると、戦闘配置不可
    （特殊マス以外に置かれたキャラ）のATK/HPに掛けてある暗転まで消えてしまい、
    ドラッグ中だけ明るくなる。#hand-pane 自体が filter:none なので、
    除外しても祖先の暗転を受けることはない。 */
-html body.dragzone-board.dragzone-board #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp),
-html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp),
-html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp),
+html body.dragzone-board.dragzone-board #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp):not(.card-activation-locked),
+html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp):not(.card-activation-locked),
+html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane *:not(.card-summon-atk):not(.card-summon-hp):not(.stat-atk):not(.stat-hp):not(.card-activation-locked),
 html body.dragzone-board.dragzone-board #main-hand-area #hand-pane::before,
 html body.dragzone-reward-spell.dragzone-reward-spell #main-hand-area #hand-pane::before,
 html body.dragzone-reward-nonspell.dragzone-reward-nonspell #main-hand-area #hand-pane::before{
@@ -7565,6 +7565,10 @@ html body.reward-screen-active #hand-slots.board-slots .card-activation-ready-la
   /* プログラムの枠線（map-boundary-layer＝110）より下、魔導板の枠（100）より上。売却・還魂のラベルと同じ（2026-10-27 利用者指定）。 */
   z-index:105!important;
   cursor:var(--cursor-normal)!important;
+}
+/* 祝福の強化・祭壇の指輪交換が完了するまでは、充填済みでもラベルを暗く残す。 */
+html body.reward-screen-active .card-activation-ready-label.card-activation-locked{
+  opacity:.4!important;
 }
 /* 戦闘終了演出中は、カードのhover発光・浮上を完全に停止する。 */
 body.battle-victory-pending .card:hover,
@@ -12006,7 +12010,7 @@ _watchVesselboundDpr();
 <script src="js/engine/reward_items.js?v=shopFix0927-engraving1001-refactor2_1008-d1010-fix1011-vfx1017b-r1018-towerBoon1016-shopExchange1017-peddlerExchange1017-trialFix1018-merge1018-noSell1018-shieldSingle1021a-v1021d-itemx1022sheet1022a-ready1023-fx1023-place1025-sheet1025b-a1026-fb1026-lab5_1026-mi1026-effects1026c-picking1026-lab6_1026-pm1027-altar1027-ui1027b-fixes1027d"></script>
 <script src="js/engine/reward_journey.js?v=keyRename0927-onlineJourney0927-storyCycle1001-debugStory1002-eventFix1004-mi1026"></script>
 <script src="js/engine/card_reveal.js?v=revealLand0923-trialFix1018-jitter1023-mi1026"></script>
-<script src="js/engine/activation.js?v=sheet1022a-rewTarget1023-ready1023-fx1023-fxAssign1025-place1025-sheet1025b-fb1025-a1026-fb1026-b1026-fx1026-m1026-lab5_1026-m1026b-mi1026-effects1026c-picking1026-ig1027-soul1027-fixes1027d"></script>
+<script src="js/engine/activation.js?v=sheet1022a-rewTarget1023-ready1023-fx1023-fxAssign1025-place1025-sheet1025b-fb1025-a1026-fb1026-b1026-fx1026-m1026-lab5_1026-m1026b-mi1026-effects1026c-picking1026-ig1027-soul1027-fixes1027d-fixes1027e"></script>
 <script src="js/engine/reward.js?v=rarityAltar0928-engraving1001-q001e0751004-eventFix1004-se1004-fix1005-fix1005b-defeatRetry1007-refactor1008-refactor2_1008-d1010-p1011-fix1012-vfxm1013-towerBoon1016-shopExchange1017-peddlerExchange1017-trialFix1018-noSell1018-ops1018-fixes1018b-levels1018c-soulDim1019-display1019-peddlerReroll1019-flame1019f-hydra1021-v1021e-sheet1022a-flameMove1023-actTarget1023-ready1023-sheet1023-fxAssign1025-place1025-split1025-b-split1025-1-split1025-2-b1026-m1026-m1026b-mi1026-picking1026-altar1027-ig1027-fixes1027c-fixes1027d"></script>
 <script src="js/engine/reward_offer_cards.js?v=split1025-eof1025-a1026-b1026-picking1026-altar1027-ig1027-fixes1027c-fixes1027d"></script>
 <script src="js/engine/reward_board_editor.js?v=split1025-eof1025-a1026-b1026-effects1026c-picking1026-altar1027-ig1027-ui1027b-fixes1027d"></script>
