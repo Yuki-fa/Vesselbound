@@ -25,6 +25,7 @@ var VbFxLabMeta = {
   'scroll-guts-pierce': {title:'貫通の巻物（鼓舞の旗の白青の色違い）',tags:['白青','旗','巻物','付与'],addedAt:'2026-10-26',listLast:true},
   'scroll-guts-veteran': {title:'老練の巻物（鼓舞の旗の青銅の色違い）',tags:['青銅','旗','巻物','付与'],addedAt:'2026-10-26',listLast:true},
   'scroll-sealed-reverse': {title:'封じ込める紫紺の紋（次の戦闘で効く巻物）',tags:['紫紺','紋','逆再生','巻物'],addedAt:'2026-10-26',listLast:true},
+  'soul-swap': {title:'交差して入れ替わる2つの魂（シルフ）',tags:['水色','薄紅','魂','入れ替え','起動'],addedAt:'2026-10-27',listLast:true},
   'scroll-sealed-meteor': {title:'封じ込める橙の紋（隕石の巻物）',tags:['橙','紋','逆再生','巻物','色違い'],addedAt:'2026-10-27',listLast:true},
   'scroll-sealed-doll': {title:'封じ込める紅の紋（生贄人形）',tags:['紅','紋','逆再生','巻物','色違い'],addedAt:'2026-10-27',listLast:true},
   'scroll-sealed-dragon': {title:'封じ込める緑の紋（召竜の巻物）',tags:['緑','紋','逆再生','巻物','色違い'],addedAt:'2026-10-27',listLast:true},

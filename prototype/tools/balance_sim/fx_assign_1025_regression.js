@@ -149,7 +149,8 @@ async function play(x,mode){
     for(const mode of ['pve','online'])assert.ok(g[mode].count.minotaur>0&&g[mode].events.some(e=>e.type==='attack'&&e.reactionSourceId==='owner'),mode+'：グレイプニル');
   });
   await check('起動：シルフと変身の巻物の割り当てを区別し、剣戟未登録なら従来へ戻す',()=>{
-    assert.equal(PRESENT_ACTIVATION_FX.C084,'dragonnet');assert.equal(PRESENT_ITEM_USE_FX.I002,'activation-transform');
+    // 2026-10-27 利用者指定：シルフは変身の霧ではなく、2人の魂が入れ替わる soul-swap。
+    assert.equal(PRESENT_ACTIVATION_FX.C084,'soul-swap');assert.ok(VbFx.effects.some(d=>d.name==='soul-swap'),'soul-swap の定義');assert.equal(PRESENT_ITEM_USE_FX.I002,'activation-transform');
     assert.equal(presentActivationFx('C116',['activation-devour']),'activation-devour');
     assert.equal(presentActivationFx('C116',['activation-devour','hellknight-slash']),'hellknight-slash');
     for(const [no,fx]of [['C020','aura-buff'],['C047','aura-buff'],['C070','aura-buff'],['E005','leprechaun-quick'],['E023','aura-buff'],['E044','attack-buff']])assert.equal(presentLabFx(no)[0],fx,'LABと共通の表');

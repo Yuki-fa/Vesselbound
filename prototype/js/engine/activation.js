@@ -184,8 +184,10 @@ function _handleCardActivationAt(at) {
   }
   if (G._isShop && typeof _persistCurrentShopStock === 'function') _persistCurrentShopStock();
   _finishCardActivation(pending, quest);
+  // 入れ替え（チェンジリング・シルフ）は、もう1枚（other）にも演出を出す（2026-10-27 利用者指定）。
+  const other = (result.kind === 'swap_cards' || result.kind === 'swap_stats') && first ? { zone:first.zone, index:first.index } : null;
   _playActivationFx(source, result.kind === 'destroy' ? { rect:visual?.rect, visual, hold }
-    : { index:at.index, zone:at.zone, frame, cover, rewardRect, kind:result.kind, result }, pending.index);
+    : { index:at.index, zone:at.zone, frame, cover, rewardRect, kind:result.kind, result, other }, pending.index);
   return true;
 }
 function handleCardActivationTarget(index) { return _handleCardActivationAt(_activationLocation('board', index)); }
@@ -304,8 +306,16 @@ function _playActivationFx(source, at, sourceIndex) {
   const target = anchor ? owner : from;
   if (!target || !target.isConnected) { if (anchor) anchor.remove(); return; }
   if (typeof _vfxClipLayer === 'function') VbFx.settings.layer = _vfxClipLayer;
-  VbFx.play(name, { source: from, targets: [target], speed: 1, seed: 53, dir: 1 }).catch(() => {})
-    .finally(() => { if (anchor) anchor.remove(); });
+  const otherEl = at && at.other ? _pickingTargetElement(at.other) : null;
+  if (otherEl && otherEl.isConnected && otherEl !== from && at.kind === 'swap_stats') {
+    // シルフ：1枚目から2枚目へ、2人の魂が入れ替わる演出を1回（演出の中で両方のカードに出る）。
+    VbFx.play(name, { source: otherEl, targets: [from], speed: 1, seed: 53, dir: 1 }).catch(() => {});
+  } else {
+    VbFx.play(name, { source: from, targets: [target], speed: 1, seed: 53, dir: 1 }).catch(() => {})
+      .finally(() => { if (anchor) anchor.remove(); });
+    // チェンジリング：入れ替えたもう1枚にも同じ演出。
+    if (otherEl && otherEl.isConnected && otherEl !== from) VbFx.play(name, { source: otherEl, targets: [otherEl], speed: 1, seed: 54, dir: 1 }).catch(() => {});
+  }
   // SEは LAB で採用したカード固有の音（2026-10-25：チェンジリング・インキュバス・ヘルナイト）。山場（present.js の実測ピーク）を演出の山場へ合わせる。
   // 固有の音が無いカードは同じ演出の音（マモン＝ノームの金貨。present.js presentActivationSfxKey）、それも無ければ巻物の使用と同じ共通音。
   const sfxKey = typeof presentActivationSfxKey === 'function' ? presentActivationSfxKey(code) : '';

@@ -929,3 +929,8 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
     定義JSONは 1,098,825 → 997,257 バイト（色違い3種を足した後。展開すると 1,110,133 バイト相当）。上限の検査は 1.1MB のまま。
   - 次の戦闘で効く巻物：隕石＝scroll-sealed-meteor（橙）・生贄人形＝scroll-sealed-doll（紅）・召竜＝scroll-sealed-dragon（緑）。静寂の巻物（scroll-sealed-reverse）の色違いの記録で、使う時の音も静寂の巻物にそろえた（present.js `PRESENT_ITEM_NEXT_BATTLE`）。
   - 見通しの巻物 I011：旧・魔力の巻物の演出 scroll-mana をアイテムの枠から出す。
+- 2026-10-27 起動の入れ替え・特殊演出の一覧（利用者指定）
+  - チェンジリング C080（2枚の入れ替え）：入れ替えた2枚の両方に activation-transform を出す（activation.js `_playActivationFx` の `at.other`）。
+  - シルフ C084（2枚の ATK と HP の入れ替え）：新作 soul-swap。両方のカードから魂が浮かび、水色（1枚目）と薄紅（2枚目）の魂が逆向きの弧で交差して互いのカードへ入り灯る。
+    発生元＝1枚目・対象＝2枚目で1回だけ再生（演出の中で両方のカードに出る）。SE は3候補（soul-swap-1〜3）、候補1を C084 に仮採用。
+  - 特殊演出（カード・アイテム・指輪・魔導板以外）の一覧：tools/vfx_preview/SPECIAL_FX_1027.md。

@@ -128,6 +128,14 @@ K018_gain（結界獲得）・K020_gain（復活獲得）は、戦闘中に結�
 | C116 | hellknight-slash | tools/vfx_preview/se_tools_1025.py | 2.35秒 | 0.87 |
 | R018 | revival-ring | The Vault/Sorcery/Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Cast Medium 05-02.wav | 1.572021秒 | 0.45 |
 
+## 2026-10-27 正式採用（利用者がLABで選択）
+
+台帳 adopted_1027.json。ゲームの assets/sfx に配置済み。
+
+| 番号 | 演出 | 元の素材 | 長さ | peak |
+|---|---|---|---|---|
+| C084 | soul-swap | Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Musical Tone Whoosh 01.wav | 1.95秒 | 0.564729 |
+
 ## 2026-10-18 正式採用（利用者がLABで選択・「SE含めOK」とした分）
 
 10/12に仮配置した候補1のうち利用者がOKとしたもの（サテュロス・ヘカトンケイル・ゾンビ・シルフ・フィーンド・リリス）と、2026-10-18に利用者がLABで選んだ候補（台帳 adopted_1018.json）。ゲームの assets/sfx に配置済み。

@@ -149,6 +149,7 @@ const SFX_SETTINGS={
     K007:       {group:'combat',  volume: 0.50, maxPlayMs:0}, // 貫通（実測-4.9dBFS）
     K008:       {group:'combat',  volume: 0.53, maxPlayMs:0}, // 三方向攻撃（実測-5.4dBFS）
     K009: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用音
+    C084: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-27 soul-swap 候補1・仮採用：LAB で選ぶまでの候補1（シルフの魂の入れ替え））
     R018: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 revival-ring 候補1）
     I008: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-mana 候補3・アイテムの使用の音）
     I012: {group:'magic',volume:.70,maxPlayMs:0}, // LAB採用（2026-10-26 scroll-guts 候補3・アイテムの使用の音）

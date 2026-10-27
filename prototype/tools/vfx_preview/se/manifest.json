@@ -6729,6 +6729,60 @@
       "provisional": false,
       "reason": "リッチ：暗い呼び声（2026-10-27 利用者指摘で選び直し）",
       "sha256": "ea3d9dafe06b3922c9c005eeedf8afb75eeece9d4222dd02772e68b12e087a8b"
+    },
+    "soul-swap-1": {
+      "id": "soul-swap-1",
+      "filename": "Production Element Title Transition Musical Tone Whoosh 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Musical Tone Whoosh 01.wav",
+      "url": "vfx_preview/se/soul-swap-1.wav",
+      "duration": 1.95,
+      "originalDuration": 2.101458,
+      "start": 0.103542,
+      "trimmed": true,
+      "peak": 0.564729,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": true,
+      "provisional": false,
+      "reason": "2026-10-27 シルフの魂の入れ替え：音程のある風切り（2つの魂が弧を描いて交差する）",
+      "sha256": "ae8fac594e73f7098dde2b8bcffa46463ef784522e7d698b3f2e2ffd84629a77"
+    },
+    "soul-swap-2": {
+      "id": "soul-swap-2",
+      "filename": "Production Element Title Transition Reverse Whoosh Reverse 02.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Reverse Whoosh Reverse 02.wav",
+      "url": "vfx_preview/se/soul-swap-2.wav",
+      "duration": 0.540042,
+      "originalDuration": 1.474979,
+      "start": 0.934937,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 30,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-27 シルフの魂の入れ替え：逆再生の風切り（吸い込まれて入れ替わる）",
+      "sha256": "070112e4df508a6032c1ae07064a6d6afbec624ba9a110269b12096932e547e4"
+    },
+    "soul-swap-3": {
+      "id": "soul-swap-3",
+      "filename": "Instant Teleport.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Xylon Sound Library/Designed Sounds/Technology/Device Electronic/Instant Teleport.wav",
+      "url": "vfx_preview/se/soul-swap-3.wav",
+      "duration": 1.95,
+      "originalDuration": 5.238979,
+      "start": 0.969667,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "2026-10-27 シルフの魂の入れ替え：瞬間移動の軽い煌めき（互いのカードへ移る）",
+      "sha256": "e1157ceb1fdc1f2ddc3a448b0d18343ee0f8d2c0c0b1b6602295cec5094fa04c"
     }
   },
   "effects": {
@@ -7411,6 +7465,11 @@
       "chimera-blessing-1",
       "chimera-blessing-2",
       "chimera-blessing-3"
+    ],
+    "soul-swap": [
+      "soul-swap-1",
+      "soul-swap-2",
+      "soul-swap-3"
     ]
   }
 }

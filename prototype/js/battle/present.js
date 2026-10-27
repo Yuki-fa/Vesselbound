@@ -2125,9 +2125,11 @@ function presentItemUseSfxKey(no) {
 }
 // 起動（魔導板で対象に使う効果）の演出。activation.js が対象のカードの上（破壊は破壊したカードからヘルナイトへ）に出す。
 // 2026-10-25：マモン（アイテムを破壊して金貨）＝金貨、チェンジリング（魔導板と報酬の入れ替え）＝翡翠の変身。
-const PRESENT_ACTIVATION_FX = { C084:'dragonnet', C109:'activation-empower', C116:'hellknight-slash', C003:'gold-gain', C080:'activation-transform' };
+// 2026-10-27 利用者指定：シルフ（2枚のATKとHPの入れ替え）＝2人の魂が入れ替わる soul-swap（新作。発生元＝1枚目・対象＝2枚目）。
+// チェンジリング（2枚の入れ替え）は入れ替えた2枚の両方に activation-transform を出す（activation.js _playActivationFx）。
+const PRESENT_ACTIVATION_FX = { C084:'soul-swap', C109:'activation-empower', C116:'hellknight-slash', C003:'gold-gain', C080:'activation-transform' };
 // 起動の音：カード固有の音（LAB採用）、無ければ同じ演出の音（マモン＝ノームの金貨・シルフ＝ドラゴネット）、それも無ければ巻物の共通音。
-const PRESENT_ACTIVATION_SFX = { C003:'S003', C084:'C064' };
+const PRESENT_ACTIVATION_SFX = { C003:'S003' };
 function presentActivationSfxKey(code) {
   const own = typeof getEffectSfxKey === 'function' ? getEffectSfxKey(code) : '', sfx = typeof Assets !== 'undefined' && Assets.sfx || {};
   return own || (sfx[PRESENT_ACTIVATION_SFX[code]] ? PRESENT_ACTIVATION_SFX[code] : 'itemScroll');

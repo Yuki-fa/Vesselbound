@@ -164,8 +164,9 @@ function assetChecks() {
   };
   add(Assets);
   for(const [no]of Object.entries(cases)) {
-    // 2026-10-27：シートで実装 false のカード（E077 一時の眠りなど）は絵がまだ無い。演出の割り当てだけ検査し、絵の実在は問わない。
-    if([...PANEL_POOL,...ITEM_POOL].some(d=>(d.no===no||d.artCode===no)&&d._implemented===false))continue;
+    // 2026-10-27：絵がまだ無いカード（呪いの印 E066・殉教 E076・一時の眠り E077。利用者が描くまで）と、シートで実装 false のカードは、
+    // 演出の割り当てだけ検査し、絵の実在は問わない。
+    if(['E066','E076','E077'].includes(no)||[...PANEL_POOL,...ITEM_POOL].some(d=>(d.no===no||d.artCode===no)&&d._implemented===false))continue;
     const state=fixture(no);
     for(const unit of [...state.units.p1,...state.units.p2]) {
       add(getCharacterNoArtPath(unit));add(getPanelArtPath(unit));add(actionBannerImage(unit,'character'));

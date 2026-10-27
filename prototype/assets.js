@@ -324,6 +324,7 @@ const Assets = {
     K007: 'assets/sfx/K007.wav', // 貫通
     K008: 'assets/sfx/K008.wav', // 三方向攻撃
     K009: 'assets/sfx/K009.wav', // 全体攻撃
+    C084: 'assets/sfx/C084.wav', // LAB採用（2026-10-27 soul-swap 候補1・仮採用：LAB で選ぶまでの候補1（シルフの魂の入れ替え））
     R018: 'assets/sfx/R018.wav', // LAB採用（2026-10-26 revival-ring 候補1）
     I008: 'assets/sfx/I008.wav', // LAB採用（2026-10-26 scroll-mana 候補3・アイテムの使用の音）
     I012: 'assets/sfx/I012.wav', // LAB採用（2026-10-26 scroll-guts 候補3・アイテムの使用の音）

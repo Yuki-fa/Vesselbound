@@ -1,0 +1,16 @@
+{
+  "C084": {
+    "code": "C084",
+    "effect": "soul-swap",
+    "candidate": "soul-swap-1",
+    "file": "assets/sfx/C084.wav",
+    "source": "Production Element Title Transition Musical Tone Whoosh 01.wav",
+    "sourcePath": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Musical Tone Whoosh 01.wav",
+    "peak": 0.564729,
+    "gainDb": null,
+    "note": "仮採用：LAB で選ぶまでの候補1（シルフの魂の入れ替え）",
+    "labWired": false,
+    "duration": 1.95,
+    "sha256": "ae8fac594e73f7098dde2b8bcffa46463ef784522e7d698b3f2e2ffd84629a77"
+  }
+}
