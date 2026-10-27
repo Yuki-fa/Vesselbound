@@ -122,7 +122,7 @@ function runCoreChecks() {
       h.state.units[side].forEach(u => assert.equal(isKenzoku(u), false, '初期配置／解放に眷属が付いた'));
     });
     check(`${side}/死亡記録からの召喚・付与された死亡効果`, () => {
-      const h = harness(side, [card('レムレース', 'lemures'), plain('archived')]);
+      const h = harness(side, [card('レムレース', 'lemures'), plain('archived'), plain('reserve')]);
       const dead = h.state.units[side][1]; dead.hp = 0;
       core.coreTriggerDeath(dead, h.state, h.emit);
       h.source.hp = 0;

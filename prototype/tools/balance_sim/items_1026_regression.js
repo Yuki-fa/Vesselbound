@@ -1,4 +1,5 @@
 'use strict';
+const {compareBeforeDecision,reportDecisionComparison}=require('./victory_1027_compare');
 // 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
 const {REVISED: revised1027} = require('./effects_1027_regression');
 
@@ -319,15 +320,16 @@ function element(tag) {
       const c = {...copy(def),desc:(enhanced?row['強化効果']:'')||row['効果']||''};
       const own = def.category==='キャラクター'?{..._makePanelSummonUnit(_panelSummonSpec(c),[]),id:'source',atk:10,hp:70,maxHp:70}
         :plain('source',{_adjacentPanelEffectTexts:[c.desc],boardCards:[c]});
-      assert.deepEqual(run(current,base(own),seed),run(baseline,base(own),seed),`${row['No.']}/${enhanced}/${seed}`); compared++;
+      compareBeforeDecision(run(current,base(own),seed),run(baseline,base(own),seed),`${row['No.']}/${enhanced}/${seed}`); compared++;
     }
     for (const r of RING_POOL.filter(r=>!['R017','R019','R024','R030','R037'].includes(r.no))) {
-      const input={...base(plain('source')),rings:{p1:[r]}}; assert.deepEqual(run(current,input,1026),run(baseline,input,1026),r.no); compared++;
+      const input={...base(plain('source')),rings:{p1:[r]}}; compareBeforeDecision(run(current,input,1026),run(baseline,input,1026),r.no); compared++;
     }
     for (const d of ITEM_POOL.filter(d=>Number(d.no)<=12)) {
-      const input={...base(plain('source')),items:{p1:[d]}}; assert.deepEqual(run(current,input,1026),run(baseline,input,1026),d.no); compared++;
+      const input={...base(plain('source')),items:{p1:[d]}}; compareBeforeDecision(run(current,input,1026),run(baseline,input,1026),d.no); compared++;
     }
-    assert.ok(compared>750); console.log(`  ${compared}ケース完全一致（開始時 ${BASELINE.slice(0,7)}）`);
+    assert.ok(compared>750); console.log(`  ${compared}ケース決着前一致（非決着は全結果一致）（開始時 ${BASELINE.slice(0,7)}）`);
+    reportDecisionComparison();
   });
   console.log(`アイテム・指輪1026: OK ${passed} / NG ${failed}`); process.exitCode = failed ? 1 : 0;
 })().catch(e => { console.error(e.stack); process.exitCode = 1; });

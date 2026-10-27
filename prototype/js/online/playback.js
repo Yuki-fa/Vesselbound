@@ -112,7 +112,7 @@ async function playOnlineBattleEvents(result, handlers) {
   // 死亡効果の青い発光も、カードが消える前へ寄せる（規則は present.js）。
   const events = typeof presentReorderDeathFlashesBeforeDeath === 'function'
     ? presentReorderDeathFlashesBeforeDeath(_noStolenDeaths) : _noStolenDeaths;
-  if (typeof presentMarkBattleTail === 'function') presentMarkBattleTail(events);
+  if (typeof presentResetBattleEndPhase === 'function') presentResetBattleEndPhase();
 
   // プロトコル版が食い違う場合は、勝手に再生して結果の食い違いを隠さない。
   if (result && result.protocolVersion != null && result.protocolVersion !== ONLINE_PROTOCOL_VERSION) {

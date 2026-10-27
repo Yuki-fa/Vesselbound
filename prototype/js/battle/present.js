@@ -567,26 +567,15 @@ function presentReorderDeathsAfterDamageBatch(events) {
   return out;
 }
 
-// 最後の死亡・逃走から、復活／召喚で戦闘が再開しない区間の余分な合図だけを省く。
-// コアの列や数値は変更しない。反撃・死亡ダメージ・復活・報酬の事象は必ず残す。
-// PvEは据え置き中の開始盤面、オンラインはbattle_startの写しを渡す。
-const _presentSilentEvents = new WeakSet();
-const PRESENT_TAIL_CUE_TYPES = new Set(['effect_flash','mana_threshold','turn_begin','attack_contact_vfx','sweep_vfx','ring_effect','attack']);
-function presentIsSilentEvent(ev) { return !!ev && _presentSilentEvents.has(ev); }
-// 決着（どちらかの陣営が全滅）した後のイベント。ここへ来たら、以後の演出をこの倍率で速くする（2026-10-22 利用者指定）。
-const PRESENT_DECIDED_SPEED_SCALE = 3;
-let _presentDecidedEvents = new WeakSet(), _presentDecided = false;
-// 終戦の効果に来たら、以後は省かず早送りもしない（決着後の加速・オプションの倍速とも外す。2026-10-27 利用者指定）。
+// 終戦効果は、オプションの倍速も含めて等倍で最後まで見せる。
+// 決着後の効果を止める判断はコアだけが行い、再生側では列を削らない。
 let _presentBattleEndPhase = false;
 function presentIsBattleEndEffectEvent(ev) { return !!ev && (ev.trigger === '終戦' || ev.trigger === 'battle_end' || /battle_?end/i.test(String(ev.reason || ''))); }
-function presentNoteDecidedEvent(ev) {
-  if (ev && _presentDecidedEvents.has(ev)) _presentDecided = true;
+function presentNoteBattleEndEvent(ev) {
   if (presentIsBattleEndEffectEvent(ev)) _presentBattleEndPhase = true;
 }
 function presentBattleEndPhase() { return _presentBattleEndPhase; }
-function presentDecidedSpeedScale() { return _presentDecided && !_presentBattleEndPhase ? PRESENT_DECIDED_SPEED_SCALE : 1; }
-function presentResetDecided() { _presentDecided = false; _presentBattleEndPhase = false; _presentDecidedEvents = new WeakSet(); }
-function presentSkipsEvent(ev) { return presentIsSilentEvent(ev) && PRESENT_TAIL_CUE_TYPES.has(ev.type); }
+function presentResetBattleEndPhase() { _presentBattleEndPhase = false; }
 
 // 説明文も、コアの先の最終値ではなく今見せた眷属強化の合計を読む。
 // 戦闘用の表示状態だけを持ち、G・保存データ・コアの状態を書き換えない。
@@ -631,39 +620,6 @@ function presentAdvanceSummonPreview(ev) {
     if (ev.gameTotalShock != null) _presentSummonPreview.gameSummonBuff[ev.side].shock=ev.gameTotalShock;
   }
   if (ev.type==='summon') _presentSummonPreview._summonCount[ev.side]++;
-}
-function presentMarkBattleTail(events, initialUnits) {
-  presentResetDecided();
-  const list = events || [], alive = {p1:new Set(),p2:new Set()}, units = new Map();
-  const enter = (side,u) => {
-    if (u) units.set(`${side}:${u.id}`,u);
-    if (alive[side] && u && !u._isObject && !u._isSoul && !u._sealed && Number(u.hp)>0) alive[side].add(String(u.id));
-  };
-  for (const side of ['p1','p2']) for (const u of initialUnits && initialUnits[side] || []) enter(side,u);
-  let started = !!(alive.p1.size && alive.p2.size), after = -1, end = list.length;
-  for (let i=0;i<list.length;i++) {
-    const ev=list[i]; if(!ev)continue;
-    if(ev.type==='battle_end'||ev.type==='effect_flash'&&ev.trigger==='battle_end'){end=i;break;}
-    if(ev.type==='battle_start') {
-      alive.p1.clear();alive.p2.clear();
-      for(const side of ['p1','p2'])for(const u of ev.sides && ev.sides[side] || [])enter(side,u);
-    }
-    const key=String(ev.unitId);
-    const exit=['death','fled','sacrifice','instant_death','curse_death','seal_apply'].includes(ev.type);
-    if(exit && alive[ev.side]) alive[ev.side].delete(key);
-    if(ev.type==='revive'||ev.type==='seal_release')alive[ev.side]?.add(key);
-    if(ev.type==='summon'&&ev.unit)enter(ev.side,ev.unit);
-    if(ev.type==='transform'&&ev.unit)units.set(`${ev.side}:${ev.unitId}`,ev.unit);
-    if(ev.type==='unit_stolen') {
-      alive[ev.side]?.delete(key);alive[ev.toSide || (ev.side==='p1'?'p2':'p1')]?.add(key);
-    }
-    if(alive.p1.size&&alive.p2.size){started=true;after=-1;}
-    else if(started && after<0 && (exit||ev.type==='unit_stolen'))after=i;
-  }
-  if(after<0)return;
-  // 2026-10-22 利用者指定：決着後の処理・演出を省くのをやめる（次の戦闘以後に影響する効果が入ったため）。
-  // 代わりに、決着後のイベントへ来たら演出を速くする（presentNoteDecidedEvent・presentDecidedSpeedScale）。
-  for(let i=after+1;i<end;i++) if(list[i]) _presentDecidedEvents.add(list[i]);
 }
 
 // 2026-10-10 利用者報告：攻撃効果中の死亡では通常attackが出ないことがある。
@@ -1982,7 +1938,7 @@ function presentBeginPlayback() { _presentPlaybackDepth++; }
 function presentEndPlayback() { _presentPlaybackDepth = Math.max(0, _presentPlaybackDepth - 1); }
 function presentIsPlaying() { return _presentPlaybackDepth > 0; }
 // 戦闘の切れ目で必ず0へ戻す。例外で抜けた回数が残ると、以後ずっと盤面が詰まらない。
-function presentResetPlayback() { _presentPlaybackDepth = 0; presentResetDecided(); }
+function presentResetPlayback() { _presentPlaybackDepth = 0; presentResetBattleEndPhase(); }
 
 // ── 固有VFXの大きさ ──────────────────────────────────
 // **素材ごとに、絵がフレームの中で占める割合が違う。** 同じ倍率で出すと、
@@ -2586,7 +2542,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentChooseSummonSlot, presentCreateDamageGate, presentCreateOnceGate, presentBreaksManaRun,
     presentBreaksEffectRun,
     presentEffectRun, presentStatChangeRun, presentEffectRunDuration,
-    presentMarkBattleTail, presentIsSilentEvent, presentSkipsEvent, presentNoteDecidedEvent, presentDecidedSpeedScale, presentDeathEndsSealed, presentBattleEndPhase, presentResetDecided,
+    presentNoteBattleEndEvent, presentIsBattleEndEffectEvent, presentDeathEndsSealed, presentBattleEndPhase, presentResetBattleEndPhase,
     PRESENT_DAMAGE_STAGGER_MS, PRESENT_DAMAGE_GROUP_GAP_MS, PRESENT_DAMAGE_RUN_GAP_MS,
     presentDamageKind, presentDamageGroupKey, presentDamageRunAheadMs, presentDamageRunLabelMs,
     presentReorderDeathsAfterDamageBatch, presentHoldHpForGuts, presentReorderDeathFlashesBeforeDeath, presentDropDeathsOfStolen, presentDeathBatchEvents, presentFledBatchEvents,

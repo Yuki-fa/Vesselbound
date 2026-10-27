@@ -597,7 +597,6 @@
   }
 
   async function _renderOnlineVersusEvent(ev, ctx, lab) {
-    if(typeof presentSkipsEvent==='function'&&presentSkipsEvent(ev))return;
     const board = (ctx && ctx.board) || { p1: [], p2: [] };
     _syncOnlineStatuses(board);
     // 二段・三段攻撃の各一撃で、効果列へ入る直前にモーションを始めて途中停止する。
@@ -1198,6 +1197,7 @@
         if (_deathFxReadyAt > Date.now()) await _sleep(_deathFxReadyAt - Date.now());
         if(ev.kenzokuEnded) [...G.allies,...G.enemies].filter(Boolean).forEach(coreClearKenzoku);
         _render();
+        if (typeof _waitForPendingVfx === 'function') await _waitForPendingVfx();
         if (typeof _forceStopAllVfx === 'function') _forceStopAllVfx({ keepActionBanner: true });
         // 勝敗はイベントに書かれた outcome をそのまま出す
         await _playResultCutin(ev.outcome);

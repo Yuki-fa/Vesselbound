@@ -86,11 +86,11 @@ function rendererClock() {
   });
 
   for (const side of ['p1', 'p2']) for (const no of ['C039', 'C044']) {
-    await check(`2：${side} ${no}は最後の死亡・負傷でも固有VFXを残す`, async () => {
+    await check(`2：${side} ${no}は決着前の死亡・負傷で固有VFXを残す`, async () => {
       const other = side === 'p1' ? 'p2' : 'p1';
       const x = h.setup({ sides: {
         [side]: { units: [h.unit('source', no, { atk: 2, hp: no==='C044'?2:1, maxHp: 2 }), h.unit('survivor')] },
-        [other]: { units: [h.unit('last', '', { atk: 1, hp: 1, maxHp: 1 })] },
+        [other]: { units: [h.unit('last', '', { atk: 1, hp: 1, maxHp: 1 }), h.unit('enemy-reserve')] },
       } });
       createBattleRunner(x.state, x.rng, x.emit, { skipOpening: true }).step({ deferCompact: true });
       const buffs = x.events.filter(e => e.type === 'summon_buff' && e.sourceId === 'source');
@@ -100,24 +100,20 @@ function rendererClock() {
       const name = no === 'C039' ? 'phantom' : 'eidolon';
       await x.pve();
       assert.equal(h.calls.filter(c => c.name === name).length, 1, 'PvEの最後の固有VFX');
-      assert.equal(presentIsSilentEvent(buffs[0]), false);
       await x.online();
       assert.equal(h.calls.filter(c => c.name === name).length, 1, 'オンラインの最後の固有VFX');
       assert.deepEqual({ events: x.events, buffs: x.state.gameSummonBuff }, coreResult, '再生でイベント・累積値を変えない');
     });
   }
-  // 2026-10-22 利用者指定：決着後は省かずに速くする（次戦以後に影響する効果が入ったため）。
-  await check('2：決着後の通常バフも省かず、そこから演出を速くする', () => {
-    const events = [{ type: 'death', side: 'p2', unitId: 'last' },
-      { type: 'stat_change', side: 'p1', unitId: 'ally', sourceId: 'ally', atk: 1, hp: 1, reason: 'ally_death_buff' }];
-    presentMarkBattleTail(events, { p1: [{ id: 'ally', hp: 1 }], p2: [{ id: 'last', hp: 1 }] });
-    assert.equal(presentIsSilentEvent(events[1]), false, '省かない');
-    assert.equal(presentDecidedSpeedScale(), 1, '決着のイベントまでは通常の速さ');
-    presentNoteDecidedEvent(events[0]);
-    assert.equal(presentDecidedSpeedScale(), 1, '決着した死亡そのものは通常の速さ');
-    presentNoteDecidedEvent(events[1]);
-    assert.equal(presentDecidedSpeedScale(), PRESENT_DECIDED_SPEED_SCALE, '決着後は速くする');
-    presentResetDecided();
+  // 1027：表示側では決着を推測せず、終戦区間だけを等倍にする。
+  await check('2：決着後の加速を廃止し、終戦の等倍区間を記録する', () => {
+    presentResetBattleEndPhase();
+    presentNoteBattleEndEvent({type:'death',side:'p2',unitId:'last'});
+    assert.equal(presentBattleEndPhase(),false);
+    assert.equal(typeof global.presentDecidedSpeedScale,'undefined');
+    presentNoteBattleEndEvent({type:'run_effect',trigger:'終戦'});
+    assert.equal(presentBattleEndPhase(),true);
+    presentResetBattleEndPhase();
   });
 
   await check('3：全シートのゲーム中眷属強化を洗い出す（通常・強化後）', () => {
