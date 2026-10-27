@@ -69,7 +69,7 @@ function assertSheetDrivenMergedForms() {
   assert.deepEqual(catalog.panels.E014.base.adjacentKeywords, ['二段攻撃'], 'E014通常キーワードが不正');
   assert.deepEqual(catalog.panels.E014.merged.adjacentKeywords, ['三段攻撃'], 'E014合体キーワードが不正');
   assert.deepEqual([catalog.panels.E014.base.initial,catalog.panels.E014.base.reward,catalog.panels.E014.base.shop],
-    [false,true,true], 'E014の初期／報酬／ショップ設定が不正');
+    ['初期','報酬','ショップ'].map(key=>sheetData.sheetRows('enchant').find(row=>row['No.']==='E014')[key]==='true'), 'E014の初期／報酬／ショップ設定が不正');
   assert.equal(catalog.hasRetiredE015, true, '廃止E015が実行時プールに残っている');
   assert.deepEqual(catalog.rings, {
     R041:{name:'憎悪の指輪',desc:'開戦：全ての敵は三方向攻撃を得る。'},

@@ -10,6 +10,8 @@ function opening(h){coreApplyOpeningRings(h.state,h.rng,h.emit,h.hit);}
  console.table=()=>{};await loadGameData();
  for(const no of 'R012 R015 R019 R021 R022 R023 R031 R034 R035'.split(' '))for(const modified of [false,true])for(const side of ['p1','p2'])await check(`${no} ${ring(no).name}/${modified?'本文数値差替':'シート'}/${side}`,async()=>{
   const r=ring(no);if(modified)r.desc=r.desc.replace(/\d+(?:\.\d+)?/g,n=>String(Number(n)+2));
+  // R019の現行シートは開戦。今回は非対象なので、従来の常時倍率の互換入力だけを検査する。
+  if(no==='R019')r.desc=r.desc.replace(/^開戦/,'常時');
   const [n,m,d]=numbers(r.desc),own=[plain('source'),plain('ally',{lane:'rear'})];
   if(['R019','R022','R034'].includes(no))own[0].desc='開戦：「青スケルトン」を召喚する。';
   if(no==='R021')own[0].keywords=['毒牙3'];

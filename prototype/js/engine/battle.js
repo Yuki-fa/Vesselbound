@@ -2661,7 +2661,7 @@ async function _applyCoreBattleEndEffectsLive(){
 // 「終戦では上がるのに編成画面へ戻ると元に戻っている」という報告があり、
 // 静かに失敗していると原因を追えない（2026-09-22、再現条件を特定できていない）。
 function _persistPermanentStatOrWarn(board,ev){
-  const ok=persistBoardCharacterStats(board,ev&&ev.boardSlot,ev&&ev.atk,ev&&ev.hp,runLevelBattleValues());
+  const ok=persistBoardCharacterStats(board,ev&&ev.boardSlot,ev&&ev.atk,ev&&(ev.persistentHp??ev.hp),runLevelBattleValues());
   if(ok) return true;
   const cards=board&&Array.isArray(board.boardCards)?board.boardCards:null;
   const card=cards?cards[Number(ev&&ev.boardSlot)]:null;

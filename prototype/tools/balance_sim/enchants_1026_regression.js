@@ -78,7 +78,7 @@ const totals=h=>h.own.map(u=>[u.atk,u.hp,u.maxHp]);
           h.u.desc='攻撃：ランダムな敵にXダメージを与える。Xはマナに等しい。';attack(h);
           const extra=Number(text.match(/対象は(\d+)体/)[1]);assert.equal(damage(h).length,Math.min(h.foes.length,1+extra));assert.equal(new Set(damage(h).map(e=>e.unitId)).size,Math.min(h.foes.length,1+extra));
           const a=harness(side,[enchanted(no,enhanced,text,{desc:'開戦：ランダムな味方に結界1を与える。'}),plain('ally'),plain('ally2'),plain('ally3')]);
-          coreApplyOpeningEffects(a.u,a.state,a.rng,a.emit,a.hit);assert.equal(a.events.filter(e=>e.effect==='shield').length,Math.min(4,1+extra));
+          coreApplyOpeningEffects(a.u,a.state,a.rng,a.emit,a.hit);assert.equal(a.events.filter(e=>e.effect==='shield').length,(text.includes('味方、または敵')?Math.min(4,1+extra):1));
           const bag=harness(side,[enchanted(no,enhanced,text,{desc:'死亡：ランダムな敵2体に毒3を与える。'})],{foes:Array.from({length:8},(_,i)=>plain('foe'+i))});
           bag.u.hp=0;coreApplyDeathEffects(bag.u,bag.state,bag.rng,bag.emit,bag.hit);assert.equal(bag.events.filter(e=>e.effect==='poison').length,2+extra);
           const mana=harness(side,[enchanted(no,enhanced,text,{manaCost:1,manaRepeat:false,manaThresholdDesc:'ランダムな敵に2ダメージを与える。'})],{foes:Array.from({length:8},(_,i)=>plain('foe'+i,{desc:'負傷：このキャラクターは+1/+1を得る。'}))});
@@ -124,7 +124,7 @@ const totals=h=>h.own.map(u=>[u.atk,u.hp,u.maxHp]);
           h.u.keywords=['貫通','先制','毒牙2','魔術の知識'];const child=coreSummonUnit(h.state,side,{name:'検査眷属',atk:2,hp:3,_fixedSummonStats:true},h.emit,h.u.id,false,h.rng,h.hit);
           assert.equal(child.keywords.filter(k=>k!=='眷属').length,Math.min(3,Number(text.match(/(\d+)つ得る/)[1])));assert.ok(!child.keywords.includes('魔術の知識'));break;
         }
-        case 'E074': coreApplyShieldLostEffects(h.own[1],h.state,h.rng,h.emit,h.hit);assert.equal(h.u.atk,start+pair(text)[0]);assert.equal(h.u.maxHp,100+pair(text)[1]);break;
+        case 'E074': attack(h);assert.deepEqual(h.state.runEffects[side].rewardBuff,{atk:0,hp:Number(text.match(/HP\+(\d+)/)[1])});break;
         default:throw Error(no);
       }
       if(no!=='E060') await pipelines(h.initial);

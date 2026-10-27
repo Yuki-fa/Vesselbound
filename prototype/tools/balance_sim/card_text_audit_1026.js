@@ -312,7 +312,8 @@ function exercise(entry, form, sentence, trigger) {
     } else if ((m = body.match(/^(全ての味方|このキャラクター)は\+X\/\+Xを得る。Xは(血|マナ)(?:の(\d+)倍)?/))) {
       state.resources.p1.mana = 9; run(); const n = 9 * Number(m[3] || 1); equalStats(h, expectedStats(m[1] === '全ての味方' ? own : [u], n, n));
     } else if ((m = body.match(/^(?:「([^」]+)」|このキャラクター)以外のランダムな味方は(ATK|HP)\+Xを得る。Xは(このキャラクターのHP|血)/))) {
-      run(); assert.equal(stats(h).length, r); stats(h).forEach(e => { assert.notEqual(e.unitId, u.id); assert.deepEqual([e.atk, e.hp], m[2] === 'ATK' ? [80, 0] : [0, m[3] === '血' ? state.blood.p1 : 80]); });
+      run(); const amount=m[3]==='血'?state.blood.p1:80;
+      assert.equal(stats(h).length, r); stats(h).forEach(e => { assert.notEqual(e.unitId, u.id); assert.deepEqual([e.atk, e.hp], m[2] === 'ATK' ? [amount, 0] : [0, amount]); });
     } else if (/^このキャラクターのATKをランダムな味方に与える/.test(body)) {
       run(); assert.equal(stats(h).length, r); stats(h).forEach(e => assert.deepEqual([e.atk, e.hp], [17, 0]));
     } else if ((m = body.match(/^ランダムな味方(?:\d+体)?(?:は|に)(?:\+(\d+)\/\+(\d+)と)?結界/))) {
@@ -359,7 +360,13 @@ function exercise(entry, form, sentence, trigger) {
       run(); const grants = h.events.filter(e => e.effect === 'trigger_grant'); assert.equal(grants.length, r);
       const target = own.find(t => t.id === grants[0].unitId); h.events.length = 0; h.hit(foes[0], target, 3, false, true);
       const es = h.events.filter(e => e.type === 'damage' && e.sourceId === target.id); assert.deepEqual(es.map(e => e.amount), Array(number(body, /ダメージを(\d+)回/)).fill(number(body, /敵に(\d+)ダメージ/)));
-    } else if (/^血を\d+得る/.test(body)) { run(); assert.equal(state.blood.p1, 9 + (trigger === '死亡' ? 1 : 0) + number(body, /血を(\d+)得る/) * r);
+    } else if (/^血を\d*得る/.test(body)) { run(); assert.equal(state.blood.p1, 9 + (trigger === '死亡' ? 1 : 0) + number(body, /血を(\d+)得る/) * r);
+    } else if ((m=body.match(/^(\d+)%の確率で(\d+)マナを得る/))) {
+      let trials=0; const threshold=Number(m[1])/100;
+      h.rng.next=()=>trials++%2?threshold:threshold-.001;
+      run(); assert.equal(trials,r); assert.equal(state.resources.p1.mana,Math.ceil(r/2)*Number(m[2]));
+      // 確率の境界は上で独立に検査。別のseedの短い戦闘での当選そのものは要求しない。
+      h.beforeTrigger=null;
     } else if (/報酬とトレーダーのキャラクター/.test(body)) {
       run(); const p = pair(body) || [0, number(body, /HP\+(\d+)/)];
       assert.deepEqual(state.runEffects.p1.rewardBuff, { atk: p[0] * r, hp: p[1] * r });
@@ -393,7 +400,7 @@ function exercise(entry, form, sentence, trigger) {
   return { status: '動く', reason: label, evidence: evidence(h, label), battle: verifyBattle(h) };
 }
 
-function formedEnchant(form, { allies = false, mixed = false } = {}) {
+function formedEnchant(form, { allies = false, mixed = false, connectedColors } = {}) {
   initState(); G.phase = 'reward'; G._wave = 2; G.mapPanelPowers = { 1: 'summon', 3: 'summon' };
   const base = () => ({ ...copy(PANEL_POOL.find(c => c.no === 'C006')), power: 60, life: 80,
     desc: '', keywords: [], color: '赤', directions: ['left', 'right'] });
@@ -404,6 +411,12 @@ function formedEnchant(form, { allies = false, mixed = false } = {}) {
   if (allies) {
     G.mainBoard[0] = null; c.directions = ['left', 'right']; G.mainBoard[2] = c;
     G.mainBoard[3] = base(); if (mixed) G.mainBoard[3].color = '青';
+  }
+  if(connectedColors){
+    G.mainBoard.fill(null);G.mapPanelPowers={1:'summon',5:'summon',7:'summon',11:'summon'};
+    G.mainBoard[1]={...base(),color:'黄',directions:['down']};
+    G.mainBoard[6]={...c,directions:['up','left','right','down']};
+    [5,7,11].forEach((slot,i)=>{G.mainBoard[slot]={...base(),color:connectedColors[i],directions:[slot===5?'right':slot===7?'left':'up']};});
   }
   const result = buildBoardFormation(_getPartyBoardUnit(), { persistEternal: false });
   const u = result.ordered.find(e => e.slotIdx === 1)?.unit;
@@ -430,6 +443,9 @@ function exercisePassive(entry, form, text, body, h) {
     const formed = formedEnchant(form, { allies: true }), n = number(body, /数の(\d+)倍/);
     assert.deepEqual([formed.u.atk, formed.u.maxHp], [60 + n, 80 + n], '同色1体と血盟で接続');
     const mixed = formedEnchant(form, { allies: true, mixed: true }); assert.deepEqual([mixed.u.atk, mixed.u.maxHp], [60, 80], '異色が混じる場合は不発');
+  } else if ((m=body.match(/によって([赤青緑、]+)の味方と接続している場合、(二段攻撃|三段攻撃)を得る/))) {
+    const linked=formedEnchant(form,{connectedColors:['赤','青','緑']}),missing=formedEnchant(form,{connectedColors:['赤','青','黄']});
+    assert.ok(coreUnitKeywords(linked.u).includes(m[2]));assert.ok(!coreUnitKeywords(missing.u).includes(m[2]));
   } else if ((m = body.match(/^このキャラクターが敵から受けたダメージ(の半分)?は、他の全ての味方に割り振られる/))) {
     hit(foes[0], u, 17); const shared = m[1] ? 8 : 17;
     assert.equal(80 - u.hp, 17 - shared); assert.equal(own.slice(1).reduce((s, t) => s + 80 - t.hp, 0), shared);
@@ -445,7 +461,7 @@ function exercisePassive(entry, form, text, body, h) {
   } else if (/持つ邪眼、毒牙、衝撃/.test(body)) {
     u.keywords = ['毒牙2', '邪眼3', '衝撃4']; u._coreAttackContact = true; hit(u, foes[0], 1);
     const add = number(body, /\+(\d+)/); assert.deepEqual([foes[0].poison, foes[0].atk, foes[0].weaken], [2 + add, 17 - 3 - add, 4 + add]);
-  } else if (/ランダムな味方、または敵を選ぶ場合/.test(body)) {
+  } else if (/ランダムな(?:味方、または敵|敵)を選ぶ場合/.test(body)) {
     u.desc = '攻撃：ランダムな敵に2ダメージを与える。'; fire(h, '攻撃');
     const count = 1 + number(body, /対象は(\d+)体/); equalHits(h, 2, count); assert.equal(new Set(hits(h).map(e => e.unitId)).size, count);
   } else if (/このキャラクターからダメージを受けた敵は/.test(body)) {

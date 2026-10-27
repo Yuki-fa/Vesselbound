@@ -1,4 +1,6 @@
 'use strict';
+// 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
+const {REVISED: revised1027} = require('./effects_1027_regression');
 
 // 本番の内蔵CSV→loader→使用／編成→共通コア→保存・再生を通す。ブラウザの見た目は検査しない。
 const { assert, sheet, copy, plain, harness, initRun, pipelines } = require('./rules_1026_harness');
@@ -312,19 +314,19 @@ function element(tag) {
       return copy({result,events,finalState:api.battleCoreFinalState(state),nextRandom:rng.next()}); };
     const base = own => ({sides:{p1:{units:[own,plain('ally')]},p2:{units:[plain('foe',{hp:5,maxHp:5}),plain('foe2')]}},resources:{p1:{mana:8,gold:800}},summonDefs:PANEL_POOL});
     for (const row of [...sheet.sheetRows('card'),...sheet.sheetRows('enchant')]) for (const enhanced of [false,true]) for (const seed of [1,1026]) {
-      const def = PANEL_POOL.find(c=>c.no===row['No.']); if (!def) continue;
+      const def = PANEL_POOL.find(c=>c.no===row['No.']); if (!def || revised1027.has(row['No.'])) continue;
       const c = {...copy(def),desc:(enhanced?row['強化効果']:'')||row['効果']||''};
       const own = def.category==='キャラクター'?{..._makePanelSummonUnit(_panelSummonSpec(c),[]),id:'source',atk:10,hp:70,maxHp:70}
         :plain('source',{_adjacentPanelEffectTexts:[c.desc],boardCards:[c]});
       assert.deepEqual(run(current,base(own),seed),run(baseline,base(own),seed),`${row['No.']}/${enhanced}/${seed}`); compared++;
     }
-    for (const r of RING_POOL.filter(r=>!['R024','R030','R037'].includes(r.no))) {
+    for (const r of RING_POOL.filter(r=>!['R017','R024','R030','R037'].includes(r.no))) {
       const input={...base(plain('source')),rings:{p1:[r]}}; assert.deepEqual(run(current,input,1026),run(baseline,input,1026),r.no); compared++;
     }
     for (const d of ITEM_POOL.filter(d=>Number(d.no)<=12)) {
       const input={...base(plain('source')),items:{p1:[d]}}; assert.deepEqual(run(current,input,1026),run(baseline,input,1026),d.no); compared++;
     }
-    assert.ok(compared>800); console.log(`  ${compared}ケース完全一致（開始時 ${BASELINE.slice(0,7)}）`);
+    assert.ok(compared>750); console.log(`  ${compared}ケース完全一致（開始時 ${BASELINE.slice(0,7)}）`);
   });
   console.log(`アイテム・指輪1026: OK ${passed} / NG ${failed}`); process.exitCode = failed ? 1 : 0;
 })().catch(e => { console.error(e.stack); process.exitCode = 1; });

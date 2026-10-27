@@ -1,4 +1,6 @@
 'use strict';
+// 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
+const {REVISED: revised1027} = require('./effects_1027_regression');
 
 // 内蔵シートを正に、+3/+3の再現・陣営・永久保存・保存戦闘の実再生を検査する。
 // ブラウザ／xlsxは使わず、非対象は作業開始時28e8577と全イベント・次の乱数まで比較する。
@@ -348,9 +350,9 @@ function fullInput(own, foes, extra = {}) {
       return copy({ result, events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() });
     };
     let compared = 0;
-    // 現行カードは対象も含めて維持できる。新たに扱う「敵の眷属」本文は現行シートに無い。
-    // 新実装の指輪はitems_1026_regressionで検証し、旧版との一致は非対象だけに適用する。
-    for (const row of rows.filter(row=>!['R024','R030','R037'].includes(row['No.']))) for (const enhanced of row.kind === 'ring' ? [false] : [false, true]) for (const side of ['p1', 'p2']) {
+    // 新たに扱う「敵の眷属」本文は現行シートに無い。
+    // 新実装の指輪と1027改訂分はそれぞれの回帰で検証し、旧版との一致は非対象だけに適用する。
+    for (const row of rows.filter(row=>!['R017','R024','R030','R037'].includes(row['No.'])&&!revised1027.has(row['No.']))) for (const enhanced of row.kind === 'ring' ? [false] : [false, true]) for (const side of ['p1', 'p2']) {
       const other = side === 'p1' ? 'p2' : 'p1';
       const own = row.kind === 'ring' ? plain('subject') : subject(row['No.'], enhanced, { id: 'subject', atk: 10, hp: 70, maxHp: 70 });
       const input = { sides: { [side]: { units: [own, plain('ally')] }, [other]: { units: [plain('foe', { hp: 5, maxHp: 5 }), plain('foe2')] } },
@@ -358,7 +360,7 @@ function fullInput(own, foes, extra = {}) {
         ...(row.kind === 'ring' ? { rings: { [side]: [definition(row['No.'])] } } : {}) };
       assert.deepEqual(run(current, input), run(baseline, input), row['No.'] + '/' + enhanced + '/' + side); compared++;
     }
-    assert.ok(compared > 900); console.log('  ' + compared + 'ケース完全一致（新実装の指輪3種を除く）');
+    assert.equal(compared,rows.filter(row=>!['R017','R024','R030','R037'].includes(row['No.'])&&!revised1027.has(row['No.'])).reduce((n,row)=>n+(row.kind==='ring'?2:4),0)); console.log('  ' + compared + 'ケース完全一致（新実装の指輪と1027改訂分を除く）');
   });
   console.log('眷属1026: OK ' + passed + ' / NG ' + failed); process.exitCode = failed ? 1 : 0;
 })().catch(error => { console.error(error.stack); process.exitCode = 1; });

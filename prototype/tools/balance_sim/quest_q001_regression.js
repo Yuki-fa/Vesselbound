@@ -89,7 +89,7 @@ function runTrigger(unit,trigger,side='p1'){
   });
   check('E075＋闇の炎は本文を混同せず、死亡では闇の炎だけ発動する',()=>{
     const unit=copy(inputs.pve);
-    const flame=PANEL_POOL.find(card=>card.name==='闇の炎');
+    const flame=PANEL_POOL.find(card=>card.no==='E006');
     unit._adjacentPanelEffectTexts.push(flame.desc);unit._resonanceEffectNames.push(flame.name);
     const hits=runTrigger(unit,'死亡').hits;
     const amount=Number(flame.desc.match(/(\d+)ダメージ/)[1]),count=Number(flame.desc.match(/敵(\d+)体/)[1]);

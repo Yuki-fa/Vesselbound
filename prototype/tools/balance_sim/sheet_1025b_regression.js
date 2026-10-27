@@ -1,7 +1,9 @@
 'use strict';
+// 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
+const {REVISED: revised1027} = require('./effects_1027_regression');
 
 // 2026-10-25 本文改訂。期待値はヘッダ名で読んだ通常／強化本文から独立に求める。
-// 入手を止めている、名前の無い E084/E085 も同じ内蔵CSVから読む。
+// 入手を止めている、名前の無い強化カードも同じ内蔵CSVから読む。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -20,7 +22,7 @@ for (const key of ['card', 'enchant']) {
   }
 }
 const required = ('C001 C002 C003 C004 C005 C026 C027 C028 C029 C030 C051 C052 C053 C054 C055 C076 C077 C078 C079 C080 '
-  + 'C101 C102 C103 C104 C105 C007 C010 C018 C021 C031 C058 C067 C099 C017 C020 C034 C046 C047 C070 C092 C116 C121 E006 E084 E085').split(' ');
+  + 'C101 C102 C103 C104 C105 C007 C010 C018 C021 C031 C058 C067 C099 C017 C020 C034 C046 C047 C070 C092 C116 C121 E006 E084 E009').split(' ');
 let passed = 0, failed = 0;
 const covered = new Set();
 function check(label, fn) {
@@ -290,8 +292,8 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       const h = setup(side, [unit('E084', enhanced, { atk: 9, hp: 0, maxHp: 13 }), plain('blue', { color: '青' }), plain('red')]); fire(h, '死亡'); const divisor = value.includes('半分') ? 2 : 1;
       assert.deepEqual(stats(h).map(e => [e.unitId, e.atk, e.hp]), [['blue', Math.floor(9 / divisor), Math.floor(13 / divisor)]]);
     });
-    test('E085', '本文の血獲得にストリゴイの補正が1回乗る', value => {
-      const h = setup(side, [unit('E085', enhanced), { ...unit('C102', false), id: 'strigoi' }]); fire(h, '攻撃');
+    test('E009', '本文の血獲得にストリゴイの補正が1回乗る', value => {
+      const h = setup(side, [unit('E009', enhanced), { ...unit('C102', false), id: 'strigoi' }]); fire(h, '攻撃');
       const amount = Number((value.match(/血を(\d+)/) || [])[1]) || 1, bonus = Number(text('C102', false).match(/血は\+(\d+)/)[1]); assert.equal(h.state.blood[side], amount + bonus); assert.equal(h.events.filter(e => e.type === 'blood_set').length, 1);
     });
     // 起動のコアの対象区域・量も通常／強化、両側から同じAPIへ渡す。
@@ -301,9 +303,11 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       assert.equal(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'reward' }), null);
     });
     // 2026-10-26：本文が「対象の魔導板のカードと、対象の報酬のカードを入れ替える。」に変わり、能力値は下がらない。
-    test('C080', '2つの区域を選んで交換、能力値は変わらない', value => {
+    test('C080', '新しい2枚入替は未対応、旧本文の交換互換は能力値を変えない', value => {
       const source = { ...card('C080', enhanced), power: 7, life: 11 }, target = card('C006'), rewardTarget = card('E001'), rng = createSeededRng(1);
-      assert.match(value, /対象の魔導板のカードと、対象の報酬のカードを入れ替える/);
+      assert.match(value, /対象の2枚の(?:キャラクター|カード)を入れ替える/);
+      assert.equal(coreActivateBoardCard(source,target,PANEL_POOL,rng,{targetZone:'board',rewardTarget}),null);
+      source.desc='起動：対象の魔導板のカードと、対象の報酬のカードを入れ替える。';
       assert.equal(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board' }), null);
       assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board', rewardTarget }), { kind: 'exchange_reward', atk: 0, hp: 0 });
     });
@@ -311,7 +315,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
       const source = card('C116', enhanced), target = { ...card('C006'), power: 7, life: 11 }, rng = createSeededRng(1), mul = Number((value.match(/の(\d+)倍/) || [])[1]) || 1;
       const expected = { kind: 'destroy', atk: 7 * mul, hp: 11 * mul };
       assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'reward' }), expected);
-      assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board' }), enhanced ? null : expected);
+      assert.deepEqual(coreActivateBoardCard(source, target, PANEL_POOL, rng, { targetZone: 'board' }), /対象の報酬のキャラクター/.test(value) ? null : expected);
     });
   }
 
@@ -320,7 +324,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
   check('アンタイオスの実編成：本文が空の貫通接続もPvE・送信payloadで同じ接続枚数', () => {
     for (const enhanced of [false, true]) {
       initState(); G.mainBoard.fill(null); G.mainBoard[1] = card('C101', enhanced); G.mainBoard[1].directions = ['left'];
-      G.mainBoard[0] = card('E009'); G.mainBoard[0].directions = ['right'];
+      G.mainBoard[0] = copy(PANEL_POOL.find(c=>c.category==='エンチャント'&&!c.desc&&(c.adjacentKeywords||[]).includes('貫通'))); G.mainBoard[0].directions = ['right'];
       assert.equal(String(G.mainBoard[0].desc || ''), '');
       const deployed = buildBoardFormation(_getPartyBoardUnit(), { persistEternal: false }).ordered.find(e => e.slotIdx === 1).unit;
       const payload = buildOnlineSelfFormation().units.find(u => u._mainBoardSlot === 1);
@@ -357,13 +361,13 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
         const saved = SaveRun.buildRunSave('reward'); SaveRun.restoreRunState(saved); assert.equal(G.mainBoard[1]._activationReady, undefined);
       }
       for (const enhanced of [false, true]) for (const self of [false, true]) {
-        initState(); G.phase = 'reward'; G.mainBoard.fill(null); G.mainBoard[1] = card('C080', enhanced); G.mainBoard[3] = card('C006');
+        initState(); G.phase = 'reward'; G.mainBoard.fill(null); G.mainBoard[1] = {...card('C080', enhanced),desc:'起動：対象の魔導板のカードと、対象の報酬のカードを入れ替える。'}; G.mainBoard[3] = card('C006');
         const source = G.mainBoard[1], outgoing = G.mainBoard[self ? 1 : 3]; source.power = 9; source.life = 13; source._permBasePower = 9; source._permBaseLife = 13; source._placeKey = 'source-key'; outgoing._placeKey = self ? 'source-key' : 'out-key';
         _rewCards = [{ ...card('C008'), _placeKey: 'reward-key' }]; chargeBoardCardActivations(); cardActivationClick(1); assert.equal(cardActivationRewardTargetable(_rewCards[0]), false); handleCardActivationTarget(self ? 1 : 3); assert.equal(cardActivationRewardTargetable(_rewCards[0]), true); handleCardActivationRewardTarget(0);
         assert.equal(G.mainBoard[self ? 1 : 3]._placeKey, 'reward-key'); assert.equal(_rewCards[0]._placeKey, self ? 'source-key' : 'out-key');
         const holder = self ? _rewCards[0] : G.mainBoard[1]; assert.deepEqual([holder.power, holder.life], [9, 13]); assert.deepEqual([holder._permBasePower, holder._permBaseLife], [holder.power, holder.life]); assert.equal(holder._activationReady, undefined); assert.equal(_pendingCardActivation, null);
       }
-      initState(); G.phase = 'reward'; G.mainBoard.fill(null); const knight = G.mainBoard[1] = card('C116', true); G.mainBoard[3] = card('C006'); _rewCards = [card('C006')]; chargeBoardCardActivations(); cardActivationClick(1); handleCardActivationTarget(3); assert.ok(G.mainBoard[3]); assert.ok(knight._activationReady); handleCardActivationRewardTarget(0); assert.equal(_rewCards.length, 0); assert.equal(knight._activationReady, undefined);
+      initState(); G.phase = 'reward'; G.mainBoard.fill(null); const knight = G.mainBoard[1] = card('C116', true); G.mainBoard[3] = card('C006'); _rewCards = [card('C006')]; chargeBoardCardActivations(); cardActivationClick(1); handleCardActivationTarget(3); assert.equal(G.mainBoard[3],null); assert.equal(_rewCards.length, 1); assert.equal(knight._activationReady, undefined);
     } finally { Object.assign(globalThis, old); _pendingCardActivation = null; _rewCards = []; }
   });
 
@@ -402,7 +406,7 @@ function summon(h, side = h.side) { return coreSummonUnit(h.state, side, { name:
     const source = execFileSync('git', ['show', '62fe8751c3cefbe67c844ce70490a1ef52d0b8c4:prototype/js/battle/core.js'], { encoding: 'utf8', maxBuffer: 2e6 });
     const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox); const baseline = sandbox.module.exports;
     const current = require('../../js/battle/core'); let compared = 0;
-    for (const no of [...rows.keys()].filter(no => /^[CE]\d+$/.test(no) && !required.includes(no) && !revised1026.has(no) && PANEL_POOL.some(c => c.no === no))) for (const enhanced of [false, true]) {
+    for (const no of [...rows.keys()].filter(no => /^[CE]\d+$/.test(no) && !required.includes(no) && !revised1026.has(no) && !revised1027.has(no) && PANEL_POOL.some(c => c.no === no))) for (const enhanced of [false, true]) {
       const input = { sides: { p1: { units: [unit(no, enhanced), plain('ally', { color: '青' })] }, p2: { units: [plain('foe'), plain('foe2')] } }, summonDefs: PANEL_POOL, resources: { p1: { mana: 8, gold: 800 } } };
       const run = api => { const state = api.createBattleState(copy(input)), events = [], rng = createSeededRng(251025); api.runBattleCore(state, rng, { turnLimit: 5, onEvent: e => events.push(e) }); return copy({ events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() }); };
       assert.deepEqual(run(current), run(baseline), `${no}/${enhanced}`); compared++;

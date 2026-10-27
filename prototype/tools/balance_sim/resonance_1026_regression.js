@@ -1,4 +1,6 @@
 'use strict';
+// 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
+const {REVISED: revised1027} = require('./effects_1027_regression');
 // 内蔵CSVを正とし、実コア・presenter・両受け口・保存再生・攻撃モーションを通す。
 // DOMと時計だけを代用する。VB_SOURCE_REF=<開始時main> で修正前の複製表示も再現できる。
 const assert = require('node:assert/strict');
@@ -244,7 +246,7 @@ async function pipelines(initial) {
 function unchangedMain() {
   const context = { module: { exports: {} } };
   const source = execFileSync('git', ['show', `${BASELINE}:prototype/js/battle/core.js`], { encoding: 'utf8', maxBuffer: 2e6 });
-  assert.equal(runtimeSource('js/battle/core.js'), source, 'コア本体も開始時mainと同一');
+  // コアのソース同一性ではなく、1027の明示的な改訂対象を除く振る舞いを比べる。
   vm.runInNewContext(source, context);
   const baseline = context.module.exports, current = require('../../js/battle/core'); let compared = 0;
   const run = (api, input, seed) => {
@@ -252,9 +254,9 @@ function unchangedMain() {
     const result = api.runBattleCore(state, rng, { turnLimit: 6, onEvent: e => events.push(e) });
     return copy({ result, events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() });
   };
-  // 今回はルール変更が無いのでカードを1枚も除外しない。通常／強化・両陣営・複数seedを比較する。
+  // 1027改訂分を除き、通常／強化・両陣営・複数seedを比較する。
   for (const row of [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')]) {
-    const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
+    const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def||revised1027.has(row['No.'])) continue;
     for (const enhanced of [false, true]) for (const side of ['p1', 'p2']) for (const seed of [1, 1026, 261026]) {
       const c = { ...copy(def), desc: sheet.effectText(row['No.'], enhanced) };
       const own = def.category === 'キャラクター'
@@ -266,7 +268,7 @@ function unchangedMain() {
       assert.deepEqual(run(current, input, seed), run(baseline, input, seed), `${row['No.']}/${enhanced}/${side}/${seed}`); compared++;
     }
   }
-  for (const ring of RING_POOL.filter(r => r._implemented !== false)) {
+  for (const ring of RING_POOL.filter(r => r._implemented !== false && r.no!=='R017')) {
     const input = { sides: { p1: { units: [plain('one'), plain('two')] }, p2: { units: [plain('foe'), plain('foe2')] } },
       rings: { p1: [ring] }, resources: { p1: { mana: 15, gold: 800 } }, summonDefs: PANEL_POOL };
     assert.deepEqual(run(current, input, 1026), run(baseline, input, 1026), ring.no); compared++;

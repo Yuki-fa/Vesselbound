@@ -1,4 +1,6 @@
 'use strict';
+// 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
+const {REVISED: revised1027} = require('./effects_1027_regression');
 
 // xlsx・内蔵CSVは更新しない。C004のコピーの本文だけを差し替えて本番の入口を検査する。
 const assert = require('node:assert/strict');
@@ -275,7 +277,7 @@ function coreEvents(events) { return events.map(event => { const { pveRewardGold
     const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox); const baseline = sandbox.module.exports;
     const current = require('../../js/battle/core'); let compared = 0;
     const rows = [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')];
-    for (const row of rows.filter(r => r['No.'] !== 'C004' && !revised1026.has(r['No.']))) for (const enhanced of [false, true]) {
+    for (const row of rows.filter(r => r['No.'] !== 'C004' && !revised1026.has(r['No.']) && !revised1027.has(r['No.']))) for (const enhanced of [false, true]) {
       const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
       const card = { ...copy(def), desc: (enhanced ? row['強化効果'] : '') || row['効果'] || '' };
       const own = def.category === 'キャラクター'

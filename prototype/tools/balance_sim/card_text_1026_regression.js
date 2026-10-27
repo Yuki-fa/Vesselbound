@@ -1,4 +1,5 @@
 'use strict';
+const {REVISED: revised1027} = require('./effects_1027_regression');
 // 1026本文監査で見つけた不発・旧本文の残存の回帰。マスターは読取専用。
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
@@ -30,7 +31,7 @@ async function unchanged() {
   const source = execFileSync('git', ['show', BASELINE + ':prototype/js/battle/core.js'], { encoding: 'utf8', maxBuffer: 2e6 });
   const sandbox = { module: { exports: {} } }; vm.runInNewContext(source, sandbox);
   const baseline = sandbox.module.exports, current = require('../../js/battle/core'); let compared = 0;
-  for (const e of A.catalog().filter(e => e.implemented && !REVISED.has(e.no))) for (const f of e.forms) {
+  for (const e of A.catalog().filter(e => e.implemented && !REVISED.has(e.no) && !revised1027.has(e.no))) for (const f of e.forms) {
     const h = A.context(e, f, f.text), input = h.input;
     input.resources.p1.mana = input.resources.p2.mana = 8;
     // 実際のキーワードも持つ体で比較する。監査の一文隔離とは別の検査。
@@ -43,7 +44,7 @@ async function unchanged() {
       compared++;
     }
   }
-  assert.ok(compared > 2400); console.log(`  非対象 ${compared} 戦闘：${BASELINE.slice(0, 7)} と結果・全イベント・最終状態・次の乱数が完全一致`);
+  assert.ok(compared > 2200); console.log(`  非対象 ${compared} 戦闘：${BASELINE.slice(0, 7)} と結果・全イベント・最終状態・次の乱数が完全一致`);
 }
 
 (async () => {

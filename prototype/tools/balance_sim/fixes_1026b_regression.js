@@ -1,4 +1,6 @@
 'use strict';
+// 1027改訂のルール・差分一致は effects_1027_regression.js が開始時mainと検証する。
+const {REVISED: revised1027} = require('./effects_1027_regression');
 
 // 2026-10-26 利用者報告。内蔵シートは参照だけにし、変更予定の本文は個体のコピーで検査する。
 const vm = require('node:vm');
@@ -76,6 +78,7 @@ function element(tag = 'div') {
   Object.defineProperty(el, 'innerHTML', { get: () => '', set: () => { el.children.length = 0; } });
   return el;
 }
+// C080の最新2枚入替は別仕様。この回帰は従来の魔導板／報酬の交換入口を保持する検査。
 async function rewardExchange() {
   const original = { create: document.createElement, get: document.getElementById,
     mkCardEl, renderHandEditor, renderRewCards, _playActivationFx, applyCardVisual };
@@ -85,7 +88,7 @@ async function rewardExchange() {
     document.getElementById = id => id === 'reward-offer-section' ? section : id === 'reward-offer-row' ? row : null;
     mkCardEl = () => element(); renderHandEditor = () => {}; _playActivationFx = () => {}; applyCardVisual = () => {};
     for (const enhanced of [false, true]) for (const picked of [false, true]) {
-      board([[1, card('C080', enhanced)], [3, card('C006')]]);
+      board([[1, {...card('C080', enhanced),desc:'起動：対象の魔導板のカードと、対象の報酬のカードを入れ替える。'}], [3, card('C006')]]);
       G._rewardOnePickMode = true; G._freeRewardPanelMode = true;
       _rewCards = [card('C008'), card('C009')].map(c => ({ ...c, _isOriginalReward: true, _buyPrice: 0 }));
       _rewFreePickDone = false; _pendingCardActivation = null;
@@ -135,7 +138,7 @@ async function unchangedMain() {
     return copy({ result, events, finalState: api.battleCoreFinalState(state), nextRandom: rng.next() });
   }
   for (const row of [...sheet.sheetRows('card'), ...sheet.sheetRows('enchant')]) {
-    if (REVISED.has(row['No.'])) continue;
+    if (REVISED.has(row['No.'])||revised1027.has(row['No.'])) continue;
     const def = PANEL_POOL.find(c => c.no === row['No.']); if (!def) continue;
     for (const enhanced of [false, true]) for (const side of ['p1', 'p2']) for (const seed of [1, 1026, 261026]) {
       const c = { ...copy(def), desc: enhanced && row['強化効果'] || row['効果'] || '' };
@@ -149,12 +152,12 @@ async function unchangedMain() {
     }
   }
   // 1026の新実装3種はitems_1026_regressionで現行本文を検証する。
-  for (const ring of RING_POOL.filter(r => r._implemented !== false && !['R024','R030','R037'].includes(r.no))) {
+  for (const ring of RING_POOL.filter(r => r.no!=='R017' && r._implemented !== false && !['R024','R030','R037'].includes(r.no))) {
     const input = { sides: { p1: { units: [plain('one'), plain('two')] }, p2: { units: [plain('foe'), plain('foe2')] } },
       rings: { p1: [ring] }, resources: { p1: { mana: 15, gold: 800 } }, summonDefs: PANEL_POOL };
     assert.deepEqual(run(current, input, 1026), run(baseline, input, 1026), ring.no); compared++;
   }
-  assert.ok(compared > 2400); console.log(`  非対象${compared}戦闘：main ${BASELINE.slice(0, 7)} と結果・全イベント・最終状態・次の乱数が完全一致`);
+  assert.ok(compared > 2200); console.log(`  非対象${compared}戦闘：main ${BASELINE.slice(0, 7)} と結果・全イベント・最終状態・次の乱数が完全一致`);
 }
 
 (async () => {
@@ -234,7 +237,7 @@ async function unchangedMain() {
       await pipelines(full.initial);
     });
   }
-  await check('チェンジリング：無料取得の前後とも実際の報酬DOMから交換でき、再取得で枚数は増えない', rewardExchange);
+  await check('チェンジリングの旧本文互換：無料取得の前後とも実際の報酬DOMから交換でき、再取得で枚数は増えない', rewardExchange);
   await check('サンダーバード：図書館・デバッグの試験戦闘中だけ累積し、終了時はランの記録を戻す', async () => {
     const old = { startBattle, onBattleEnd, openMapLibraryFormation, showScreen };
     try {
