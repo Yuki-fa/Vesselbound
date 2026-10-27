@@ -31,7 +31,13 @@ function battleMotionClone(unit){
 function _buildMotionCardClone(fromEl, fr){
   const clone=fromEl.cloneNode(true);
   // 召喚の後半などが先に終了しても、複製へ写した透明度・scaleを残さない。
-  if(typeof VbFx!=='undefined'&&typeof VbFx.prepareClone==='function') VbFx.prepareClone(fromEl,clone);
+  if(typeof VbFx!=='undefined'&&typeof VbFx.prepareClone==='function'){
+    VbFx.prepareClone(fromEl,clone);
+    // 隠密・防戦は絵の子要素へ透明度等を掛ける。根だけを戻すと、
+    // 付け替え前の一時値が複製の原値になり、停止後も半透明のまま残る。
+    const sourceChildren=fromEl.querySelectorAll('*'),cloneChildren=clone.querySelectorAll('*');
+    sourceChildren.forEach((child,i)=>{if(cloneChildren[i]) VbFx.prepareClone(child,cloneChildren[i]);});
+  }
   clone.querySelectorAll('[data-vb-fx-local]').forEach(el=>el.remove());
   clone.classList.add('attack-motion-clone');
   // 直前の攻撃が中断された場合でも、複製側へ非表示状態を引き継がない。
