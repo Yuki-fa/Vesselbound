@@ -2050,7 +2050,8 @@ const PRESENT_LAB_FX = {
   C064:['dragonnet',.58,'morph'], C068:['bandersnatch',.9,'morph'], C066:['cockatrice',.04,'foe'],
   C069:['worm',.9,'foes'], C073:['wyvern',.3,'foe'], C087:['frost-sprite',.18,'foe'],
   C088:['leprechaun',.9,'friends'], C089:['melusine',.9,'foes'], C097:['carbuncle',.04,'lost'],
-  C098:['pixie',.9,'pair'], C100:['elemental',.74,'friends'], C106:['imp',.9,'others'],
+  // 2026-10-27 利用者指定：エレメンタルの固有の演出はエレメンタル自身の上に出す（弱体の付与の演出は敵の上のまま）。
+  C098:['pixie',.9,'pair'], C100:['elemental',.74,'self'], C106:['imp',.9,'others'],
   // 2026-10-27 シート改訂：E082（死亡：封印Xを得て封印される）の本文は E077 一時の眠りへ移った。
   C117:['wendigo',.9,'foes'], E077:['nightmare',.9,'self'], C123:['baron',.9,'self'],
   C096:['pegasus',.9,'friend'], C056:['direwolf',.12,'howl'], C019:['titan',.9,'foes'],
