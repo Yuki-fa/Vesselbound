@@ -92,12 +92,12 @@ function simulate(units){
       assert.deepEqual(_rewCards,[],'プレビューを取得可能な報酬配列に入れない');
     }finally{document.createElement=create;}
   });
-  check('右下：祝福を離れる・元に戻す。実行・キャンセルはプレビュー中だけ（2026-10-20）',()=>{
+  check('右下：祝福を離れる・配置を戻す。実行・キャンセルはプレビュー中だけ',()=>{
     blessingFlameReset();
     const row=element();blessingFlameRenderControls(row);
-    assert.deepEqual(row.children.map(b=>b.children[0].textContent),['祝福を離れる','元に戻す']);
+    assert.deepEqual(row.children.map(b=>b.children[0].textContent),['祝福を離れる','配置を戻す']);
     blessingFlameSelect(1);const selected=element();blessingFlameRenderControls(selected);
-    assert.deepEqual(selected.children.map(b=>b.children[0].textContent),['祝福を離れる','元に戻す','実行','キャンセル']);
+    assert.deepEqual(selected.children.map(b=>b.children[0].textContent),['祝福を離れる','配置を戻す','実行','キャンセル']);
     assert.ok(selected.children[2].className.includes('rew-move-btn'));assert.ok(selected.children[3].className.includes('rew-reset-btn'));
     assert.equal(selected.children[2].disabled,false);
     // プレビュー中は説明文を出さない。キャンセルは選択だけを外す。
@@ -127,13 +127,14 @@ function simulate(units){
     assert.deepEqual(G.mainBoard[3],other);
     assert.equal(await blessingFlameExecute(),false);assert.equal(blessingFlameSelect(3),false);
   });
-  check('元に戻す：入場時のカードと修正・効果・枠を完全復元し、別カードを強化できる',()=>{
-    const snapshot=clone(G._rewardStartSnapshot.mainBoard);
-    assert.equal(blessingFlameReset(),true);assert.deepEqual(G.mainBoard,snapshot);
-    assert.equal(G.mainBoard[1]._tripleMerged,undefined);
-    assert.equal(blessingFlameSelect(3),true);assert.equal(blessingFlameUsed(),false);
+  check('配置を戻す：強化後の修正・効果・枠は保持し、別カードを強化できない',()=>{
+    const upgraded=clone(G.mainBoard[1]);G.mainBoard[5]=G.mainBoard[1];G.mainBoard[1]=null;
+    assert.equal(blessingFlameReset(),true);assert.deepEqual(G.mainBoard[1],upgraded);assert.equal(G.mainBoard[5],null);
+    assert.equal(G.mainBoard[1]._tripleMerged,true);
+    assert.equal(blessingFlameSelect(3),false);assert.equal(blessingFlameUsed(),false);
   });
   check('強化不可：空欄・強化後の無いエンチャント・依頼/NPC・木箱・強化済みを暗くし、選択しない。エンチャントは強化できる',()=>{
+    fresh();openBlessingFlame();
     const raw=card('C008');
     assert.equal(blessingFlameCardEligible(card('E002')),true,'エンチャントも強化できる（2026-10-20）');
     assert.equal(blessingFlameCardEligible(card('E010')),true,'魔導回路は強化効果が空欄でも強化できる（強化すると本文が消える。2026-10-26）');
@@ -234,7 +235,7 @@ function simulate(units){
     assert.equal(received._tripleMerged,true);
   });
   check('実際の描画入口：報酬枠にはプレビューだけ、魔導板クリックは選択、プレビュー中は実行・キャンセルが加わる',()=>{
-    blessingFlameReset();
+    fresh();openBlessingFlame();
     const render=renderRewCards,get=document.getElementById,create=document.createElement;
     const section=element(),row=element(),buttons=element();
     const ids={'reward-offer-section':section,'reward-offer-row':row,'reward-move-btns':buttons};
@@ -246,13 +247,13 @@ function simulate(units){
       assert.equal(row.children.filter(c=>c.classList.contains('blessing-flame-preview')).length,1);
       assert.equal(section.style.getPropertyValue('--title-reward'),'"強化後のカード"');
       // 検査用の要素は innerHTML='' で子を消さないので、最後に描いた4つを見る。
-      assert.deepEqual(buttons.children.slice(-4).map(b=>b.children[0].textContent),['祝福を離れる','元に戻す','実行','キャンセル']);
+      assert.deepEqual(buttons.children.slice(-4).map(b=>b.children[0].textContent),['祝福を離れる','配置を戻す','実行','キャンセル']);
       const wired=element();_wireHeCardControls(wired,G.mainBoard[1],'boardCards',1);
       assert.notEqual(wired.draggable,false);wired.onclick({stopPropagation(){}});
       assert.equal(wired.classList.contains('blessing-flame-selected'),true);
     }finally{renderRewCards=render;document.getElementById=get;document.createElement=create;}
   });
-  await checkAsync('白光の演出中：元カードを維持し、連打・元に戻す・立ち去るを受け付けない',async()=>{
+  await checkAsync('白光の演出中：元カードを維持し、連打・配置を戻す・立ち去るを受け付けない',async()=>{
     const query=document.querySelector,timer=setTimeout,slot=element(),before=clone(G.mainBoard[1]);
     let finish,delay;
     try{

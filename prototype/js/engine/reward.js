@@ -1057,7 +1057,7 @@ function _playRewardRevealSweep(host){
   }
 }
 
-// ── 配置を戻す（2026-10-25 利用者指定。魔導取引所・編成画面）─────────────────────
+// ── 配置を戻す（魔導取引所・編成・トレーダー・祭壇・祝福の炎）─────────────────────
 // 「元に戻す」（resetRewardToStart：画面に入った時／リロール・起動の時の状態へ全部巻き戻す）と違い、
 // **配置だけ**を画面に入った時へ戻す。リロール後の報酬・商品、アイテムの使用、カードに付いた強化は戻さない。
 // 戻り先は画面に入った時（_rewPhaseId が変わった最初の記録）だけ取り、リロール・起動の記録では取り直さない。
@@ -1115,7 +1115,7 @@ function _placementOfferCard(card){
 function resetRewardPlacement(){
   if(G.phase!=='reward') return false;
   if(_ringOfferSelectionActive()){
-    _clearRingOfferSelection(); renderHandEditor(); renderRewCards(); renderMoveSlotsInEnemy(); return true;
+    _clearRingOfferSelection();
   }
   if(rewardPlacementInitialMissing()){ _showInitialCardMissingError(); return false; }
   _finishRewardReveal(true);
@@ -1161,16 +1161,18 @@ function resetRewardPlacement(){
   return true;
 }
 // 「配置を戻す」ボタン。初期カードが無くなっていたら暗くし、押すとエラーを出す。
-function _placementResetButton(){
+function _placementResetButton(action=resetRewardPlacement){
   const reset=document.createElement('button');
   const missing=rewardPlacementInitialMissing();
   reset.className='btn rew-reset-btn'+(missing?' disabled':'');
   reset.dataset.sfxSilent='1';
-  reset.innerHTML=`<span class="rew-btn-label">${_uiLabel('「配置を戻す」ボタン','配置を戻す')}</span>`;
+  const label=document.createElement('span');
+  label.className='rew-btn-label'; label.textContent=_uiLabel('「配置を戻す」ボタン','配置を戻す');
+  reset.appendChild(label);
   reset.onclick=()=>{
     if(rewardPlacementInitialMissing()){ _showInitialCardMissingError(); return; }
     if(typeof playSfx==='function') playSfx('return',{group:'ui'});
-    resetRewardPlacement();
+    action();
   };
   return reset;
 }
@@ -1468,8 +1470,8 @@ function renderMoveSlotsInEnemy(){
     // 鍛冶屋には置かない（デバッグモードでも出さない。2026-09-24 利用者指定）。
     // 五聖の座にも置く。刻印は手放せないが、この場面でだけ「元に戻す」で報酬枠へ戻せる（2026-10-01 利用者指定）。
     const canResetMapReward=!G._isLibrary&&!G._isVillageMenu&&!G._isForge;
-    // 魔導取引所（トレーダー・道具屋を除く）は「配置を戻す」（2026-10-25 利用者指定）。
-    if(canResetMapReward&&G._isShop&&!G._isPeddler&&!G._isItemShop){
+    // 魔導取引所・トレーダー・祭壇は配置だけ戻す。確定した取得・強化・アイテム使用は戻さない。
+    if(canResetMapReward&&((G._isShop&&!G._isItemShop)||G._isPeddler||G._isRingExchange)){
       el.appendChild(_placementResetButton());
     }else if(canResetMapReward){
       const reset=document.createElement('button');
@@ -1839,11 +1841,14 @@ function _syncRewardProductionRings(){
           e.preventDefault();
           const srcIdx=_dragSrc.idx; _dragSrc=null;
           G.rings=Array.isArray(G.rings)?G.rings:[null,null,null,null];
-          const tmp=G.rings[idx];
-          G.rings[idx]=G.rings[srcIdx];
-          G.rings[srcIdx]=tmp;
+          changeEquippedRings(()=>{
+            const tmp=G.rings[idx];
+            G.rings[idx]=G.rings[srcIdx];
+            G.rings[srcIdx]=tmp;
+          });
           _playRewardAcquireSfx('ring_get.wav');
           _syncRewardProductionUi();
+          updateHUD();
           if(typeof renderHandEditor==='function') renderHandEditor();
           return;
         }
@@ -1870,13 +1875,13 @@ function _openRingActionConfirm(idx,anchor){
   // 依頼品の指輪は、無効化・捨てるを消さずに暗くして押せなくする（2026-09-27 利用者指定）。
   const actions=[
     {label:ring._disabled?_uiLabel('「有効化」ボタン','有効化'):_uiLabel('「無効化」ボタン','無効化'),disabled:locked,onClick:()=>{
-      ring._disabled=!ring._disabled; _closeItemUseConfirm();
+      changeEquippedRings(()=>{ ring._disabled=!ring._disabled; }); _closeItemUseConfirm();
       if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
       _syncRewardProductionUi(); updateHUD();
       if(typeof renderHandEditor==='function') renderHandEditor();
     }},
     {label:_uiLabel('「捨てる」ボタン','捨てる'),disabled:locked,onClick:()=>{
-      G.rings[idx]=null; _closeItemUseConfirm();
+      changeEquippedRings(()=>{ G.rings[idx]=null; }); _closeItemUseConfirm();
       if(typeof syncBoardCardPassives==='function') syncBoardCardPassives();
       _syncRewardProductionUi(); updateHUD();
       if(typeof renderHandEditor==='function') renderHandEditor();

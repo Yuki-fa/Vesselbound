@@ -351,7 +351,7 @@ function _takeRingCard(card){
   G.rings=Array.isArray(G.rings)?G.rings:Array(4).fill(null);
   const idx=G.rings.findIndex(r=>!r);
   if(idx<0) return false;
-  G.rings[idx]=clone(card);
+  changeEquippedRings(()=>{ G.rings[idx]=clone(card); });
   if(typeof markCardAcquired==='function') markCardAcquired(card);
   _playRewardAcquireSfx('ring_get.wav');
   return true;
@@ -563,7 +563,7 @@ function _takeRingOffer(offerIdx,targetSlot){
   const slot=targetSlot==null?G.rings.findIndex(r=>!r):targetSlot;
   if(!Number.isInteger(slot)||slot<0||slot>=G.rings.length||G.rings[slot]) return false;
   const board=_mainBoardCards(),entries=selected.map(idx=>({idx,card:board[idx]}));
-  G.rings[slot]=clone(ring);
+  changeEquippedRings(()=>{ G.rings[slot]=clone(ring); });
   selected.forEach(idx=>{ board[idx]=null; });
   G._ringOfferFadeOut={taken:offerIdx,offer:clone(G._ringOffer)};
   G._ringOffer.splice(offerIdx,1);
