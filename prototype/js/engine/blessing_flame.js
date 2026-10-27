@@ -54,6 +54,7 @@ function openBlessingFlame(){
 }
 function blessingFlameSelect(index){
   if(!blessingFlameActive()) return false;
+  if(G._pendingPanelPlacement) return false;
   const visit=_blessingFlameVisit,card=(G.mainBoard||[])[index];
   if(visit.busy||visit.executed||blessingFlameUsed(visit.key)||!blessingFlameCardEligible(card)) return false;
   visit.preview=enhancedPanelCopy(card);
@@ -166,7 +167,7 @@ function blessingFlameMoveAllowed(){
 }
 function blessingFlameWireCard(el,card,index){
   const visit=_blessingFlameVisit;
-  const selecting=!G._pendingItemUse&&!_pendingCardActivation;
+  const selecting=!G._pendingItemUse&&!_pendingCardActivation&&!G._pendingPanelPlacement;
   el.classList.toggle('blessing-flame-unavailable',selecting&&!visit.executed&&!blessingFlameCardEligible(card));
   el.classList.toggle('blessing-flame-selected',selecting&&visit.selected===index&&!visit.executed);
   if(selecting&&visit.selected===index&&!visit.executed){
@@ -183,7 +184,12 @@ function blessingFlameBlockInput(event){
   const target=event.target;
   if(!target.closest('#scr-battle')||target.closest('#battle-options-btn,#options-layer')) return;
   if(_blessingFlameVisit.busy){event.preventDefault();event.stopImmediatePropagation();return;}
-  if(G._pendingItemUse&&event.type==='contextmenu') return; // 共通のアイテム取り消しへ渡す。
+  // デバッグの一覧・廃棄・ボタンは、通常の編成画面と同じ操作へ渡す。
+  if(G._debugMode&&target.closest('#debug-card-palette,.debug-discard-btn,#btn-test-battle,[id^="btn-debug-"]')){
+    if(event.type==='click'||event.type==='dragstart') blessingFlameCancel({keepBoard:true});
+    return;
+  }
+  if(_targetPickingActive()&&event.type==='contextmenu') return; // 共通のアイテム・起動取り消しへ渡す。
   if(event.type==='dragstart'&&blessingFlameMoveAllowed()&&target.closest('#hand-slots')) blessingFlameCancel({keepBoard:true});
   if(['dragstart','dragover','drop'].includes(event.type)&&blessingFlameMoveAllowed()
     &&target.closest('#hand-slots')&&!target.closest('button')) return;

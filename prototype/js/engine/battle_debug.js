@@ -72,6 +72,8 @@ function startTestBattle(){
       ringOfferPhase:!!G._ringOfferPhase,
       boardDiscardCount:G._boardDiscardCount||0,
       rewardStartSnapshot:G._rewardStartSnapshot?copy(G._rewardStartSnapshot):null,
+      blessingFlame:blessingFlameActive()?{visit:copy(_blessingFlameVisit),
+        placementStart:copy(G._placementStart),phaseId:_rewPhaseId}:null,
       spellSlots:copy(G.spellSlots||[]),
       gold:G.gold,
       mana:G.mana,
@@ -81,6 +83,8 @@ function startTestBattle(){
       enemyBlood:G._enemyBlood
     };
   }
+  // 祝福の入力制限を試験戦闘へ持ち込まない。強化・使用済み・配置の控えは帰還時に戻す。
+  if(blessingFlameActive()) blessingFlameClear();
   G._testBattleAbort=false;
   G._testBattleSavedFloor=G.floor;
   document.body.classList.add('test-battle-active');
@@ -188,6 +192,13 @@ async function _exitTestBattle(){
     G._ringOfferPhase=!!returnState.ringOfferPhase;
     G._boardDiscardCount=returnState.boardDiscardCount||0;
     G._rewardStartSnapshot=copy(returnState.rewardStartSnapshot);
+    if(returnState.blessingFlame){
+      _blessingFlameVisit=copy(returnState.blessingFlame.visit);
+      G._isBlessingFlame=true;
+      G._placementStart=copy(returnState.blessingFlame.placementStart);
+      _rewPhaseId=returnState.blessingFlame.phaseId;
+      document.body.classList.add('blessing-flame-active');
+    }
     G.spellSlots=copy(returnState.spellSlots||[]);
     G.gold=returnState.gold; G.mana=returnState.mana;
     G.life=returnState.life; G._waveLife=returnState.waveLife;

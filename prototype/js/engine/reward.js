@@ -1905,7 +1905,7 @@ function _showRewardRingTooltip(e){
     return;
   }
   const title=String(ring.name||'').trim();
-  const desc=String(ring.desc||ring.description||ring.effectText||ring.effect||'').trim();
+  const desc=ringDisplayDesc(ring);
   if(!title&&!desc){
     _hideRewardRingTooltip();
     return;

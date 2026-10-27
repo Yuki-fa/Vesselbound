@@ -9,6 +9,9 @@ const _activationStatHolds = new WeakMap();
 function cardActivationShownStats(card, stats) { return _activationStatHolds.get(card)?.stats || stats; }
 function cardActivationVisitKey() {
   if (G.phase !== 'reward') return '';
+  if (G._isBlessingFlame) return blessingFlameActive() && _blessingFlameVisit.executed && !_blessingFlameVisit.busy
+    ? `blessing:${_blessingFlameVisit.key}` : '';
+  if (G._isRingExchange) return G._ringOfferResolved ? `altar:${G._facilityCacheKey ?? G._wave}` : '';
   if (G._isPeddler) return `peddler:${G._wave}:${G._waveStage}:${Number(G._waveDefeatCount)||0}`;
   if (G._isForge) return `forge:${G._facilityCacheKey ?? G._wave}`;
   if (G._isItemShop) return `items:${G._facilityCacheKey ?? G._wave}`;

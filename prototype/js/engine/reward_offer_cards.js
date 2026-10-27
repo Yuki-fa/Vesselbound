@@ -548,9 +548,8 @@ function _wireRingOfferSelection(div,card,idx){
   if(!_ringOfferSelectionActive()) return false;
   const selected=(G._ringOfferSelectedSlots||[]).includes(idx),allowed=_ringOfferDiscardableCard(card);
   _setPickingCardState(div,allowed,selected);
-  div.draggable=false;
-  div.onclick=e=>{ e.stopPropagation(); if(allowed) _discardBoardCardForRingOffer(idx,card); };
-  return true;
+  // 選択中も通常のドラッグを付ける。移動開始時に供物の選択を外し、別カードの誤取得を防ぐ。
+  return false;
 }
 // クリックも指輪置き場へのドロップもここだけを通す。
 function _takeRingOffer(offerIdx,targetSlot){

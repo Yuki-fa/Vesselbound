@@ -39,7 +39,7 @@ const SaveRun=(()=>{
   const fields={
     player:['gold','life','_waveLife','mainBoard','globalPanels','spellSlots','rings','goldenRingRewards','mapPanelPowers','panelPermanentBuffs','panelColorPermanentBuffs','baseIncome','towerBoons','runLevels','gameSummonBuff','defeatedEnemies','runEffects','runEffectRerollsApplied','activationFormationSeq','ascensionLifeBonus'],
     progress:['floor','_wave','_waveStage','_debugStoryCycle','_waveBattleType','_waveBattleWon','_waveEliteWon','_waveFinalVillage','_waveWithdraw','_waveResumeStage','_waveIsRetry','_waveRetryEnemyKey','_waveDefeatCount','_waveEnemySnapshot','_waveEnemySnapshotAtEnd','_waveEnemySnapshotBlood','_mapBattle','_retryFloor','rewardCharCount','rewardCards','maxRewardCards','_waveRewardCount','_bossJustDefeated','_isBossRewardCycle','_battleBossMult','_isEliteFight','_eliteIdx','_bossSlot','_waveBosses','_arenaActive','_arenaRound','_arenaWins','runStats'],
-    choices:['_shopRerollSeq','panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_blessingFlameUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringOfferSelectedSlots','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_retryRewardCards','_fiveSaints','_peddlerStock'],
+    choices:['_shopRerollSeq','panelSaleStock','_waveShopStock','_waveItemShopStock','_waveForgeOffers','_waveRingExchange','_waveInnUsed','_blessingFlameUsed','_facilityTalkSeen','_arenaChallengeUsed','_arenaEntrySnapshot','_arenaResults','_mapForgeOffers','_ringOffer','_ringOfferUnlocked','_ringOfferResolved','_boardDiscardCount','_ringOfferSelectedSlots','_ringSacrificedCards','_bossRingOfferSeen','_bonusRewardPanels','pendingBattleItems','nextBattleItems','activeBattleItems','_nextRewardUniqueSlot','_libraryLoanCardsState','_libraryLoanInitialCards','_libraryLoanSnapshot','_libraryLoanResetSnapshot','_libraryLoanMode','_rewardStartSnapshot','_ringPhaseStartSnapshot','_placementStart','_placeKeySeq','_retryRewardCards','_fiveSaints','_peddlerStock'],
     place:['_isPeddler','_waveVillage','_isWaveAltar','_mapReturnAfterReward','_facilityCacheKey','_facilityLabel','_isShop','_isItemShop','_isForge','_isTavern','_isVillageMenu','_isLibrary','_isLibraryMenu','_isRingExchange','_ringOfferPhase','_isRewardTown','_freeRewardPanelMode','_rewardOnePickMode','_freeItemPhase','_freeItemUsed']
   };
   const setFields=['_usedNamedElite','_usedNamedRest','_seenRarity3'];
@@ -148,6 +148,11 @@ const SaveRun=(()=>{
     for(const [group,names] of Object.entries(fields)){
       state[group]={};
       for(const name of names) if(G[name]!==undefined) state[group][name]=copy(G[name]);
+    }
+    // 強化後の起動が保存を確定する時は、強化と炎の消費を同じセーブへ入れる。
+    // 画面内の選択・演出は保存せず、現在の訪問中は従来どおり退場時に使用済みを確定する。
+    if(typeof blessingFlameActive==='function'&&blessingFlameActive()&&_blessingFlameVisit.executed){
+      state.choices._blessingFlameUsed={...state.choices._blessingFlameUsed,[_blessingFlameVisit.key]:true};
     }
     state.sets=Object.fromEntries(setFields.map(name=>[name,[...(G[name]||[])]]));
     state.rng={seed:G._runSeed,state:G._runRngState};
@@ -339,6 +344,8 @@ const SaveRun=(()=>{
       if(_ringOfferSelectionActive()) _syncRingOfferSelection();
       else _clearRingOfferSelection();
     }
+    // 古いセーブには配置の控えが無い。供物の互換復元も終えた画面を開始位置として記録する。
+    if(G.phase==='reward'&&!G._placementStart) _capturePlacementStart();
     if(typeof _isCardExchangeShop==='function'&&_isCardExchangeShop()){
       _rewCards=G._isPeddler?_ensureDefeatPeddlerStock():_ensureWaveShopStock();G._pendingPanelPlacement=null;
       _storeRewardStartSnapshot();

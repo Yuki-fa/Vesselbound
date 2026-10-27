@@ -32,10 +32,11 @@ function _syncRewardProductionItems(){
     slot.classList.toggle('activation-target-disabled',!!item&&picking&&!source
       &&!(typeof _cardActivationTargetsItem==='function'&&_cardActivationTargetsItem()));
     slot.classList.remove('rarity-1','rarity-2','rarity-3','rarity-4','rarity-5');
-    const preview=item?[item.name,_previewRarityLine(item),item.desc||''].filter(Boolean).join('\n'):'';
+    const desc=item?_plainEffectTextForPreview(item):'';
+    const preview=item?[item.name,_previewRarityLine(item),desc].filter(Boolean).join('\n'):'';
     if(preview){
       slot.setAttribute('data-preview',preview);
-      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(item,item.desc||''):'';
+      const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(item,desc):'';
       if(keywordPreview) slot.setAttribute('data-keyword-preview',keywordPreview);
       else slot.removeAttribute('data-keyword-preview');
       const rarity=Math.max(1,Math.min(5,parseInt(item.rarity,10)||1));
@@ -442,8 +443,9 @@ function _pickingTargetElement(at){
     :document.querySelector(`#reward-offer-row [data-merge-rew-idx="${at.index}"]`);
 }
 function _replacePickingCard(at,next){
-  // 品の値段・無料取得の印や配置の同一性は、変身前の場所から引き継ぐ。
-  for(const key of ['_activationReady','_battleEndCount','_placeKey','_buyPrice','_shopBuy','_isOriginalReward',
+  // 品の値段・無料取得の印は変身前から引き継ぐ。別のカードへの変身では配置の同一性を失う。
+  delete next._placeKey;
+  for(const key of ['_activationReady','_battleEndCount','_buyPrice','_shopBuy','_isOriginalReward',
     '_rewardReturnCard','_rewardReturnIdx','_rewardReturnPhaseId','_temporaryRewardAreaCard','_itemBuffed',
     '_rewardGrowthApplied','_goldenRingViewed']){
     if(Object.prototype.hasOwnProperty.call(at.card,key)) next[key]=at.card[key];
@@ -830,7 +832,7 @@ function _openItemUseConfirm(idx,anchor){
     &&tip.dataset.rewardAnchorKind==='item'
     &&String(tip.dataset.rewardSlotIdx)===String(idx)) return;
   const useUnavailable=!_canUseItemNow(card);
-  _openRewardActionTooltip(anchor,card.name||'アイテム',card.desc||'',[
+  _openRewardActionTooltip(anchor,card.name||'アイテム',_plainEffectTextForPreview(card),[
     {label:_uiLabel('「使う」ボタン','使う'),disabled:useUnavailable,onClick:()=>_useImmediateItemWithFx(idx,card)},
     {label:_uiLabel('「捨てる」ボタン','捨てる'),onClick:()=>{
       const current=_ensureItemSlots()[idx];

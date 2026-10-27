@@ -222,7 +222,10 @@ async function testRunLevelDisplay(api){
         assert.equal(_rawSubstitutedDesc(card),shieldText(raw(card)),card.name);
         const a=mkCardEl(card,0,'reward'),b=mk(card,0,'reward');assert.equal(a.innerHTML,shieldText(b.innerHTML),card.name);
         // ホバーの属性は元の本文のまま持ち、描く時（_formatPreviewHtml）に「結界」へ直す。
-        assert.equal(shieldText(a.getAttribute('data-preview')),shieldText(b.getAttribute('data-preview')),card.name);
+        const beforePreview=shieldText(b.getAttribute('data-preview'));
+        // fixes-1027d：アイテムの召喚説明もキャラクターと同じ注釈を表示する。
+        const expectedPreview=ITEM_POOL.includes(card)&&/召喚/.test(card.desc||'')?_annotateSummonNames(beforePreview,card):beforePreview;
+        assert.equal(shieldText(a.getAttribute('data-preview')),expectedPreview,card.name);
         assert.equal(_collectionDescriptionHtml(card),shieldText(collection(card)),card.name);
       }
       const oldBattle=execFileSync('git',['show','647d175:prototype/js/engine/battle.js'],{encoding:'utf8'});
@@ -275,6 +278,7 @@ async function testRunLevelDisplay(api){
     fresh({atk:3,hp:5});
     await check('保存→ロードと終了画面：魔導板・報酬・商品は素のまま、描き直しでも二重に掛けない',()=>{
       const card=make('C058');G.mainBoard[1]=card;_rewCards=[make('E008')];
+      _capturePlacementStart();
       const stock=clone(_ensureWaveShopStock());
       for(const c of stock.filter(Boolean)){assert.equal(c._runLevelsApplied,undefined);mkCardEl(c,0,'shop');}
       const raw=clone(G.mainBoard),offers=clone(_rewCards);const before=metrics(board());detail(card);
