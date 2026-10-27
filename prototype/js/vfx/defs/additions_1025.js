@@ -16109,7 +16109,7 @@ VbFxDefs.register({
     },
     {
       "name": "first-strike",
-      "label": "先制：先に斬りつける · K006",
+      "label": "先制：先に斬りつける",
       "ms": 560,
       "color": "#ffe9a8",
       "light": "#fffaf0",
@@ -16128,7 +16128,6 @@ VbFxDefs.register({
         "cueMs": 90
       },
       "composites": [],
-      "sourceCode": "K006",
       "layers": [
         {
           "type": "beam",
