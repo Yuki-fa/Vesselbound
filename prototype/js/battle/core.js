@@ -1201,7 +1201,9 @@ function coreSacrificeCount(units) { return coreSacrificeUnits(units).length; }
 
 // 封印Xの解放に必要な血が揃っているか。解放しても血は消費しない。
 function coreSealRelease(unit, allUnits, blood) {
-  const required = Math.max(1, Number(coreSealValue(unit) || unit._sealValue) || 1);
+  // 死亡効果で再封印された時は、その時点で確定した値を使う。
+  // 元の封印キーワードを先に読むと、一時の眠りで得た値が無視される。
+  const required = Math.max(1, Number(unit && unit._sealValue != null ? unit._sealValue : coreSealValue(unit)) || 1);
   if (!Number.isFinite(required)) return { ready: false, required, sacrificed: [] };
   const available = Math.max(0, Number(blood && blood[unit.side]) || 0);
   if (available < required) return { ready: false, required, sacrificed: [], blood: available };
@@ -5315,17 +5317,21 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   if (!unit || unit._fled || unit._coreDeathEffectsTriggered) return;
   unit._coreDeathEffectsTriggered = true;
   if (coreUnitIsSilenced(unit)) return;
-  // 死亡：このキャラクターは封印Xを得て封印される。Xは現在の血のN倍に等しい（ナイトメア）。
-  // **倍率は本文から読む**（合体後は2倍）。
-  const nightmareSeal = coreUnitEffectText(unit)
-    .match(/封印Xを得て封印される。Xは現在の血の(\d+)倍に等しい/);
-  if (nightmareSeal) {
+  // 死亡：このキャラクターは封印Xを得て封印される（一時の眠り等）。
+  // 付与された死亡効果も、本体と同じ封印経路で読む。
+  const nightmareSeals = coreTriggerEffectEntries(unit, '死亡',
+    /封印Xを得て封印される。Xは現在の血の(\d+)倍に等しい/);
+  let deathSealValue = 0;
+  for (const nightmareSeal of nightmareSeals) {
     const blood = Math.max(0, Number(state.blood && state.blood[unit.side]) || 0);
     const scale = Math.max(1, Number(nightmareSeal && nightmareSeal[1]) || 2);
     unit.hp = Math.max(1, Number(unit.maxHp) || 1);
     unit._sealed = true;
-    unit._sealValue = blood * scale;
-    emit({ type: 'seal_apply', side: unit.side, unitId: unit.id, value: unit._sealValue, sourceId: unit.id, fromDeath: true });
+    // 通常・強化などを複数接続した時も、各カードが与える封印を合計する。
+    deathSealValue += blood * scale;
+    unit._sealValue = deathSealValue;
+    emit({ type: 'seal_apply', side: unit.side, unitId: unit.id, value: unit._sealValue,
+      sourceId: unit.id, fromDeath: true, hp: unit.hp, maxHp: unit.maxHp, atk: unit.atk });
   }
   const allies = (state.units[unit.side] || []).filter(Boolean);
   const foes = (state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean);
@@ -5345,8 +5351,8 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     coreGainTriggerResource(unit, state, emit, '死亡', 'mana', unit.manaOnDeath, 'manaOnDeath_repeat', extraTriggerCount, rng, applyHit);
     coreGainTriggerResource(unit, state, emit, '死亡', 'gold', unit.goldOnDeath, 'goldOnDeath_repeat', extraTriggerCount, rng, applyHit);
   }
-  const addStats = (target, atk, hp, reason) => {
-    if (!target || target.hp <= 0 || coreIsSealed(target)) return;
+  const addStats = (target, atk, hp, reason, allowSealed) => {
+    if (!target || target.hp <= 0 || (!allowSealed && coreIsSealed(target))) return;
     // 2026-10-12: 死亡効果の修正にも、付与元の熟練・紫修正を同じ規則で適用する。
     atk = coreStatBonus(target, atk, unit); hp = coreStatBonus(target, hp, unit);
     target.atk = Math.max(0, target.atk + atk);
@@ -5611,11 +5617,15 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       for (const target of coreRandomTargets(unit, rng, allies.filter(x => x.hp > 0 && !coreIsSealed(x)))) { addStats(target, Number(m[1]), Number(m[2]), 'death_random_ally_shield_buff'); coreGrantShield(target, emit, { sourceId: unit.id }); }
     }
   }
-  for (const m of coreTriggerEffectEntries(unit, '死亡', /^このキャラクターのATKとHP(の半分)?を、ランダムな青の味方に与える/)) {
+  for (const m of coreTriggerEffectEntries(unit, '死亡', /^このキャラクターのATKとHP(の半分)?を、ランダムな(青の|封印されている)味方に与える/)) {
     const divisor = m[1] ? 2 : 1;
     const atk = Math.floor(Math.max(0, Number(unit.atk) || 0) / divisor), hp = Math.floor(Math.max(0, Number(unit.maxHp) || 0) / divisor);
+    const sealed = m[2] === '封印されている';
     for (let i = 0; i < repeats; i++) {
-      for (const target of coreRandomTargets(unit, rng, allies.filter(x => x.hp > 0 && !coreIsSealed(x) && x.color === '青'))) addStats(target, atk, hp, 'death_blue_stat_transfer');
+      const candidates = allies.filter(x => x.hp > 0 && !x._fled
+        && (sealed ? coreIsSealed(x) : !coreIsSealed(x) && x.color === '青'));
+      for (const target of coreRandomTargets(unit, rng, candidates)) addStats(target, atk, hp,
+        sealed ? 'death_sealed_stat_transfer' : 'death_blue_stat_transfer', sealed);
     }
   }
   for (let i = 0; i < repeats; i++) coreApplyTimedSummonBuff(unit, '死亡', state, emit, rng, applyHit);
@@ -6367,7 +6377,7 @@ function coreTriggerBoardCardBattleEnd(state, emit) {
 // 表示の据え置き（_display*）を消すと、開戦のマナ効果（炎の矢）の演出開始時にHP表示が最終値へ飛び、
 // 死亡演出を始めた印（_deathFx*）を戻すと、倒れた体が盤面に描き直されていた（利用者報告：ボス戦）。
 const CORE_PRESENTATION_ONLY_KEYS = new Set(['_corePendingSummon',
-  '_displayAtk', '_displayHp', '_displayMaxHp', '_displayShield', '_deathFxReady', '_deathFxStarted']);
+  '_displayAtk', '_displayHp', '_displayMaxHp', '_displayShield', '_deathFxReady', '_deathFxStarted', '_sealShownPending']);
 
 function coreSnapshotDeferredState(state) {
   const units = {};
@@ -7545,8 +7555,10 @@ function runBattleCore(state, rng, opts) {
       unit._sealed = false;
       delete unit._sealValue;
       delete unit._sealInfinity;
-      // ナイトメア等の死亡効果は、解放後の次の死亡で再び発動できる。
+      // 再封印から解放された体は、次の死亡でも血・死亡観測を一度ずつ発動する。
+      delete unit._coreDeathTriggered;
       delete unit._coreDeathEffectsTriggered;
+      delete unit._coreDeathObserved;
       emit({ type: 'seal_release', side: unit.side, unitId: unit.id, required: rel.required });
       // 秘紋の指輪：常時：味方の解放効果は1回追加で発動する。
       // PvE（battle.js の _releaseRepeatCount）は数えていたがコアが数えておらず、

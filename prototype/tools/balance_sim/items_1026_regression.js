@@ -68,11 +68,11 @@ function element(tag) {
     assert.ok(!warnings.some(w => /itemEffectKey.*実装が無い/.test(w)), warnings.join('\n'));
     for (const no of ['R024','R030','R037']) assert.equal(ring(no).desc, sheet.sheetRows('ring').find(r => r['No.'] === no)['効果']);
   });
-  await check('全アイテムが報酬・道具屋・行商人のシート指定どおり抽選に入る（Xは引いたレアリティ）', () => {
+  await check('全アイテムが報酬・道具屋のシート指定どおり抽選に入る（行商人列は廃止、Xは引いたレアリティ）', () => {
     initRun(); G._wave = 5;
     const pick = _rewardWeightedPick;
     try {
-      for (const row of sheet.sheetRows('item')) for (const [column, opts] of [['報酬',{}],['ショップ',{forShop:true}],['行商人',{forPeddler:true}]]) {
+      for (const row of sheet.sheetRows('item')) for (const [column, opts] of [['報酬',{}],['ショップ',{forShop:true}]]) {
         const definition = itemDef(row['No.']); let candidate;
         _rewardWeightedPick = pool => { candidate = pool.find(p => p.id === definition.id && (!p._xPick || p._xPick === 4)); return candidate || null; };
         const drawn = drawItems(1, 5, opts);

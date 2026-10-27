@@ -350,6 +350,9 @@ function _assignSheetArtCode(obj, row, fallbackPrefix, isEnemy) {
   obj.no = code;
   obj.imageNo = code;
   obj.artCode = code;
+  // 1027に入手可能になった4枚は番号の絵が未配置。番号と効果は保ち、既存の仮絵を表示する。
+  // 対応するjpgを追加したら、この一覧からその番号を外す。
+  if (['E066','E073','E076','E077'].includes(code)) obj.art = 'assets/art/enchantments/E0XX.jpg';
 }
 
 function _truthySheet(v) {
@@ -1374,8 +1377,6 @@ async function loadGameData() {
               if(_truthySheet(row['報酬'])) delete item._rewardExcluded;
               else item._rewardExcluded=true;
             }
-            // 「行商人」列（2026-10-10 追加）：true のものだけ行商人（初めての敗北のイベント）が売る。
-            item._peddlerAvailable=Object.prototype.hasOwnProperty.call(row,'行商人')&&_truthySheet(row['行商人']);
           });
       });
       // ゲーム仕様では黄金の巻物は所持金を2倍にする（シート側の旧1.5倍表記を補正）。

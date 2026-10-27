@@ -7,7 +7,8 @@ const { execFileSync } = require('node:child_process');
 const A = require('./card_text_audit_1026');
 const { pipelines } = require('./rules_1026_harness');
 const BASELINE = 'de191a0c8ad21080fa7de184db15c94c3203a63b';
-const REVISED = new Set(['C034', 'C100', 'C115', 'E046', 'E065', 'E066']);
+// 1027: 新たに実装trueになった2枚はui_1027bで通常・強化／両陣営と保存再生を検査する。
+const REVISED = new Set(['C034', 'C100', 'C115', 'E046', 'E065', 'E066', 'E076', 'E077']);
 let passed = 0;
 const check = async (label, fn) => { await fn(); passed++; console.log('OK ' + label); };
 const entry = no => A.catalog().find(c => c.no === no);

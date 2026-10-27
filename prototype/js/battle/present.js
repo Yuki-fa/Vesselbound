@@ -2359,6 +2359,7 @@ function presentAdvanceShown(unit, next) {
 // 表示値の据え置きをやめて実体へ戻す（再生の終わりで呼ぶ）。
 function presentReleaseShown(unit) {
   if (!unit) return;
+  delete unit._sealShownPending;
   delete unit._displayAtk;
   delete unit._displayHp;
   delete unit._displayMaxHp;

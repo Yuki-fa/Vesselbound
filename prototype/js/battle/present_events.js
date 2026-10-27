@@ -1584,19 +1584,38 @@ function presentTransformEvent(ev, api) {
   return true;
 }
 
+// ── 封印の付与 ────────────────────────────────
+// PvEの体はコアの最終状態なので、値の書き戻しはオンラインのアダプタだけが行う。
+function presentSealApplyEvent(ev, api) {
+  if (!ev || !api) return false;
+  const unit = api.findUnit(ev.side, ev.unitId);
+  if (!unit) return false;
+  if (typeof api.applyState === 'function') api.applyState(unit, ev);
+  unit._sealShownPending = true;
+  if (ev.fromDeath) {
+    // 死亡表示のHP0を、コアが確定した「封印中の体」のHPへ進める。
+    if (typeof presentAdvanceShown === 'function') presentAdvanceShown(unit, ev);
+    delete unit._deathFxStarted;
+    delete unit._deathFxReady;
+    delete unit._deathFxDone;
+  }
+  if (typeof api.render === 'function') api.render();
+  return true;
+}
+
 // ── 封印の解放 ────────────────────────────────
-// api: findUnit(side,id) / compact()
+// api: findUnit(side,id) / applyState(unit,ev)（表示用の体だけ） / compact()
 async function presentSealReleaseEvent(ev, api) {
   if (!ev || !api) return false;
   const unit = api.findUnit(ev.side, ev.unitId);
   if (!unit) return false;
-  unit._sealed = false;
-  delete unit._sealValue;
+  if (typeof api.applyState === 'function') api.applyState(unit, ev);
   // **ここで初めて封印の見た目を解く。**
   // コアは計算の時点で `_sealed` を落とすが、演出はその後を追って再生される。
   // 暗転を `_sealed` だけで決めていたため、画面ではまだ味方が生きているのに
   // 封印キャラだけ先に明るくなっていた。印は再生前に立てておく（battle_events.js）。
-  delete unit._sealShownPending;
+  // 後続の再封印まで計算済みでも、今は解放された姿を見せる。コアの値は戻さない。
+  unit._sealShownPending = false;
   if (typeof playSealReleaseVfx === 'function') {
     await playSealReleaseVfx(unit, ev.side === 'p2' ? 'enemy' : 'ally');
   }
@@ -1715,6 +1734,7 @@ if (typeof window !== 'undefined') {
   window.presentStatChangeEvent = presentStatChangeEvent;
   window.presentRunEffectEvent = presentRunEffectEvent;
   window.presentSealReleaseEvent = presentSealReleaseEvent;
+  window.presentSealApplyEvent = presentSealApplyEvent;
   window.presentTransformEvent = presentTransformEvent;
   window.presentDeathEvent = presentDeathEvent;
   window.presentDeathBatch = presentDeathBatch;
@@ -1743,7 +1763,7 @@ if (typeof module !== 'undefined' && module.exports) {
     presentBeginActionBannerEvent, presentEndActionBannerEvent,
     presentDamageEvent, presentDamageSfxBatch, presentShieldLostEvent, presentAttackContactHits, presentFledEvent,
     presentKeywordEffectEvent, presentInstantDeathEvent,
-    presentStatChangeEvent, presentRunEffectEvent, presentSealReleaseEvent, presentTransformEvent,
+    presentStatChangeEvent, presentRunEffectEvent, presentSealApplyEvent, presentSealReleaseEvent, presentTransformEvent,
     presentDeathEvent, presentDeathBatch, presentOutcomeEventLines, presentAttackContactOutcomeLines,
     presentPlayerDefeatLines, presentManaThresholdEvent, presentSummonPlacement, presentInsertSummonedUnit, presentReviveEvent,
     presentEffectFlashEvent, presentUnitStolenEvent, presentFledBatch, presentQueueEffectFlash, presentFlushEffectFlashes, presentResetEffectFlashes,

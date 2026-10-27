@@ -292,7 +292,12 @@ async function main() {
     const output=execFileSync(process.execPath,['-e',script,BASELINE],{
       cwd:require('node:path').resolve(__dirname,'../..'),encoding:'utf8',timeout:20000,maxBuffer:4e6});
     const previous=JSON.parse(output.trim().split('\n').at(-1));
-    const unchanged=list=>copy(list.filter(card=>!REVISED.has(card.no)));
+    const pendingArt=new Set(['E066','E073','E076','E077']);
+    for(const card of PANEL_POOL.filter(c=>pendingArt.has(c.no)))assert.equal(card.art,'assets/art/enchantments/E0XX.jpg');
+    // ui-1027b: 未配置の絵は既存の仮絵へ接続した。それ以外の入力値は全て比較する。
+    const unchanged=list=>copy(list.filter(card=>!REVISED.has(card.no)).map(card=>{
+      const out={...card};if(pendingArt.has(card.no))delete out.art;return out;
+    }));
     assert.deepEqual(unchanged(PANEL_POOL),unchanged(previous));
   });
   await check('対象外の通常・強化カード、敵、指輪は開始時mainと結果・全イベント・次の乱数まで完全一致', () => {

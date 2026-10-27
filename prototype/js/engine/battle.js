@@ -1014,11 +1014,11 @@ async function _resolveSeals(){
       // 血は解放条件の判定にのみ使い、解放時には消費しない。
       const sacrificed=[];
       const isEnemySide=(G.enemies||[]).includes(unit);
+      const release=()=>{ unit._sealed=false; delete unit._sealValue; };
       if(typeof playSealReleaseVfx==='function'){
-        await playSealReleaseVfx(unit,isEnemySide?'enemy':'ally');
+        await playSealReleaseVfx(unit,isEnemySide?'enemy':'ally',release);
       } else {
-        unit._sealed=false;
-        delete unit._sealValue;
+        release();
       }
       delete unit._sealReady;
       delete unit._coreDeathEffectsTriggered;

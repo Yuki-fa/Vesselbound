@@ -24,6 +24,10 @@ function _syncRewardProductionItems(){
     slot._rewardItem=item;
     const picking=_targetPickingActive();
     const source=!!(G._pendingItemUse&&G._pendingItemUse.slotIdx===idx);
+    // クリックの共通ガードにも、マモンの対象であることを渡す。
+    // 見た目のpointer-eventsだけを有効にしてもdocumentのcaptureで止まる。
+    slot.classList.toggle('item-target-ok',!!item&&picking
+      &&typeof _cardActivationTargetsItem==='function'&&_cardActivationTargetsItem());
     slot.classList.toggle('picking-source',source);
     slot.classList.toggle('activation-target-disabled',!!item&&picking&&!source
       &&!(typeof _cardActivationTargetsItem==='function'&&_cardActivationTargetsItem()));
@@ -520,6 +524,13 @@ function _cancelTargetPicking(){
   if(G&&G._pendingItemUse) _cancelPendingItemUse();
   else if(typeof cancelCardActivation==='function') cancelCardActivation();
 }
+function _targetPickingInputAllowed(target){
+  if(!target?.closest) return false;
+  // 説明枠そのものは許可しても、その中の「使う」「捨てる」等は別操作にしない。
+  const button=target.closest('button,[role="button"],input[type="button"],input[type="submit"],.reward-action-btn');
+  if(button&&!button.matches('.item-target-ok,.picking-source,.picking-first')) return false;
+  return !!target.closest('.item-target-ok,.picking-source,.picking-first,#kw-tooltip,#keyword-tooltip');
+}
 
 // 右クリック／Escでも対象選択を中断できるようにする（1度だけ登録）。
 if(!window._itemUseCancelBound){
@@ -541,11 +552,11 @@ if(!window._itemUseCancelBound){
       return;
     }
     if(e.button!==0) return;
-    if(e.target&&e.target.closest&&e.target.closest('.item-target-ok,.picking-source,.picking-first,#kw-tooltip,#keyword-tooltip')) return;
+    if(_targetPickingInputAllowed(e.target)) return;
     e.preventDefault(); e.stopImmediatePropagation();
   },true);
   document.addEventListener('click',e=>{
-    if(!_targetPickingActive()||e.target?.closest?.('.item-target-ok,.picking-source,.picking-first,#kw-tooltip,#keyword-tooltip')) return;
+    if(!_targetPickingActive()||_targetPickingInputAllowed(e.target)) return;
     e.preventDefault(); e.stopImmediatePropagation();
   },true);
   document.addEventListener('keydown',e=>{

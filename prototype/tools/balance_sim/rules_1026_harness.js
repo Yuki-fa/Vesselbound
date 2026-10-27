@@ -86,7 +86,7 @@ function unchangedMain() {
     return copy({result,events,finalState:api.battleCoreFinalState(state),nextRandom:rng.next()}); };
   for (const row of [...sheet.sheetRows('card'),...sheet.sheetRows('enchant')]) {
     // 1027：献身のATK付与と呪いの印はsheet_1027／本文監査で現行の効果を検査する。
-    if (['C004','E065','E066'].includes(row['No.']) || REVISED_ENCHANTS.has(row['No.']) || revised1027.has(row['No.'])) continue;
+    if (['C004','E065','E066','E076','E077'].includes(row['No.']) || REVISED_ENCHANTS.has(row['No.']) || revised1027.has(row['No.'])) continue;
     const def = PANEL_POOL.find(c=>c.no===row['No.']); if (!def) continue;
     for (const enhanced of [false,true]) {
       if (row['No.'] === 'C016' && enhanced) continue; // effects-1026c: 本文どおり2波へ改訂
