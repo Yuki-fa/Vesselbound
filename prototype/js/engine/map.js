@@ -155,8 +155,8 @@ function ringExchangeDepartureBlocked(){
   if(live?G._ringOfferResolved:cached&&cached.resolved) return false;
   const paid=Number(live?G._boardDiscardCount:cached&&cached.discardCount)||0;
   if(paid>=SHOP_EXCHANGE_TRIAL.ringCardCost) return true;
-  const available=ringExchangeSacrificeCapacity();
-  return available+paid>=SHOP_EXCHANGE_TRIAL.ringCardCost;
+  // 選択中もカードは魔導板に残るので、支払い済みとして二重に数えない。
+  return ringExchangeSacrificeCapacity()>=SHOP_EXCHANGE_TRIAL.ringCardCost;
 }
 function guardRingExchangeDeparture(){
   if(!ringExchangeDepartureBlocked()) return true;
@@ -2685,8 +2685,10 @@ function openMapRingExchange(){
     G._ringOfferFadeOut=null;
     G._boardDiscardCount=0;
   }
-  // 途中離脱で回収する対象は「この祭壇で捧げた分」だけ。持ち越さない。
+  // 祭壇へ入り直した時は未選択。旧方式の供物控えも持ち越さない。
   G._ringSacrificedCards=[];
+  G._ringOfferSelectedSlots=[];
+  if(!G._ringOfferResolved){ G._boardDiscardCount=0; G._ringOfferUnlocked=false; }
   G._ringOfferPhase=true;
   if(typeof _storeRewardStartSnapshot==='function') _storeRewardStartSnapshot();
   renderRewCards();

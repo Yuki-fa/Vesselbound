@@ -203,15 +203,20 @@ function mana(f, text, amount = 4) {
     assert.equal(_keywordDescLine('結界'), '結界：このキャラクターはダメージを一度だけ無効化する。');
     G.phase = 'reward';
   });
-  check('盾の巻物の永久付与も保存するキーワードを1つにまとめる', () => {
+  check('結界の巻物は既所持なら対象外、未所持に1つだけ永久付与する（1027）', () => {
     initState(); G.mainBoard.fill(null);
     const card = makePanel(PANEL_POOL.find(c => c.no === 'C082').id);
     card.keywords = ['先制', '結界3', '結界2']; G.mainBoard[1] = card;
-    for (let i = 0; i < 2; i++) {
-      G._pendingItemUse = { key: 'shield_scroll', slotIdx: 0 };
-      assert.equal(_handlePendingItemBoardTarget(1), true);
-      assert.deepEqual(card.keywords, ['先制', '結界']);
-    }
+    const scroll = { key: 'shield_scroll', slotIdx: 0 };
+    assert.equal(_isItemUseTargetSlot(1, scroll), false);
+    G._pendingItemUse = scroll;
+    assert.equal(_handlePendingItemBoardTarget(1), true);
+    assert.deepEqual(card.keywords, ['先制', '結界3', '結界2']);
+    card.keywords = ['先制'];
+    assert.equal(_isItemUseTargetSlot(1, scroll), true);
+    assert.equal(_handlePendingItemBoardTarget(1), true);
+    assert.deepEqual(card.keywords, ['先制', '結界']);
+    assert.equal(_isItemUseTargetSlot(1, scroll), false);
   });
   check('状態表示：旧い結界値でもshield-stateへ渡す重ね数は常に1', () => {
     assert.equal(_battleFxValues(plain('表示', { shield: 9 })).shield, 1);

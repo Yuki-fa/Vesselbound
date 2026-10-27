@@ -392,6 +392,22 @@ function _cardHasKeyword(card,kw){
     ...(Array.isArray(card&&card.adjacentKeywords)?card.adjacentKeywords:[]),
   ].some(k=>String(k||'').trim()===kw);
 }
+// 所持キーワードは戦闘と同じ接続入力・本文をコアへ渡して調べる。カード本体へは書き戻さない。
+function _itemTargetHasKeyword(at,keyword){
+  if(coreShieldValueFromKeyword(keyword)) keyword='結界';
+  const card=at.card,owner=at.zone==='board'?_getPartyBoardUnit():null;
+  const enh=owner?_collectAdjacentEnhancements(owner,at.index):null;
+  const unit={...card,keywords:[...(card.keywords||[]),...(card.adjacentKeywords||[]),...(enh?.keywords||[])],
+    _adjacentPanelAbilities:[...(card._adjacentPanelAbilities||[]),...(enh?.abilities||[])],
+    _adjacentPanelEffectTexts:[...(card._adjacentPanelEffectTexts||[]),...(enh?.effectTexts||[])]};
+  if(coreUnitHasKeyword(unit,keyword)) return true;
+  // 上位の三段攻撃／全体攻撃により無効になる付与も、コアの正規化で判定する。
+  if(!coreUnitKeywords({...unit,keywords:[...unit.keywords,keyword]}).includes(keyword)) return true;
+  // コアの本文推定に含まれない語も、自身が持つと明記されたもの・単独のキーワード行は所持扱い。
+  const escaped=keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  return new RegExp(`(?:このキャラクターは|(?:^|[\\n：:])\\s*)${escaped}(?:を(?:持つ|得る)|[。\\s]|$)`)
+    .test(coreUnitEffectText(unit));
+}
 // 対象として選べるスロットか。**選べないカードは暗くして押しても何も起きない。**
 // エンチャントは「キャラクターを選ぶアイテム」の対象にならないので、
 // _isBoardCharacterCard() で一律に落とす（個別のアイテムごとに書かない）。
@@ -442,9 +458,7 @@ function _wireTargetPickingCard(element,zone,index,card){
   const selected=!!(first&&first.zone===zone&&first.index===index&&first.card===card);
   const allowed=source||selected||(item?_isItemUseTarget(at):_cardActivationTargetable(at));
   element.classList.toggle('picking-source',source);
-  element.classList.toggle('picking-first',selected);
-  element.classList.toggle('item-target-ok',allowed);
-  element.classList.toggle('item-target-disabled',!allowed);
+  _setPickingCardState(element,allowed,selected);
   element.classList.toggle('card-activation-target',!!activation&&allowed&&!source);
   element.draggable=false;
   element.onclick=e=>{
@@ -456,6 +470,13 @@ function _wireTargetPickingCard(element,zone,index,card){
   };
   return true;
 }
+function _setPickingCardState(element,allowed,selected){
+  element.classList.toggle('picking-first',selected);
+  element.classList.toggle('item-target-ok',allowed);
+  element.classList.toggle('item-target-disabled',!allowed);
+  // 出撃可否による暗転は対象選びには使わない。HP0・通常マス上・刻印付きでも効果の対象にはできる。
+  if(allowed) element.classList.remove('invalid-battle-position','board-hp-zero');
+}
 function _isItemUseTarget(at,pending=G._pendingItemUse){
   if(!pending) return true;
   const card=at&&at.card;
@@ -464,11 +485,13 @@ function _isItemUseTarget(at,pending=G._pendingItemUse){
   const key=pending.key;
   if(!_isBoardCharacterCard(card)) return false;
   // 付与系は**既に同じキーワードを持つキャラクターを対象にできない**（無駄になるため）。
-  if(key==='inspire_flag'&&_cardHasKeyword(card,'根性')) return false;
-  if(key==='vision_scroll'&&_cardHasKeyword(card,'復活')) return false;
-  if(key==='keyword_scroll'){
-    const keyword=_itemGrantedKeyword(pending.card);
-    return !!keyword&&(/\d+$/.test(keyword)||!_cardHasKeyword(card,keyword));
+  if(['inspire_flag','vision_scroll','shield_scroll','keyword_scroll'].includes(key)){
+    const keyword=_itemGrantedKeyword(pending.card)||({inspire_flag:'根性',vision_scroll:'復活',shield_scroll:'結界'})[key];
+    if(!keyword) return false;
+    const counted=/^(\D+?)(\d+)$/.exec(keyword);
+    const additive=counted&&!coreShieldValueFromKeyword(keyword)
+      &&coreKeywordSum({keywords:[keyword]},counted[1],true)>0;
+    return !!additive||!_itemTargetHasKeyword(at,keyword);
   }
   if(key==='bond_scroll'){
     return (Number(card.directionCount)||0)<4 && ['up','right','down','left'].some(direction=>!(card.directions||[]).includes(direction));
@@ -560,6 +583,7 @@ function _beginBoardItemUse(idx,card){
   if(!card||card._implemented===false||card._noItemEffectImpl||!panelMergeContentAvailable(card)) return false;
   if(typeof _pendingCardActivation!=='undefined') _pendingCardActivation=null;
   if(typeof blessingFlameCancel==='function') blessingFlameCancel();
+  if(_ringOfferSelectionActive()) _clearRingOfferSelection();
   G._pendingItemUse={slotIdx:idx,key:_itemEffectKey(card),card:clone(card)};
   _refreshTargetPicking();
 }
@@ -677,7 +701,13 @@ function _playItemUseVfx(key,slotIdx,itemCard,options){
 }
 // 対象を選ばないアイテム（黄金の巻物・次の戦闘で効く巻物）は使った瞬間にアイテムの枠から、ポータルは画面全体に演出を出す（2026-10-26 利用者指定）。
 // 対象を選ぶアイテムは、対象を選んだ時に _playItemUseVfx が出す。
-function _useImmediateItemWithFx(idx,card){
+function _useImmediateItemWithFx(idx,card,confirmed=false){
+  if(!confirmed&&_itemEffectKey(card)==='portal_scroll'&&_hasUnclaimedBattleReward()){
+    _confirmUnclaimedBattleReward(()=>{
+      if(_ensureItemSlots()[idx]===card) _useImmediateItemWithFx(idx,card,true);
+    });
+    return false;
+  }
   const def=typeof ITEM_POOL!=='undefined'?ITEM_POOL.find(i=>i.itemEffectKey===_itemEffectKey(card)):null;
   const no=def&&def.no!=null?'I'+String(def.no).padStart(3,'0'):'';
   const slot=document.querySelectorAll('.reward-prod-item .reward-prod-slots i')[idx];
