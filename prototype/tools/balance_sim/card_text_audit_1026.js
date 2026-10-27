@@ -185,7 +185,23 @@ function exercise(entry, form, sentence, trigger) {
   if (trigger !== '常時') {
     if (trigger === '解放' && /接続しているエンチャントの数/.test(body))
       u.boardCards.push(...[0, 1].map(i => ({ name: '接続検査' + i, category: 'エンチャント' })));
-    if ((m = body.match(/^(\d+)(マナ|ゴールド)を得る/))) {
+    if ((m = body.match(/^このキャラクターのATKとHP(の半分)?を、ランダムな封印されている味方に与える/))) {
+      Object.assign(own[1], { keywords: ['封印999'], _sealed: true, _sealValue: 999 });
+      const before = [own[1].atk, own[1].hp, own[1].maxHp], divisor = m[1] ? 2 : 1;
+      run();
+      const atk = Math.floor(17 / divisor), hp = Math.floor(80 / divisor);
+      equalStats(h, expectedStats([own[1]], atk, hp));
+      assert.deepEqual([own[1].atk, own[1].hp, own[1].maxHp], [before[0] + atk, before[1] + hp, before[2] + hp]);
+      assert.equal(own[1]._sealed, true, '殉教は封印自体を解除しない');
+      label = '実際に死亡させ、封印中の味方だけへATKと最大HPの通常は半分・強化は全量を与える';
+    } else if ((m = body.match(/^このキャラクターは封印Xを得て封印される。Xは現在の血の(\d+)倍に等しい/))) {
+      run(); const seal = bySource(h, 'seal_apply');
+      assert.equal(seal.length, 1); assert.equal(seal[0].value, state.blood.p1 * Number(m[1]));
+      assert.equal(u._sealed, true); assert.equal(u.hp, u.maxHp);
+      assert.equal(coreSealRelease(u, own, { p1: seal[0].value - 1 }).ready, false);
+      assert.equal(coreSealRelease(u, own, { p1: seal[0].value }).ready, true);
+      label = '実際の死亡による血の加算後に再封印し、本文の倍率・生存状態・解放に必要な血を検査';
+    } else if ((m = body.match(/^(\d+)(マナ|ゴールド)を得る/))) {
       const kind = m[2] === 'マナ' ? 'mana' : 'gold', before = /^\d+マナ/.test(trigger) && kind === 'mana' ? Number(trigger.match(/\d+/)[0]) : state.resources.p1[kind]; run();
       assert.equal(state.resources.p1[kind] - before, Number(m[1]) * r);
       assert.equal(bySource(h, kind + '_gain').reduce((s, e) => s + e.amount, 0), Number(m[1]) * r);

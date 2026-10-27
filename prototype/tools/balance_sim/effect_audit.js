@@ -1170,6 +1170,25 @@ function audit() {
     core.coreApplyDeathEffects(nightmare, s, createSeededRng(124), e => es.push(e), () => {});
     recordDirect('ナイトメア再封印', es.filter(e => e.type === 'seal_apply').length === 2, `封印回数=${es.filter(e => e.type === 'seal_apply').length}`);
   }
+  for (const side of ['p1', 'p2']) for (const enhanced of [false, true]) {
+    const other = side === 'p1' ? 'p2' : 'p1';
+    const martyrText = sheetData.effectText('E076', enhanced);
+    const martyr = { id: 'martyr', name: '検査体', atk: 7, hp: 9, maxHp: 9, keywords: [], desc: martyrText };
+    const sealed = { id: 'sealed', name: '封印対象', atk: 2, hp: 20, maxHp: 20, keywords: ['封印999'] };
+    const foe = { id: 'foe', atk: 1, hp: 100, maxHp: 100, keywords: [] };
+    const s = core.createBattleState({ sides: { [side]: { units: [martyr, sealed] }, [other]: { units: [foe] } } });
+    core.coreInitSealStates(s.units[side]); const es = [];
+    core.coreResolveHit(s, s.units[other][0], s.units[side][0], 100, false, createSeededRng(1027), e => es.push(e));
+    const divisor = /の半分/.test(martyrText) ? 2 : 1, target = s.units[side][1];
+    recordDirect('殉教', target.atk === 2 + Math.floor(7 / divisor) && target.hp === 20 + Math.floor(9 / divisor)
+      && target._sealed && es.filter(e => e.reason === 'death_sealed_stat_transfer').length === 1, `${side}/${enhanced}:${target.atk}/${target.hp}`);
+    const sleepText = sheetData.effectText('E077', enhanced), mul = Number(sleepText.match(/血の(\d+)倍/)[1]);
+    const t = core.createBattleState({ sides: { [side]: { units: [{ ...martyr, desc: sleepText }] }, [other]: { units: [foe] } }, blood: { p1: 2, p2: 2 } });
+    const se = []; core.coreResolveHit(t, t.units[other][0], t.units[side][0], 100, false, createSeededRng(1027), e => se.push(e));
+    const u = t.units[side][0];
+    recordDirect('一時の眠り', u.hp === 9 && u._sealed && u._sealValue === 3 * mul
+      && se.filter(e => e.type === 'seal_apply' && e.fromDeath).length === 1, `${side}/${enhanced}:封印${u._sealValue}`);
+  }
   {
     const source = { id: 'hit-keywords', name: '命中キーワード', atk: 3, hp: 10, maxHp: 10,
       keywords: ['即死', '衝撃2', '生命吸収'], desc: '' };

@@ -865,19 +865,23 @@
         break;
       }
       case 'seal_apply': {
-        const u = _find(ev.side, ev.unitId);
-        if (u) {
-          u._sealed = true;
-          // Infinity は Number(undefined) のフォールバックで1にせず、
-          // 無限封印として表示・判定へ引き継ぐ。
-          if (ev.value === 'infinite' || ev.value === '∞' || ev.value === Infinity) {
-            u._sealValue = Infinity;
-            u._sealInfinity = true;
-          } else if (ev.value != null) {
-            u._sealValue = Number(ev.value) || 1;
-          }
-          _render();
-        }
+        presentSealApplyEvent(ev, {
+          findUnit: (side, id) => _find(side, id),
+          applyState: (unit, event) => {
+            unit._sealed = true;
+            if (event.value === 'infinite' || event.value === '∞' || event.value === Infinity) {
+              unit._sealValue = Infinity;
+              unit._sealInfinity = true;
+            } else if (event.value != null) {
+              unit._sealValue = event.value;
+              delete unit._sealInfinity;
+            }
+            if (event.fromDeath) for (const key of ['hp', 'maxHp', 'atk']) {
+              if (event[key] != null) unit[key] = event[key];
+            }
+          },
+          render: () => _render(),
+        });
         break;
       }
       case 'blood_set': {
@@ -1122,6 +1126,7 @@
         await _awaitMotion();
         await presentSealReleaseEvent(ev, {
           findUnit: (side, id) => _find(side, id),
+          applyState: unit => { unit._sealed = false; delete unit._sealValue; delete unit._sealInfinity; },
           compact: () => {
             if (typeof requestBattleCompact === 'function') requestBattleCompact({ forceRender: true });
             else _render();

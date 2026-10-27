@@ -1813,7 +1813,7 @@ function _battleUnitRarity(unit){
   _RARITY_BY_UNIT_NAME.set(name,found);
   return found;
 }
-function playSealReleaseVfx(unit, side){
+function playSealReleaseVfx(unit, side, onRelease){
   _syncEffectFlashWithVfx();
   const slot=getCurrentUnitSlot(side,unit);
   const url=Assets?.vfx?.specialProduction?.[getKeywordAssetKey('封印')]||'';
@@ -1857,8 +1857,7 @@ function playSealReleaseVfx(unit, side){
     },fadeMs+40);
   }
   return playSpecialProductionVfx(slot,getKeywordAssetKey('封印'),url,()=>{
-    unit._sealed=false;
-    delete unit._sealValue;
+    if(typeof onRelease==='function') onRelease();
   },{..._SEAL_RELEASE_VFX_TIMING,scale:1});
 }
 
@@ -2713,9 +2712,8 @@ function renderField(id,units,isEnemy,_lane){
       // ので、名前でカード定義を引いて補う。
       const _rarity=_battleUnitRarity(u);
       if(_rarity>=1&&_rarity<=6) slot.classList.add(`rarity-${_rarity}`);
-      // `_sealShownPending` は「コアは解放済みだが、演出がまだそこへ来ていない」印。
-      // これを見ないと、味方が倒れる演出より先に封印キャラが明るくなる。
-      if(u._sealed||u._sealShownPending){
+      // 封印→解放→再封印を、計算済みの最終状態を戻さずイベント順に表示する。
+      if(typeof u._sealShownPending==='boolean'?u._sealShownPending:u._sealed){
         slot.classList.add('sealed-unit');
         slot.style.filter='';
       } else {

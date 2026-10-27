@@ -152,10 +152,13 @@ function finish(cards=G.mainBoard){
       assert.equal(c.no,'E102');assert.equal(makePanel(c.id).name,'宿業の刻印');
     }
   });
-  await check('実装falseの3枚と呪いの印は報酬・店に出ず、封印されしものはシートの封印6',()=>{
-    fresh();const excluded=['E060','E076','E077','E066'];
-    for(const no of excluded){const c=panel(no);assert.equal(c._implemented,no==='E066');assert.equal(c._rewardExcluded,true);assert.equal(c._shopExcluded,true);}
-    for(let i=0;i<20;i++){for(const cards of [drawRewards(3),drawRewards(3,{trader:true})]){assert.ok(cards.length);assert.ok(cards.every(c=>!excluded.includes(c.no)));}}
+  await check('実装・報酬・店の許可を現行シートから読み、呪いの印・殉教・一時の眠りの入手制限を更新',()=>{
+    fresh();const rows=sheet.sheetRows('enchant');
+    for(const no of ['E060','E076','E077','E066']){
+      const c=panel(no),r=rows.find(r=>r['No.']===no),yes=k=>String(r[k]).toLowerCase()==='true';
+      assert.equal(c._implemented,yes('実装'));assert.equal(!!c._rewardExcluded,!yes('報酬'));assert.equal(!!c._shopExcluded,!yes('ショップ'));
+    }
+    for(let i=0;i<20;i++){for(const cards of [drawRewards(3),drawRewards(3,{trader:true})]){assert.ok(cards.length);assert.ok(cards.every(c=>c.no!=='E060'));}}
     assert.ok(panel('E057').adjacentKeywords.includes('封印6'));
   });
   await check('巻物の各段階の新テキストキーを保持し、廃止した説明UI・旧キー参照を復活させない',()=>{

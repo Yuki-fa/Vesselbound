@@ -661,7 +661,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
           ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action" data-sfx-silent="1">+${_shopSellGain}G</button>`
           // デバッグモードでは右上に「廃棄」を出す（お金は入らない。2026-10-26 利用者指定）。
           :G&&G._debugMode&&!_ringOfferDiscardable
-          ?`<button type="button" class="discard-btn shop-board-sell-value shop-board-sell-action debug-discard-btn" data-sfx-silent="1">${_uiLabel('「廃棄」ボタン','廃棄')}</button>`
+          ?`<button type="button" class="shop-board-sell-value shop-board-sell-action debug-discard-btn" data-sfx-silent="1">${_uiLabel('「廃棄」ボタン','廃棄')}</button>`
           // 還魂は右上のボタンを出さず、カードのクリックで行う（2026-10-23 利用者指定。_wireHeCardControls）。
           :'')
         :'';

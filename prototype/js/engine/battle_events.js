@@ -418,7 +418,7 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
     }
     // **再生するイベントの一覧。ここに無い種類は下の分岐まで届かない。**
     // 逃走（fled）が抜けていたため、武器破壊でATKが0になっても FLED 表示が出なかった。
-    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='gold_spend'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='shield_set'||e.type==='keyword_effect'||e.type==='instant_death'||e.type==='fled'||e.type==='death'||e.type==='seal_release'||e.type==='sweep_vfx'||_isPlayableAttack)) continue;
+    if(!(e.type==='mana_threshold'||e.type==='mana_gain'||e.type==='gold_gain'||e.type==='gold_spend'||e.type==='summon'||e.type==='transform'||e.type==='damage'||e.type==='stat_change'||e.type==='shield_lost'||e.type==='shield_set'||e.type==='keyword_effect'||e.type==='instant_death'||e.type==='fled'||e.type==='death'||e.type==='seal_apply'||e.type==='seal_release'||e.type==='sweep_vfx'||_isPlayableAttack)) continue;
     if(e.type==='sweep_vfx'){
       const source=findLiveUnit(e.side,e.unitId,findUnit(e.side,e.unitId));
       const foeSide=e.side==='p1'?'p2':'p1';
@@ -481,6 +481,13 @@ async function _flushCorePveHitEventsInner(state, events, beforeUnits){
       // コアが結界喪失効果そのものは解決済みなので、ここでは見た目と音だけ。
       presentShieldLostEvent(e,{
         findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+      });
+      continue;
+    }
+    if(e.type==='seal_apply'){
+      presentSealApplyEvent(e,{
+        findUnit:(side,id)=>findLiveUnit(side,id,findUnit(side,id)),
+        render:()=>{ if(typeof requestBattleCompact==='function') requestBattleCompact({forceRender:true}); },
       });
       continue;
     }
