@@ -115,7 +115,7 @@ async function testShopExchange(api,check=(title,fn)=>{fn();console.log('OK '+ti
   fresh();G._isShop=false;G._isWaveAltar=true;G._waveStage=_waveRouteForWave(2).indexOf('altar')+1;G.mainBoard[0]=clone(enchant);G.mainBoard[2]=clone(enchant);
   check('祭壇：未取得では出発・直接進行が止まり、理由を渡す',()=>{
     assert.equal(ringExchangeDepartureBlocked(),true);const show=showErrorOverlay,messages=[];
-    try{showErrorOverlay=options=>messages.push(options);const state=structuredClone(G);assert.equal(villageDepart(),false);assert.equal(departWithWorldMap(),false);assert.equal(shopDone(),false);assert.equal(_startWaveFlowNext(),false);assert.deepEqual(G,state);assert.ok(messages.every(m=>m.message===SHOP_EXCHANGE_TRIAL.text.ringRequired));}finally{showErrorOverlay=show;}
+    try{showErrorOverlay=options=>messages.push(options);const state=structuredClone(G);assert.equal(villageDepart(),false);assert.equal(departWithWorldMap(),false);assert.equal(shopDone(),false);assert.equal(_startWaveFlowNext(),false);assert.deepEqual(G,state);assert.ok(messages.every(m=>m.message===_ringExchangeRequiredText()));}finally{showErrorOverlay=show;}
   });
   openMapRingExchange();const plan=sacrificePlans('greedy',{color:''})[0];assert.ok(plan);
   for(const slot of plan.sacrifice)_discardBoardCardForRingOffer(slot,G.mainBoard[slot]);

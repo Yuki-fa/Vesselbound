@@ -56,7 +56,7 @@ function _renderFieldRow(el){
       const hpClass=(unit.maxHp!=null&&unit.hp<unit.maxHp)?'h hp-damaged':'h';
       const _hpMax=Math.max(1,unit.maxHp||unit.hp||1);
       const _hpPct=Math.max(0,Math.min(100,Math.round((Math.max(0,unit.hp||0)/_hpMax)*100)));
-      const hpBar=`<div class="slot-life-bar" title="${_escapePreviewHtml(typeof _lifeLabelText==='function'?_lifeLabelText():'ライフ')} ${Math.max(0,unit.hp||0)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
+      const hpBar=`<div class="slot-life-bar" title="${_escapePreviewHtml(_lifeLabelText())} ${Math.max(0,unit.hp||0)}/${_hpMax}"><div class="slot-life-fill" style="width:${_hpPct}%"></div></div>`;
       // 報酬フェイズ中のシールド発光は配置順エリアだけに限定する。
       const _showShield=false;
       if(_showShield) div.classList.add('shield-active'); else div.classList.remove('shield-active');
@@ -569,7 +569,7 @@ function renderHeRow(elId, arr, startIdx, count, arrName){
     const _handMid=(Math.min(count,Hcols)-1)/2;
     const _handArc=Math.abs(_handPos-_handMid);
       const _slotUnit=arrName==='boardCards'?_getPartyBoardUnit():null;
-      const _slotDef=arrName==='boardCards'?_boardSlotDef(i,_slotUnit):arrName==='globalPanels'?{label:`全体${i+1}`,kind:'global'}:null;
+      const _slotDef=arrName==='boardCards'?_boardSlotDef(i,_slotUnit):arrName==='globalPanels'?{label:_escapePreviewHtml(_uiLabel('「全体枠」見出し','全体X').replace(/X/g,i+1)),kind:'global'}:null;
       const _deployNum=arrName==='boardCards'?MAIN_BOARD_DEPLOY_SLOTS.indexOf(i):-1;
       if(i>=startIdx+count){
       // 未解放スロット

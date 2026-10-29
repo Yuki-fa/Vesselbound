@@ -111,7 +111,8 @@ const ONLINE_VERSUS_GOLD = 100;
       units.push({
         id: `cpu-${stage}-${i}`,
         no: def ? String(def.no || source.no || '') : '',
-        name: def ? String(unit.name || def.name || '') : `対戦相手${i + 1}`,
+        name: def ? String(unit.name || def.name || '') : String(typeof textMessage === 'function'
+          ? textMessage('オンライン対戦「対戦相手」名', '対戦相手X') : '対戦相手X').replace(/X/g, i + 1),
         atk: Math.max(0, Number(unit.atk ?? def.power) || 0) + bonus,
         hp: Math.max(1, Number(unit.hp ?? def.life) || 1) + bonus,
         lane: i < Math.ceil(size * 0.6) ? 'front' : 'rear',

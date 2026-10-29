@@ -2108,7 +2108,8 @@ function renderManaHud(){
   if(!show) return;
   const n=Math.max(0,Number(G.mana)||0);
   const path=typeof _manaOrbPath==='function'?_manaOrbPath():'';
-  hud.innerHTML=`<div class="mana-row">${path?`<img class="mana-icon" src="${path}" alt="マナ">`:''}<b>${n}</b></div>`;
+  const alt=_escapePreviewHtml(typeof textMessage==='function'?textMessage('「マナ枠」見出し','マナ'):'マナ');
+  hud.innerHTML=`<div class="mana-row">${path?`<img class="mana-icon" src="${path}" alt="${alt}">`:''}<b>${n}</b></div>`;
   const clip=_battleBackgroundFrameRect();
   const padX=3840*.047*(clip.scale||1);
   const padY=2160*.06*(clip.scale||1);
@@ -2849,7 +2850,7 @@ function renderControls(){
   // 戦闘開始ボタンは廃止した。試験戦闘中のみ「戦闘終了」として常時表示する。
   // ただし図書館の試験戦闘は勝敗が付くまで行うため、中断ボタンは出さない。
   if(G._testBattleMode&&!G._libraryTestBattleMode){
-    pp.textContent='戦闘終了';
+    pp.textContent=typeof textMessage==='function'?textMessage('「戦闘終了」ボタン','戦闘終了'):'戦闘終了';
     pp.disabled=false;
     pp.style.display='';
   } else {

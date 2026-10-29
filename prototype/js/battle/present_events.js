@@ -1707,7 +1707,7 @@ async function presentFledEvent(ev, api) {
 //
 // api:
 //   win        … 勝ち（引き分けも勝ち扱い）
-//   defeatLabel … 負けたときの文字。'敗北' でオンラインの敗北表示になる（既定は撤退）
+//   defeatKey  … 負けたときの文字（テキストメッセージシートの場面）。指定すると敗北表示になる（既定は撤退）
 //   bossWin    … ボス撃破（勝利音を変える）
 //   withdraw   … 撤退（SEを鳴らさない）
 //   durationMs … カットインの尺（省略時は既定）
@@ -1725,9 +1725,9 @@ async function presentBattleResultCutin(api) {
   }
   const durationMs = Math.max(1500, Number(api.durationMs) || PRESENT_RESULT_CUTIN_MS);
   // 負けの見せ方：PvEは「撤退」、オンラインは「敗北」。文字だけの違いなので
-  // 分岐は増やさず、呼び出し側が defeatLabel で選ぶ。
-  const loseMode = api.defeatLabel === '敗北' ? 'defeat' : 'retreat';
-  const overlay = await showBattleCutin(withdraw || !win ? loseMode : 'victory', { durationMs });
+  // 分岐は増やさず、呼び出し側が defeatKey で選ぶ。
+  const loseMode = api.defeatKey ? 'defeat' : 'retreat';
+  const overlay = await showBattleCutin(withdraw || !win ? loseMode : 'victory', { durationMs, resultKey: api.defeatKey });
   if (typeof api.extra === 'function') await api.extra(overlay);
   if (typeof api.afterShown === 'function') await api.afterShown(overlay);
   return overlay;

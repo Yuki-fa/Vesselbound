@@ -44,7 +44,7 @@ function _battleStartIntroText(){
     const title=G._waveIsRetry
       ?_battleIntroTitle('「再戦」ボタン','再 戦')
       :_battleIntroTitle('「戦闘開始」ボタン','戦 闘 開 始');
-    return {title,subtitle:String(subtitle||'闘技場').trim()||'闘技場',kind};
+    return {title,subtitle:String(subtitle||'').trim(),kind};
   }
   const mapBattle=G._mapBattle||null;
   const kind=String(G._waveBattleType||mapBattle?.type||'');
@@ -263,7 +263,7 @@ function showBattleCutin(type='start',options={}){
   };
   const title=mode==='victory'?resultText('戦闘結果「勝利」','勝利')
     :mode==='retreat'?resultText('戦闘結果「撤退」','撤退')
-    :mode==='defeat'?resultText(options.resultKey||'戦闘結果「敗北」','敗北')
+    :mode==='defeat'?resultText(options.resultKey,'敗北')
     :(String(options.title||info.title||'').trim()||_battleIntroTitle('「戦闘開始」ボタン','戦 闘 開 始'));
   // 結果画面でも開始画面と同じ高さを確保する。空文字だけでは行ボックスが
   // 縮み、タイトルとラインが上へ再配置されるため、不可視の空白を残す。

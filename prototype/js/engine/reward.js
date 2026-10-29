@@ -6,19 +6,10 @@
 let _rewCards=[];
 let _rewFreePickDone=false; // 通常報酬フェイズで無料取得済みフラグ
 let _rewPhaseId=0; // この報酬フェイズで取得したカードだけを戻せるよう識別する
-// 試験実装の設定・追加文言はここだけで管理する（シート参照は増やさない）。
+// 交換の店と祭壇の設定。文言はテキストメッセージシート（店の説明は「魔導取引所」1〜3、
+// 指輪の取得を促す窓は「指輪未取得時」）。
 const SHOP_EXCHANGE_TRIAL={
   stockCount:3, ringCardCost:3,
-  text:{
-    shopIntro:'魔導取引所：カード交換',
-    shopSteps:[
-      '店のカードを、魔導板上のカードへドラッグすると交換できます。',
-      '空きマスには置けません。交換の回数・カードの種類に制限はなく、ゴールドも使いません。',
-      '店へ渡したカードも再び交換できます。品揃えと交換結果は、この街へ再訪しても残ります。',
-    ],
-    ringTitle:'指輪の交換が必要です',
-    ringRequired:'出発する前に、塔の祭壇でカードを捧げて指輪を取得してください。',
-  },
 };
 const REWARD_GRID_CAPACITY=5; // 報酬置き場：最大5枚
 // チュートリアルの移動の手順（map.js の runBoardTutorial が G._libraryTutorialMove に入れる）。
@@ -34,9 +25,9 @@ function _libraryTutorialAllowsMove(card,destIdx){
   if(destIdx==null||ctx.index==null) return !!(card&&card.name===ctx.name);
   return !!(card&&card.name===ctx.name&&Number(destIdx)===ctx.index);
 }
-function _syncBoardCardVisibilityToggle(){
+// カード表示切替ボタンの文言（シート）。起動時のシート反映（applySheetDomTitles）からも呼ぶ。
+function _syncBoardCardVisibilityLabel(){
   const active=document.body.classList.contains('right-card-peek');
-  const btn=document.getElementById('board-card-visibility-btn');
   // ゲームオーバー魔導板には同じボタンの複製（id重複を避けてクラス版）が置かれる。
   // 表示状態は共通なのでラベルも必ず両方そろえる。
   document.querySelectorAll('#board-card-visibility-btn,.board-card-visibility-btn').forEach(b=>{
@@ -47,6 +38,10 @@ function _syncBoardCardVisibilityToggle(){
       :_uiLabel('「カード非表示」ボタン','カード非表示');
     b.setAttribute('aria-pressed',active?'true':'false');
   });
+}
+function _syncBoardCardVisibilityToggle(){
+  const btn=document.getElementById('board-card-visibility-btn');
+  _syncBoardCardVisibilityLabel();
   const align=()=>{
     const pane=document.getElementById('hand-pane');
     const slots=document.querySelector('#hand-slots.board-slots');
@@ -1704,18 +1699,18 @@ function _syncRewardTitleLabel(){
   if(!el) return;
   // 街から入った施設は、シートに書かれた施設名そのまま（G._facilityLabel）を優先する。
   const fromVillage=(G._isItemShop||G._isForge||G._isShop||G._isLibrary||G._isTavern||G._isFiveSaints||G._isBlessingFlame)?String(G._facilityLabel||'').trim():'';
-  const visibleFromVillage=G._isPeddler
-    ?fromVillage.replace(/^行商人?(?=[ 　]|$)/,'トレーダー')
-    :G._isShop?fromVillage.replace(/魔道店|魔導店/g,'魔導取引所'):fromVillage;
   // **見出しはテキストメッセージシートが唯一の出どころ**（「◯◯見出し」）。
   const t=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
-  const shopTitle=typeof textMessage==='function'
-    ?(textMessage('「魔導取引所」見出し','')||textMessage('「魔導店」見出し','魔導取引所'))
-    :'魔導取引所';
+  // 旧称（行商人・魔導店・魔道店）は、シートの今の見出しへ読み替える。
+  const shopTitle=String(t('「魔導取引所」見出し','')||t('「魔導店」見出し','魔導取引所'))
+    .replace(/魔道店|魔導店/g,'魔導取引所');
+  const visibleFromVillage=G._isPeddler
+    ?fromVillage.replace(/^行商人?(?=[ 　]|$)/,t('「トレーダー」見出し','トレーダー'))
+    :G._isShop?fromVillage.replace(/魔道店|魔導店/g,shopTitle):fromVillage;
   el.textContent=visibleFromVillage
     ||(G._isItemShop?t('「道具屋」見出し','道具屋')
     :G._isForge?t('「鍛冶屋」見出し','鍛治屋')
-    :G._isShop?String(shopTitle).replace(/魔道店|魔導店/g,'魔導取引所')
+    :G._isShop?shopTitle
     :G._isRingExchange?t('「祭壇」見出し','祭壇')
     :t('「編成画面」見出し','編成'));
   const rewardLabel=Array.from(document.querySelectorAll('#reward-info-bar .ri-soul')).find(node=>node.querySelector('#rw-count'));
@@ -1783,7 +1778,7 @@ function _syncRewardProductionRings(){
     const desc=typeof ringDisplayDesc==='function'?ringDisplayDesc(ring):String(ring&&(ring.desc||ring.description||ring.effectText||ring.effect)||'').trim();
     slot.classList.remove('rarity-1','rarity-2','rarity-3','rarity-4','rarity-5');
     if(ring&&(title||desc)){
-      slot.setAttribute('data-preview',[title||'指輪',desc].filter(Boolean).join('\n'));
+      slot.setAttribute('data-preview',[title||_uiLabel('「指輪枠」見出し','指輪'),desc].filter(Boolean).join('\n'));
       const keywordPreview=typeof _auxiliaryKeywordPreviewText==='function'?_auxiliaryKeywordPreviewText(ring,desc):'';
       if(keywordPreview) slot.setAttribute('data-keyword-preview',keywordPreview);
       else slot.removeAttribute('data-keyword-preview');
@@ -1962,7 +1957,7 @@ function renderRewCards(){
   el.innerHTML='';
   if(blessingFlameActive()){ blessingFlameRenderPreview(el,section);return; }
   if(runLevelRewardActive()){
-    section.style.setProperty('--title-reward',JSON.stringify(RUN_LEVEL_CONFIG.title));
+    section.style.setProperty('--title-reward',JSON.stringify(runLevelText(RUN_LEVEL_CONFIG.title)));
     runLevelRenderReward(el);return;
   }
   if(G._ringOfferPhase){

@@ -348,20 +348,22 @@ function coreBoonDisplayText(card, text, notes) {
   const boon = coreNormalizeBoon(card && card.boon);
   if (!boon) return text;
   let result = String(text || '');
-  if (boon.dmgMul > 1) result = result.replace(/Xダメージ/g, `(X×${boon.dmgMul})ダメージ`);
+  // 語はシートの本文のまま残し、Xの部分だけを演算の表示に置き換える。
+  if (boon.dmgMul > 1) result = result.replace(/X(ダメージ)/g, (_, word) => `(X×${boon.dmgMul})${word}`);
   if (boon.modDelta&&/[+-]X/.test(result)){
     result=result.replace(/([+-])X/g, (_, sign) => `${sign}(X+${boon.modDelta})`)+(notes&&notes.zeroModifier||'');
   }
+  // 注釈の文言は呼び出し側（表示）が notes で渡す（値は差し込み済み）。
   if(boon.modDelta&&/(?:ATK|HP)を\d+倍にする/.test(result)&&notes&&notes.dynamicModifier){
-    result+=notes.dynamicModifier.replace('{delta}',boon.modDelta);
+    result+=notes.dynamicModifier;
   }
   if (boon.modMul > 1) {
     result = result.replace(/([+-])X/g, (_, sign) => `${sign}(X×${boon.modMul})`)
       .replace(/([+-])\(X\+(\d+)\)/g, (_, sign, delta) => `${sign}((X+${delta})×${boon.modMul})`);
-    if (/(?:ATK|HP)を\d+倍にする/.test(result)) result += `（戦闘修正の増加量×${boon.modMul}）`;
+    if (/(?:ATK|HP)を\d+倍にする/.test(result) && notes && notes.modMul) result += notes.modMul;
   }
-  if (boon.manaDelta) result = result.replace(/Xマナ/g, `(X+${boon.manaDelta})マナ`)
-    .replace(/マナをX得る/g, `マナを(X+${boon.manaDelta})得る`);
+  if (boon.manaDelta) result = result.replace(/X(マナ)/g, (_, word) => `(X+${boon.manaDelta})${word}`)
+    .replace(/(マナを)X(得る)/g, (_, head, tail) => `${head}(X+${boon.manaDelta})${tail}`);
   if(boon.famMul>1) result=result.replace(/(\d+)\/(\d+)(のコピー)/g,
     (_,a,h,suffix)=>{const stats=coreBoonFamiliarStats({atk:Number(a),hp:Number(h)},boon);return `${stats.atk}/${stats.hp}${suffix}`;})
     .replace(/（(\d+)\/(\d+)）(?=を召喚)/g,(_,a,h)=>{const stats=coreBoonFamiliarStats({atk:Number(a),hp:Number(h)},boon);return `（${stats.atk}/${stats.hp}）`;});
@@ -1127,8 +1129,9 @@ function coreMapPanelPowerAdjustManaText(text, powerText) {
   const reduction=coreMapPanelPowerReduction(powerText,'mana');
   const source=String(text||'');
   if(!reduction||!source) return source;
-  return source.replace(/(\d+)\s*マナ(毎)?(?=\s*[:：])/g,(_match,value,every)=>
-    `${Math.max(1,(Number(value)||0)-reduction)}マナ${every||''}`);
+  // 数字だけを差し替え、語（マナ／マナ毎）はシートの本文のまま残す。
+  return source.replace(/(\d+)\s*(マナ毎?)(?=\s*[:：])/g,(_match,value,word)=>
+    `${Math.max(1,(Number(value)||0)-reduction)}${word}`);
 }
 function coreMapPanelPowerDisplayCard(card, powerText) {
   if(!card) return card;

@@ -71,15 +71,18 @@ function _journeyNodeLabel(type,scene,idx){
   }
   const useRiese=type==='city'&&Number(scene)===1&&Number(idx)===0;
   const info=typeof regionInfoForWave==='function'?regionInfoForWave(useRiese?0:(scene??(G&&G._wave))):null;
+  const text=(key,fallback)=>typeof textMessage==='function'?textMessage(key,fallback):fallback;
   if(type==='city'){
-    const town=String((info&&info.townName)||'村').trim()||'村';
+    // 街の名前は地域情報シートが唯一の出どころ。
+    const town=String((info&&info.townName)||'').trim();
     // 「大樹の抱く集落 エルム」のような街名は、半角スペースを消してその位置で改行する。
     return town.replace(/ +/g,'\n');
   }
   // オンラインのステージ構成（サーバー）は祭壇ではなく tower で届く。名前は同じ「塔の名前」。
-  if(type==='altar'||type==='tower') return String((info&&info.towerName)||'祭壇').trim()||'祭壇';
-  return {battle:typeof textMessage==='function'
-    ?textMessage('編成画面「一般戦闘」説明文','一般戦闘'):'一般戦闘',elite:'エリート',boss:'ボス'}[type]||'';
+  if(type==='altar'||type==='tower') return String((info&&info.towerName)||'').trim()||text('「祭壇」見出し','祭壇');
+  const key={battle:['編成画面「一般戦闘」説明文','一般戦闘'],elite:['編成画面「エリート戦闘」説明文','エリート'],
+    boss:['編成画面「ボス戦闘」説明文','ボス']}[type];
+  return key?text(key[0],key[1]):'';
 }
 // 旅の進捗のSceneマーク（上段のアイコン列）のホバー表示。そのステージの塔の名前を出す。
 // ステージ5のマークはそこへ到達するまで表示自体を出さないため、名前も伏せない。
@@ -108,7 +111,7 @@ function _journeyDisplayPosition(route,stage,scene){
 // シートの本文は「〜まであとX戦」「〜に到達」の形で、
 //   〜 … 塔の名前（地域情報シート）
 //   X … 残りの戦闘数（数字だけ太字で出す）
-// 最終ステージだけは塔ではなく「最終決戦」に置き換える。
+// 最終ステージの行（ステージ5時）は塔の名前を使わない。
 function _journeyCountdownHtml(towerName,remaining,reached,isFinalScene){
   const get=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
   // ステージ5はシートの「ステージ5時」の行（最終決戦まで、あと X 戦）をそのまま使う（2026-10-02 シートに追加）。
@@ -117,7 +120,7 @@ function _journeyCountdownHtml(towerName,remaining,reached,isFinalScene){
     :isFinalScene
       ?get('「編成画面、ショップ画面の旅程枠」内 ステージ5時','最終決戦まで、あと X 戦')
       :get('「編成画面、ショップ画面の旅程枠」内 通常時','〜まであとX戦');
-  const name=isFinalScene?'最終決戦':String(towerName||'祭壇');
+  const name=isFinalScene?'':String(towerName||get('「祭壇」見出し','祭壇'));
   // Xは数字だけを太字にする（前後の文字はシートの本文どおり）。
   return _escapePreviewHtml(template)
     .replace(/〜/g,_escapePreviewHtml(name))
@@ -126,6 +129,7 @@ function _journeyCountdownHtml(towerName,remaining,reached,isFinalScene){
 function _syncRewardJourneyUi(options){
   const root=(options&&options.root)||document.getElementById('journey-progress-ui');
   if(!root||!G) return;
+  const get=(key,fallback)=>(typeof textMessage==='function'?textMessage(key,fallback):fallback);
   const scene=Math.max(1,Math.min(5,Number(G._wave)||1));
   const route=_journeyRouteForScene(scene);
   let stage=Math.max(1,Math.min(route.length,Number(G._waveStage)||1));
@@ -168,13 +172,14 @@ function _syncRewardJourneyUi(options){
     const state=selected?(n<scene?'passed':(n===scene?'current':'')):'';
     const connector=idx<count-1?`<span class="journey-track-line ${selected&&n<scene?'passed':''}"></span>`:'';
     // デバッグモードでは各Sceneマークを押してそのステージ（=G._wave）へ移動できるようにする。
-    const jumpAttr=G._debugMode?` data-journey-scene="${n}"${cycle?` data-journey-cycle="${cycle}" aria-label="${cycle}周目 ステージ${n}"`:''}`:'';
+    const jumpLabel=cycle?_escapePreviewHtml(get('デバッグ「旅の進捗」ステージ','X周目 ステージY').replace(/X/g,cycle).replace(/Y/g,n)):'';
+    const jumpAttr=G._debugMode?` data-journey-scene="${n}"${cycle?` data-journey-cycle="${cycle}" aria-label="${jumpLabel}"`:''}`:'';
     // ホバー表示はブラウザ標準のtitleではなくカードと同じ枠（#kw-tooltip）で塔の名前を出す。
     // 名前だけの1行表示なので、data-preview-norule で見出し下の直線を消す。
     return `<span class="journey-scene-mark ${state}" data-preview="${_escapePreviewHtml(_journeySceneTowerName(n))}" data-preview-norule="1"${jumpAttr}></span>${connector}`;
   }).join('');
   const sceneMarks=debugStory?[1,2].map(cycle=>
-    `<div class="journey-scene-group" data-journey-cycle-group="${cycle}"><span class="journey-cycle-label">${cycle}周目</span>${buildSceneMarks(cycle===1?4:5,cycle)}</div>`
+    `<div class="journey-scene-group" data-journey-cycle-group="${cycle}"><span class="journey-cycle-label">${_escapePreviewHtml(get('デバッグ「旅の進捗」周目','X周目').replace(/X/g,cycle))}</span>${buildSceneMarks(cycle===1?4:5,cycle)}</div>`
   ).join(''):buildSceneMarks(sceneCount,0);
   const nodeMarks=route.map((type,idx)=>{
     const state=idx<current?'passed':(idx===current?'current':'');

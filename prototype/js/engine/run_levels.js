@@ -1,17 +1,20 @@
 // PvEのラン進行。数値への適用はcore.js、編成への接続はformation.jsに集約する。
-// シート未収録の今回の追加仕様の文言・調整値はこの表を使う。
+// 調整値はこの表。文言はテキストメッセージシートの [場面, 予備]（runLevelText）。
 const RUN_LEVEL_CONFIG = {
   // 2026-10-19 利用者指定：エリート・ボス戦後のレベル報酬はやめる（レベルは1のまま。仕組みは残し、ここで止める）。
   rewardEnabled:false,
-  names: { atk:'ATKレベル', hp:'HPレベル' },
+  names: { atk:['「ATKレベル」見出し','ATKレベル'], hp:['「HPレベル」見出し','HPレベル'] },
   rewards: [
     { id:'atk3', gains:{atk:3,hp:0}, probability:0.15 },
     { id:'hp3', gains:{atk:0,hp:3}, probability:0.25 },
     { id:'atk2-hp1', gains:{atk:2,hp:1}, probability:0.35 },
     { id:'atk1-hp2', gains:{atk:1,hp:2}, probability:0.25 },
   ],
-  title:'レベル報酬', receivedTitle:'レベル報酬（受け取り済み）',
+  title:['「レベル報酬」見出し','レベル報酬'], receivedTitle:['「レベル報酬」見出し（受け取り済み）','レベル報酬（受け取り済み）'],
 };
+function runLevelText([key,fallback]){
+  return typeof textMessage==='function'?textMessage(key,fallback):fallback;
+}
 function runLevelInitialState(){
   return { version:2, values:coreNormalizeRunLevels(), seq:0, lastBattleKey:null, reward:null };
 }
@@ -96,10 +99,10 @@ function runLevelRenderReward(row){
   const reward=runLevelState().reward;
   const host=document.createElement('div');host.className='run-level-reward';
   const heading=document.createElement('div');heading.className='run-level-result';
-  heading.textContent=reward.received?RUN_LEVEL_CONFIG.receivedTitle:Object.entries(RUN_LEVEL_CONFIG.names)
-    .filter(([key])=>reward.gains[key]>0).map(([key,name])=>`${name} +${reward.gains[key]}`).join('・');
+  heading.textContent=reward.received?runLevelText(RUN_LEVEL_CONFIG.receivedTitle):Object.entries(RUN_LEVEL_CONFIG.names)
+    .filter(([key])=>reward.gains[key]>0).map(([key,name])=>`${runLevelText(name)} +${reward.gains[key]}`).join('・');
   const values=document.createElement('div');values.className='run-level-values';
   values.textContent=Object.entries(RUN_LEVEL_CONFIG.names).map(([key,name])=>
-    reward.received?`${name} ${reward.after[key]}`:`${name} ${reward.before[key]} → ${reward.after[key]}`).join(' ／ ');
+    reward.received?`${runLevelText(name)} ${reward.after[key]}`:`${runLevelText(name)} ${reward.before[key]} → ${reward.after[key]}`).join(' ／ ');
   host.appendChild(heading);host.appendChild(values);row.appendChild(host);
 }

@@ -1,25 +1,43 @@
 // 旧祝福の個体・ランを壊さず、報酬の再抽選権を保持する。祝福の座は廃止済み。
+// 文言はテキストメッセージシート（towerBoonText）。祝福の座の画面は廃止済みなので、
+// 残る文言は再抽選ボタンと、旧セーブの祝福付きカードの注釈だけ。
 const TOWER_BOON_CONFIG = {
-  key: 'towerBoon', name: '祝福の座（仮）', description: 'ゴールドを捧げ、これから出会うカードに祝福を授ける。',
+  key: 'towerBoon',
   choiceCount: 3, firstPrices: [200, 500, 1000], priceStep: 1000,
   multiplier: 3, modifierStep: 1, manaStep: 1, rerollsPerStack: 1, bossSlotChance: 0.15,
   position: { x: 650, y: 1402 },
   text: {
-    leave: '塔に戻る', price: '{price}G', reroll: '再抽選（残{count}）',
-    familiar: '（祝福：召喚する眷属のATKとHPは{mul}倍）',
-    zeroModifier: '（X=0→0）',
-    dynamicModifier: '（祝福：増加量+{delta}、0は変更なし）',
+    reroll: ['「再抽選」ボタン（再抽選権）', '再抽選（残X）'],
+    rerollGold: ['「再抽選」ボタン（ゴールド）', '再抽選（XG）'],
+    familiar: ['旧祝福の注釈（眷属）', '（祝福：召喚する眷属のATKとHPはX倍）'],
+    dynamicModifier: ['旧祝福の注釈（増加量）', '（祝福：増加量+X、0は変更なし）'],
+    modMul: ['旧祝福の注釈（戦闘修正）', '（戦闘修正の増加量×X）'],
   },
   blessings: [
-    { id: 'stats', field: 'statMul', label: '今後のキャラクターカードのATKとHPが{multiplier}倍' },
-    { id: 'modifiers', field: 'modDelta', label: '今後のカードの戦闘修正を正の値は+{modifierStep}、負の値は-{modifierStep}' },
-    { id: 'damage', field: 'dmgMul', label: '今後のカードの効果ダメージが{multiplier}倍' },
-    { id: 'mana', field: 'manaDelta', label: '今後のカードから得られるマナが+{manaStep}' },
-    { id: 'familiars', field: 'famMul', label: '今後のカードが出す眷属のATKとHPが{multiplier}倍' },
-    { id: 'bosses', label: 'このランで倒したボスが報酬とショップに出現する' },
-    { id: 'rerolls', label: '報酬ごとに再抽選権を{rerollsPerStack}回得る' },
+    { id: 'stats', field: 'statMul' },
+    { id: 'modifiers', field: 'modDelta' },
+    { id: 'damage', field: 'dmgMul' },
+    { id: 'mana', field: 'manaDelta' },
+    { id: 'familiars', field: 'famMul' },
+    { id: 'bosses' },
+    { id: 'rerolls' },
   ],
 };
+// Xを値に置き換えた文言。
+function towerBoonText(name, value) {
+  const [key, fallback] = TOWER_BOON_CONFIG.text[name] || ['', ''];
+  const text = typeof textMessage === 'function' ? textMessage(key, fallback) : fallback;
+  return String(text).replace(/X/g, () => String(value));
+}
+// 旧祝福の注釈（core.js の coreBoonDisplayText へ渡す）。
+function towerBoonDisplayNotes(card) {
+  const boon = card && card.boon || {};
+  return {
+    zeroModifier: '（X=0→0）',
+    dynamicModifier: towerBoonText('dynamicModifier', boon.modDelta),
+    modMul: towerBoonText('modMul', boon.modMul),
+  };
+}
 function towerBoonInitialState() {
   return { counts: {}, purchases: 0, rerolls: 0, rerollSeq: 0, visits: 0, defeatedBosses: [] };
 }
@@ -157,8 +175,8 @@ function towerBoonRerollRewards() {
 function towerBoonRerollButtonState(){
   const shop=shopRerollKind(),rights=towerBoonState().rerolls;
   const gold=!shop&&towerBoonRewardGoldReroll();
-  return {visible:towerBoonRerollVisible(),label:(shop||gold)&&!rights?`再抽選（${SHOP_REROLL_COST}G）`
-    :TOWER_BOON_CONFIG.text.reroll.replace('{count}',rights),
+  return {visible:towerBoonRerollVisible(),label:(shop||gold)&&!rights?towerBoonText('rerollGold',SHOP_REROLL_COST)
+    :towerBoonText('reroll',rights),
     disabled:shop?!shopCanReroll():!towerBoonCanReroll()
       ||(rights<=0&&!(gold&&Number(G.gold)>=SHOP_REROLL_COST))
       ||!_rewCards.some(c=>c&&c._isOriginalReward)};

@@ -51,7 +51,7 @@ function cardTable(cards){return table(['カード','分類/形','G/レア/価�
 function outlierTable(cards){return table(['カード','分類/形','G/レア/価格','勝率差pt','同条件平均との差pt','比較カード数','95%区間pt'],cards.map(c=>[c.name,`${c.category}/${c.form}`,`${c.grade}/${c.rarity}/${c.price}`,f(c.meanGainWinPt),f(c.peerDeviationPt),c.peerCount,`${f(c.ciLowPt)}〜${f(c.ciHighPt)}`]));}
 function boonSection(data,scene){
   if(!data)return '';
-  const rows=data.summaries.filter(r=>!scene||r.scene===scene),label=id=>{const d=data.config.blessings.find(b=>b.id===id);return `${data.config.blessings.indexOf(d)+1} ${d.label.replace(/\{(\w+)\}/g,(_,k)=>data.config[k])}`;};
+  const rows=data.summaries.filter(r=>!scene||r.scene===scene),label=id=>{const d=data.config.blessings.find(b=>b.id===id);return `${data.config.blessings.indexOf(d)+1} ${(d.label||d.id).replace(/\{(\w+)\}/g,(_,k)=>data.config[k])}`;};
   let md='## 祝福の価値\n\n'+data.method+'\n\n';
   md+=`各盤面・各祝福${data.options.samples}例。${data.options.workers}プロセス、${f(data.elapsedMs/1000)}秒。全盤面を祝福済みとする比較で、実ランで購入後に取得できる枚数・購入費用は別に周回で測る。95%区間は同じ敵seedでの対応差を盤面平均した正規近似。\n\n`;
   if(!scene)md+=table(['祝福','4場面平均の勝率差pt'],Object.entries(data.values).map(([id,v])=>[label(id),f(v)]));

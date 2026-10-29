@@ -189,7 +189,7 @@ function simulate(units){
     assert.equal(openBlessingFlame(),true);
     assert.equal(blessingFlameSelect(1),false);assert.equal(_blessingFlameVisit.executed,true);
     const help=element();blessingFlameRenderPreview(help,element());
-    assert.equal(help.children[0].textContent,BLESSING_FLAME_CONFIG.text.used);
+    assert.equal(help.children[0].textContent,blessingFlameText('used'));
     assert.equal(blessingFlameReset(),true);assert.equal(blessingFlameSelect(1),false,'入り直して元に戻しても使用済みのまま');
     assert.deepEqual(G.mainBoard[3],upgraded);
     assert.equal(await blessingFlameLeave(),true);

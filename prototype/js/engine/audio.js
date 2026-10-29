@@ -901,9 +901,14 @@ function toggleDebugMute(){
   ['battle-mute-btn','village-mute-btn'].forEach(id=>{
     const btn=document.getElementById(id);
     if(btn){
-      btn.textContent=_debugMuted?'ミュート解除':'ミュート';
+      btn.textContent=debugMuteLabel(_debugMuted);
     }
   });
+}
+// デバッグのミュートボタンの文言（テキストメッセージシート）。ボタンは3か所にあるので、ここだけで引く。
+function debugMuteLabel(muted){
+  const [key,fallback]=muted?['デバッグ「ミュート解除」ボタン','ミュート解除']:['デバッグ「ミュート」ボタン','ミュート'];
+  return typeof textMessage==='function'?textMessage(key,fallback):fallback;
 }
 // playSfx()を経由せず new Audio() で直接鳴らすフォールバック用の音量。
 // 素の音量をそのまま入れるとデバッグミュート（masterVolume=0）を素通りしてしまうため、

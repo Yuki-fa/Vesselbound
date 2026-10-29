@@ -265,13 +265,13 @@ async function testRunLevelDisplay(api){
           const before={atk:1,hp:1},after={atk:1+spec.gains.atk,hp:1+spec.gains.hp};
           G.runLevels.reward={...spec,before,after,active:true};const row=element('div');runLevelRenderReward(row);
           const [heading,values]=row.children[0].children;
-          assert.equal(heading.textContent,Object.entries(RUN_LEVEL_CONFIG.names).filter(([k])=>spec.gains[k]).map(([k,n])=>`${n} +${spec.gains[k]}`).join('・'));
+          assert.equal(heading.textContent,Object.entries(RUN_LEVEL_CONFIG.names).filter(([k])=>spec.gains[k]).map(([k,n])=>`${runLevelText(n)} +${spec.gains[k]}`).join('・'));
           assert.equal(values.textContent,`ATKレベル 1 → ${after.atk} ／ HPレベル 1 → ${after.hp}`);
           assert.equal(row.children[0].children.length,2);
         }
         G.runLevels=runLevelNormalizeState({values:{stats:4,familiars:9,modifiers:8,damage:7},reward:{active:true}});
         const row=element('div');runLevelRenderReward(row);
-        assert.equal(row.children[0].children[0].textContent,RUN_LEVEL_CONFIG.receivedTitle);
+        assert.equal(row.children[0].children[0].textContent,runLevelText(RUN_LEVEL_CONFIG.receivedTitle));
         assert.equal(row.children[0].children[1].textContent,'ATKレベル 4 ／ HPレベル 4');
       }finally{renderRewCards=render.rew;renderHandEditor=render.hand;renderAll=render.all;}
     });

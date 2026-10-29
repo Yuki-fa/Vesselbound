@@ -81,25 +81,23 @@ function _enchantKeywordDesc(k){
       &&String(p.name||'').trim()===s&&String(p.desc||'').trim());
     if(panel) return String(panel.desc).trim();
   }
+  // 付与するキーワードの説明文はシート（加護はキーワードシート、他はテキストメッセージシート）。Xは数値。
+  const text=(key,fallback,value)=>String(typeof textMessage==='function'?textMessage(key,fallback):fallback)
+    .replace(/X/g,value==null?'X':value);
   if(/^加護\d*$/.test(s)){
     const value=Math.max(1,parseInt(s.replace('加護',''),10)||1);
-    return `このキャラクターは敵から与えられる状態異常を${value}回無効化する。`;
+    const desc=typeof KW_DESC_MAP!=='undefined'&&KW_DESC_MAP['加護']||'';
+    return String(desc).replace(/X/g,value);
   }
   if(_ENCHANT_KEYWORD_ONLY.has(s)) return s;
   if(/^結界\d*$/.test(s)) return '結界';
   if(/^封印\d+$/.test(s)) return s;
-  if(s==='生贄') return '効果なし';
-  if(/^毒牙\d+$/.test(s)){
-    const v=s.replace('毒牙','');
-    return `キャラクターにダメージを与えた時、そのキャラクターに毒${v}を与える。`;
-  }
-  if(/^毒\d+$/.test(s)){
-    const v=s.replace('毒','');
-    return `キャラクターにダメージを与えた時、そのキャラクターに毒${v}を与える。`;
-  }
-  if(s==='生命吸収') return 'このキャラクターが与えたダメージ分、HPを増加する。';
+  if(s==='生贄') return text('「生贄」付与時の説明文','効果なし');
+  if(/^毒牙\d+$/.test(s)) return text('「毒牙」付与時の説明文','キャラクターにダメージを与えた時、そのキャラクターに毒Xを与える。',s.replace('毒牙',''));
+  if(/^毒\d+$/.test(s)) return text('「毒」付与時の説明文','キャラクターにダメージを与えた時、そのキャラクターに毒Xを与える。',s.replace('毒',''));
+  if(s==='生命吸収') return text('「生命吸収」付与時の説明文','このキャラクターが与えたダメージ分、HPを増加する。');
   if(/^邪眼\d+$/.test(s)) return s;
-  if(/^衝撃(\d+)$/.test(s)) return `攻撃/ダメージ効果で対象に弱体${s.replace('衝撃','')}を付与する。`;
+  if(/^衝撃(\d+)$/.test(s)) return text('「衝撃」付与時の説明文','攻撃/ダメージ効果で対象に弱体Xを付与する。',s.replace('衝撃',''));
   // キーワードシートにない強化カード名や内部判定名は、キーワードとして表示しない。
   return '';
 }
@@ -597,10 +595,14 @@ function _summonNameAnnotation(name, owner, isSummon, context){
     if(actual){atk=actual.atk;hp=actual.hp;}
   }
   const shownKeywords=isSummon?_mergeCountedKeywords(kws):kws;
-  const head=shownKeywords.length?`${shownKeywords.join(isSummon?'と':'・')}を持つ`:'';
+  // 注釈の組み立て方（「Xを持つ」「X/Yの」と区切り）はテキストメッセージシート。
+  const text=(key,fallback)=>typeof textMessage==='function'?textMessage(key,fallback):fallback;
+  const separator=isSummon?text('召喚体の注釈（キーワード区切り）','と'):text('カードの注釈（キーワード区切り）','・');
+  const head=shownKeywords.length?text('召喚体の注釈（キーワード）','Xを持つ').replace(/X/g,()=>shownKeywords.join(separator)):'';
   // シートの「∞」は内部では SHEET_INFINITY_VALUE（loader.js）。表示は ∞ に戻す（鬼神の指輪の赤イフリート）。
   const shown=v=>typeof SHEET_INFINITY_VALUE!=='undefined'&&v>=SHEET_INFINITY_VALUE?'∞':v;
-  const stat=(Number.isFinite(atk)&&Number.isFinite(hp))?`${shown(atk)}/${shown(hp)}の`:'';
+  const stat=(Number.isFinite(atk)&&Number.isFinite(hp))
+    ?text('召喚体の注釈（ATK/HP）','X/Yの').replace(/X/g,()=>shown(atk)).replace(/Y/g,()=>shown(hp)):'';
   return `${head}${stat}`;
 }
 // 「〇〇」を召喚／「〇〇」に変身 の直前へ注釈を差し込む。
@@ -657,7 +659,7 @@ function _battleEndCountdownDescription(card,desc){
   const n=Math.max(1,Number(every[1])||1);
   const count=Math.max(0,Math.floor(Number(card&&card._battleEndCount)||0));
   const remaining=/回目の終戦時に/.test(every[0])?Math.max(0,n-count):n-count%n;
-  return text.replace(/（あと\s*X\s*戦）/g,`（あと${remaining}戦）`);
+  return text.replace(/(（あと)\s*X\s*(戦）)/g,(_,head,tail)=>`${head}${remaining}${tail}`);
 }
 function _rawSubstitutedDesc(card,owner){
   if(!card) return '';
@@ -672,14 +674,14 @@ function _rawSubstitutedDesc(card,owner){
   desc=_stageEngravingDescription(card,desc);
   desc=_battleEndCountdownDescription(card,desc);
   desc=corePermanentDamageDescription(card,desc);
-  desc=coreBoonDisplayText(card,desc,typeof TOWER_BOON_CONFIG!=='undefined'?TOWER_BOON_CONFIG.text:null);
+  desc=coreBoonDisplayText(card,desc,typeof towerBoonDisplayNotes==='function'?towerBoonDisplayNotes(card):null);
   // （状態異常：毒N）は今の毒の値で出す（永続化した毒／戦闘中はその体の毒。預言者"ディナ"、2026-10-11）。
   const shownPoison=card._persistentPoison!=null?card._persistentPoison
     :(card._mainBoardSlot!=null&&card.poison!=null?card.poison:null);
-  if(shownPoison!=null) desc=desc.replace(/（状態異常：毒\d+）/,`（状態異常：毒${Math.max(0,Number(shownPoison)||0)}）`);
+  if(shownPoison!=null) desc=desc.replace(/(（状態異常：毒)\d+(）)/,(_,head,tail)=>`${head}${Math.max(0,Number(shownPoison)||0)}${tail}`);
   desc=_annotateSummonNames(desc,card,owner);
   if(card.boon&&card.boon.famMul>1&&/召喚/.test(String(card.desc||''))){
-    desc+=TOWER_BOON_CONFIG.text.familiar.replace('{mul}',card.boon.famMul);
+    desc+=towerBoonText('familiar',card.boon.famMul);
   }
   // **合体後の効果文はシートの「合体効果」列がそのまま入っている**（loader.js／pool.js）。
   // ここで数字を2倍にしてはいけない（シートには倍にしない値がある）。
@@ -745,7 +747,8 @@ function cardRarityBannerHtml(card){
   const fullSpan=fullCount*23.92+Math.max(0,fullCount-1)*4;
   const cropStart=(fullSpan-starSpan)/2;
   const stars=Array.from({length:rarity},(_v,i)=>`<span class="card-rarity-mark" style="--rarity-offset:calc(${-(cropStart+i*step)}px * var(--game-scale))"></span>`).join('');
-  return `<span class="card-rarity-banner" aria-label="レアリティ${rarity}"><span class="card-rarity-back"></span><span class="card-rarity-marks" style="--rarity-full-span:calc(${fullSpan}px * var(--game-scale))">${stars}</span></span>`;
+  const label=_escapePreviewHtml(String(typeof textMessage==='function'?textMessage('カード「レアリティ」表示','レアリティX'):'レアリティX').replace(/X/g,rarity));
+  return `<span class="card-rarity-banner" aria-label="${label}"><span class="card-rarity-back"></span><span class="card-rarity-marks" style="--rarity-full-span:calc(${fullSpan}px * var(--game-scale))">${stars}</span></span>`;
 }
 
 function mkCardEl(card,_idx,_ctx){

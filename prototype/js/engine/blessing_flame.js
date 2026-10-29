@@ -3,13 +3,18 @@ const BLESSING_FLAME_CONFIG={
   key:'blessingFlame',name:'祝福の炎',
   position:{x:1621,y:1402},
   flashMs:760,
-  // シート未収録の仮文言。施設には会話を挟まず、この説明を表示する。
-  text:{description:'魔導板のキャラクターかエンチャント1枚を強化する。',
-    used:'この炎の祝福は、すでに失われた。',
-    instruction:'強化するカードを1枚選んでください。',
-    completed:'強化しました。',
-    execute:'実行',cancel:'キャンセル',leave:'祝福を離れる',preview:'強化後のカード'},
+  // 文言はテキストメッセージシートの [場面, 予備]。施設には会話を挟まず、この説明を表示する。
+  text:{description:['塔「祝福の炎」直下','魔導板のキャラクターかエンチャント1枚を強化する。'],
+    used:['塔「祝福の炎」直下（使用後）','この炎の祝福は、すでに失われた。'],
+    instruction:['「祝福の炎」使用時','強化するカードを1枚選んでください。'],
+    completed:['「祝福の炎」強化後','強化しました。'],
+    execute:['「実行」ボタン','実行'],cancel:['「キャンセル」ボタン','キャンセル'],
+    leave:['「祝福を離れる」ボタン','祝福を離れる'],preview:['「祝福の炎の報酬枠」見出し','強化後のカード']},
 };
+function blessingFlameText(name){
+  const [key,fallback]=BLESSING_FLAME_CONFIG.text[name]||['',''];
+  return typeof textMessage==='function'?textMessage(key,fallback):fallback;
+}
 // 選択・演出は画面内だけの一時状態。使用済み（強化して立ち去った）だけを G に保存する。
 // 祭壇と同じく、実行の有無にかかわらず何度でも入れる。使用済みの炎では選択・実行できない（2026-10-20 利用者指定）。
 let _blessingFlameVisit=null;
@@ -131,8 +136,8 @@ function blessingFlameClear(){
   document.body.classList.remove('blessing-flame-active');
 }
 function blessingFlameRenderPreview(el,section){
-  const visit=_blessingFlameVisit,text=BLESSING_FLAME_CONFIG.text;
-  section.style.setProperty('--title-reward',JSON.stringify(text.preview));
+  const visit=_blessingFlameVisit;
+  section.style.setProperty('--title-reward',JSON.stringify(blessingFlameText('preview')));
   if(visit&&visit.preview){
     const card=_mkRewDiv(visit.preview,null,null);
     card.classList.add('blessing-flame-preview');card.draggable=false;
@@ -141,24 +146,24 @@ function blessingFlameRenderPreview(el,section){
   }
   // 説明文は報酬枠の中心（プレビューのカードが置かれる位置の中心）に揃える。
   const help=document.createElement('div');help.className='blessing-flame-instruction';
-  help.textContent=visit&&visit.spent?text.used:visit&&visit.executed?text.completed:text.instruction;
+  help.textContent=blessingFlameText(visit&&visit.spent?'used':visit&&visit.executed?'completed':'instruction');
   el.appendChild(help);
 }
 function blessingFlameRenderControls(el){
-  const visit=_blessingFlameVisit,text=BLESSING_FLAME_CONFIG.text;
+  const visit=_blessingFlameVisit;
   const button=(label,cls,action,disabled)=>{
     const b=document.createElement('button');b.type='button';b.className='btn '+cls;b.disabled=disabled;
     const span=document.createElement('span');span.className='rew-btn-label';span.textContent=label;b.appendChild(span);
     b.onclick=action;el.appendChild(b);
   };
   // 右下は「祝福を離れる」「配置を戻す」。実行・キャンセルはプレビュー中だけ。
-  button(_uiLabel('「祝福を離れる」ボタン',text.leave),'rew-move-btn blessing-flame-leave-btn',()=>void blessingFlameLeave(),!visit||visit.busy);
+  button(blessingFlameText('leave'),'rew-move-btn blessing-flame-leave-btn',()=>void blessingFlameLeave(),!visit||visit.busy);
   const reset=_placementResetButton(blessingFlameReset);
   reset.disabled=!visit||visit.busy;
   el.appendChild(reset);
   if(visit&&visit.preview&&!visit.executed){
-    button(_uiLabel('「実行」ボタン',text.execute),'rew-move-btn blessing-flame-execute-btn',()=>void blessingFlameExecute(),visit.busy);
-    button(_uiLabel('「キャンセル」ボタン',text.cancel),'rew-reset-btn blessing-flame-cancel-btn',blessingFlameCancel,visit.busy);
+    button(blessingFlameText('execute'),'rew-move-btn blessing-flame-execute-btn',()=>void blessingFlameExecute(),visit.busy);
+    button(blessingFlameText('cancel'),'rew-reset-btn blessing-flame-cancel-btn',blessingFlameCancel,visit.busy);
   }
 }
 // 祝福の選択前から、通常の魔導板内の配置換えを受け付ける。

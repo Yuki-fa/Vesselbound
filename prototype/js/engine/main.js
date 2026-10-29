@@ -169,6 +169,29 @@ const SHEET_DOM_TITLES=[
   {sel:'#fatal-error-title',key:'「エラー発生時」見出し',fallback:'エラー'},
   {sel:'#fatal-error-back-btn',key:'「タイトルに戻る」ボタン',fallback:'タイトルに戻る'},
   {sel:'#title-options-btn,#battle-options-btn,#village-options-btn,#map-options-btn',attr:'title',key:'「オプション」見出し',fallback:'オプション'},
+  {sel:'#options-panel',attr:'aria-label',key:'「オプション」見出し',fallback:'オプション'},
+  {sel:'#options-close-proxy',attr:'aria-label',key:'「オプションを閉じる」ボタン',fallback:'オプションを閉じる'},
+  {sel:'#run-resume-journey-ui,#journey-progress-ui',attr:'aria-label',key:'「旅程枠」見出し',fallback:'旅の進捗'},
+  {sel:'#quest-debug-panel',attr:'aria-label',key:'「クエスト枠」見出し',fallback:'クエスト'},
+  {sel:'#battle-counters',attr:'aria-label',key:'「戦闘カウンター」枠',fallback:'戦闘カウンター'},
+  {sel:'#battle-status-hud,#village-status,#map-status',attr:'aria-label',key:'「所持金とライフ」枠',fallback:'所持金とライフ'},
+  {sel:'#battle-formation-btn',key:'「編成画面」見出し',fallback:'編成'},
+  {sel:'#village-formation-btn',key:'「編成画面」見出し',fallback:'編成'},
+  // 元はターン枠。今はライフを出す（_syncMoneyTurnTile も同じ行を引く）。
+  {sel:'#reward-production-ui .reward-prod-turn-label',key:'「ライフ枠」見出し',fallback:'ライフ'},
+  {sel:'#enemy-field-label',key:'「敵の盤面」見出し',fallback:'敵の盤面'},
+  {sel:'#ally-section .field-label',key:'「味方の盤面」見出し',fallback:'味方の盤面'},
+  {sel:'#btn-test-battle',key:'「試験戦闘」ボタン',fallback:'試験戦闘'},
+  // デバッグモードだけで出るボタン。
+  {sel:'#btn-debug-gameover .debug-button-label',key:'デバッグ「ゲームオーバー確認」ボタン',fallback:'ゲームオーバー確認'},
+  {sel:'#btn-debug-map',key:'デバッグ「マップ確認」ボタン',fallback:'マップ確認'},
+  {sel:'#btn-debug-quest .debug-button-label',key:'デバッグ「クエスト変更」ボタン',fallback:'クエスト変更'},
+  {sel:'#btn-debug-life-plus',key:'デバッグ「ライフ変更」ボタン',fallback:'ライフ変更'},
+  {sel:'#btn-debug-elite-boss .debug-button-label',key:'デバッグ「エリート / ボス変更」ボタン',fallback:'エリート / ボス変更'},
+  {sel:'#btn-debug-kill',key:'デバッグ「全敵撃破」ボタン',fallback:'全敵撃破'},
+  {sel:'#map-debug-map-btn',key:'終了',fallback:'終了'},
+  {sel:'#map-debug-map-btn',attr:'title',key:'デバッグ「マップ確認」終了説明',fallback:'マップ無限再生を終了（デバッグ）'},
+  {sel:'#debug-card-palette',attr:'aria-label',key:'デバッグ「カード一覧」',fallback:'デバッグカード一覧'},
 ];
 function applySheetDomTitles(){
   if(typeof document==='undefined'||typeof textMessage!=='function') return;
@@ -183,6 +206,8 @@ function applySheetDomTitles(){
       else el.textContent=text;
     });
   });
+  // 状態で文言が変わるボタンは、その同期処理がシートから引き直す。
+  if(typeof _syncBoardCardVisibilityLabel==='function') _syncBoardCardVisibilityLabel();
 }
 function applySheetCssTexts(){
   if(typeof document==='undefined'||typeof textMessage!=='function') return;
@@ -307,7 +332,7 @@ function _positionDebugMuteButton(){
   const btn=document.getElementById('battle-mute-btn');
   if(!btn||btn.style.display==='none') return;
   if(typeof isDebugMuted==='function'){
-    btn.textContent=isDebugMuted()?'ミュート解除':'ミュート';
+    btn.textContent=debugMuteLabel(isDebugMuted());
   }
 }
 // 編成画面ボタン（デバッグモード中のみ表示・オプションボタンの左に追従）
@@ -1356,11 +1381,11 @@ const TITLE_START_LABEL_FALLBACK='ゲームスタート';
 const _titleStartLabel=()=>(typeof textMessage==='function'
   ?textMessage('ゲームスタート',TITLE_START_LABEL_FALLBACK)
   :TITLE_START_LABEL_FALLBACK).trim()||TITLE_START_LABEL_FALLBACK;
-const TITLE_DEBUG_LABEL='デバッグモード';
-// この2件はデバッグ専用で、テキストメッセージシートに行を持たない。
-const TITLE_ONLINE_DEBUG_LABEL_FALLBACK='デバッグオンライン';
-const _titleDebugLabel=()=>TITLE_DEBUG_LABEL;
-const _titleOnlineDebugLabel=()=>TITLE_ONLINE_DEBUG_LABEL_FALLBACK;
+// デバッグ専用の2件も、テキストメッセージシートの「デバッグ」区分から引く。
+const _titleDebugLabel=()=>typeof textMessage==='function'
+  ?textMessage('デバッグ「デバッグモード」','デバッグモード'):'デバッグモード';
+const _titleOnlineDebugLabel=()=>typeof textMessage==='function'
+  ?textMessage('デバッグ「デバッグオンライン」','デバッグオンライン'):'デバッグオンライン';
 function _syncTitleStartLabel(){
   const title=document.getElementById('scr-title');
   if(title) title.classList.toggle('title-debug-ready',_titleCtrlHeld);
@@ -1694,7 +1719,8 @@ function _renderGameOverResults(isClear,firstRunClear){
   document.getElementById('go-difficulty').textContent=_msg('難易度ノーマル','ノーマル');
   document.getElementById('go-time').textContent=G.runStats.playTime||'0 : 00';
   _animateGameOverNumber('go-allyDeaths',G.runStats.allyDeaths,600,undefined,800);
-  _animateGameOverNumber('go-damage',G.runStats.maxDamage?.amount,700,n=>`${Math.floor(n)} ダメージ${G.runStats.maxDamage?.type?`（${G.runStats.maxDamage.type}）`:''}`,1000);
+  const damageText=_msg('最大ダメージ','X ダメージ');
+  _animateGameOverNumber('go-damage',G.runStats.maxDamage?.amount,700,n=>`${damageText.replace(/X/g,Math.floor(n))}${G.runStats.maxDamage?.type?`（${G.runStats.maxDamage.type}）`:''}`,1000);
   _animateGameOverPair('go-stats',G.runStats.maxAtk,G.runStats.maxHp,700,1100);
   const resultTitle=document.querySelector('#gameover-results h1');
   // オンライン対戦で相手のライフを0にした場合は「踏破」ではなく「完全勝利」と表示する。
@@ -1706,7 +1732,7 @@ function _renderGameOverResults(isClear,firstRunClear){
   const back=document.getElementById('gameover-back-btn');
   if(back){
     back.textContent=G._gameOverSpecialDebug
-      ?'編成画面に戻る'
+      ?_msg('デバッグ「編成画面に戻る」ボタン','編成画面に戻る')
       :_msg('「タイトルに戻る」ボタン','タイトルに戻る');
     back.onclick=()=>{
       if(typeof playSfx==='function') playSfx('uiConfirmHeavy',{group:'ui',guardKey:'ui:gameover-back'});
@@ -2348,8 +2374,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   if (msgEl) {
     msgEl.textContent = ok
-      ? '✓ データを読み込みました'
-      : '⚠ オフライン：内蔵データで起動します';
+      ? textMessage('データ読み込み完了時', '✓ データを読み込みました')
+      : textMessage('内蔵データ起動時', '⚠ オフライン：内蔵データで起動します');
     msgEl.style.color = ok ? 'var(--teal2)' : 'var(--gold2)';
   }
   // 所持金・ライフ・マナ・血の説明（テキストメッセージシート）を貼る。
@@ -2447,7 +2473,7 @@ window.addEventListener('keydown', async (e) => {
         const pSuccess = document.createElement('p');
         pSuccess.className = 'good';
         pSuccess.style.fontWeight = '900';
-        pSuccess.innerHTML = '✓ 最新のエクセル能力（表記・戦闘効果）を現在の盤面に直接ドッキングしました！';
+        pSuccess.textContent = textMessage('デバッグ「F4同期」完了', '✓ 最新のエクセル能力（表記・戦闘効果）を現在の盤面に直接ドッキングしました！');
         b.appendChild(pSuccess);
         b.scrollTop = b.scrollHeight;
       }

@@ -158,10 +158,13 @@ function ringExchangeDepartureBlocked(){
   // 選択中もカードは魔導板に残るので、支払い済みとして二重に数えない。
   return ringExchangeSacrificeCapacity()>=SHOP_EXCHANGE_TRIAL.ringCardCost;
 }
+function _ringExchangeRequiredText(){
+  return textMessage('指輪未取得時','出発する前に、塔の祭壇でカードを捧げて指輪を取得してください。');
+}
 function guardRingExchangeDeparture(){
   if(!ringExchangeDepartureBlocked()) return true;
   if(typeof showErrorOverlay==='function') showErrorOverlay({
-    title:SHOP_EXCHANGE_TRIAL.text.ringTitle,message:SHOP_EXCHANGE_TRIAL.text.ringRequired,
+    title:textMessage('「指輪未取得時」見出し','指輪の交換が必要です'),message:_ringExchangeRequiredText(),
     buttonKey:'「戻る」ボタン',buttonFallback:'戻る',buttonSfx:'uiConfirm',
   });
   return false;
@@ -174,7 +177,7 @@ function syncRingExchangeDepartureButton(button,enabled=true){
   else if(wasRequired) button.classList.remove('disabled');
   button.classList.toggle('ring-exchange-required',blocked);
   button.setAttribute('aria-disabled',String(blocked));
-  if(blocked) button.title=SHOP_EXCHANGE_TRIAL.text.ringRequired;
+  if(blocked) button.title=_ringExchangeRequiredText();
   else button.removeAttribute('title');
 }
 
@@ -510,18 +513,6 @@ function villageFacilityNameVariants(name){
   if(out.indexOf('ショップ')>=0){ push('魔導取引所'); push('魔導店'); push('魔道店'); }
   return out;
 }
-// シートに行が無い施設用の予備テキスト（「テキストメッセージ」シートに
-// 「街「◯◯」直下」行を追加すればそちらが優先される）。
-const VILLAGE_FACILITY_FALLBACK_DESC={
-  '道具屋':'アイテムの売買ができる。',
-  '宿屋':'ライフを回復できる。',
-  '広場':'クエストを受けることができる。',
-  '闘技場':'腕試しができる。',
-  // 塔（「テキストメッセージ」シートに塔「◯◯」直下の行が追加されればそちらが優先）
-  '祭壇':'カード3枚と引き換えに指輪1つを得る。',
-  '踊り場':'ひと息つける。',
-  '五聖の座':'ひと息つける。',
-};
 // 施設ボタンの表示名は「テキストメッセージ」シートの「街「◯◯」ボタン」行から引く。
 // シートに行が無ければ地域情報シートの施設名をそのまま出す。
 function villageFacilityLabelText(name){
@@ -530,7 +521,7 @@ function villageFacilityLabelText(name){
   for(const pre of prefixes){
     for(const v of variants){
       const hit=textMessage(`${pre}「${v}」ボタン`,'');
-      if(hit) return String(hit).replace(/魔道店|魔導店/g,'魔導取引所');
+      if(hit) return String(hit).replace(/魔道店|魔導店/g,textMessage('「魔導取引所」見出し','魔導取引所'));
     }
   }
   return String(name||'');
@@ -544,8 +535,7 @@ function _villageLifeFull(){
   return life>=max;
 }
 function villageFacilityDescText(name){
-  if(name===BLESSING_FLAME_CONFIG.name) return blessingFlameUsed()
-    ?BLESSING_FLAME_CONFIG.text.used:BLESSING_FLAME_CONFIG.text.description;
+  if(name===BLESSING_FLAME_CONFIG.name) return blessingFlameText(blessingFlameUsed()?'used':'description');
   const variants=villageFacilityNameVariants(name);
   if(variants.includes('五聖の座')&&(!_fiveSaintsUnlocked()
     ||(typeof fiveSaintsCurrentTowerResolved==='function'&&fiveSaintsCurrentTowerResolved()))){
@@ -580,9 +570,6 @@ function villageFacilityDescText(name){
         return v==='宿屋'?String(hit).replace(/（鍵が閉まっている）/g,'').trim():String(hit);
       }
     }
-  }
-  for(const v of variants){
-    if(VILLAGE_FACILITY_FALLBACK_DESC[v]) return VILLAGE_FACILITY_FALLBACK_DESC[v];
   }
   return '';
 }
@@ -1082,7 +1069,8 @@ function worldMapActiveLine(wave,stage){
 }
 function renderWorldMapScreen(activeOverride,targetWave,targetStage){
   const info=regionInfoForWave(targetWave==null?(G&&G._wave):targetWave);
-  const name=String(((Number(targetStage==null?(G&&G._waveStage):targetStage)||1)>=5?info&&info.toTowerName:info&&info.toTownName)||'街');
+  // 街・塔の名前は地域情報シートが唯一の出どころ（コードに予備の名前を持たない）。
+  const name=String(((Number(targetStage==null?(G&&G._waveStage):targetStage)||1)>=5?info&&info.toTowerName:info&&info.toTownName)||'');
   const split=name.match(/^(.*?)[ 　]+(.+)$/);
   const sub=document.getElementById('map-name-sub');
   const main=document.getElementById('map-name-main');
@@ -1410,10 +1398,10 @@ function renderVillageScreen(){
   const info=regionInfoForWave(G&&G._wave);
   // 五聖の座の中は、左上に塔の名前ではなく「五聖の座」見出しを出す（2026-10-01 利用者指摘）。
   const name=(G&&G._isFiveSaints&&typeof fiveSaintsRewardTitle==='function')
-    ?String(fiveSaintsRewardTitle()||'五聖の座')
+    ?String(fiveSaintsRewardTitle())
     :(G&&G._isWaveAltar)
-    ?String((info&&info.towerName)||'塔')
-    :String((info&&info.townName)||'街');
+    ?String((info&&info.towerName)||'')
+    :String((info&&info.townName)||'');
   // 「大樹の抱く集落 エルム」のように半角スペース区切りなら、前半（地域名）を小さく表示する。
   const split=name.match(/^(.*?)[ 　]+(.+)$/);
   const sub=document.getElementById('village-name-sub');
@@ -1473,7 +1461,7 @@ function renderVillageScreen(){
   const mute=document.getElementById('village-mute-btn');
   if(mute){
     mute.style.display=(G&&G._debugMode)?'block':'none';
-    mute.textContent=(typeof isDebugMuted==='function'&&isDebugMuted())?'ミュート解除':'ミュート';
+    mute.textContent=debugMuteLabel(typeof isDebugMuted==='function'&&isDebugMuted());
     mute.onclick=()=>{ if(typeof toggleDebugMute==='function') toggleDebugMute(); };
   }
   // デバッグモードでは、オプションボタンの左に編成画面を開くボタンを出す。
@@ -1545,8 +1533,8 @@ async function _playVillageEnterIntro(build,beforeReveal){
     const title=document.getElementById('village-intro-title');
     const info=regionInfoForWave(G&&G._wave);
     const introName=(G&&G._isWaveAltar)
-      ?String((info&&info.towerName)||'塔')
-      :String((info&&info.townName)||'街');
+      ?String((info&&info.towerName)||'')
+      :String((info&&info.townName)||'');
     // 半角/全角スペースで分割し、前半（地域名）を小さく上に、後半（固有名）を大きく下に出す。
     const introSplit=introName.match(/^(.*?)[ 　]+(.+)$/);
     const subEl=title&&title.querySelector('.village-intro-name-sub');
@@ -1960,9 +1948,8 @@ function _maybeStartShopTutorial(fac){
     if(typeof SaveProfile!=='undefined') SaveProfile.markTutorialShown(flag);
     runBoardTutorial({
       id:`shop-${facKey}`,
-      introText:_shopTutorialText(facKey,'説明開始',facKey==='shop'?SHOP_EXCHANGE_TRIAL.text.shopIntro:facKey),
-      text:(key,fallback)=>_shopTutorialText(facKey,key,facKey==='shop'
-        ?(SHOP_EXCHANGE_TRIAL.text.shopSteps[Number(key)-1]||fallback):fallback),
+      introText:_shopTutorialText(facKey,'説明開始',facKey),
+      text:(key,fallback)=>_shopTutorialText(facKey,key,fallback),
       // 売却の説明（道具屋の2・鍛冶屋の3）は、売却が無くなったので出さない（2026-10-18）。
       buildSteps:()=>[['1',null,''],['2',null,''],['3',null,'']].filter(([k])=>_cardTradingRules().sellItems||!(facKey==='item'&&k==='2'||facKey==='forge'&&k==='3')),
     });

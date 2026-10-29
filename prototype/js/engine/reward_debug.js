@@ -144,7 +144,7 @@ function renderDebugCardPalette(){
   const kind=G._debugPaletteKind;
   const tab=(key,label)=>`<button type="button" class="debug-palette-kind${kind===key?' active':''}" data-kind="${key}">${label}</button>`;
   const title={character:'DEBUG CARD',enchant:'DEBUG ENCHANT',item:'DEBUG ITEM',ring:'DEBUG RING'}[kind];
-  host.innerHTML=`<div class="debug-palette-head"><div class="debug-palette-tabs">${tab('character','キャラ')}${tab('enchant','強化')}${tab('item','アイテム')}${tab('ring','指輪')}</div><div class="debug-palette-title">${title}</div><button type="button" class="debug-palette-rotate"${kind==='item'||kind==='ring'?' disabled':''}>回転</button></div><div class="debug-palette-list"></div>`;
+  host.innerHTML=`<div class="debug-palette-head"><div class="debug-palette-tabs">${tab('character',_uiLabel('デバッグ「カード一覧」キャラクタータブ','キャラ'))}${tab('enchant',_uiLabel('デバッグ「カード一覧」エンチャントタブ','強化'))}${tab('item',_uiLabel('デバッグ「カード一覧」アイテムタブ','アイテム'))}${tab('ring',_uiLabel('デバッグ「カード一覧」指輪タブ','指輪'))}</div><div class="debug-palette-title">${title}</div><button type="button" class="debug-palette-rotate"${kind==='item'||kind==='ring'?' disabled':''}>${_uiLabel('デバッグ「カード一覧」回転ボタン','回転')}</button></div><div class="debug-palette-list"></div>`;
   host.querySelectorAll('.debug-palette-kind').forEach(btn=>{
     btn.onclick=e=>{
       e.preventDefault();

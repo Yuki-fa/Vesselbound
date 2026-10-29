@@ -25,12 +25,17 @@ function _defeatPeddlerLines(){
 }
 // 編成画面の左上の見出し。テキストメッセージシートの「「行商人」見出し」（2026-10-11 利用者指定）。
 // 行が無い時だけ、会話シートの「キャラクターの名前」（行商人 ガーラ）の空白より前を使う。
+// 旧称「行商人」は「トレーダー」見出しの文言へ読み替える。
+function _defeatPeddlerTraderName(){
+  return typeof textMessage==='function'?textMessage('「トレーダー」見出し','トレーダー'):'トレーダー';
+}
 function defeatPeddlerTitle(){
+  const trader=_defeatPeddlerTraderName();
   const name=String((_defeatPeddlerLines().talk||{}).characterName||'').trim();
-  const fallback=name.replace(/^行商人?(?=[ 　]|$)/,'トレーダー').split(/[ 　]+/)[0]||'トレーダー';
+  const fallback=name.replace(/^行商人?(?=[ 　]|$)/,trader).split(/[ 　]+/)[0]||trader;
   if(typeof textMessage!=='function') return fallback;
   const title=textMessage('「トレーダー」見出し','')||textMessage('「行商人」見出し',fallback);
-  return String(title||fallback).replace(/^行商人?(?=[ 　]|$)/,'トレーダー');
+  return String(title||fallback).replace(/^行商人?(?=[ 　]|$)/,trader);
 }
 // 敗北の後に行商人が来るか（毎回）。オンライン・試験戦闘・闘技場では来ない。
 function defeatPeddlerPending(){
@@ -133,7 +138,7 @@ async function runDefeatPeddlerEvent(){
       firstLines:shownLines,faceA:typeof _storyFirstFace==='function'?_storyFirstFace(shownLines,'MC001'):undefined,
       withoutNamePlate:true});
   }
-  const name=talk&&talk.characterName?String(talk.characterName).trim().replace(/^行商人?(?=[ 　]|$)/,'トレーダー'):'';
+  const name=talk&&talk.characterName?String(talk.characterName).trim().replace(/^行商人?(?=[ 　]|$)/,_defeatPeddlerTraderName()):'';
   if(typeof _qStartDialogue==='function') await _qStartDialogue(shownLines,{screen:'village',
     ...(name?{namePlateText:name,namePlateLine:1,namePlateAnySpeaker:true}:{})});
   if(typeof _qRemoveDialogue==='function') _qRemoveDialogue();

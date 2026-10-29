@@ -1018,7 +1018,9 @@ function _qDebugRender(){
     if(name) name.textContent=_qDebugQuestName(item.id);
     row.querySelectorAll('button[data-quest-debug-dir]').forEach(button=>{
       button.disabled=!item.candidates.length;
-      button.setAttribute('aria-label',`${_qDebugShortTownName(item.wave)}の${button.dataset.questDebugDir==='next'?'次':'前'}のクエスト`);
+      const label=button.dataset.questDebugDir==='next'
+        ?_qText('デバッグ「クエスト変更」次','Xの次のクエスト'):_qText('デバッグ「クエスト変更」前','Xの前のクエスト');
+      button.setAttribute('aria-label',label.replace(/X/g,_qDebugShortTownName(item.wave)));
     });
   });
 }

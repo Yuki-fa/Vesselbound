@@ -19,7 +19,9 @@ function _ensureGameConfirm(){
     +'<div id="game-confirm-actions"><button data-sfx-silent="1" id="game-confirm-ok" type="button"></button>'
     +'<button data-sfx-silent="1" id="game-confirm-cancel" type="button"></button></div></div></div>'
     // オプションボタンの代わり（画面のオプションボタンと同じ位置・見た目）。allowOptions の時だけ見せる。
-    +'<button data-sfx-silent="1" id="game-confirm-options" type="button" aria-label="オプション"></button>';
+    +'<button data-sfx-silent="1" id="game-confirm-options" type="button"></button>';
+  root.querySelector('#game-confirm-options').setAttribute('aria-label',
+    typeof textMessage==='function'?textMessage('「オプション」見出し','オプション'):'オプション');
   root.querySelector('#game-confirm-options').onclick=e=>{
     e.preventDefault();e.stopPropagation();
     if(typeof playSfx==='function') playSfx('uiConfirm',{group:'ui',guardKey:'ui:button'});

@@ -18,7 +18,8 @@ const acorn=parser(),JP=/[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/
 const norm=s=>String(s??'').replace(/[\s　]+/g,'').trim();
 const messages=(()=>{
   const rows=sheet.parseCsv(sheet.loadLocalXlsxData().textMessage),head=rows.find(r=>r.includes('場面')&&r.includes('テキスト'));
-  return rows.map(r=>({key:r[head.indexOf('場面')]||'',text:r[head.indexOf('テキスト')]||''})).filter(r=>r.key);
+  // 区分名の行（テキストが空）は loader.js と同じく落とす。残すと同名のキー（オンライン対戦など）を空で上書きする。
+  return rows.map(r=>({key:r[head.indexOf('場面')]||'',text:r[head.indexOf('テキスト')]||''})).filter(r=>r.key&&String(r.text).trim());
 })();
 const byKey=new Map(messages.map(r=>[norm(r.key),r]));
 function bindingExists(key){
@@ -110,6 +111,8 @@ function scanJs(source,file,offset=0){
   function record(n,reason,binding=null){
     const raw=n.type==='TemplateLiteral'?n.quasis.map((q,i)=>(q.value.cooked||'')+(n.expressions[i]?'${'+source.slice(n.expressions[i].start,n.expressions[i].end).replace(/\s+/g,' ').slice(0,100)+'}':'')).join(''):n.value;
     const text=humanText(raw);if(!text||!JP.test(text)||n.regex)return;
+    // テンプレートの差し込み式（_uiLabel('キー','予備') など）は別に辿るので、地の文に日本語が無ければ数えない。
+    if(n.type==='TemplateLiteral'&&!JP.test(humanText(n.quasis.map(q=>q.value.cooked||'').join(''))))return;
     const parents=ancestors(n),decl=parents.find(p=>p.type==='VariableDeclarator'),root=decl?.id?.name||'';
     const row=rows.get(n)||{file,line:n.loc.start.line+offset,column:n.loc.start.column+1,text,where:new Set(),bindings:new Set(),raw:String(raw),root,
       dataFallback:file==='js/engine/pool.js'&&['PANEL_POOL','ITEM_POOL'].includes(root)};
@@ -127,7 +130,12 @@ function scanJs(source,file,offset=0){
       case 'ConditionalExpression':trace(n.consequent,reason,ctx,seen,binding);trace(n.alternate,reason,ctx,seen,binding);return;
       case 'LogicalExpression':if(n.operator!=='&&')trace(n.left,reason,ctx,seen,binding);trace(n.right,reason,ctx,seen,binding);return;
       case 'BinaryExpression':if(n.operator==='+'){trace(n.left,reason,ctx,seen,binding);trace(n.right,reason,ctx,seen,binding);}return;
-      case 'ArrayExpression':n.elements.forEach(e=>trace(e,reason,ctx,seen,binding));return;
+      case 'ArrayExpression':{
+        // [シートのキー, 予備文] の組（blessing_flame.js などの表示設定）。キーは表示しない。
+        const pairKey=n.elements.length===2&&n.elements[0]?.type==='Literal'&&typeof n.elements[0].value==='string'?n.elements[0].value:null;
+        if(pairKey&&bindingExists(pairKey)){trace(n.elements[1],reason,ctx,seen,pairKey);return;}
+        n.elements.forEach(e=>trace(e,reason,ctx,seen,binding));return;
+      }
       case 'ObjectExpression':n.properties.filter(p=>p.type==='Property'&&(DISPLAY_PROPS.has(propertyName(p))||/\/ (?:text|texts|names|labels|messages)\b/.test(reason))).forEach(p=>trace(p.value,reason,ctx,seen,binding));return;
       case 'AssignmentExpression':trace(n.right,reason,ctx,seen,binding);return;
       case 'SequenceExpression':trace(n.expressions.at(-1),reason,ctx,seen,binding);return;
@@ -177,9 +185,10 @@ function scanJs(source,file,offset=0){
     if(n.type==='Property'&&(DISPLAY_PROPS.has(propertyName(n))||/(?:Text|Label|Title|Message|Hint|Description|Tooltip|Intro|Fallback)$/.test(propertyName(n))
       ||/Steps$/.test(propertyName(n))&&n.value.type==='ArrayExpression')&&!debugOnly(n)){
       const obj=meta.get(n)?.parent,props=obj?.properties||[];
-      const keyProp=props.find(p=>propertyName(p)===(propertyName(n)==='title'?'titleKey':'key'));
+      const own=propertyName(n),keyName=own==='title'?'titleKey':/Fallback$/.test(own)?own.replace(/Fallback$/,'Key'):'key';
+      const keyProp=props.find(p=>propertyName(p)===keyName);
       const key=keyProp&&staticValue(keyProp.value);
-      trace(n.value,`${fn||'表示設定'}${ancestors(n).find(p=>p.type==='VariableDeclarator')?.id?.name?' '+ancestors(n).find(p=>p.type==='VariableDeclarator').id.name:''} / ${propertyName(n)}`,new Map(),new Set(),key&&['fallback','title'].includes(propertyName(n))?String(key):null);
+      trace(n.value,`${fn||'表示設定'}${ancestors(n).find(p=>p.type==='VariableDeclarator')?.id?.name?' '+ancestors(n).find(p=>p.type==='VariableDeclarator').id.name:''} / ${propertyName(n)}`,new Map(),new Set(),key&&(['fallback','title'].includes(own)||/Fallback$/.test(own))?String(key):null);
     }
     // [DOMのid, メッセージキー, 予備文] および [キー, 予備文] の表示設定表。
     if(n.type==='ArrayExpression'&&[2,3].includes(n.elements.length)

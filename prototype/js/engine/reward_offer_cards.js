@@ -71,7 +71,7 @@ function _renderRingOfferCards(el){
       div.classList.add('ring-visual-filled');
       div.style.setProperty('--ring-art',`url("${path}")`);
     }
-    const preview=[ring.name||'指輪',typeof ringDisplayDesc==='function'?ringDisplayDesc(ring):(ring.desc||'')].filter(Boolean).join('\n');
+    const preview=[ring.name||_uiLabel('「指輪枠」見出し','指輪'),typeof ringDisplayDesc==='function'?ringDisplayDesc(ring):(ring.desc||'')].filter(Boolean).join('\n');
     div.setAttribute('data-preview',preview);
     if(!unlocked){
       div.classList.add('ring-offer-locked');
