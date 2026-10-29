@@ -139,6 +139,10 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 | thunderbird-charge | [SORCERY - DESIGNED - MAGIC ELECTRIC Cast Large-04.wav](#thunderbird-charge-1) · 1.317秒 / peak 0.450 | [Production Element Title Transition Electrical Surge 01.wav](#thunderbird-charge-2) · 0.754秒 / peak 0.450 | [09 BOOM Thunder Doom_B.wav](#thunderbird-charge-3) · 1.950秒 / peak 0.036 |
 | kele-blood-nova | [DSGNImpt-DS_IMPACT-Dark Drum_RTSB_COL-01.wav](#kele-blood-nova-1) · 1.950秒 / peak 0.125 | [27 BOOM Scarlet Blaze_Bb.wav](#kele-blood-nova-2) · 1.950秒 / peak 0.305 | [DSGNImpt-DS_IMPACT-Annihilating Blast_RTSB_COL-01.wav](#kele-blood-nova-3) · 1.950秒 / peak 0.297 |
 <!-- SE1025B_ROWS_END -->
+<!-- SE1029_ROWS_BEGIN -->
+| dark-fireball | [Production Element Title Transition Whoosh Fire 03.wav](#dark-fireball-1) · 1.950秒 / peak 0.577 | [Production Element Title Transition Whoosh Fire 07.wav](#dark-fireball-2) · 1.950秒 / peak 0.165 | [Production Element Title Transition Stab Dark Short 03.wav](#dark-fireball-3) · 1.950秒 / peak 0.450 |
+| leprechaun-quick | [Foley Coin Jingle In Hand Short 01.wav](#leprechaun-quick-1) · 0.694秒 / peak 0.524 | [Impact Coins Multiple Coin Drop On Felt 05.wav](#leprechaun-quick-2) · 0.547秒 / peak 0.408 | [C088.wav](#leprechaun-quick-3) · 1.000秒 / peak 0.450 |
+<!-- SE1029_ROWS_END -->
 
 ヴリコラカスは復活開始時に `revive.wav`、ダイアウルフはウルフ登場開始時に `opening.wav` を追加再生する。候補3つとは別の既存SE。
 
@@ -2332,3 +2336,49 @@ LAB の01〜05（10/23 に作った演出）と、2026-10-25 に作った演出�
 - 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/The Vault/RTSB Collision/Sounds/分割/DSGNImpt-DS_IMPACT-Annihilating Blast_RTSB_COL-01.wav`
 - 理由: ケール：深紅の衝撃波が敵全体へ
 - 原音 3.260秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.297秒 / 末尾フェード 400ms
+
+## 2026-10-29追加の原音と加工
+
+161 闇の火球の弾（dark-fireball）と180 戦闘中の高速の永久強化（leprechaun-quick）の候補。ファイル名と尺による一次選定で、聴感は未確認。ゲームの音は LAB で選ぶまで今のまま。
+
+<a id="dark-fireball-1"></a>
+### dark-fireball-1 / Production Element Title Transition Whoosh Fire 03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 03.wav`
+- 理由: 炎の塊が飛び去る短い風切り
+- 原音 4.227秒 / 開始 0.064秒 / 出力 1.950秒 / peak 0.577秒 / 末尾フェード 400ms
+
+<a id="dark-fireball-2"></a>
+### dark-fireball-2 / Production Element Title Transition Whoosh Fire 07.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 07.wav`
+- 理由: 短めの炎の風切り（軽い）
+- 原音 2.927秒 / 開始 0.000秒 / 出力 1.950秒 / peak 0.165秒 / 末尾フェード 400ms
+
+<a id="dark-fireball-3"></a>
+### dark-fireball-3 / Production Element Title Transition Stab Dark Short 03.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Short 03.wav`
+- 理由: 暗く短い一撃（闇の色を強める）
+- 原音 3.743秒 / 開始 0.740秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="leprechaun-quick-1"></a>
+### leprechaun-quick-1 / Foley Coin Jingle In Hand Short 01.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Coin Jingle In Hand Short 01.wav`
+- 理由: 金貨の短いジャラッ（金の永久強化）
+- 原音 0.719秒 / 開始 0.025秒 / 出力 0.694秒 / peak 0.524秒 / 末尾フェード 30ms
+
+<a id="leprechaun-quick-2"></a>
+### leprechaun-quick-2 / Impact Coins Multiple Coin Drop On Felt 05.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Impact Coins Multiple Coin Drop On Felt 05.wav`
+- 理由: 軽いコインの落下（短く明るい）
+- 原音 0.556秒 / 開始 0.009秒 / 出力 0.547秒 / peak 0.408秒 / 末尾フェード 30ms
+
+<a id="leprechaun-quick-3"></a>
+### leprechaun-quick-3 / C088.wav
+
+- 元素材: `prototype/assets/sfx/C088.wav`
+- 理由: 成長の音（C088）の頭だけを短く（成長の味のまま）
+- 原音 4.200秒 / 開始 0.416秒 / 出力 1.000秒 / peak 0.450秒 / 末尾フェード 300ms

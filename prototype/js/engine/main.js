@@ -707,7 +707,9 @@ function _openWaveFormation(){
 }
 function _grantWaveEliteItem(){
   if(typeof drawItems!=='function'||typeof _ensureItemSlots!=='function') return;
-  const item=drawItems(1)[0];
+  // レアリティ「X」のアイテムは X＝現在ステージ（2026-10-29 利用者指定）。
+  const stage=Math.max(1,Math.min(5,Number(G&&G._wave)||1));
+  const item=drawItems(1,undefined,{rarityX:stage})[0];
   if(!item) return;
   const slots=_ensureItemSlots();
   const idx=slots.findIndex(c=>!c);

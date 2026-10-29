@@ -628,9 +628,11 @@ function drawItems(n, maxGrade, opts){
   const base=(ITEM_POOL||[]).filter(p=>p&&p.id&&p.name&&String(p.name).trim().toLowerCase()!=='false'&&p._implemented!==false&&!p._noItemEffectImpl&&panelMergeContentAvailable(p)&&!excluded(p));
   // レアリティ「X」のアイテムは、レアリティ1〜5の5通りとして抽選に入れる（X＝引いたレアリティ。出現率はレアリティの比率に従う）。
   // 5通りは同じ id なので、1回の抽選で同じ種類はレアリティが違っても1つしか出ない（2026-10-22 利用者指定）。
+  // opts.rarityX：Xを決め打ちする（エリートが落とすアイテムは X＝現在ステージ。2026-10-29 利用者指定）。
   // maxRarity：その店で売るレアリティの上限（最初の村の道具屋は2まで。2026-10-26 利用者指定）。
   const maxRarity=Math.max(0,Number(opts&&opts.maxRarity)||0);
-  const pool=base.flatMap(p=>p._rarityX?[1,2,3,4,5].map(x=>({...p,rarity:x,_xPick:x})):[p])
+  const fixedX=Math.max(0,Math.min(5,Math.floor(Number(opts&&opts.rarityX)||0)));
+  const pool=base.flatMap(p=>p._rarityX?(fixedX?[fixedX]:[1,2,3,4,5]).map(x=>({...p,rarity:x,_xPick:x})):[p])
     .filter(p=>!maxRarity||(Number(p.rarity)||1)<=maxRarity);
   const res=[];
   const used=new Set();

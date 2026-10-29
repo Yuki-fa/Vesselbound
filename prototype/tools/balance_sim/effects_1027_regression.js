@@ -7,7 +7,11 @@ const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 const BASELINE = 'cd10e80491ce7434eba63f19bcb503228c1076fd';
 const REVISED = new Set('E004 E005 E009 E017 E024 E027 E038 E042 E047 E052 E063 E065 E069 E074 C068'.split(' '));
-module.exports={BASELINE,REVISED};
+// 2026-10-29 の利用者指定で意図して挙動を変えたカード（旧版一致の比較から外す。詳しくは docs/BATTLE.md・HISTORY.md の 2026-10-29）。
+// ヴリコラカス／ジャンシー：重ならないキーワード（復活）のランダム付与で既に持つ体を外す。リッチ：常時効果のダメージの種類と合図。
+const REVISED_1029 = new Set('C042 C029 C050'.split(' '));
+for (const no of REVISED_1029) REVISED.add(no);
+module.exports={BASELINE,REVISED,REVISED_1029};
 let passed = 0, failed = 0;
 async function check(name, fn) {
   try { await fn(); passed++; console.log('OK ' + name); }

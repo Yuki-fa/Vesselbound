@@ -46,6 +46,25 @@ async function check(name, fn) {
       assert.equal(it.rarity, it._xValue);
       assert.equal(makeItem(xItems[1].id, 4).desc, '対象のキャラクターに邪眼4を与える。');
     });
+    // 2026-10-29 利用者指定：エリートが落とすアイテムは X＝現在ステージ。
+    await check('エリートが落とすアイテムの X は現在ステージ', () => {
+      const keep = { wave: G._wave, slots: G.spellSlots };
+      try {
+        for (const stage of [1, 3, 5]) {
+          let seen = 0;
+          for (let k = 0; k < 400; k++) {
+            G._wave = stage; G.spellSlots = [null, null, null, null];
+            _grantWaveEliteItem();
+            const it = G.spellSlots.find(Boolean);
+            if (!it || !it._xValue) continue;
+            seen++;
+            assert.equal(it._xValue, stage, it.name);
+            assert.equal(it.rarity, stage);
+          }
+          assert.ok(seen > 0, `ステージ${stage}で巻物が出る`);
+        }
+      } finally { G._wave = keep.wave; G.spellSlots = keep.slots; }
+    });
   } finally { xItems.forEach((i, n) => { i._implemented = saved[n]; }); }
   console.log(`アイテムX1022：${checked}件成功・${failed}件失敗`);
   if (failed) process.exitCode = 1;

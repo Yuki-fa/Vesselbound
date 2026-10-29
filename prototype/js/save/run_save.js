@@ -557,7 +557,7 @@ const SaveRun=(()=>{
     };
     const opts=options||{};
     const runner=createBattleRunner(state,createSeededRng(seed),emit,
-      {skipOpening:!!opts.skipOpening,skipBattleEnd:!!opts.skipBattleEnd});
+      {skipOpening:!!opts.skipOpening,skipBattleEnd:!!opts.skipBattleEnd,continueAfterDecided:!!opts.continueAfterDecided});
     frame();
     while(!runner.result&&state.turn<BATTLE_CORE_TURN_LIMIT){
       const stop=runner.step({deferCompact:true});frame();runner.compact();if(stop) break;
@@ -599,6 +599,7 @@ const SaveRun=(()=>{
       const p=computeBattle(initial,seed,{
         skipOpening:(arenaBattle&&Number(G._arenaRound)>1)||questGarmBattle,
         skipBattleEnd:arenaBattle||questMagicWolfBattle,
+        continueAfterDecided:arenaBattle,
       });
       const save=buildRunSave('battle',p);
       retryBattle=save;saveRun(save);retryBattle=null;

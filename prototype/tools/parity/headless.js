@@ -195,6 +195,8 @@ async function launch(opts = {}) {
     '--autoplay-policy=no-user-gesture-required',
     '--mute-audio',
     `--window-size=${opts.width || 1600},${opts.height || 1000}`,
+    // 追加の起動引数（例：root で動く Linux の Chromium は VB_CHROME_ARGS=--no-sandbox）。
+    ...String(process.env.VB_CHROME_ARGS || '').split(/\s+/).filter(Boolean),
     'about:blank',
   ];
   const proc = spawn(CHROME, args, { stdio: 'ignore', detached: false });

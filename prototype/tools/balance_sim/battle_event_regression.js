@@ -880,7 +880,7 @@ function main() {
     {units:{p1:[null],p2:[null]},rings:{}},()=>{}),
     'コアが疎配列のnullをガードしていない');
   // 戦闘の進め方はコアが唯一の実装。PvEは1手ずつ step() を呼ぶだけにする。
-  assert.match(currentBattle, /const runner=createBattleRunner\(state,coreMathRng,emit,\{skipOpening:true\}\);/,
+  assert.match(currentBattle, /const runner=createBattleRunner\(state,coreMathRng,emit,\{skipOpening:true(?:,continueAfterDecided)?\}\);/,
     'PvEがコアの進行（createBattleRunner）を使っていない');
   // 詰め処理は演出の後。先に詰めると再生時に攻撃対象が盤面から消え、
   // 攻撃モーションが出せなくなる（アニメーションが全て飛ぶ）。

@@ -2725,7 +2725,11 @@ function renderField(id,units,isEnemy,_lane){
       if(_visualHp(u)<=0) slot.classList.add('inert');
       if(_visualHp(u)<=0&&!_pendingDeath) slot.classList.add('dead-unit');
       if(!isEnemy&&G._selectedBoardUnitIdx===i) slot.classList.add('selected');
-      if(typeof applyUnitVisual==='function') applyUnitVisual(slot,typeof battleFxShownForm==='function'?battleFxShownForm(u):u);
+      // 見た目の姿（変身の演出中は手番の前の写し）で描くが、**敵の枠を使う印は今の体から取る。**
+      // 奪われる前の写しには印が無く、味方側へ移った瞬間に「自軍のキャラ」としてボス枠で描かれていた（2026-10-29 利用者報告）。
+      const _shownForm=typeof battleFxShownForm==='function'?battleFxShownForm(u):u;
+      if(typeof applyUnitVisual==='function') applyUnitVisual(slot,_shownForm&&_shownForm!==u&&u._useEnemyVisualFrame&&!_shownForm._useEnemyVisualFrame
+        ?{..._shownForm,_useEnemyVisualFrame:true}:_shownForm);
       if(_isPlayerHero){
         slot.classList.remove('is-defender','uses-hate-frame');
         if(typeof assetUrl==='function'&&typeof Assets!=='undefined'&&Assets.cards?.characterFrame){

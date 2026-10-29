@@ -439,7 +439,13 @@ function _unitDisplayKeywords(unit, desc, slotIdx){
   // 結界は有無だけ表示する。盤面に無いカード
   // （デバッグ一覧・報酬の提示など）ではshieldが0なので、カード自身のキーワードから拾う。
   // これが無いと、エルフのようにシートで結界を持つカードの表示が一覧だけ欠ける。
-  if(Number(unit.shield)>0||coreUnitShieldValue(unit)>0) dynamicKws.push('結界');
+  // **戦闘中の体は今の結界（表示値）だけで決める。** キーワードから拾うと、割れた後も「結界」と出続け、
+  // 結界があるのにダメージが通ったように見えた（エピトメ、2026-10-29 利用者報告）。PvE・オンライン共通。
+  const _battleUnit=(unit.side==='p1'||unit.side==='p2')&&typeof G!=='undefined'&&G&&['player','enemy','battle'].includes(G.phase);
+  const _shieldNow=_battleUnit
+    ?(typeof presentShownShield==='function'?presentShownShield(unit):Number(unit.shield)||0)>0
+    :Number(unit.shield)>0||coreUnitShieldValue(unit)>0;
+  if(_shieldNow) dynamicKws.push('結界');
   // 各発生源の旧表記は落とし、結界の表示を1エントリにまとめる。
   const cardNames=CORE_EFFECT_CARD_NAMES;  // 一覧はコア側が持つ（2箇所で持たない）
   // **廃止済みキーワード（エリート・ボス・生贄など、CORE_REMOVED_KEYWORDS）は出さない。**（利用者指定）

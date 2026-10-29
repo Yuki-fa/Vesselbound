@@ -1,4 +1,4 @@
-/* 2026-10-25b: 新しいキャラクターの演出6種の3候補を追加。2026-10-25: 新しいVFX（LABの01〜05・ユミル・グリマルキン・ファミリア・ヘルナイト・復活の指輪・隠密・防戦）の3候補を追加（ボイス除外・重複なし）。2026-10-17: 新規VFX（竜の契約・逆上・嵐の指輪・巻物の使用）の3候補を追加（ボイス除外・重複なし）。2026-10-15: 作り直したVFXの3候補・スキュラの候補を作り直し。 */
+/* 2026-10-29: 161 闇の火球の弾・180 戦闘中の高速の永久強化の3候補を追加。2026-10-25b: 新しいキャラクターの演出6種の3候補を追加。2026-10-25: 新しいVFX（LABの01〜05・ユミル・グリマルキン・ファミリア・ヘルナイト・復活の指輪・隠密・防戦）の3候補を追加（ボイス除外・重複なし）。2026-10-17: 新規VFX（竜の契約・逆上・嵐の指輪・巻物の使用）の3候補を追加（ボイス除外・重複なし）。2026-10-15: 作り直したVFXの3候補・スキュラの候補を作り直し。 */
 var VbFxSeCatalog = {
   "sounds": {
     "dark-fire-1": {
@@ -7082,6 +7082,114 @@ var VbFxSeCatalog = {
       "provisional": false,
       "reason": "2026-10-27 先制：剣を抜く音（先に抜いて斬る）",
       "sha256": "b18ae42aa3388ed58a73938fbabb6ea03b007644d359952eccb14b4c4ceb745c"
+    },
+    "dark-fireball-1": {
+      "id": "dark-fireball-1",
+      "filename": "Production Element Title Transition Whoosh Fire 03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 03.wav",
+      "url": "vfx_preview/se/dark-fireball-1.wav",
+      "duration": 1.95,
+      "originalDuration": 4.227188,
+      "start": 0.064312,
+      "trimmed": true,
+      "peak": 0.577313,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "161 闇の火球の弾（単体へ飛ぶ黒い火球）。今は旧「闇の炎」E006の音を仮に使用（2026-10-29 利用者指定で再選定）／炎の塊が飛び去る短い風切り",
+      "sha256": "5d8470b757422db9c36a6d51416a7d4a49122aa8d56c1d38734156e59cd12054"
+    },
+    "dark-fireball-2": {
+      "id": "dark-fireball-2",
+      "filename": "Production Element Title Transition Whoosh Fire 07.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Whoosh Fire 07.wav",
+      "url": "vfx_preview/se/dark-fireball-2.wav",
+      "duration": 1.95,
+      "originalDuration": 2.926542,
+      "start": 0.0,
+      "trimmed": true,
+      "peak": 0.164771,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "161 闇の火球の弾（単体へ飛ぶ黒い火球）。今は旧「闇の炎」E006の音を仮に使用（2026-10-29 利用者指定で再選定）／短めの炎の風切り（軽い）",
+      "sha256": "24eac54c73f9a0e1ec518e17a21827bcd79c7af8917fb868754382d05d94dbec"
+    },
+    "dark-fireball-3": {
+      "id": "dark-fireball-3",
+      "filename": "Production Element Title Transition Stab Dark Short 03.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Stab Dark Short 03.wav",
+      "url": "vfx_preview/se/dark-fireball-3.wav",
+      "duration": 1.95,
+      "originalDuration": 3.743083,
+      "start": 0.740125,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "161 闇の火球の弾（単体へ飛ぶ黒い火球）。今は旧「闇の炎」E006の音を仮に使用（2026-10-29 利用者指定で再選定）／暗く短い一撃（闇の色を強める）",
+      "sha256": "cbf5cc0d64850aacd615d6c8c1b2c1b24227d3e51ec4013f86ab015c5fe65eb6"
+    },
+    "leprechaun-quick-1": {
+      "id": "leprechaun-quick-1",
+      "filename": "Foley Coin Jingle In Hand Short 01.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Foley Coin Jingle In Hand Short 01.wav",
+      "url": "vfx_preview/se/leprechaun-quick-1.wav",
+      "duration": 0.693979,
+      "originalDuration": 0.718792,
+      "start": 0.024813,
+      "trimmed": true,
+      "peak": 0.524396,
+      "tailFadeMs": 30,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "180 戦闘中の高速の永久強化（成長の簡易版、0.7秒）。今は成長C088の音を共有（2026-10-29 利用者指定で別の音へ）／金貨の短いジャラッ（金の永久強化）",
+      "sha256": "8cceef9ec30fad6db71dd308f1ecc37397d317f607aa81a6eb670476a9c3fe3c"
+    },
+    "leprechaun-quick-2": {
+      "id": "leprechaun-quick-2",
+      "filename": "Impact Coins Multiple Coin Drop On Felt 05.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/物を扱う音、衣擦れなど日常的な実音/Impact Coins Multiple Coin Drop On Felt 05.wav",
+      "url": "vfx_preview/se/leprechaun-quick-2.wav",
+      "duration": 0.547104,
+      "originalDuration": 0.555667,
+      "start": 0.008563,
+      "trimmed": true,
+      "peak": 0.407938,
+      "tailFadeMs": 30,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "180 戦闘中の高速の永久強化（成長の簡易版、0.7秒）。今は成長C088の音を共有（2026-10-29 利用者指定で別の音へ）／軽いコインの落下（短く明るい）",
+      "sha256": "3d221dbb571d19f6d03ed90845017cafb28b265b5a0acbd994cd905850848acb"
+    },
+    "leprechaun-quick-3": {
+      "id": "leprechaun-quick-3",
+      "filename": "C088.wav",
+      "source": "prototype/assets/sfx/C088.wav",
+      "url": "vfx_preview/se/leprechaun-quick-3.wav",
+      "duration": 1.0,
+      "originalDuration": 4.2,
+      "start": 0.416479,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 300,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "180 戦闘中の高速の永久強化（成長の簡易版、0.7秒）。今は成長C088の音を共有（2026-10-29 利用者指定で別の音へ）／成長の音（C088）の頭だけを短く（成長の味のまま）",
+      "sha256": "870b74ba950c19b058b755a62ef7bcb0673cc24a7560104ab0976281bcd3c3f7"
     }
   },
   "effects": {
@@ -7749,6 +7857,16 @@ var VbFxSeCatalog = {
       "first-strike-1",
       "first-strike-2",
       "first-strike-3"
+    ],
+    "dark-fireball": [
+      "dark-fireball-1",
+      "dark-fireball-2",
+      "dark-fireball-3"
+    ],
+    "leprechaun-quick": [
+      "leprechaun-quick-1",
+      "leprechaun-quick-2",
+      "leprechaun-quick-3"
     ]
   }
 };

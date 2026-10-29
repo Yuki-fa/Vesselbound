@@ -1521,7 +1521,9 @@ async function battlePhase(){
   // ガルム戦自体は通常戦闘として終戦処理を行う。
   state._skipBattleEnd=!!((typeof arenaIsActive==='function'&&arenaIsActive())
     ||(typeof questIsMagicWolfBattle==='function'&&questIsMagicWolfBattle()));
-  const runner=createBattleRunner(state,coreMathRng,emit,{skipOpening:true});
+  // 闘技場は盤面を次の戦闘へ持ち越すので、敵の全滅で効果を打ち切らない（2026-10-29 利用者指定）。
+  const continueAfterDecided=!!(typeof arenaIsActive==='function'&&arenaIsActive());
+  const runner=createBattleRunner(state,coreMathRng,emit,{skipOpening:true,continueAfterDecided});
   G._coreDrivenBattle=true;
   const beforeUnits=new Set([...(state.units.p1||[]),...(state.units.p2||[])].filter(Boolean));
   const _turnLimit=(typeof BATTLE_CORE_TURN_LIMIT==='number'&&BATTLE_CORE_TURN_LIMIT)||500;

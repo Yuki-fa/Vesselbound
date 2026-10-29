@@ -885,6 +885,11 @@ function coreApplyTriggeredShieldGrants(unit, trigger, allies, rng, emit) {
   }
 }
 
+// 重ならないキーワード（復活・防戦など数値の無いもの）をランダムな対象へ与える時は、
+// 既に持つ体を抽選から外す（結界の coreGrantRandomShields と同じ。2026-10-29 利用者指定）。
+function coreLacksKeyword(kw) {
+  return unit => !coreUnitHasKeyword(unit, kw);
+}
 function coreUnitHasKeyword(unit, kw) {
   if (unit && unit._keywordEffectsDisabled) return kw === '眷属' && (unit.keywords || []).includes('眷属');
   if (kw === '結界') return coreUnitShieldValue(unit) > 0;
@@ -1616,6 +1621,9 @@ function coreLivingUnits(units) { return (units || []).filter(coreCanAct); }
 function coreBattleEffectsStopped(state) {
   if (!state || !state.units) return false;
   if (state._coreBattleStopped) return true;
+  // 決着後も効果を最後まで処理する戦闘（闘技場：盤面を次の戦闘へ持ち越す。2026-10-29 利用者指定）。
+  // 次の手番には進まない（決着は runner の decided が見る）。
+  if (state._continueAfterDecided) return false;
   const units = side => (state.units[side] || []).filter(u => u && !u._isObject && !u._isSoul);
   const living = side => units(side).some(coreCanAct);
   if (living('p1') && living('p2')) { state._coreBattleActive = true; return false; }
@@ -2059,7 +2067,7 @@ function coreWithStatDeathResolution(state, rng, emit, applyHit, runEffect) {
     trackedEmit({ type: 'death', side: entry.side, unitId: entry.unitId,
       reason: entry.reason, sourceId: entry.sourceId, statChange: true });
   });
-  deaths.forEach(({ unit }) => {
+  coreStealDeathsFirst(deaths, d => d.unit).forEach(({ unit }) => {
     if (!unit || Number(unit.hp) > 0 || unit._fled || unit._coreDeathTriggered) return;
     // 根性は通常の致死ダメージと同じく「死亡しない」。
     // deathイベント後に生存へ戻す順番も通常処理と揃える。
@@ -2324,8 +2332,18 @@ function coreHitAll(state, rng, emit, applyHit, source, targets, amount, extraOp
     list.forEach((t, i) => applyHit(source, t, amounts[i], false, false, false,
       { deferTriggers: true, collect: pending, area: true, ...(extraOpt || {}) }));
   } finally { if (batched) coreEndDamageBatch(state); }
-  pending.forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
+  coreStealDeathsFirst(pending, h => h.target).forEach(h => coreApplyHitTriggers(state, h.source, h.target, h.result, h.before,
     h.counter, rng, emit, applyHit, h.damageKind ? { ...h.opt, damageKind: h.damageKind } : h.opt));
+}
+// 同時に倒れた体のうち、死亡で敵を奪う体（サキュバス）を先に処理する（並びは保つ。2026-10-29 利用者指定）。
+// 奪った体はもう味方なので、同じ時に起きる他の死亡効果・観測（リッチ等）の「敵」の対象にならない。
+function coreHasDeathSteal(unit) {
+  return !!(unit && Number(unit.hp) <= 0 && coreTriggerTextParts(unit, '死亡').some(t => /^ランダムな前衛の敵(?:\d+体)?を(?:\d+体)?奪う/.test(t)));
+}
+function coreStealDeathsFirst(list, unitOf) {
+  const first = [], rest = [];
+  (list || []).forEach(item => (coreHasDeathSteal(unitOf(item)) ? first : rest).push(item));
+  return first.length ? first.concat(rest) : list;
 }
 
 function coreEffectDamagePowerBonus(unit) {
@@ -5590,6 +5608,24 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     emit({ type: 'stat_change', side: target.side, unitId: target.id, atk, hp, reason, sourceId: unit.id });
     coreTriggerAtkGainEffects(target, atk, state, rng, emit, applyHit);
   };
+  // 死亡：ランダムな前衛の敵をN体奪う（サキュバス。合体後は2体）
+  // **奪う効果は同じ時の他の効果より先に解決する**（2026-10-29 利用者指定）。奪った体はもう味方なので、
+  // この後の「敵」を対象にする効果（闇の火球・リッチなど）の対象にしない。下の allies／foes も奪った後の盤面に揃える。
+  const deathSteal = coreTriggerMatch(coreTriggerTextParts(unit, '死亡'), /^ランダムな前衛の敵(?:(\d+)体)?を(?:(\d+)体)?奪う/);
+  if (coreBattleEffectsStopped(state)) return;
+  for (let textRun = 0; textRun < coreMatchRepeatCount(deathSteal); textRun++) if (deathSteal) {
+    const stealPool = () => foes.filter(x => x.hp > 0 && x.side !== unit.side && !coreIsSealed(x)
+      && (x.lane || 'front') !== 'rear' && !x._isObject && !x._isSoul);
+    // **生きている敵をそのまま味方の前衛右端へ移す。**（召喚し直さない）
+    // 前衛が埋まっていて移せない時は、その敵は死なずにそのまま敵陣に残る。
+    for (let i = 0; i < repeats; i++) {
+      coreRandomDistinctTargets(unit, rng, stealPool(), Math.max(1, Number(deathSteal[1] || deathSteal[2]) || 1)).forEach(stolen => {
+        coreStealUnit(state, stolen, unit.side, emit, unit.id, undefined, rng, applyHit);
+      });
+      allies.splice(0, allies.length, ...(state.units[unit.side] || []).filter(Boolean));
+      foes.splice(0, foes.length, ...(state.units[unit.side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean));
+    }
+  }
   const sufferingCount = coreEffectRepeatCount(unit, '受難の刻印');
   if (coreBattleEffectsStopped(state)) return;
   if (sufferingCount > 0) {
@@ -5869,7 +5905,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   if (coreBattleEffectsStopped(state)) return;
   for (const m of coreTriggerEffectEntries(unit, '死亡', /^ランダムな味方(?:(\d+)体)?に復活を与える/)) {
     if (coreBattleEffectsStopped(state)) break;
-    for (let i = 0; i < repeats; i++) coreRandomDistinctTargets(unit, rng, allies.filter(x => x.hp > 0 && !coreIsSealed(x)), Number(m[1]) || 1).forEach(x => {
+    for (let i = 0; i < repeats; i++) coreRandomDistinctTargets(unit, rng, allies.filter(x => x.hp > 0 && !coreIsSealed(x)).filter(coreLacksKeyword('復活')), Number(m[1]) || 1).forEach(x => {
       x.keywords = coreUnitKeywords(x).concat(['復活']);
       emit({ type: 'keyword_effect', effect: 'keyword_gain', side: x.side, unitId: x.id, sourceId: unit.id, keyword: '復活', keywords: x.keywords.slice() });
     });
@@ -5927,20 +5963,6 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
     state.blood = state.blood || { p1: 0, p2: 0 };
     const gain = Number(deathBlood[1]) || 0;
     coreGainBlood(state, unit.side, gain * repeats, unit, emit, rng, applyHit);
-  }
-  // 死亡：ランダムな前衛の敵をN体奪う（サキュバス。合体後は2体）
-  const deathSteal = coreTriggerMatch(deathTexts, /^ランダムな前衛の敵(?:(\d+)体)?を(?:(\d+)体)?奪う/);
-  if (coreBattleEffectsStopped(state)) return;
-  for (let textRun = 0; textRun < coreMatchRepeatCount(deathSteal); textRun++) if (deathSteal) {
-    const stealPool = () => foes.filter(x => x.hp > 0 && x.side !== unit.side && !coreIsSealed(x)
-      && (x.lane || 'front') !== 'rear' && !x._isObject && !x._isSoul);
-    // **生きている敵をそのまま味方の前衛右端へ移す。**（召喚し直さない）
-    // 前衛が埋まっていて移せない時は、その敵は死なずにそのまま敵陣に残る。
-    for (let i = 0; i < repeats; i++) {
-      coreRandomDistinctTargets(unit, rng, stealPool(), Math.max(1, Number(deathSteal[1] || deathSteal[2]) || 1)).forEach(stolen => {
-        coreStealUnit(state, stolen, unit.side, emit, unit.id, undefined, rng, applyHit);
-      });
-    }
   }
   // 反復ごとに未所持の味方を抽選し直す。死亡した本人は候補に含めない。
   if (coreBattleEffectsStopped(state)) return;
@@ -6129,7 +6151,9 @@ function coreApplyDeathObserversInner(dead, state, rng, emit, applyHit) {
         coreGainResource(state, deadSide, 'mana', 1, null, emit, 'generic_death_mana', undefined, rng, applyHit);
       }
     });
-  observers.forEach(u => {
+  // 「味方が死亡するたび」は常時効果。死亡の処理の中で起きても死亡効果のダメージにしない
+  // （死亡効果として出すと、表示側が付けた死亡の強化カード＝闇の火球などを発生元に選ぶ。リッチで発覚 2026-10-29）。
+  observers.forEach(u => coreWithDamageKind(state, 'other', () => {
     for (const m of coreTriggerEffectEntries(u, '常時', /^味方が死亡するたび、全てのキャラクターに(\d+)ダメージを(?:(\d+)回)?与える/)) {
       if (coreBattleEffectsStopped(state)) return;
       coreEmitPassiveFlash(emit, u);
@@ -6139,9 +6163,10 @@ function coreApplyDeathObserversInner(dead, state, rng, emit, applyHit) {
     }
     coreTriggerEffectEntries(u, '常時', /味方が死亡するたび、ランダムな敵に(\d+)ダメージを与える/).forEach(m => {
       if (coreBattleEffectsStopped(state)) return;
+      coreEmitPassiveFlash(emit, u);
       coreRandomHit(state, rng, emit, applyHit, u, (state.units[deadSide === 'p1' ? 'p2' : 'p1'] || []).filter(x => x && x.hp > 0 && !coreIsSealed(x)), Number(m[1]));
     });
-  });
+  }));
   // デュラハンは「観測者と同じ陣営のキャラクター死亡」のみを観測する。
   // named処理を正とし、上の汎用本文処理とは相互排他にする。
   // 旧本文（味方が死亡するたび4ダメージ）の時だけ。本文が変われば汎用処理／新効果へ移る。
@@ -6182,6 +6207,12 @@ function coreCheckUndyingRing(state, emit, rng, applyHit) {
     for (let i = 0; i < count; i++) coreSummonUnit(state, side, { name: match[1] }, emit, 'undying-ring', undefined, rng, applyHit);
     emit({ type: 'ring_effect', ring: '不死の指輪', side, amount: count });
     fired = true;
+  }
+  // 召喚の途中（発動済みの印を立てた後・まだ味方がいない間）に決着の印が立つことがある。
+  // 召喚で両陣営が揃ったら、決着の印を外して戦闘を続ける（外さないと次の手番で打ち切られ、手番上限の引き分けになる）。
+  if (fired) {
+    delete state._coreBattleStopped;
+    coreBattleEffectsStopped(state);
   }
   return fired;
 }
@@ -7202,7 +7233,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
         }
         const randomEnemyWeaken = text.match(/^ランダムな敵(?:(\d+)体)?(?:を|に)防戦(?:にする|を与える)/);
         if (randomEnemyWeaken) {
-          const foePool = (state.units[side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x));
+          const foePool = (state.units[side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).filter(coreLacksKeyword('防戦'));
           coreRandomDistinctTargets(unit, rng, foePool, Math.max(1, Number(randomEnemyWeaken[1]) || 1)).forEach(target => {
             target.keywords = coreUnitKeywords(target).concat(['防戦']);
             emit({ type: 'keyword_effect', effect: 'keyword_gain', side: target.side, unitId: target.id, keyword: '防戦', sourceId: unit.id });
@@ -7233,7 +7264,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
           const reviveCount = Math.max(1, Number(reviveGain[2]) || 1);
           const notExcluded = x => !excluded || (x.name !== excluded && `${x.color || ''}${x.name || ''}` !== excluded);
           for (let repeat = 0; repeat < 1; repeat++) {
-            const pool = (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && notExcluded(x));
+            const pool = (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x) && notExcluded(x)).filter(coreLacksKeyword('復活'));
             coreRandomDistinctTargets(unit, rng, pool, reviveCount).forEach(target => {
               target.keywords = coreUnitKeywords(target).concat(['復活']);
               emit({ type: 'keyword_effect', effect: 'keyword_gain', side: target.side, unitId: target.id, keyword: '復活', sourceId: unit.id });
@@ -7254,7 +7285,7 @@ function coreApplyManaThresholdEffectsInner(state, rng, emit, applyHit, options)
             .forEach(target => coreTransformUnit(state, target, randomTransform[2], emit, undefined, unit));
         }
         if (/^ランダムな敵に生贄を付与する/.test(text)) {
-          for (const target of coreRandomTargets(unit, rng, (state.units[side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)))) {
+          for (const target of coreRandomTargets(unit, rng, (state.units[side === 'p1' ? 'p2' : 'p1'] || []).filter(Boolean).filter(x => x.hp > 0 && !coreIsSealed(x)).filter(coreLacksKeyword('生贄')))) {
             target.keywords = coreUnitKeywords(target).concat(['生贄']);
             emit({ type: 'keyword_effect', effect: 'keyword_gain', side: target.side, unitId: target.id, keyword: '生贄', sourceId: unit.id });
           }
@@ -7363,6 +7394,9 @@ function coreBattleStep(ctx) {
     // 前衛全滅から3体召喚した直後なので、勝敗を判定し直さないと
     // 「味方全滅で敗北」のまま戦闘が終わる。
     next.result = ctx.decided();
+    // **決着が取り消されたら、手番の打ち切り（stop）も取り消す。** 残すと進行役が結果の無いまま終戦し、
+    // 手番上限の引き分け＝PvEでは勝利扱いになっていた（ラスボス戦で全滅→不死の指輪→エンディング。2026-10-29 利用者報告）。
+    if (!next.result) next.stop = false;
   }
   return next;
 }
@@ -7830,6 +7864,7 @@ function coreRunOpening(state, rng, emit, applyHit, resolveSeals) {
 }
 
 function runBattleCore(state, rng, opts) {
+  if (opts && opts.continueAfterDecided) state._continueAfterDecided = true;
   coreBattleEffectsStopped(state); // 開戦前の両陣営を記録（保存済みsetupからも同じ入口）。
   const emit = (opts && typeof opts.onEvent === 'function') ? opts.onEvent : () => {};
   // 1回の戦闘効果内で複数体を召喚する間、リッチ誘発を本体列の後ろへまとめる。
