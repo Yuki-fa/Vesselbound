@@ -269,7 +269,9 @@ function undecidedDigest(api) {
     assert.ok(x.events.some(e => e.type === 'revive' && e.unitId === 'attacker'));
     assert.equal(x.events.some(e => e.type === 'summon' || e.reason === 'injury_self_buff'), false);
   });
-  await check('不死の指輪：復帰可能な全滅を停止判定で変えず、旧コアの進行・結果を保つ', () => {
+  // 2026-10-29：旧コア（752a7f6）は召喚の直後に手番を打ち切り「手番上限の引き分け」になっていた（PvEでは勝利扱い。
+  // ラスボス戦で全滅→エンディングの原因）。旧コアとの一致はやめ、召喚した体で戦闘を続けることを見る。
+  await check('不死の指輪：全滅から召喚した体で戦闘を続け、手番上限の引き分けにしない', () => {
     const setup = { sides: { p1: { units: [h.unit('a', '', { atk: 1, hp: 1, maxHp: 1 })] },
       p2: { units: [h.unit('b', '', { atk: 3, hp: 200, maxHp: 200 })] } },
       rings: { p1: [RING_POOL.find(r => r.name === '不死の指輪')] }, summonDefs: PANEL_POOL };
@@ -280,7 +282,10 @@ function undecidedDigest(api) {
       assert.equal(events.filter(e => e.type === 'summon').length, 3);
       return h.clone({ result, events, finalState: api.battleCoreFinalState(state) });
     };
-    assert.deepEqual(run({ createBattleState, runBattleCore, battleCoreFinalState }), run(baselineCore()));
+    const x = run({ createBattleState, runBattleCore, battleCoreFinalState });
+    assert.deepEqual([x.result.outcome, x.result.endReason], ['p2', 'wiped']);
+    assert.ok(x.result.turns > 1, '召喚の後も手番が続く');
+    assert.equal(x.events.filter(e => e.type === 'ring_effect').length, 1);
   });
   await check('終戦：ユミル・レプラコーン・成長・変化・錬成だけを一度ずつ解決する', () => {
     const setup = contactSetup();
