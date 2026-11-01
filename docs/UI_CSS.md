@@ -93,6 +93,8 @@ body直下の説明枠だけは表示幅へ `--game-scale` を掛け、装飾バ
 **もう一つの落とし穴**：広い `filter:none!important`（`#hand-pane *` など）は、
 より詳細度の低い状態クラス（`.item-target-disabled` の暗転）を巻き添えで消す。
 `*:not(.item-target-disabled)` のように除外するか、後ろで打ち消し直すこと。
+
+**祭壇の供物選びの暗転**（2026-11-01 利用者指定）：供物を選び終わって対象外になったカードは、絵・数値だけ暗くし、枠（`.character-frame-layer`／`.board-frame-layer` と外周の線 `::before`）は暗くしない。規則は `body.ring-offer-selecting:not(.item-use-picking):not(.activation-picking)` に限る（アイテム使用・起動の対象選びは枠ごと暗くする従来どおり）。
 **「クラスは付いているのに見た目が変わらない」時はこれを疑う。**
 
 ## 8-6. codexへの修正指示：カード枠SVG化で出た4件の枠線不具合

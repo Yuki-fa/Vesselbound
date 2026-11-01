@@ -14340,6 +14340,12 @@ html body:is(.item-use-picking,.activation-picking,.ring-offer-selecting) #rewar
 html body:is(.item-use-picking,.activation-picking,.ring-offer-selecting) #reward-offer-section .item-target-disabled::after{
   filter:grayscale(.85) brightness(.42)!important;
 }
+/* 祭壇（供物を選ぶ時）は、選び終わって対象外になったカードの絵だけを暗くし、枠（枠の絵と外周の線）は暗くしない（2026-11-01 利用者指定）。
+   アイテム使用・起動の対象選びは従来どおり枠ごと暗くする。 */
+html body.ring-offer-selecting:not(.item-use-picking):not(.activation-picking) #main-hand-area #hand-pane .item-target-disabled > :is(.character-frame-layer,.board-frame-layer),
+html body.ring-offer-selecting:not(.item-use-picking):not(.activation-picking) #main-hand-area #hand-pane .item-target-disabled::before{
+  filter:none!important;
+}
 /* 購入不可・1枚取得済みでも対象に取れる品は明るくする。取得制限の状態は維持する。 */
 html body:is(.item-use-picking,.activation-picking) #reward-offer-section .item-target-ok > .reward-card-dim-layer{display:none!important}
 html body:is(.item-use-picking,.activation-picking) #reward-offer-section .item-target-ok > .shop-insufficient-badge{display:none!important}
