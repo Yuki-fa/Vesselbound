@@ -944,3 +944,11 @@ VFX LAB で承認した演出は本体でも `js/engine/fx_lab.js` をそのま�
 ## 2026-10-29 SE の再選定（利用者指定）
 - LAB の161番＝闇の火球の弾（dark-fireball。今は旧「闇の炎」E006 の音を仮に使用）と、180番＝戦闘中の高速の永久強化（leprechaun-quick。今は成長 C088 の音を共有）に、SE 候補を3つずつ足した（`tools/vfx_preview/prepare_se_1029.py`。原音は Google Drive の 素材/効果音、3つ目の高速の永久強化は C088 の頭を短く切ったもの）。ファイル名と尺による一次選定で聴感は未確認。**ゲームの音は LAB で選ぶまで今のまま。** 選んだら PRESENT_LAB_FX の第4要素（共有する音の番号）か assets/sfx への採用で反映する。
 - LAB の番号は「演出の一覧」の並び（`lab_model.js` の effects の順。新しい演出が後ろへ付くだけで番号はずれない）。
+
+## 2026-11-01 利用者指定（先制・呪いの印・アイテム）
+
+- **先制（first-strike）を鋭く**：太く丸い縁の原因は、斬撃を `halo` の折れ線（幅の7倍の淡い光・丸い線端）で描いていたことと、広がる円の輪。斬撃を先の尖った刃の形（`beam` の taper で両端0、幅0.085／芯0.03／副0.032、ぼかし最小）に替え、円の輪を外し、光の溜まりを半径0.8→0.5に。閃光・粒・カードの明るさは維持。
+- **呪いの印（E066）の「呪いが栄光に変わる」演出 `curse-to-glory`**（新作、2.2秒、LABで確認待ち）：curse-ring の黒紫の靄・紫の魔法陣・紫の粒（0〜42%）→ 紫白の閃光と外へ散る紫の欠片（約40%＝山場）→ grimalkin-pillar の金の光の柱・閃光・昇る粒（32〜100%）。4回目の終戦で英雄の印へ変わる時だけ、付けたキャラクターから出す（コアの run_effect `enchant_transform` に `unitId`。体は魔導板の編成で `_battleEndTransformSlots` を持つ。`presentRunEffectVfxCode` → E066、assets.js characterEffect E066）。あとX戦の終戦では出さない。
+  - SE：LAB に候補3つ（`tools/vfx_preview/prepare_se_1101.py`。1＝呪縛を破る音 MAGIC ICE Break Out Of Spell-02、2＝白魔法 MAGIC WHITE Deflect Spell 01-02、3＝昇る遷移音 Ascend 10。96kHz の原音は48kHzへ）。ゲームは**仮に候補1**を `assets/sfx/E066.wav`（音量.85）で鳴らす。LAB で選んだら差し替える。
+- **アイテムの使用演出（仮）**：眷属の巻物（I025）＝見通しの巻物と同じ魔法陣（scroll-mana）をアイテムの枠から、複製の巻物（I026）＝変身（activation-transform）を変わったアイテムの枠から。
+

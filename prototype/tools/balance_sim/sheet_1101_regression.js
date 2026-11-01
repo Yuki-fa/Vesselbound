@@ -134,5 +134,24 @@ const check = async (name, fn) => { try { await fn(); console.log('OK ' + name);
       await pipelines(h.initial);
     }
   });
+  await check('E066 呪いの印：4回目の終戦で、付けたキャラクター（unitId）から「呪いが栄光に変わる」演出（E066＝curse-to-glory）', () => {
+    for (const enhanced of [false, true]) {
+      initRun(); G.mainBoard.fill(null); G.mapPanelPowers = {};
+      const mark = card('E066', enhanced); mark.directions = ['right']; mark._battleEndCount = 3; G.mainBoard[0] = mark;
+      G.mainBoard[1] = { ...makePanel(PANEL_POOL.find(x => x.no === 'C006').id), directions: ['left'] };
+      const f = buildBoardFormation(_getPartyBoardUnit(), { persistEternal: false });
+      const u = f.ordered.find(e => e.unit._mainBoardSlot === 1).unit;
+      assert.deepEqual(u._battleEndTransformSlots, [0]);
+      const state = createBattleState({ sides: { p1: { units: [unitFrom(u, 'holder')] }, p2: { units: [plain('foe')] } },
+        ...coreBattleEndCardFields({ p1: G.mainBoard, p2: [] }) });
+      assert.deepEqual(state.units.p1[0]._battleEndTransformSlots, [0], 'コアの体へ引き継ぐ');
+      const events = []; coreTriggerBoardCardBattleEnd(state, e => events.push(e));
+      const ev = events.find(e => e.kind === 'enchant_transform');
+      assert.equal(ev.toName, enhanced ? '英雄の印+' : '英雄の印'); assert.equal(ev.unitId, 'holder');
+      assert.equal(presentRunEffectVfxCode(ev), 'E066');
+      assert.equal(presentRunEffectVfxCode({ ...ev, toName: '' }), '', 'あとX戦の終戦では出さない');
+      assert.equal(getCharacterEffectVfxPath(_effectVfxSource('E066')), 'vfx:E066:curse-to-glory');
+    }
+  });
   if (failed) { process.exitCode = 1; console.error(`シート1101：${failed}件NG`); } else console.log('シート1101：OK');
 })();

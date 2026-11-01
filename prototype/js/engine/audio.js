@@ -222,6 +222,7 @@ const SFX_SETTINGS={
     E006: {group:'magic',volume:.70,replaceAtVoiceLimit:true}, // 死亡音などで24本埋まっても闇の炎を捨てない
     // 闇の火球の弾だけ大きく（2026-11-01 利用者指定）。エキドナ・ドラウグルの黒い炎の波（E006）は変えない。
     E006_1: {group:'magic',volume:1.00,replaceAtVoiceLimit:true},
+    E066: {group:'magic',volume:.85},
     E035: {group:'magic',volume:.70},
     C050: {group:'magic',volume:.70},
     E062: {group:'magic',volume:.70},

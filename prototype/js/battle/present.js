@@ -1412,10 +1412,12 @@ const PRESENT_BUFF_VFX_CODES = new Set(Object.values(PRESENT_BUFF_VFX_BY_TRIGGER
 const PRESENT_RUN_EFFECT_TRIGGERS = { '攻撃': 'attack', '負傷': 'injury', '死亡': 'death', '開戦': 'opening', 'マナ': 'mana', '終戦': 'passive' };
 const PRESENT_RUN_EFFECT_FX = { reward_buff: 'C114', reroll: 'C062', board_transform: 'E016' };
 // 専用演出の尺（ms）。LAB の標準の速さ（1.5倍）と同じに見せる。無い番号は能力変化の固有VFXと同じ尺。
-const PRESENT_RUN_EFFECT_FX_MS = { C114: 1000, C062: 1070, C095: 1200, C095_1: 600, R018: 1000, E016: 1000 };
+const PRESENT_RUN_EFFECT_FX_MS = { C114: 1000, C062: 1070, C095: 1200, C095_1: 600, R018: 1000, E016: 1000, E066: 1470 };
 function presentRunEffectVfxCode(ev) {
   if (!ev || ev.type !== 'run_effect') return '';
   if (ev.kind === 'enchant_upgrade') return Array.isArray(ev.targetSlots) && ev.targetSlots.length ? 'C095' : 'C095_1';
+  // 呪いの印：4回目の終戦で英雄の印へ変わる時だけ、付けたキャラクターから「呪いが栄光に変わる」演出（2026-11-01 利用者指定）。
+  if (ev.kind === 'enchant_transform') return ev.toName && ev.unitId != null ? 'E066' : '';
   if (PRESENT_RUN_EFFECT_FX[ev.kind]) return PRESENT_RUN_EFFECT_FX[ev.kind];
   const trigger = PRESENT_RUN_EFFECT_TRIGGERS[String(ev.trigger || '')];
   return trigger ? PRESENT_BUFF_VFX_BY_TRIGGER[trigger] : '';
@@ -2078,13 +2080,15 @@ const PRESENT_ITEM_USE_FX = {
   // 2026-10-27 利用者指定：見通しの巻物（再抽選が3回可能になる）＝旧・魔力の巻物（I011）の水色の魔法陣を、アイテムの枠から。
   I011:'scroll-mana',
   // 変身の巻物＝起動の変身と同じ演出（additions_1023.js）。
-  I002:'activation-transform' };
+  I002:'activation-transform',
+  // 2026-11-01 シート追加（仮。LABで確認待ち）：眷属の巻物＝見通しの巻物と同じ魔法陣、複製の巻物＝変身（変わったアイテムの枠から）。
+  I025:'scroll-mana', I026:'activation-transform' };
 // アイテムの使用の音（2026-10-26 利用者指定「アイテムにもSEを」）：その巻物の番号の音（LAB採用）、無ければ同じ演出の音、それも無ければ巻物の共通音。
 const PRESENT_ITEM_USE_SFX = { I002:'C080', I013:'map:resonance', I010:'S003',
   // 鼓舞の旗の色違いは鼓舞の旗の音。
   I003:'I012', I004:'I012', I024:'I012', I015:'I012', I016:'I012', I017:'I012', I018:'I012', I019:'I012', I020:'I012', I021:'I012', I022:'I012', I023:'I012' };
 // アイテムの枠から出す演出（対象を選ばない巻物）。ポータルは画面全体から出す（reward_items.js _playItemSlotVfx）。
-const PRESENT_ITEM_SLOT_FX = new Set(['I001','I006','I007','I010','I011','I014']);
+const PRESENT_ITEM_SLOT_FX = new Set(['I001','I006','I007','I010','I011','I014','I025','I026']);
 const PRESENT_ITEM_SCREEN_FX = new Set(['I009']);
 // 次の戦闘で効く巻物（アイテム表の本文が「次の戦闘」）は、静寂の巻物の演出の色違いで、使う時の音も静寂の巻物にそろえる（2026-10-27 利用者指定）。
 // 隕石の巻物の I006 の音は、戦闘開始時の隕石の音なので使う時には鳴らさない。

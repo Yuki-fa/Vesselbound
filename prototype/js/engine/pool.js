@@ -317,6 +317,11 @@ const ITEM_POOL=[
   ...[
     {no:'013',name:'絆の巻物',itemEffectKey:'bond_scroll'},
     {no:'014',name:'召竜の巻物',itemEffectKey:'dragon_scroll'},
+    // 2026-11-01 シート追加。眷属の巻物＝このゲーム中の眷属強化（G.gameSummonBuff）、複製の巻物＝対象のアイテムに変化、
+    // 小さな鍵＝ヴォルザークの酒場に入る鍵（使うアイテムではない。持っていることを施設側が見る）。
+    {no:'025',name:'眷属の巻物',itemEffectKey:'kenzoku_scroll'},
+    {no:'026',name:'複製の巻物',itemEffectKey:'duplicate_scroll'},
+    {no:'027',name:'小さな鍵',itemEffectKey:'small_key'},
   ].map(item=>({id:`item_sheet_I${item.no}`,rarity:1,type:'consumable',kind:'item',category:'アイテム',
     art:`assets/art/items/I${item.no}.jpg`,desc:'',...item})),
 ];
@@ -327,7 +332,8 @@ function _applyItemX(card,xValue){
   if(!card||!card._rarityX) return card;
   const x=Math.max(1,Math.min(5,Math.floor(Number(xValue)||0)))||(1+Math.floor((typeof rand==='function'?rand():Math.random())*5));
   card.rarity=x;card._xValue=x;
-  card.desc=String(card.desc||'').replace(/X/g,String(x));
+  // 「+5X」のように係数が付く X は積にする（眷属の巻物：X=3 なら+15。2026-11-01）。単独の X はそのまま値。
+  card.desc=String(card.desc||'').replace(/(\d+)X/g,(_m,k)=>String(Number(k)*x)).replace(/X/g,String(x));
   delete card._rarityX;
   return card;
 }

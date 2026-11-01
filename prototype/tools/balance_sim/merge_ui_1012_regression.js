@@ -51,7 +51,8 @@ function node(id){
   const loans=_libraryLoanCards();assert.deepEqual(loans.map(c=>c.no),codes);
   loans.forEach((c,i)=>{assert.equal(c.name,codes[i]+'検査名');assert.equal(c._libraryLoanSlot,i);assert.ok(c._libraryLoan);});
   assert.deepEqual(loans[0].directions,['up','left']);assert.deepEqual(loans[2].directions,['up','left','right']);
-  assert.ok(loans[4].adjacentKeywords.includes('二段攻撃'));
+  // 2026-11-01 シート改訂で E014 は「多段攻撃」→「魔力の盾」（8マナ：結界）。貸出は番号で引くので魔力の盾になる。
+  assert.match(String(loans[4].desc||''),/結界を得る/);
   codes.forEach((code,i)=>{def(code).name=names[i];});
   console.log('OK 3: E014貸出、番号による改名追従、既存の向き・返却先');
 

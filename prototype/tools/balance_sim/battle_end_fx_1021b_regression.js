@@ -120,7 +120,7 @@ function rendererClock() {
     const found = ['card', 'enchant', 'enemy', 'ring', 'item'].flatMap(kind => h.sheetRows(kind)
       .filter(r => ['効果', '強化効果'].some(k => /このゲーム中、味方の眷属は/.test(r[k] || '')))
       .map(r => r['No.'])).sort();
-    assert.deepEqual(found, ['C039', 'C044', 'C052', 'C077']);
+    assert.deepEqual(found, ['C039', 'C044', 'C052', 'C077', 'I025']); // I025 眷属の巻物（2026-11-01 シート追加。使うと G.gameSummonBuff へ足す）
   });
   // C052は能力値でなく衝撃。持続・保存はsheet_1025b_regression.jsで検査する。
   for (const no of ['C039', 'C044', 'C077']) for (const merged of [false, true]) {

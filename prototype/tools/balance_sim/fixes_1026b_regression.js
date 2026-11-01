@@ -299,7 +299,7 @@ async function unchangedMain() {
     await check(`エレメンタル/${enhanced}: 実際の魔導板→PvE出撃・オンラインpayload・保存再生、色変更・封印`, async () => {
       const formed = await boardInitial(fiveColors(enhanced));
       assert.equal(new Set(formed.payload.units.map(u => u.color)).size, 5);
-      const run = await pipelines(formed.initial), amount = enhanced ? 6 : 3;
+      const run = await pipelines(formed.initial), amount = enhanced ? 10 : 5; // 2026-11-01 シート改訂（弱体3/6→5/10）
       assert.ok(run.events.some(e => e.effect === 'weaken' && e.sourceId === 'self-1' && e.amount === amount));
       // 色の付いたエンチャントは味方の体として数えない。起動等で変わったキャラの現在色は数える。
       const entries = fiveColors(enhanced); entries[4][1].color = '赤'; entries.push([0, { ...card('E001'), color: '紫' }]);

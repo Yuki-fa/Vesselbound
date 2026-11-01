@@ -60,7 +60,8 @@ function element(tag) {
   renderHandEditor = () => {}; renderRewCards = () => {}; _syncRewardProductionUi = () => {}; updateHUD = () => {}; _playItemUseVfx = () => {};
   await check('実装trueの全24アイテム：番号の重複なし、本文・名称・グレード・実装キー・警告', () => {
     const rows = sheet.sheetRows('item').filter(r => r['実装'] === 'true'); assert.equal(rows.length, 24);
-    assert.equal(ITEM_POOL.length, rows.length);
+    // シートの「実装」が false の行（2026-11-01 追加の I025〜I027）は一覧には載るが、抽選・使用の対象外。
+    assert.equal(ITEM_POOL.filter(i => i._implemented !== false).length, rows.length);
     for (const row of rows) {
       const d = itemDef(row['No.']); assert.ok(d, row['No.']);
       assert.equal(d.name, row['名前']); assert.equal(d.desc, row['効果']); assert.equal(d.grade, Number(row['グレード']));
@@ -77,7 +78,7 @@ function element(tag) {
         const definition = itemDef(row['No.']); let candidate;
         _rewardWeightedPick = pool => { candidate = pool.find(p => p.id === definition.id && (!p._xPick || p._xPick === 4)); return candidate || null; };
         const drawn = drawItems(1, 5, opts);
-        assert.equal(drawn.length, row[column] === 'true' ? 1 : 0, row['No.'] + '/' + column);
+        assert.equal(drawn.length, row[column] === 'true' && row['実装'] === 'true' ? 1 : 0, row['No.'] + '/' + column);
         if (row['レアリティ'] === 'X' && drawn.length) {
           assert.equal(drawn[0].rarity, 4); assert.equal(drawn[0]._xValue, 4); assert.equal(drawn[0].desc, row['効果'].replace(/X/g, '4'));
         }

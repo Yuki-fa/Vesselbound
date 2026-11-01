@@ -1491,6 +1491,7 @@ function createCoreUnit(raw, side, index) {
     _mapPanelPower: String((raw && raw._mapPanelPower) || ''),
     ...(raw && raw._mapPanelPowerText ? { _mapPanelPowerText: String(raw._mapPanelPowerText) } : {}),
     ...(raw && raw._battleEndCount ? { _battleEndCount: Number(raw._battleEndCount) } : {}),
+    ...(raw && Array.isArray(raw._battleEndTransformSlots) && raw._battleEndTransformSlots.length ? { _battleEndTransformSlots: raw._battleEndTransformSlots.slice() } : {}),
     _openingDuplicate: !!(raw && raw._openingDuplicate),
     ...(raw && raw._copyFrame ? { _copyFrame: { ...raw._copyFrame } } : {}),
     poison: Math.max(0, Number(raw && raw.poison) || 0),
@@ -1793,6 +1794,7 @@ function coreUnitSnapshot(unit) {
     _mapPanelPower: String(u._mapPanelPower || ''),
     ...(u._mapPanelPowerText ? { _mapPanelPowerText: u._mapPanelPowerText } : {}),
     ...(u._battleEndCount ? { _battleEndCount: u._battleEndCount } : {}),
+    ...(Array.isArray(u._battleEndTransformSlots) && u._battleEndTransformSlots.length ? { _battleEndTransformSlots: u._battleEndTransformSlots.slice() } : {}),
     _openingDuplicate: !!u._openingDuplicate,
     ...(u._copyFrame ? { _copyFrame: { ...u._copyFrame } } : {}),
     summonCount: Math.max(1, Number(u.summonCount) || 1),
@@ -6819,8 +6821,13 @@ function coreTriggerBoardCardBattleEnd(state, emit) {
       if (!spec) return false;
       const count = card._battleEndCount = Math.max(0, Math.floor(Number(card._battleEndCount) || 0)) + 1;
       const transform = count >= spec.battles;
+      // 変化の演出（呪いの印→英雄の印）を出す体：この強化を付けたキャラクター（生存を優先）。
+      const holders = (state.units[side] || []).filter(u => u && Array.isArray(u._battleEndTransformSlots)
+        && u._battleEndTransformSlots.includes(card._mainBoardSlot));
+      const holder = holders.find(u => u.hp > 0) || holders[0];
       emit({ type: 'run_effect', kind: 'enchant_transform', side, trigger: '終戦',
-        boardSlot: card._mainBoardSlot, effectCardId: card.id, count, toName: transform ? spec.toName : '' });
+        boardSlot: card._mainBoardSlot, effectCardId: card.id, count, toName: transform ? spec.toName : '',
+        ...(transform && holder ? { unitId: holder.id } : {}) });
       return !transform;
     });
   }

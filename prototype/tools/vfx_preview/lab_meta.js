@@ -11,6 +11,7 @@ var VbFxLabMeta = {
   'dark-fireball': {title:'単体へ飛ぶ黒い火球',tags:['黒','紫','炎','弾','尾','死亡'],addedAt:'2026-10-26',listLast:true},
   'poison-spit': {title:'飛んでいく毒液',tags:['緑','毒','弾','滴','単体','死亡'],addedAt:'2026-10-26',listLast:true},
   'weaken-wave': {title:'広がる紫の弱体の波',tags:['紫','波','範囲','弱体'],addedAt:'2026-10-26',listLast:true},
+  'curse-to-glory': {title:'呪いが砕けて栄光の光の柱へ（呪いの印→英雄の印）',tags:['紫','金','柱','変化','終戦'],addedAt:'2026-11-01',listLast:true},
   'keyword-grant-first': {title:'縮む空色の紋（先制の付与）',tags:['空色','紋','キーワード','先制','巻物'],addedAt:'2026-10-26',listLast:true},
   'scroll-guts-shield': {title:'盾の巻物（鼓舞の旗の青の色違い）',tags:['青','旗','巻物','付与'],addedAt:'2026-10-26',listLast:true},
   'scroll-guts-regen': {title:'再生の巻物（鼓舞の旗の翠の色違い）',tags:['翠','旗','巻物','付与'],addedAt:'2026-10-26',listLast:true},

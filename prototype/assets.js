@@ -118,6 +118,7 @@ const Assets = {
       'C062': 'vfx:C062:ymir-aura',          // ユミル：終戦のリロール
       'C095': 'vfx:C095:grimalkin-pillar',   // グリマルキン：4回目の終戦でエンチャントを強化した時
       'C095_1': 'vfx:C095:grimalkin-glint',  // グリマルキン：1〜3回目の終戦（あとX戦）
+      'E066': 'vfx:E066:curse-to-glory',     // 呪いの印：4回目の終戦で英雄の印へ（呪いが栄光に変わる。2026-11-01）
       'C114': 'vfx:C114:reward-blessing',    // ファミリア・ゴーレム：報酬とトレーダーのキャラクターの強化
       'R018': 'vfx:R018:revival-ring',       // 復活の指輪：最初に死んだ味方が蘇った時
       'E016': 'vfx:E016:dragonnet',          // 強化「変化」：終戦の永久変身（ドラゴネットと同じ変身の霧）
@@ -388,6 +389,7 @@ const Assets = {
     C119: 'assets/sfx/C119.wav',
     // VFX LABで採用済みの戦闘SE。
     E006: 'assets/sfx/E006.wav',
+    E066: 'assets/sfx/E066.wav', // 呪いの印→英雄の印（curse-to-glory）。仮：LAB の候補1（呪縛を破る音）。2026-11-01
     E006_1: 'assets/sfx/E006_1.wav', // 闇の火球の弾（dark-fireball）。E006 を約3dB持ち上げた写し（2026-11-01 利用者指定：小さすぎる）
     E035: 'assets/sfx/E035.wav',
     C050: 'assets/sfx/C050.wav', // 2026-10-22 シート改訂で C039 から移った

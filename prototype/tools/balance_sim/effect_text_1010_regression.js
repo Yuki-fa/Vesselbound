@@ -37,7 +37,7 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
     assert.deepEqual(card('エルフ').keywords, sheetRows('card').find(r=>r['No.']==='C082')['キーワード'].split(/[\s　]+/));
     assert.match(card('ミノタウロス').desc, /効果ダメージを受けた場合、ランダムな敵に攻撃する/);
     assert.match(enemy('ラン・ドーター').desc, /「黒ケルピー」を1体召喚する/);
-    assert.match(enemy('ヴィーザル').desc, /全ての味方は\+12\/\+12を得る/);
+    assert.match(enemy('ヴィーザル').desc, /全ての味方は\+8\/\+8を得る/); // 2026-11-01 シート改訂（+12→+8）
     assert.match(enemy('リムスルス').desc, /このキャラクターにダメージを与えた敵に8ダメージを与える/);
     assert.ok(!(enemy('リムスルス').keywords || []).includes('呪詛'), 'リムスルスは呪詛を持たない');
   });
@@ -105,13 +105,13 @@ const statChanges = (events, reason) => events.filter(e => e.type === 'stat_chan
     coreApplyInjuryEffects(h.p2[0], 1, h.state, h.rng, h.emit, h.hit, h.p1[0], undefined, 'combat');
     assert.equal(h.events.filter(e => e.type === 'summon').length, 1);
   });
-  await check('ヴィーザル：開戦で全ての味方が+12/+12（本文の値）', () => {
+  await check('ヴィーザル：開戦で全ての味方が+8/+8（本文の値。2026-11-01 シート改訂で+12→+8）', () => {
     const def = enemy('ヴィーザル');
     const h = harness([plain('a0')], [plain(def.name, { name: def.name, desc: def.desc }), plain('e1')]);
     createBattleRunner(h.state, h.rng, h.emit);
     const buffs = h.events.filter(e => e.type === 'stat_change' && e.side === 'p2' && /team_buff|green_hermit/.test(e.reason));
     assert.equal(buffs.length, 2);
-    assert.ok(buffs.every(e => e.atk === 12 && e.hp === 12));
+    assert.ok(buffs.every(e => e.atk === 8 && e.hp === 8));
   });
   await check('リムスルス：ダメージを与えた敵に8ダメージ（呪詛の即死はしない）', () => {
     const def = enemy('リムスルス');

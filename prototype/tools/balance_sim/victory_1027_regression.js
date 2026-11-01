@@ -60,7 +60,9 @@ function contactSetup(side = 'p1') {
 // 旧ソースを明示した時だけ同じ標本を計算し、更新理由を検証できる。
 function undecidedDigest(api) {
   const rows = [], seed = 1027;
-  const cards = PANEL_POOL.filter(c => c.category === 'キャラクター' || c.category === 'エンチャント');
+  // 2026-11-01 にコアへ実装したシート追加の強化（REVISED_1101）は、旧コアと意図して違うので外す（sheet_1101_regression.js で検査）。
+  const revised1101 = require('./effects_1027_regression').REVISED_1101;
+  const cards = PANEL_POOL.filter(c => (c.category === 'キャラクター' || c.category === 'エンチャント') && !revised1101.has(c.no));
   for (const card of cards) for (const side of ['p1', 'p2']) {
     const ordinary = id => h.unit(id, '', { atk: 1, hp: 1000000, maxHp: 1000000 });
     const subject = card.category === 'キャラクター'
@@ -436,7 +438,9 @@ function undecidedDigest(api) {
     if (process.env.VB_VICTORY_BASELINE_CORE) console.log('旧コア照合値 ' + JSON.stringify(actual));
     // 1028：4枚の仮絵指定が外れ、boardCardsを含む照合値が変わった。
     // 現行入力で旧コアと435標本の全イベント・最終状態が一致し、旧loaderだけ戻すと旧照合値になることを確認済み。
-    assert.deepEqual(actual, { count: 435, hash: '3b835857782b715ef0cec1bfeb6985cd49f7ed9cf5c5d2fb68ffffa3b3f3e3e2' });
+    // 1101：シートの更新（E014 魔力の盾・C100 の数値・追加の強化）で標本が変わった。REVISED_1101 を外した437標本は、
+    // 1101 作業前のコア（77ff4c4）と現行コアで照合値が完全一致（VB_VICTORY_BASELINE_CORE で確認済み）。
+    assert.deepEqual(actual, { count: 437, hash: 'b02a1557e4be74051c6a1334325a4ad82871fa2c50b6557e331f98450ed328ec' });
   });
   await check('旧コアとの差分：最後の敵の死亡反撃・召喚・死亡金を止めるため、勝敗も変わる', () => {
     const setup = contactSetup(); setup.sides.p1.units.length = 1;

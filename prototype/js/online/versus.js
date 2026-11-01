@@ -76,6 +76,7 @@
         _mapPanelPower: entry.panelPower,
         ...(u._mapPanelPowerText ? { _mapPanelPowerText: u._mapPanelPowerText } : {}),
         ...(u._battleEndCount != null ? { _battleEndCount: Number(u._battleEndCount)||0 } : {}),
+        ...(Array.isArray(u._battleEndTransformSlots) && u._battleEndTransformSlots.length ? { _battleEndTransformSlots: u._battleEndTransformSlots.slice() } : {}),
         _mainBoardSlot: Number.isInteger(entry.slotIdx) ? entry.slotIdx : null,
         _stageNumber: Math.max(1, Number(u._stageNumber)
           || Number(typeof G !== 'undefined' && G && G._wave) || 1),

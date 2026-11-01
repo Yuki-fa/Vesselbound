@@ -143,6 +143,9 @@ C053専用の登録／ファイルは現状存在しないため、bandersnatch�
 | dark-fireball | [Production Element Title Transition Whoosh Fire 03.wav](#dark-fireball-1) · 1.950秒 / peak 0.577 | [Production Element Title Transition Whoosh Fire 07.wav](#dark-fireball-2) · 1.950秒 / peak 0.165 | [Production Element Title Transition Stab Dark Short 03.wav](#dark-fireball-3) · 1.950秒 / peak 0.450 |
 | leprechaun-quick | [Foley Coin Jingle In Hand Short 01.wav](#leprechaun-quick-1) · 0.694秒 / peak 0.524 | [Impact Coins Multiple Coin Drop On Felt 05.wav](#leprechaun-quick-2) · 0.547秒 / peak 0.408 | [C088.wav](#leprechaun-quick-3) · 1.000秒 / peak 0.450 |
 <!-- SE1029_ROWS_END -->
+<!-- SE1101_ROWS_BEGIN -->
+| curse-to-glory | [SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-02.wav](#curse-to-glory-1) · 1.950秒 / peak 0.450 | [SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-02.wav](#curse-to-glory-2) · 1.950秒 / peak 0.155 | [Production Element Title Transition Ascend 10.wav](#curse-to-glory-3) · 1.950秒 / peak 0.450 |
+<!-- SE1101_ROWS_END -->
 
 ヴリコラカスは復活開始時に `revive.wav`、ダイアウルフはウルフ登場開始時に `opening.wav` を追加再生する。候補3つとは別の既存SE。
 
@@ -2382,3 +2385,28 @@ LAB の01〜05（10/23 に作った演出）と、2026-10-25 に作った演出�
 - 元素材: `prototype/assets/sfx/C088.wav`
 - 理由: 成長の音（C088）の頭だけを短く（成長の味のまま）
 - 原音 4.200秒 / 開始 0.416秒 / 出力 1.000秒 / peak 0.450秒 / 末尾フェード 300ms
+
+## 2026-11-01追加の原音と加工
+
+呪いの印（E066）の「呪いが栄光に変わる」演出（curse-to-glory）の候補。ファイル名と尺による一次選定で、聴感は未確認。ゲームの音は LAB で選ぶまで今のまま。
+
+<a id="curse-to-glory-1"></a>
+### curse-to-glory-1 / SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-02.wav
+
+- 元素材: `Google Drive: Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-02.wav`
+- 理由: 呪縛を破って抜け出す音（呪いが砕ける）
+- 原音 9.430秒 / 開始 5.564秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms
+
+<a id="curse-to-glory-2"></a>
+### curse-to-glory-2 / SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-02.wav
+
+- 元素材: `Google Drive: Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-02.wav`
+- 理由: 白魔法のきらめき（栄光・聖なる光）
+- 原音 8.770秒 / 開始 0.015秒 / 出力 1.950秒 / peak 0.155秒 / 末尾フェード 400ms
+
+<a id="curse-to-glory-3"></a>
+### curse-to-glory-3 / Production Element Title Transition Ascend 10.wav
+
+- 元素材: `/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ascend 10.wav`
+- 理由: 昇っていく遷移音（光の柱が立ち上がる）
+- 原音 12.223秒 / 開始 6.210秒 / 出力 1.950秒 / peak 0.450秒 / 末尾フェード 400ms

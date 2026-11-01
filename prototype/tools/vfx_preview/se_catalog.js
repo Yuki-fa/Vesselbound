@@ -1,4 +1,4 @@
-/* 2026-10-29: 161 闇の火球の弾・180 戦闘中の高速の永久強化の3候補を追加。2026-10-25b: 新しいキャラクターの演出6種の3候補を追加。2026-10-25: 新しいVFX（LABの01〜05・ユミル・グリマルキン・ファミリア・ヘルナイト・復活の指輪・隠密・防戦）の3候補を追加（ボイス除外・重複なし）。2026-10-17: 新規VFX（竜の契約・逆上・嵐の指輪・巻物の使用）の3候補を追加（ボイス除外・重複なし）。2026-10-15: 作り直したVFXの3候補・スキュラの候補を作り直し。 */
+/* 2026-11-01: 呪いの印（E066）curse-to-glory の3候補を追加。2026-11-01: 呪いの印（E066）curse-to-glory の3候補を追加。2026-10-29: 161 闇の火球の弾・180 戦闘中の高速の永久強化の3候補を追加。2026-10-25b: 新しいキャラクターの演出6種の3候補を追加。2026-10-25: 新しいVFX（LABの01〜05・ユミル・グリマルキン・ファミリア・ヘルナイト・復活の指輪・隠密・防戦）の3候補を追加（ボイス除外・重複なし）。2026-10-17: 新規VFX（竜の契約・逆上・嵐の指輪・巻物の使用）の3候補を追加（ボイス除外・重複なし）。2026-10-15: 作り直したVFXの3候補・スキュラの候補を作り直し。 */
 var VbFxSeCatalog = {
   "sounds": {
     "dark-fire-1": {
@@ -7190,6 +7190,60 @@ var VbFxSeCatalog = {
       "provisional": false,
       "reason": "180 戦闘中の高速の永久強化（成長の簡易版、0.7秒）。今は成長C088の音を共有（2026-10-29 利用者指定で別の音へ）／成長の音（C088）の頭だけを短く（成長の味のまま）",
       "sha256": "870b74ba950c19b058b755a62ef7bcb0673cc24a7560104ab0976281bcd3c3f7"
+    },
+    "curse-to-glory-1": {
+      "id": "curse-to-glory-1",
+      "filename": "SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-02.wav",
+      "source": "Google Drive: Sounds/分割/SORCERY - DESIGNED - MAGIC ICE Break Out Of Spell-02.wav",
+      "url": "vfx_preview/se/curse-to-glory-1.wav",
+      "duration": 1.95,
+      "originalDuration": 9.43,
+      "start": 5.564146,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "E066 呪いの印：4回目の終戦で英雄の印へ（紫の呪印が砕けて金の光の柱。演出2.2秒・砕ける山場は約40%）／呪縛を破って抜け出す音（呪いが砕ける）",
+      "sha256": "c2fac7dc872f200bfd0c23b0fef502b2494f8d44872e8d2c0f9c07e82db77f1a"
+    },
+    "curse-to-glory-2": {
+      "id": "curse-to-glory-2",
+      "filename": "SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-02.wav",
+      "source": "Google Drive: Sounds/分割/SORCERY - DESIGNED - MAGIC WHITE Deflect Spell 01-02.wav",
+      "url": "vfx_preview/se/curse-to-glory-2.wav",
+      "duration": 1.95,
+      "originalDuration": 8.77,
+      "start": 0.014958,
+      "trimmed": true,
+      "peak": 0.154667,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "E066 呪いの印：4回目の終戦で英雄の印へ（紫の呪印が砕けて金の光の柱。演出2.2秒・砕ける山場は約40%）／白魔法のきらめき（栄光・聖なる光）",
+      "sha256": "70eead681a19cc28d5fdc2dde6d377b9ad02cc5f2090689ae82a6365aa4249d9"
+    },
+    "curse-to-glory-3": {
+      "id": "curse-to-glory-3",
+      "filename": "Production Element Title Transition Ascend 10.wav",
+      "source": "/Users/yuki/マイドライブ/Argante/デジタル/素材/効果音/Adobe/映像／音響演出用SE・トランジションなど/Production Element Title Transition Ascend 10.wav",
+      "url": "vfx_preview/se/curse-to-glory-3.wav",
+      "duration": 1.95,
+      "originalDuration": 12.223208,
+      "start": 6.210396,
+      "trimmed": true,
+      "peak": 0.45,
+      "tailFadeMs": 400,
+      "peakDbfs": -1,
+      "peakMode": "envelope20ms",
+      "adopted": false,
+      "provisional": false,
+      "reason": "E066 呪いの印：4回目の終戦で英雄の印へ（紫の呪印が砕けて金の光の柱。演出2.2秒・砕ける山場は約40%）／昇っていく遷移音（光の柱が立ち上がる）",
+      "sha256": "47d3df59f529e6035efcf32b827ecae585473febed1776ec1631f4be16410ffe"
     }
   },
   "effects": {
@@ -7867,6 +7921,11 @@ var VbFxSeCatalog = {
       "leprechaun-quick-1",
       "leprechaun-quick-2",
       "leprechaun-quick-3"
+    ],
+    "curse-to-glory": [
+      "curse-to-glory-1",
+      "curse-to-glory-2",
+      "curse-to-glory-3"
     ]
   }
 };

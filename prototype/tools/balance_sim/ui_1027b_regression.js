@@ -182,7 +182,9 @@ function formed(no,enhanced=false){
     }
   });
   await check('6 行商人列の有無・値に関わらず同じloader結果とアイテム抽選',async()=>{
-    const original=window.VESSELBOUND_LOCAL_XLSX_CSV,rows=sheet.parseCsv(original.item),headers=rows.shift();
+    const original=window.VESSELBOUND_LOCAL_XLSX_CSV,rows0=sheet.parseCsv(original.item),headers0=rows0.shift();
+    // 2026-11-01 のシートでは列そのものが無い。無ければ検査用に「行商人」列を足して、有無の両方を比べる。
+    const hadColumn=headers0.includes('行商人'),headers=hadColumn?headers0:[...headers0,'行商人'],rows=hadColumn?rows0:rows0.map(r=>[...r,'false']);
     const csv=rs=>rs.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
     const snapshot=()=>ITEM_POOL.map(c=>({no:c.no,name:c.name,grade:c.grade,rarity:c.rarity,desc:c.desc,reward:!!c._rewardExcluded,shop:!!c._shopExcluded}));
     const expected=snapshot(),idx=headers.indexOf('行商人');assert.ok(idx>=0);

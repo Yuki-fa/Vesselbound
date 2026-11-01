@@ -50,8 +50,9 @@ function fullInput(own, foes, extra = {}) {
     assert.deepEqual(found.map(r => r['No.']).sort(), familiarNos.slice().sort());
     for (const row of found) console.log('  ' + row['No.'] + ' ' + row['名前'] + '：'
       + row['効果'] + (row['強化効果'] ? ' ／ 強化：' + row['強化効果'] : ''));
-    for (const kind of ['enemy', 'item']) assert.deepEqual(sheet.sheetRows(kind).filter(r =>
-      /眷属/.test((r['効果'] || '') + (r['強化効果'] || ''))), []);
+    assert.deepEqual(sheet.sheetRows('enemy').filter(r => /眷属/.test((r['効果'] || '') + (r['強化効果'] || ''))), []);
+    // アイテムは眷属の巻物（I025。2026-11-01 シート追加：使うとゲーム中の眷属強化へ足す）だけ。
+    assert.deepEqual(sheet.sheetRows('item').filter(r => /眷属/.test(r['効果'] || '')).map(r => r['No.']), ['I025']);
   });
   for (const side of ['p1', 'p2']) {
     await check(side + ': ファントム死亡＋エイドロン負傷＋ティアマト1召喚で+3/+3、2・3戦目も1回だけ', () => {

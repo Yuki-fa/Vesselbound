@@ -26,10 +26,11 @@ function _syncRewardProductionItems(){
     const source=!!(G._pendingItemUse&&G._pendingItemUse.slotIdx===idx);
     // クリックの共通ガードにも、マモンの対象であることを渡す。
     // 見た目のpointer-eventsだけを有効にしてもdocumentのcaptureで止まる。
+    const duplicateTarget=!!item&&!source&&_duplicateScrollItemTarget(item);
     slot.classList.toggle('item-target-ok',!!item&&picking
-      &&typeof _cardActivationTargetsItem==='function'&&_cardActivationTargetsItem());
+      &&(typeof _cardActivationTargetsItem==='function'&&_cardActivationTargetsItem()||duplicateTarget));
     slot.classList.toggle('picking-source',source);
-    slot.classList.toggle('activation-target-disabled',!!item&&picking&&!source
+    slot.classList.toggle('activation-target-disabled',!!item&&picking&&!source&&!duplicateTarget
       &&!(typeof _cardActivationTargetsItem==='function'&&_cardActivationTargetsItem()));
     slot.classList.remove('rarity-1','rarity-2','rarity-3','rarity-4','rarity-5');
     const desc=item?_plainEffectTextForPreview(item):'';
@@ -146,6 +147,7 @@ function _syncRewardProductionItems(){
     slot.onclick=e=>{
       e.stopPropagation();
       if (typeof handleCardActivationItemTarget === 'function' && handleCardActivationItemTarget(idx)) return;
+      if(handleDuplicateScrollTarget(idx)) return;
       // 対象選択中に、選択中のアイテム自身を押したら中断する。
       if(G._pendingItemUse&&G._pendingItemUse.slotIdx===idx){ _cancelPendingItemUse(); return; }
       if(_targetPickingActive()) return;
@@ -314,6 +316,33 @@ if(!window._itemRingMenuDismissBound){
     if(typeof _clearDragZoneClass==='function') _clearDragZoneClass();
   },true);
 }
+// ── 複製の巻物（I026）：アイテムの枠の別のアイテムを選び、その写しに変わる ──
+function _isDuplicateScrollCard(card){ return _itemEffectKey(card)==='duplicate_scroll'; }
+function _duplicateScrollItemTarget(item){
+  const pending=G&&G._pendingItemUse;
+  return !!(pending&&pending.key==='duplicate_scroll'&&item&&!_isDuplicateScrollCard(item));
+}
+function handleDuplicateScrollTarget(index){
+  const pending=G&&G._pendingItemUse;
+  if(!pending||pending.key!=='duplicate_scroll') return false;
+  const items=_ensureItemSlots(), target=items[index];
+  if(index===pending.slotIdx||!_duplicateScrollItemTarget(target)) return true;
+  const copy=clone(target);
+  // 写しは別の品：店の返品・購入の印は引き継がない。
+  ['_shopPurchaseSeq','_shopVisitSeq','_shopBought','_buyPrice','_itemUseInstanceId'].forEach(k=>delete copy[k]);
+  copy._placeKey=undefined;
+  items[pending.slotIdx]=copy;
+  G._pendingItemUse=null;
+  _syncItemUsePickingUi();
+  if(typeof _syncRewardProductionItems==='function') _syncRewardProductionItems();
+  if(typeof _refreshTargetPicking==='function') _refreshTargetPicking();
+  // 演出は変わったアイテムの枠から（PRESENT_ITEM_USE_FX の I026。音も同じ表から）。
+  if(typeof document!=='undefined'){
+    const slotEl=document.querySelectorAll('.reward-prod-item .reward-prod-slots i')[pending.slotIdx];
+    _playItemSlotVfx('I026',slotEl&&slotEl.getBoundingClientRect());
+  }
+  return true;
+}
 function _itemEffectKey(card){
   const key=String(card&&card.itemEffectKey||'');
   if(key==='underworld_scroll'||card&&card.name==='幻視の巻物') return 'vision_scroll';
@@ -377,7 +406,10 @@ function _canUseItemNow(card){
     const targets=_pickingCardLocations().filter(at=>_isItemUseTarget(at,{key,card}));
     return targets.length>=(['transform_scroll','weakening_scroll'].includes(key)?2:1);
   }
-  if(key==='sacrifice_doll'||key==='mana_scroll') return true;
+  if(key==='sacrifice_doll'||key==='mana_scroll'||key==='kenzoku_scroll') return true;
+  // 複製の巻物：変化先になる別のアイテムを持っている時だけ。小さな鍵は使うアイテムではない。
+  if(key==='duplicate_scroll') return _ensureItemSlots().some(item=>item&&item!==card&&!_isDuplicateScrollCard(item));
+  if(key==='small_key') return false;
 
   if(key==='meteor_scroll') return true;
   // ポータルの巻物は「過去に訪れたことのあるランダムな村へワープする」アイテムなので、街（村・その施設）にいる間は使えない（2026-11-01 利用者指定で直前の村から変更）。
@@ -586,6 +618,7 @@ function _syncItemUsePickingUi(){
   body.classList.toggle('item-use-picking',item);
   body.classList.toggle('activation-picking',activation);
   body.classList.toggle('activation-picking-item',activation&&_cardActivationTargetsItem());
+  body.classList.toggle('item-use-picking-item',item&&G._pendingItemUse.key==='duplicate_scroll');
   // 対象が見える状態に戻し、キャンセル後も表示を維持する。
   if((item||activation)&&body.classList.contains('right-card-peek')){
     body.classList.remove('right-card-peek');
@@ -617,6 +650,24 @@ function _useImmediateItem(idx,card){
   if(key==='golden_scroll'){
     G.gold=Math.floor((G.gold||0)*2);
     _consumeItemSlot(idx);
+    return true;
+  }
+  // 眷属の巻物（I025。2026-11-01）：「このゲーム中、味方の眷属は+5X/+5Xを得る。」ゲーム中の眷属強化（G.gameSummonBuff）へ足す。
+  // 値は X を入れた本文から読む（レアリティX＝引いた時の値）。
+  if(key==='kenzoku_scroll'){
+    const m=String(card.desc||'').match(/眷属は\+(\d+)\/\+(\d+)を得る/);
+    if(!m) return false;
+    const buff=G.gameSummonBuff||{atk:0,hp:0};
+    G.gameSummonBuff={...buff,atk:(Number(buff.atk)||0)+Number(m[1]),hp:(Number(buff.hp)||0)+Number(m[2])};
+    _consumeItemSlot(idx);
+    return true;
+  }
+  // 複製の巻物（I026。2026-11-01）：「対象のアイテムに変化する。」アイテムの枠から変化先を1つ選ぶ（handleDuplicateScrollTarget）。
+  if(key==='duplicate_scroll'){
+    if(typeof _pendingCardActivation!=='undefined') _pendingCardActivation=null;
+    G._pendingItemUse={slotIdx:idx,key,card:clone(card)};
+    _closeItemUseConfirm();
+    _refreshTargetPicking();
     return true;
   }
   if(key==='jade_vase'){

@@ -12,7 +12,7 @@ const REVISED = new Set('E004 E005 E009 E017 E024 E027 E038 E042 E047 E052 E063 
 const REVISED_1029 = new Set('C042 C029 C050'.split(' '));
 for (const no of REVISED_1029) REVISED.add(no);
 // 2026-11-01 シート追加の強化をコアへ実装（旧コアでは何も起きない／体数を読まない）。検査は sheet_1101_regression.js。
-const REVISED_1101 = new Set('E078 E079 E081 E082 E083 E084 E085 E087'.split(' '));
+const REVISED_1101 = new Set('E017 E078 E079 E081 E082 E083 E084 E085 E087'.split(' ')); // E017 原始の武器は仕様変更（前衛の味方とのみ接続）
 for (const no of REVISED_1101) REVISED.add(no);
 module.exports={BASELINE,REVISED,REVISED_1029,REVISED_1101};
 let passed = 0, failed = 0;

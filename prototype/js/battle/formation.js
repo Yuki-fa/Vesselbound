@@ -150,6 +150,10 @@ function buildBoardFormation(board, opts) {
       const powerDef = typeof MAP_PANEL_POWERS !== 'undefined' ? MAP_PANEL_POWERS.find(p => p.id === panelPower) : null;
       if (powerDef && ['life','resonance'].includes(panelPower)) unit._mapPanelPowerText = powerDef.desc;
       if (panel._battleEndCount) unit._battleEndCount = panel._battleEndCount;
+      // 終戦で変化する強化（呪いの印）のマス。変化の演出をその強化を付けたキャラクターから出すため（2026-11-01）。
+      const transformSlots = typeof coreBattleEndTransformSpec === 'function'
+        ? contributingPanels.filter(entry => coreBattleEndTransformSpec(entry.panel || entry)).map(entry => entry.idx).filter(Number.isInteger) : [];
+      if (transformSlots.length) unit._battleEndTransformSlots = transformSlots;
       if (contributingPanels.length && /回目の終戦ごと/.test(unit.desc || '')) unit.boardCards = typeof _panelSummonDisplayBoardCards === 'function'
         ? _panelSummonDisplayBoardCards(panel, contributingPanels) : unit.boardCards;
       unit._stageNumber = stageNumber;
