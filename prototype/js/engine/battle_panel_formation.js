@@ -128,9 +128,21 @@ function _collectEnhancementPanelsForSlot(unit, slotIdx){
   return result.map(entry=>({...entry,panel:runLevelDisplayCard(entry.panel,unit)}));
 }
 
+// 2026-11-01 シート追加の強化の条件（効果が無効になる強化を、接続している強化の一覧から外す）。表示（render_card_display.js）も同じ一覧を使う。
+// ・最強の武器（E078）：「「最強の武器」以外の全てのエンチャントの効果が無効になる。」→ 同名の強化だけを残す。
+// ・複製（E082）：「この効果は、「複製」が特殊マスに置かれていなければ無効になる。」→ 特殊マス（マスの力があるマス）に無い複製を外す。
+const ENHANCEMENT_EXCLUSIVE_RE=/「([^」]+)」以外の全てのエンチャントの効果が無効になる/;
+const ENHANCEMENT_SPECIAL_SQUARE_RE=/この効果は、「[^」]+」が特殊マスに置かれていなければ無効になる/;
+function _effectiveEnhancementPanels(entries){
+  let list=(entries||[]).filter(e=>!(e&&e.panel&&ENHANCEMENT_SPECIAL_SQUARE_RE.test(String(e.panel.desc||''))&&!_mapPanelPowerAt(e.idx)));
+  const exclusive=list.map(e=>String(e&&e.panel&&e.panel.desc||'').match(ENHANCEMENT_EXCLUSIVE_RE)).find(Boolean);
+  if(exclusive) list=list.filter(e=>!e||!e.panel||String(e.panel.category||'')==='キャラクター'
+    ||String(e.panel.name||'').replace(/\+$/,'')===exclusive[1]);
+  return list;
+}
 function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
   const enh={atk:0,hp:0,keywords:[],abilities:[],strategyCount:0,strategyMultiplier:0,weakenOnHit:0,manaOnAttack:0,manaOnInjury:0,manaOnDeath:0,goldOnBattleEnd:0,goldOnDeath:0,randomItemOnBattleEnd:false,randomItemCost:0,effectRepeatBonus:0,uniteGroups:[],manaThresholds:[],effectNames:[],effectScales:{},effectTexts:[],permanentEffectCards:[],releaseAtkBonus:0,releaseHpBonus:0,engravingStages:{}};
-  const panels=_collectEnhancementPanelsForSlot(unit,slotIdx);
+  const panels=_effectiveEnhancementPanels(_collectEnhancementPanelsForSlot(unit,slotIdx));
   _recordBattleTrace('adjacent_enhancements_resolved',{slotIdx,unitId:unit&&unit.id||null,names:panels.map(x=>x&&x.panel&&x.panel.name||''),indices:panels.map(x=>x&&x.idx)});
   // ※以前は「複製」を**接続している他の強化カードに置き換える**特別扱いがあった
   //   （旧試作版の「常時：接続している強化カードに変化する。」）。
@@ -162,15 +174,21 @@ function _collectAdjacentEnhancements(unit, slotIdx, stageNumber){
       enh.effectScales[name]=Math.max(enh.effectScales[name]||1,copies);
     }
     // 同じ接続カードにつながる体だけを渡す。効果の条件・倍率はコアが決める。
-    const connectedCharacters=coreConnectedColorStatMultiplier(panel)==null&&!coreConnectedKeywordSpec(panel)?[]:
-      (unit.boardCards||[]).filter((card,idx)=>card&&idx!==slotIdx&&String(card.category||'')==='キャラクター'
-        &&_collectEnhancementPanelsForSlot(unit,idx).some(link=>link.idx===entry.idx));
+    const connectedSlots=coreConnectedColorStatMultiplier(panel)==null&&!coreConnectedKeywordSpec(panel)?[]:
+      (unit.boardCards||[]).map((card,idx)=>idx).filter(idx=>{const card=(unit.boardCards||[])[idx];
+        return card&&idx!==slotIdx&&String(card.category||'')==='キャラクター'
+          &&_collectEnhancementPanelsForSlot(unit,idx).some(link=>link.idx===entry.idx);});
+    const connectedCharacters=connectedSlots.map(idx=>unit.boardCards[idx]);
     const stats=corePanelStatBonuses(panel,{stageNumber:stageNumber
       ||Number(typeof G!=='undefined'&&G&&G._wave)||1,
       character:(unit.boardCards||[])[slotIdx],connectedCharacters});
     enh.atk+=stats.atk;
     enh.hp+=stats.hp;
-    const connectedKeyword=coreConnectedKeyword(panel,connectedCharacters);
+    // 原始の武器の「前衛の味方とのみ」：受け手自身（slotIdx）も接続しているキャラクターに含める。
+    // 前衛＝魔導板の上2段（マス0〜9。出撃の列分け battle/formation.js の toRear と同じ境目）。
+    const keywordSlots=coreConnectedKeywordSpec(panel)?.frontOnly?[slotIdx,...connectedSlots]:connectedSlots;
+    const connectedKeyword=coreConnectedKeyword(panel,keywordSlots.map(idx=>(unit.boardCards||[])[idx]),
+      keywordSlots.map(idx=>idx>=10?'rear':'front'));
     if(connectedKeyword) enh.keywords.push(connectedKeyword);
     enh.releaseAtkBonus=Math.max(enh.releaseAtkBonus,Number(panel.releaseAtkBonus)||0);
     enh.releaseHpBonus=Math.max(enh.releaseHpBonus,Number(panel.releaseHpBonus)||0);

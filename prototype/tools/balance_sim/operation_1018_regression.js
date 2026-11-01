@@ -116,15 +116,17 @@ const def = no => PANEL_POOL.find(p => p.no === no);
   });
   check('闇の炎：他の音が24本鳴っていてもゲームのLAB経路からE006を再生する', () => {
     initState(); _sfxUnlocked = true; timers.clear();
-    const keys = Object.keys(Assets.sfx).filter(key => key !== 'E006' && !_isBgmKey(key));
+    // 2026-11-01：闇の火球（E006）は大きくした E006_1 を鳴らす（エキドナ等の E006 は元の音のまま）。
+    const keys = Object.keys(Assets.sfx).filter(key => key !== 'E006' && key !== 'E006_1' && !_isBgmKey(key));
     for (const key of keys.slice(0, SFX_SETTINGS.maxVoices)) assert.equal(playSfx(key, { guardMs: 0, maxPlayMs: 0 }), true);
     assert.equal(_sfxActiveVoices, 24);
     _battleFxSound('E006', 1.5, VbFx.duration(presentLabFx('E006')[0], 1.5), false); // 2026-10-26 闇の炎は dark-fireball
     const due = [...timers.entries()].filter(([, t]) => t.ms === 0);
     due.forEach(([id, t]) => { timers.delete(id); t.fn(); });
-    assert.equal(_sfxPlayingByKey.E006, 1, 'グローバルの同時発音数上限でE006を捨てない');
+    assert.equal(_sfxPlayingByKey.E006_1, 1, 'グローバルの同時発音数上限でE006_1を捨てない');
     assert.equal(_sfxActiveVoices, 24, '総発音数は増やさない');
     assert.equal(SFX_SETTINGS.sounds.E006.volume, .70);
+    assert.equal(SFX_SETTINGS.sounds.E006_1.volume, 1);
   });
   console.log(`操作・編成1018：${checked}件OK / ${failed}件NG（画面・聴感は未確認）`);
   if (failed) process.exitCode = 1;

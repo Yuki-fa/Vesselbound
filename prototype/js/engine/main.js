@@ -538,28 +538,33 @@ function _waveRouteNode(stage,wave){
   const route=_waveRouteForWave(wave??(G&&G._wave));
   return route[Math.max(0,(Number(stage)||1)-1)]||'battle';
 }
-// ── ポータルの巻物：ウェーブ進行での「直前の村」 ────────────────
-// 村は旅の進捗の街（city）マス。**ワールドマップではなくこの進行が正**なので、
-// 現在地より前の city マスを後ろから探す（同じSceneに無ければ前のSceneの最後の村）。
-// 見つからない＝まだ村を1つも通っていない（＝出発直後）。
-function _wavePreviousVillage(){
+// ── ポータルの巻物：ウェーブ進行での「過去に訪れた村」 ────────────────
+// 2026-11-01 利用者指定：「過去に訪れたことのあるランダムな村にワープする。（再出発時は現在位置の次の場所に移動する）」
+// （以前は直前の村だけ）。村は旅の進捗の街（city）マス。**ワールドマップではなくこの進行が正**なので、
+// 現在地より前の city マスを全て集める（前のSceneは最後まで）。空＝まだ村を1つも通っていない（＝出発直後）。
+function _waveVisitedVillages(){
   const wave=Math.max(1,Number(G&&G._wave)||1);
   const stage=Math.max(1,Number(G&&G._waveStage)||1);
-  for(let w=wave;w>=1;w--){
+  const out=[];
+  for(let w=1;w<=wave;w++){
     const route=_waveRouteForWave(w)||[];
-    // 現在のSceneでは「現在地より前」だけを見る。前のSceneは最後まで見る。
-    const from=w===wave?stage-1:route.length;
-    for(let i=Math.min(from,route.length);i>=1;i--){
-      if(route[i-1]==='city') return {wave:w,stage:i};
-    }
+    // 現在のSceneでは「現在地より前」だけを見る。
+    const upto=w===wave?Math.min(stage-1,route.length):route.length;
+    for(let i=1;i<=upto;i++) if(route[i-1]==='city') out.push({wave:w,stage:i});
   }
-  return null;
+  return out;
 }
-// 直前の村へ戻る。**進行は巻き戻さない**（「再出発時は現在位置の次の場所に移動する」）ので、
+// 直前の村（使えるかの判定と、検査の差し替え口として残す）。
+function _wavePreviousVillage(){
+  const list=_waveVisitedVillages();
+  return list.length?list[list.length-1]:null;
+}
+// 過去に訪れた村のどれか（ランダム）へ戻る。**進行は巻き戻さない**（「再出発時は現在位置の次の場所に移動する」）ので、
 // 使った時点の位置を控えておき、村を出る時に戻す。
 function warpToPreviousWaveVillage(){
-  const target=_wavePreviousVillage();
-  if(!target) return false;
+  const list=_waveVisitedVillages();
+  if(!list.length) return false;
+  const target=list[Math.floor(Math.random()*list.length)];
   G._waveResumeStage={wave:Math.max(1,Number(G._wave)||1),stage:Math.max(1,Number(G._waveStage)||1)};
   if(typeof _consumePendingMapItemUse==='function') _consumePendingMapItemUse();
   G._wave=target.wave;

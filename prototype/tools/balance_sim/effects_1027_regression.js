@@ -11,7 +11,10 @@ const REVISED = new Set('E004 E005 E009 E017 E024 E027 E038 E042 E047 E052 E063 
 // ヴリコラカス／ジャンシー：重ならないキーワード（復活）のランダム付与で既に持つ体を外す。リッチ：常時効果のダメージの種類と合図。
 const REVISED_1029 = new Set('C042 C029 C050'.split(' '));
 for (const no of REVISED_1029) REVISED.add(no);
-module.exports={BASELINE,REVISED,REVISED_1029};
+// 2026-11-01 シート追加の強化をコアへ実装（旧コアでは何も起きない／体数を読まない）。検査は sheet_1101_regression.js。
+const REVISED_1101 = new Set('E078 E079 E081 E082 E083 E084 E085 E087'.split(' '));
+for (const no of REVISED_1101) REVISED.add(no);
+module.exports={BASELINE,REVISED,REVISED_1029,REVISED_1101};
 let passed = 0, failed = 0;
 async function check(name, fn) {
   try { await fn(); passed++; console.log('OK ' + name); }
@@ -250,23 +253,30 @@ async function main() {
       await pipelines(h.initial);
     });
   }
-  await check('15: 原始の武器は血盟と同じ接続経路で3色を調べ、編成表示とオンライン送信に反映する', async () => {
-    for(const enhanced of [false,true]) for(const complete of [false,true]) {
-      initRun();G.mainBoard.fill(null);G.mapPanelPowers={2:'summon',5:'summon',7:'summon',11:'summon'};
-      const weapon=card('E017',enhanced);weapon.directions=['right'];G.mainBoard[0]=weapon;
-      for(const [slot,dirs] of [[1,['left','right','down']],[6,['up','right','down','left']]]) G.mainBoard[slot]={...card('E001'),desc:'',adjacentKeywords:[],adjacentAtkBonus:0,adjacentHpBonus:0,directions:dirs};
-      for(const [slot,color,dir] of [[2,'赤','left'],[5,'黄','right'],[7,complete?'緑':'黄','left'],[11,'青','up']]) G.mainBoard[slot]={...makePanel(PANEL_POOL.find(c=>c.no==='C006').id),color,desc:'',keywords:[],directions:[dir]};
+  // 2026-11-01 利用者指定で条件を変更：「「原始の武器」が前衛の味方とのみ接続している場合、二段攻撃（強化は三段攻撃）を得る。」
+  // 前衛＝魔導板の上2段（マス0〜9）。満たさない時は効果文もキャラクター用説明文（シートの「二段攻撃」）も出さない。
+  await check('15: 原始の武器は前衛の味方とのみ接続している時だけキーワードを与え、編成表示とオンライン送信に反映する', async () => {
+    const hero=()=>({...makePanel(PANEL_POOL.find(c=>c.no==='C006').id),desc:'',keywords:[],directions:['up','down','left','right']});
+    // [武器のマス, 武器の向き, キャラクターのマス, 条件を満たすか]
+    const cases=[[0,['right'],[1],true],[5,['right','down'],[6,10],false],[5,['down'],[10],false],[2,['left','right','down'],[1,3,7],true]];
+    for(const enhanced of [false,true]) for(const [slot,dirs,chars,ok] of cases) {
+      initRun();G.mainBoard.fill(null);G.mapPanelPowers={};
+      const weapon=card('E017',enhanced);weapon.directions=dirs;G.mainBoard[slot]=weapon;
+      chars.forEach(i=>{G.mainBoard[i]=hero();});
       const board=_getPartyBoardUnit(), f=buildBoardFormation(board,{persistEternal:false});
-      assert.equal(f.ordered.length,4);
-      for(const e of f.ordered) {
-        const active=complete&&e.unit._mainBoardSlot===5;
-        const kw=enhanced?'三段攻撃':'二段攻撃';assert.equal(coreUnitKeywords(e.unit).includes(kw),active);
-        assert.equal(coreExtraAttackCount(e.unit),active?(enhanced?2:1):0);
-        const enh=_collectAdjacentEnhancements(board,e.unit._mainBoardSlot),raw=G.mainBoard[e.unit._mainBoardSlot];
-        const preview={...raw,boardCards:G.mainBoard,keywords:[...raw.keywords,...enh.keywords]};
-        assert.equal(_unitDisplayKeywords(preview,raw.desc,e.unit._mainBoardSlot).includes(kw),active,'編成時の実際のキーワード欄');
+      const kw=enhanced?'三段攻撃':'二段攻撃';
+      for(const i of chars) {
+        const enh=_collectAdjacentEnhancements(board,i);
+        assert.equal(enh.keywords.includes(kw),ok,`マス${i}（${dirs}）`);
+        const raw=G.mainBoard[i],preview={...raw,boardCards:G.mainBoard,keywords:[...raw.keywords,...enh.keywords]};
+        assert.equal(_unitDisplayKeywords(preview,raw.desc,i).includes(kw),ok,'編成時の実際のキーワード欄');
+        const texts=_groupedEnchantEffectTexts({...board,_ownedBoardPreview:true},i);
+        assert.deepEqual([...texts.normalTexts,...texts.charTexts].filter(x=>/原始の武器|二段攻撃|三段攻撃/.test(x)),[],'効果文・キャラクター用説明文は出さない');
       }
-      const payload=buildOnlineSelfFormation();assert.ok(payload.units.every(u=>coreExtraAttackCount(u)===(complete&&u._mainBoardSlot===5?(enhanced?2:1):0)));
+      const deployed=f.ordered.filter(e=>chars.includes(e.unit._mainBoardSlot));
+      assert.ok(deployed.length);
+      for(const e of deployed) assert.equal(coreExtraAttackCount(e.unit),ok?(enhanced?2:1):0);
+      const payload=buildOnlineSelfFormation();assert.ok(payload.units.filter(u=>chars.includes(u._mainBoardSlot)).every(u=>coreExtraAttackCount(u)===(ok?(enhanced?2:1):0)));
       const h=harness('p1',f.ordered.map((e,i)=>({...e.unit,id:'unit'+i,effectData:{releaseAtkBonus:0,releaseHpBonus:0,...e.unit.effectData}})));await pipelines(h.initial);
     }
   });

@@ -138,11 +138,14 @@ function _enchantmentEffectsList(unit,slotIdx){
   slotIdx=slotIdx||0;
   const eq=Array.isArray(unit.boardCards)?unit.boardCards:[];
   const panels=typeof _collectEnhancementPanelsForSlot==='function'
-    ?_collectEnhancementPanelsForSlot(unit,slotIdx)
+    ?(typeof _effectiveEnhancementPanels==='function'?_effectiveEnhancementPanels(_collectEnhancementPanelsForSlot(unit,slotIdx)):_collectEnhancementPanelsForSlot(unit,slotIdx))
     :eq.map((panel,idx)=>({panel,idx}));
   const results=[];
   panels.forEach(({panel:p,idx})=>{
     if(!p||idx===slotIdx||!(String(p.category||'')==='強化'||String(p.category||'')==='エンチャント')) return;
+    // 原始の武器（接続条件でキーワードを与える）は、条件を満たせばキーワード欄に出るだけで、効果文もキャラクター用説明文も書かない
+    // （2026-11-01 利用者指定：満たさない時は効果自体を書かない。シートのキャラクター用説明文「二段攻撃」は使わない）。
+    if(typeof coreConnectedKeywordSpec==='function'&&coreConnectedKeywordSpec(p)) return;
     if(typeof _collectEnhancementPanelsForSlot!=='function'){
       if(typeof _isAdjacentPanelSlot==='function'&&!_isAdjacentPanelSlot(slotIdx,idx)) return;
       const dir=typeof _directionFromPanelToSlot==='function'?_directionFromPanelToSlot(idx,slotIdx):'';
@@ -184,9 +187,60 @@ function _unitEffectDescriptionContext(unit,slotIdx){
   return unit;
 }
 function _unitEffectDescription(unit,text,slotIdx){
-  return coreEffectDescriptionNumbers(_unitEffectDescriptionContext(unit,slotIdx),text);
+  const shown=coreEffectDescriptionNumbers(_unitEffectDescriptionContext(unit,slotIdx),text);
+  return _scatterShotDescription(shown,_scatterShotBonus(unit,slotIdx));
+}
+// ── 乱れ撃ち（「このキャラクターがランダムな敵を選ぶ場合、その対象はN体増える。」）の説明（2026-11-01 利用者指定） ──
+// ・説明文中の対象の敵の数を増やす：「ランダムな敵2体」→「ランダムな敵3体」、数の無い「ランダムな敵」→「ランダムな敵2体」。
+// ・キャラクター用説明文（「乱れ撃ち」の効果で対象が+Xされた。）は、他の効果に対象の敵（ランダムな敵）を含む時だけ出す。
+// ・援護射撃は説明文を変えない。援護射撃が他のキャラクターとも繋がっている時だけ、対象の敵を含む効果とみなす。
+// 「」の中（他の体へ与える効果）、乱れ撃ち自身の文、倒した敵を召喚する「倒したことがあるランダムな敵」は数えない。
+const _SCATTER_SHOT_RE=/このキャラクターがランダムな(?:味方、または敵|敵)を選ぶ場合、その対象は(\d+)体増える/;
+const _COVER_FIRE_RE=/この効果を持つ全ての味方がランダムな敵/;
+const _RANDOM_FOE_RE=/(?<!倒したことがある)ランダムな敵(?:(\d+)体)?/g;
+function _scatterShotSentences(text,fn){
+  return String(text||'').split(/(「[^」]*」)/).map((part,i)=>i%2?part:part.split(/(?<=。)/)
+    .map(s=>_SCATTER_SHOT_RE.test(s)||_COVER_FIRE_RE.test(s)?s:fn(s)).join('')).join('');
+}
+function _scatterShotDescription(text,bonus){
+  if(!(bonus>0)||!text) return text;
+  return _scatterShotSentences(text,s=>s.replace(_RANDOM_FOE_RE,(_m,n)=>`ランダムな敵${(Number(n)||1)+bonus}体`));
+}
+function _scatterShotPanels(unit,slotIdx){
+  return _enchantmentEffectsList(unit,slotIdx).filter(e=>_SCATTER_SHOT_RE.test(String(e.panel&&e.panel.desc||'')));
+}
+function _scatterShotBonus(unit,slotIdx){
+  if(!unit) return 0;
+  const own=(unit._ownedBoardPreview&&Array.isArray(unit.boardCards)?unit.boardCards[slotIdx||0]:null)||unit;
+  const ownMatch=String(own.desc||'').match(_SCATTER_SHOT_RE);
+  return _scatterShotPanels(unit,slotIdx).reduce((sum,e)=>sum+(Number(String(e.panel.desc).match(_SCATTER_SHOT_RE)[1])||0),
+    ownMatch?Number(ownMatch[1])||0:0);
+}
+function _hasRandomFoeText(text){
+  let found=false;
+  _scatterShotSentences(text,s=>{ if(new RegExp(_RANDOM_FOE_RE.source).test(s)) found=true; return s; });
+  return found;
+}
+// 援護射撃が他のキャラクターとも繋がっているか。編成中は魔導板の接続、戦闘中は援護射撃を持つ他の味方で見る。
+function _coverFireSharedWithOthers(unit,slotIdx){
+  const covers=_enchantmentEffectsList(unit,slotIdx).filter(e=>_COVER_FIRE_RE.test(String(e.panel&&e.panel.desc||'')));
+  if(!covers.length) return false;
+  if(unit._ownedBoardPreview&&Array.isArray(unit.boardCards)&&typeof _collectEnhancementPanelsForSlot==='function'){
+    return covers.some(c=>unit.boardCards.some((card,idx)=>card&&idx!==(slotIdx||0)&&String(card.category||'')==='キャラクター'
+      &&_collectEnhancementPanelsForSlot(unit,idx).some(link=>link.idx===c.idx)));
+  }
+  const allies=typeof G!=='undefined'&&G&&Array.isArray(G.allies)?G.allies:[];
+  return allies.some(a=>a&&a!==unit&&a.hp>0&&typeof coreHasEffect==='function'&&coreHasEffect(a,'援護射撃'));
+}
+function _scatterShotApplies(unit,slotIdx){
+  const own=(unit._ownedBoardPreview&&Array.isArray(unit.boardCards)?unit.boardCards[slotIdx||0]:null)||unit;
+  const texts=[own.desc,own._manaThresholdDesc,..._enchantmentEffectsList(unit,slotIdx)
+    .filter(e=>!_SCATTER_SHOT_RE.test(String(e.panel&&e.panel.desc||''))).map(e=>e.panel&&e.panel.desc)];
+  return texts.some(_hasRandomFoeText)||_coverFireSharedWithOthers(unit,slotIdx);
 }
 function _enchantCharacterDescription(panel,unit,slotIdx){
+  const scatter=String(panel&&panel.desc||'').match(_SCATTER_SHOT_RE);
+  if(scatter) return _scatterShotApplies(unit,slotIdx)?String(panel.characterDesc||'').replace(/\+X/g,'+'+scatter[1]):'';
   const source=_unitEffectDescriptionContext(unit,slotIdx);
   if(coreEffectDamagePowerBonus(panel)&&!coreHasEffectDamage(source)) return '';
   let text=_stageEngravingDescription(panel,panel.characterDesc);

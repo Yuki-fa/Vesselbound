@@ -142,7 +142,7 @@ function coreUnitKeywords(unit) {
   const unitText = coreUnitEffectText(unit);
   const passiveText = unitText.replace(/(^|\n)\s*\d+マナ(?:毎)?[:：][^\n。]*(?:。|$)/g, ' ')
     // 接続条件による付与は、魔導板の接続を解決した時のキーワードだけを見る。
-    .replace(/常時[：:]「[^」]+」によって[赤青緑黄紫黒白、]+の味方と接続している場合、(?:二段攻撃|三段攻撃)を得る。?/g, ' ');
+    .replace(/常時[：:]「[^」]+」(?:によって[赤青緑黄紫黒白、]+の味方と|が前衛の味方とのみ)接続している場合、(?:二段攻撃|三段攻撃)を得る。?/g, ' ');
   const ownPassiveText = passiveText.replace(/(?:ランダムな)?(?:味方|敵|キャラクター|.+?キャラクター)(?:に|が)[^。]*(?:結界|生贄|復活|封印\d*)を(?:付与する|得る)。?/g, ' ')
     .replace(/ランダムな味方(?:\d+体)?に復活を与える。?/g, ' ');
   CORE_TEXT_KEYWORDS.forEach(k => {
@@ -1108,13 +1108,24 @@ function coreConnectedColorStatMultiplier(card) {
   const match = coreUnitEffectText(card).match(/常時[：:]「[^」]+」によって同じ色の味方とだけ接続している場合、\+X\/\+Xを得る。Xは接続している同じ色の味方の数の(\d+)倍に等しい/);
   return match ? Number(match[1]) : null;
 }
+// 接続条件でキーワードを与える強化（原始の武器）。
+// 2026-11-01 利用者指定：「常時：「原始の武器」が前衛の味方とのみ接続している場合、二段攻撃を得る。」（強化は三段攻撃）。
+// 接続しているキャラクターが1体以上いて、全員が前衛（魔導板の上2段＝マス0〜9）の時だけ、接続している体がキーワードを得る。
+// 旧文（「…によって赤、青、黄の味方と接続している場合」）も読める形で残す。
 function coreConnectedKeywordSpec(card) {
-  const match = coreUnitEffectText(card).match(/常時[：:]「[^」]+」によって([赤青緑黄紫黒白、]+)の味方と接続している場合、(二段攻撃|三段攻撃)を得る/);
+  const text = coreUnitEffectText(card);
+  const front = text.match(/常時[：:]「[^」]+」が前衛の味方とのみ接続している場合、(二段攻撃|三段攻撃)を得る/);
+  if (front) return { frontOnly: true, keyword: front[1] };
+  const match = text.match(/常時[：:]「[^」]+」によって([赤青緑黄紫黒白、]+)の味方と接続している場合、(二段攻撃|三段攻撃)を得る/);
   return match ? { colors: match[1].split('、'), keyword: match[2] } : null;
 }
-function coreConnectedKeyword(card, characters) {
+// characters：同じ強化に接続しているキャラクター。lanes：それぞれの列（'front'／'rear'）。前衛条件の時だけ使う。
+function coreConnectedKeyword(card, characters, lanes) {
   const spec = coreConnectedKeywordSpec(card);
-  return spec && spec.colors.every(color => (characters || []).some(unit => unit.color === color)) ? spec.keyword : null;
+  if (!spec) return null;
+  const list = characters || [];
+  if (spec.frontOnly) return list.length && list.every((_unit, i) => (lanes || [])[i] === 'front') ? spec.keyword : null;
+  return spec.colors.every(color => list.some(unit => unit.color === color)) ? spec.keyword : null;
 }
 
 // 封印X。∞なら Infinity（解放されない）。0なら封印されていない。
@@ -2111,6 +2122,7 @@ function coreGainResource(state, side, kind, amount, unit, emit, reason, options
     // 閾値イベントの計算済みstateはコアが保持しているため、
     // その中で追加されたマナを再生側がもう一度加算してはいけない。
     deferredAppliedByThreshold: !!(options && options.deferredAppliedByThreshold) });
+  if (kind === 'gold') coreRefreshGoldSword(state, side, emit);
   if (kind === 'mana') {
     (state.units[side] || []).filter(Boolean).filter(x => x.hp > 0 && !x.boon && coreHasEffect(x, '蝕の翼"スコル・ハティ"')).forEach(x => {
       const target = value * 4 + (Number(x._manaScaleApplied) || 0);
@@ -2480,6 +2492,31 @@ function coreResolveHit(state, source, target, amount, counter, rng, emit, optio
     if (fledEvent) emit(fledEvent);
     return { blocked: false, amount: damage, died: false, fled: !!target._fled };
   }
+  // 金の盾（E084。2026-11-01 シート追加）：「常時：このキャラクターが受けるダメージは無効になり、無効にしたダメージ
+  // （強化後は「の半分」）に等しいゴールドを失う。」所持金で払える分だけ無効にし、払えない残りは受ける（所持金は0未満にしない）。
+  const goldShield = !coreIsSealed(target) && state.resources && state.resources[target.side]
+    && coreTriggerMatch(coreTriggerTextParts(target, '常時'), /^このキャラクターが受けるダメージは無効になり、無効にしたダメージ(の半分)?に等しいゴールドを失う/);
+  if (goldShield) {
+    const incomingGold = coreResolveIncomingDamage(target, amount, { skipTough: !!opt.skipTough, skipWeaken: !!opt.skipWeaken });
+    const gold = Math.max(0, Number(state.resources[target.side].gold) || 0), half = !!goldShield[1];
+    const nullified = incomingGold.blocked ? 0 : Math.min(incomingGold.amount, half ? gold * 2 : gold);
+    if (nullified > 0) {
+      const cost = half ? Math.ceil(nullified / 2) : nullified;
+      state.resources[target.side].gold = gold - cost;
+      coreEmitPassiveFlash(emit, target);
+      emit({ type: 'gold_spend', side: target.side, unitId: target.id, amount: cost, reason: 'gold_shield', unit: coreUnitSnapshot(target) });
+      coreRefreshGoldSword(state, target.side, emit);
+      amount = incomingGold.amount - nullified;
+      opt = { ...opt, skipTough: true, skipWeaken: true };
+      if (!(amount > 0)) {
+        emit({ type: 'damage', side: target.side, unitId: target.id, sourceId: source && source.id, amount: 0, hpAfter: target.hp,
+          counter: !!counter, blockedBy: 'gold_shield', reason: 'gold_shield', preventedAmount: nullified,
+          effect: !!opt.effect || !!(source && !source._coreAttackContact && !counter),
+          damageKind: coreDamageKind(state), batch: state._coreDamageBatch || null });
+        return { blocked: true, amount: 0, died: false, reason: 'gold_shield' };
+      }
+    }
+  }
   const before = target.hp;
   const result = coreApplyDamage(target, amount, emit, {
     sourceId: source && source.id, counter: !!counter, skipTough: !!opt.skipTough,
@@ -2542,6 +2579,7 @@ function coreApplyHitTriggers(state, source, target, result, before, counter, rn
     // カードの死亡／負傷効果は開始しない。
     if (target.hp <= 0 && !coreTryGuts(target, state, emit)) {
       coreTriggerDeath(target, state, emit, rng, applyHit);
+      coreApplyKillGold(state, source, target, emit);
       coreTryRevive(target, state, emit, rng, applyHit);
     }
     return;
@@ -2599,11 +2637,43 @@ function coreApplyHitTriggers(state, source, target, result, before, counter, rn
       if (result.amount > 0) runInjuryTriggers();
     } else {
       coreTriggerDeath(target, state, emit, rng, applyHit);
+      coreApplyKillGold(state, source, target, emit);
       coreApplyDeathEffects(target, state, rng, emit, applyHit);
       coreApplyDeathObservers(target, state, rng, emit, applyHit);
       coreTryRevive(target, state, emit, rng, applyHit);
     }
   }
+}
+
+// 死体漁り（E083。2026-11-01 シート追加）：「常時：このキャラクターが敵を倒した場合、15ゴールドを得る。」（強化後30）。
+// 倒した＝このキャラクターのダメージ（攻撃・反撃・効果）で敵のHPが0になった時。最後の敵を倒して決着した時も得る。
+function coreApplyKillGold(state, source, target, emit) {
+  if (!state || !source || !target || source.side === target.side || coreIsSealed(source)) return;
+  const entries = coreTriggerEffectEntries(source, '常時', /^このキャラクターが敵を倒した場合、(\d+)ゴールドを得る/);
+  const amount = entries.reduce((n, m) => n + (Number(m[1]) || 0), 0);
+  if (!(amount > 0)) return;
+  coreEmitPassiveFlash(emit, source);
+  coreGainResource(state, source.side, 'gold', amount, source, emit, 'scavenger');
+}
+
+// 金の剣（E085。2026-11-01 シート追加）：「常時：このキャラクターはATK+Xを得る。Xは所持しているゴールドの半分に等しい。」
+// （強化後は「ゴールドに等しい」）。開戦で付け、戦闘中に所持金が変わるたびに差分だけATKを直す（_goldSwordAtk＝今乗せている分）。
+const CORE_GOLD_SWORD_RE = /^このキャラクターはATK\+Xを得る。Xは所持しているゴールド(の半分)?に等しい/;
+function coreRefreshGoldSword(state, side, emit, onlyUnit) {
+  if (!state || !state.resources || !state.resources[side]) return;
+  const gold = Math.max(0, Number(state.resources[side].gold) || 0);
+  (onlyUnit ? [onlyUnit] : (state.units && state.units[side]) || []).filter(u => u && u.hp > 0 && !coreIsSealed(u)
+    && (onlyUnit || u._goldSwordOpened)).forEach(u => {
+    const entries = coreTriggerEffectEntries(u, '常時', CORE_GOLD_SWORD_RE);
+    if (!entries.length && !u._goldSwordAtk) return;
+    u._goldSwordOpened = true;
+    const target = entries.reduce((n, m) => n + (m[1] ? Math.floor(gold / 2) : gold), 0);
+    const delta = target - (Number(u._goldSwordAtk) || 0);
+    if (!delta) return;
+    u._goldSwordAtk = target;
+    u.atk = Math.max(0, (Number(u.atk) || 0) + delta);
+    if (typeof emit === 'function') emit({ type: 'stat_change', side: u.side, unitId: u.id, atk: delta, hp: 0, reason: 'gold_sword', sourceId: u.id });
+  });
 }
 
 // 根性で耐えられるならHP1で生き残らせる（消費は一度だけ）。耐えた時は true。
@@ -3906,6 +3976,8 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
   coreBeginSummonBatch(state);
   try {
   if (!unit || unit.hp <= 0 || coreIsSealed(unit)) return;
+  // 金の剣：開戦で今の所持金からATKを付ける（以後は所持金が変わるたびに coreRefreshGoldSword が直す）。
+  if (!unit._goldSwordOpened) coreRefreshGoldSword(state, unit.side, emit, unit);
   // 同一コア状態・同一トリガ番号の再入だけを拒否する。恩寵などの正規の
   // 反復発動は triggerIndex が変わるため維持し、PvE/PvP接続側の同一処理
   // 再走査による召喚・マナ・結界・バフの重複だけを止める。
@@ -4230,6 +4302,41 @@ function coreApplyOpeningEffectsInner(unit, state, rng, emit, applyHit, triggerI
       ? state.itemDefs.filter(x => x && (x.itemEffectKey || x.kind === 'item' || x.type === 'consumable')) : [];
     const item = pool.length && rng && typeof rng.pick === 'function' ? rng.pick(pool) : null;
     emit({ type: 'item_reward', side: unit.side, unitId: unit.id, reason: 'alchemy', item: item ? { ...item } : null });
+  }
+  // 勇猛果敢（E087。2026-11-01 シート追加）：「開戦：結界を得てから攻撃する。」（強化後は「これをもう一度繰り返す」で2回）。
+  // 攻撃は通常の攻撃と同じ対象選び（coreSelectAttackTarget）・攻撃効果・反撃。手番の攻撃順は消費しない割り込みの攻撃（immediate）。
+  for (const entry of coreTriggerEffectEntries(unit, '開戦', /^結界\d*を得てから攻撃する/)) {
+    if (coreBattleEffectsStopped(state) || unit.hp <= 0 || unit._fled) break;
+    void entry;
+    coreGrantShield(unit, emit, { sourceId: unit.id });
+    const foeSide = unit.side === 'p1' ? 'p2' : 'p1';
+    const target = coreSelectAttackTarget(unit, state.units[foeSide] || [], rng, { defendersAreEnemies: foeSide === 'p2' });
+    if (!target) break;
+    unit._currentAttackTarget = target;
+    coreWithOrderedAttackEffects(state, () => {
+      coreApplyAttackObservers(unit, state, rng, emit, applyHit);
+      coreTriggerManaOnAttack(unit, state, emit, rng, applyHit);
+      const repeats = 1 + coreExtraTriggerTimes(unit, '攻撃', coreEffectCount(unit, '闇の儀式'))
+        + coreAllyExtraTriggerTimes(unit, state, '攻撃') + coreRingCount(state, unit.side, '狂戦士の指輪')
+        + Math.max(0, Number(unit._effectRepeatBonus) || 0);
+      for (let n = 0; n < repeats && unit.hp > 0; n++) coreApplyAttackEffects(unit, state, rng, emit, applyHit);
+      coreApplyManaThresholdEffects(state, rng, emit, applyHit);
+      coreApplyAttackRing(state, unit.side, rng, emit, applyHit);
+    });
+    if (unit.hp <= 0 || unit._fled || target.hp <= 0 || coreIsSealed(target)) { delete unit._currentAttackTarget; continue; }
+    const counterNotice = {}, counter = coreCounterDamage(unit, target, counterNotice);
+    emit({ type: 'attack', side: unit.side, attackerId: unit.id, targetId: target.id, damage: unit.atk, counterDamage: counter, immediate: true, reactionSourceId: unit.id });
+    coreWithDamageKind(state, 'combat', () => {
+      unit._coreAttackContact = true;
+      let targetResult;
+      try { targetResult = applyHit(unit, target, unit.atk); }
+      finally { delete unit._coreAttackContact; }
+      if (coreReactionCounterAllowed(unit, target, targetResult)) {
+        applyHit(target, unit, counter, true);
+        coreEmitCounterBlock(state, unit, target, counterNotice, emit);
+      }
+    });
+    delete unit._currentAttackTarget;
   }
   } finally { coreEndSummonBatch(state, emit, rng, applyHit); }
 }
@@ -4825,6 +4932,14 @@ function coreApplyAttackEffectsInner(unit, state, rng, emit, applyHit, triggerIn
       const candidates = allies.filter(x => x.hp > 0 && x.color === color && !coreIsSealed(x));
       for (const target of coreRandomTargets(unit, rng, candidates, extraTargets ? count : 1)) addStats(target, atk, hp, 'different_color_attack');
     });
+  }
+  // ポリリズム（E079。2026-11-01）：攻撃：全ての異なる色の味方に+N/+Nを与える。
+  // 「異なる色」＝このキャラクターと違う色（色の無い体・自分と同じ色の体は得ない）。
+  const polyrhythm = coreTriggerMatch(attackTexts, /^全ての異なる色の味方に\+(\d+)\/\+(\d+)を与える/);
+  if (coreBattleEffectsStopped(state)) return { skipAttack: true };
+  for (let textRun = 0; textRun < coreMatchRepeatCount(polyrhythm); textRun++) if (polyrhythm) {
+    allies.filter(x => x !== unit && x.hp > 0 && !coreIsSealed(x) && x.color && x.color !== unit.color)
+      .forEach(x => addStats(x, Number(polyrhythm[1]) || 0, Number(polyrhythm[2]) || 0, 'polyrhythm'));
   }
   if (coreBattleEffectsStopped(state)) return { skipAttack: true };
   if (coreHasEffect(unit, 'ペガサス')) {
@@ -5648,6 +5763,7 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
       state.resources[unit.side].gold = current - amount;
       emit({ type: 'gold_spend', side: unit.side, unitId: unit.id, amount,
         reason: 'anguish_engraving', unit: coreUnitSnapshot(unit) });
+      coreRefreshGoldSword(state, unit.side, emit);
     }
   }
   // 死亡の敵全体ダメージはここだけ。攻撃＆死亡も同じ束・演出を使う。
@@ -6055,11 +6171,13 @@ function coreApplyDeathEffectsInner(unit, state, rng, emit, applyHit) {
   // 「死亡：「青スケルトン」を召喚する。」という入れ子の引用符が含まれる。
   // これを汎用召喚として読むと「死亡：「青スケルトン」という不正名を
   // その場で召喚してしまうため、付与処理だけを正とする。
-  const deathSummon = coreTriggerMatch(deathTexts, /「(.+?)」を召喚/);
+  // 体数（「「緑ペリカン」を2体召喚する」＝鳥葬の強化後。2026-11-01）も本文から読む。
+  const deathSummon = coreTriggerMatch(deathTexts, /「(.+?)」を(?:(\d+)体)?召喚/);
   if (coreBattleEffectsStopped(state)) return;
   for (let textRun = 0; textRun < coreMatchRepeatCount(deathSummon); textRun++) if (deathSummon && !coreHasEffect(unit, 'デスナイト') && !coreHasEffect(unit, 'ファントム')
     && !coreHasEffect(unit, 'ボーンチャリオット')) {
-    for (let i = 0; i < repeats; i++) coreSummonUnit(state, unit.side, { name: deathSummon[1], color: unit.color }, emit, unit.id, undefined, rng, applyHit);
+    const bodies = Math.max(1, Number(deathSummon[2]) || 1);
+    for (let i = 0; i < repeats * bodies; i++) coreSummonUnit(state, unit.side, { name: deathSummon[1], color: unit.color }, emit, unit.id, undefined, rng, applyHit);
   }
   } finally { coreEndSummonBatch(state, emit, rng, applyHit); }
 }

@@ -187,7 +187,9 @@ const opening=h=>coreRunOpening(h.state,h.rng,h.emit,h.hit,()=>{});
    await pipelines(h.initial);
   }
   fresh();G.mainBoard[1]=card('C006');G.mainBoard[1].desc='';G.mainBoard[1].keywords=['邪眼1','毒牙1','衝撃1'];G.mainBoard[1].directions=['up','right','down','left'];
-  for(const no of sheet.sheetRows('enchant').filter(r=>r['キャラクター用説明文']&&r['No.']!=='E011').map(r=>r['No.'])){
+  // 2026-11-01 利用者指定の例外：原始の武器（E017）は説明列を使わない（条件を満たせばキーワード欄だけ）、
+  // 乱れ撃ち（E047）は対象の敵を含む他の効果がある時だけ出す（scatter_shot_1101_regression.js / effects_1027 の15）。
+  for(const no of sheet.sheetRows('enchant').filter(r=>r['キャラクター用説明文']&&!['E011','E017','E047'].includes(r['No.'])).map(r=>r['No.'])){
    const p=G.mainBoard[0]=card(no);p.directions=['right'];
    const preview={...G.mainBoard[1],boardCards:G.mainBoard,_ownedBoardPreview:true};
    const grouped=_groupedEnchantEffectTexts(preview,1);assert.equal(grouped.normalTexts.length,0,no+' は効果文を重ねない');assert.ok(grouped.charTexts.length>0,no);
