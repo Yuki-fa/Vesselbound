@@ -2,6 +2,7 @@
  * ヘルナイトの剣戟と血の吸収・ユミルの神秘のオーラ・グリマルキンの煌めきと光の柱・報酬への祝福（ファミリア／ゴーレム）・復活の指輪・隠密・防戦。
  * 第2弾（新しいキャラクター）：アラストルの呪印・エリニュスの復讐の火・エキドナの毒蛇の波・アトラスの重荷・サンダーバードの雷・ケールの血の衝撃。
  * 土台：全体攻撃の横一閃・破壊して取り込む・赤い縁の黒いオーラ・常時の強化・封印解放・光輪と降りる光の柱・錬成・姿を隠す霧・透明な盾・開戦の砂煙（FIX 済み）。
+ * 2026-11-01：weaken-wave（マータの弱体の波）を色違いから展開し、輪の最大半径を3.6→2.55（カード幅）に。起点は演出側の foeField（敵陣の中央）で、味方の陣にかからない。
  * 生成元：scratchpad の gen_vfx_1025.py。 */
 VbFxDefs.register({
   "schemaVersion": 2,
@@ -13212,16 +13213,344 @@ VbFxDefs.register({
     },
     {
       "name": "weaken-wave",
-      "label": "弱体の波（全体の弱体） · C007/C103",
-      "variantOf": "banshee-miasma",
-      "recolor": {
-        "hue": 276,
-        "sat": 0.9,
-        "light": 0.9
-      },
-      "sourceCode": "C007",
+      "label": "弱体の波（敵陣の中央から広がる全体の弱体） · C007/C103",
+      "ms": 1200,
       "color": "#a070ff",
-      "light": "#f0e8ff"
+      "light": "#f0e8ff",
+      "playback": {
+        "maxMs": 30000,
+        "speedMin": 0.01,
+        "speedMax": 100,
+        "baseSize": 1
+      },
+      "defaultTargets": "opponents",
+      "loop": false,
+      "underStatus": false,
+      "stackable": false,
+      "impact": {
+        "atMs": 0,
+        "cueMs": 0
+      },
+      "composites": [],
+      "sourceCode": "C007",
+      "layers": [
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#281933",
+          "texture": "smoke",
+          "blend": "normal",
+          "radius": 0.8,
+          "time": [
+            0,
+            0.5
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.18,
+                  0.5
+                ],
+                [
+                  0.6,
+                  0.35
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#c578f8",
+          "texture": "glow",
+          "blend": "add",
+          "radius": 0.6,
+          "time": [
+            0,
+            0.35
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.18,
+                  0.8
+                ],
+                [
+                  0.6,
+                  0.56
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#9531d7",
+          "texture": "glow",
+          "blend": "add",
+          "radius": 0.3,
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.08,
+                  0.6
+                ],
+                [
+                  0.25,
+                  0
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 110,
+          "intrinsicAlpha": true,
+          "type": "ring",
+          "color": "#cd8bf9",
+          "width": 3.2,
+          "widthSpace": "pixel",
+          "noise": 0.06,
+          "noiseClock": 9,
+          "strokeProfile": "halo",
+          "core": 0.2,
+          "time": [
+            0,
+            0.6
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.12,
+                  0.9
+                ],
+                [
+                  0.6,
+                  0.63
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.3
+                ],
+                [
+                  1,
+                  2.55
+                ]
+              ],
+              "interpolation": "ease-out"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 111,
+          "intrinsicAlpha": true,
+          "type": "ring",
+          "color": "#ca84f9",
+          "width": 2.4,
+          "widthSpace": "pixel",
+          "noise": 0.06,
+          "noiseClock": 9,
+          "strokeProfile": "halo",
+          "core": 0.2,
+          "time": [
+            0.1,
+            0.7
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.12,
+                  0.8
+                ],
+                [
+                  0.6,
+                  0.56
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.3
+                ],
+                [
+                  1,
+                  2.55
+                ]
+              ],
+              "interpolation": "ease-out"
+            }
+          }
+        },
+        {
+          "anchor": "source",
+          "basis": "unit",
+          "seedOffset": 112,
+          "intrinsicAlpha": true,
+          "type": "ring",
+          "color": "#c06cf7",
+          "width": 1.8,
+          "widthSpace": "pixel",
+          "noise": 0.06,
+          "noiseClock": 9,
+          "strokeProfile": "halo",
+          "core": 0.2,
+          "time": [
+            0.2,
+            0.8
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.12,
+                  0.7
+                ],
+                [
+                  0.6,
+                  0.49
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            },
+            "radius": {
+              "keys": [
+                [
+                  0,
+                  0.3
+                ],
+                [
+                  1,
+                  2.55
+                ]
+              ],
+              "interpolation": "ease-out"
+            }
+          }
+        },
+        {
+          "anchor": "each-target",
+          "basis": "unit",
+          "seedOffset": 0,
+          "intrinsicAlpha": true,
+          "type": "glow",
+          "color": "#c170f7",
+          "texture": "glow",
+          "blend": "add",
+          "radius": 0.55,
+          "time": [
+            0.3,
+            0.75
+          ],
+          "clockSpace": "life",
+          "curves": {
+            "alpha": {
+              "keys": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0.18,
+                  0.7
+                ],
+                [
+                  0.6,
+                  0.49
+                ],
+                [
+                  1,
+                  0
+                ]
+              ],
+              "interpolation": "smooth"
+            }
+          }
+        }
+      ]
     },
     {
       "name": "keyword-grant-first",

@@ -2478,8 +2478,8 @@ function _isFirstWaveVillage(){
 function _drawItemShopStock(){
   // **店の在庫であることを明示する。** 在庫は店へ入る前に作られるので、
   // G._isItemShop などの画面フラグはまだ立っていない。
-  // 最初の村ではレアリティ1・2のアイテムだけを売る（2026-10-26 利用者指定。再抽選も同じ）。
-  const opts={forShop:true,maxRarity:_isFirstWaveVillage()?2:0};
+  // 最初の村（エルム）ではレアリティ1のアイテムだけを売る（2026-11-01 利用者指定。以前は1・2。再抽選も同じ）。
+  const opts={forShop:true,maxRarity:_isFirstWaveVillage()?1:0};
   const stock=(typeof drawItems==='function'?drawItems(3,undefined,opts):[]).filter(Boolean);
   stock.forEach(it=>{it._buyPrice=_itemShopBuyPrice(it);});
   while(stock.length<3) stock.push(null);

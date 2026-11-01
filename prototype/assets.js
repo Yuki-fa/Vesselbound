@@ -388,6 +388,7 @@ const Assets = {
     C119: 'assets/sfx/C119.wav',
     // VFX LABで採用済みの戦闘SE。
     E006: 'assets/sfx/E006.wav',
+    E006_1: 'assets/sfx/E006_1.wav', // 闇の火球の弾（dark-fireball）。E006 を約3dB持ち上げた写し（2026-11-01 利用者指定：小さすぎる）
     E035: 'assets/sfx/E035.wav',
     C050: 'assets/sfx/C050.wav', // 2026-10-22 シート改訂で C039 から移った
     E062: 'assets/sfx/E062.wav',

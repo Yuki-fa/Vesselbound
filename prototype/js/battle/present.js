@@ -1989,7 +1989,8 @@ const PRESENT_LAB_FX = {
   // 2026-10-26 LAB の4回目の指摘：未割り当ての効果へ割り当て。永久バフは成長（レプラコーン）に統一。第4要素は共有する音の番号。
   // 2026-10-26 6回目：戦闘中の永久強化はテンポ重視の簡易版（成長の味のまま短く）。音は成長の音を頭から（終戦の永久強化は元の leprechaun）。
   C092:['leprechaun-quick',.2,'self','C088'], C121:['leprechaun-quick',.2,'self','C088'], E005:['leprechaun-quick',.2,'self','C088'],
-  C007:['weaken-wave',.2,'foes',getKeywordAssetKey('弱体')], C103:['weaken-wave',.2,'foes',getKeywordAssetKey('弱体')],
+  // マータ（C007/C103）の弱体の波は敵陣の中央から広げる（foeField。2026-11-01 利用者指定：味方を巻き込まず、すべての敵を巻き込む）。
+  C007:['weaken-wave',.2,'foeField',getKeywordAssetKey('弱体')], C103:['weaken-wave',.2,'foeField',getKeywordAssetKey('弱体')],
   C028:['scroll-guts-fang',.45,'friends','I012'], E013:['magic-ring-mana',.45,'self','R013'],
   E018:['atk-down',.44,'target',getKeywordAssetKey('邪眼')], E037:['penance-ring',.45,'self','R012'],
   E055:['atlas-burden',0.324083,'friends','C005'], E060:['shield-break',0.318812,'target','shield_break'],
@@ -1999,7 +2000,8 @@ const PRESENT_LAB_FX = {
   C026:['scylla',.45,'foes','C071'], C051:['scylla',.45,'foes','C071'], C027:['dark-fire',.5,'foes','E006'],
   C053:['melusine',.9,'foe','C089'], C077:['eidolon',.218375,'kenzoku','C044'],
   // 2026-10-26 利用者指定：闇の炎は単体へ飛ぶ黒い火球（全体の黒い炎の波はエキドナ・ドラウグルへ）。音は旧 dark-fire の E006 を仮に使う。
-  E006:['dark-fireball',.5,'foes'], E035:['resentment',.7,'foe'],
+  // 2026-11-01：音が小さすぎるので、持ち上げた写し E006_1 を音量1.0で鳴らす（LAB 161 の候補を選ぶまでの音）。
+  E006:['dark-fireball',.5,'foes','E006_1'], E035:['resentment',.7,'foe'],
   C050:['lich',.7,'dead'], E062:['great-shield',.36,'self'], E067:['cover-fire',.04,'foe'],
   E071:['shockwave',0.45,'foes'], E075:['demon-soul',.9,'foes'], C042:['vrykolakas',.9,'friend'],
   C048:['bone-chariot',.9,'friend'], C061:['jackalope',.7,'green'],

@@ -260,13 +260,15 @@ function _presentLabPlan(ev, events, index, api, context) {
   if (spec[2] === 'howl') targets = [];
   if (spec[2] === 'others') targets = targets.filter(u=>u.id!==sourceId);
   if (spec[2] === 'pair') targets = [find(ev.attackerId),find(ev.targetId)].filter(Boolean);
-  if (spec[2] === 'foes') targets = targets.filter(u=>api.units(ownerSide==='p2'?'p1':'p2').includes(u));
+  if (spec[2] === 'foes' || spec[2] === 'foeField') targets = targets.filter(u=>api.units(ownerSide==='p2'?'p1':'p2').includes(u));
   targets = [...new Set(targets)];
   if (['C011','EN060','E028'].includes(code) && !targets.length) return null;
   // field：発動元のカードが盤面に無い効果（不死・鬼神・魔力の指輪）。その陣営の陣の中央を起点にする。
   if (spec[2] === 'field') targets = [];
   const origin = spec[2] === 'dead' ? _presentLabOrigins.death.get(ownerSide) : spec[2] === 'lost' ? _presentLabOrigins.shield.get(ownerSide)
-    : spec[2] === 'field' ? _presentLabFieldOrigin(ownerSide) : null;
+    : spec[2] === 'field' ? _presentLabFieldOrigin(ownerSide)
+    // foeField：相手の陣の中央を起点にする（マータの弱体の波。発動者の陣から広げると味方まで覆うため。2026-11-01）。
+    : spec[2] === 'foeField' ? _presentLabFieldOrigin(ownerSide==='p2'?'p1':'p2') : null;
   if (!owner && !origin && !targets.length) return null;
   if (spec[2] === 'morph') {
     targets = [...new Set(members.filter(e=>e.type==='transform').map(e=>find(e.unitId)).filter(Boolean))];
